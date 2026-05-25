@@ -1,7 +1,43 @@
 import { NextResponse } from 'next/server'
+import { promises as fs } from 'fs'
+import nodePath from 'path'
+import crypto from 'crypto'
+import { spawn } from 'child_process'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
+
+const UPLOAD_DIR = nodePath.join(process.cwd(), 'public', 'uploads')
+const UPLOAD_META = nodePath.join(UPLOAD_DIR, '_meta.json')
+
+function transcodeToWebm(inPath, outPath) {
+  return new Promise((resolve) => {
+    const args = [
+      '-y', '-i', inPath,
+      '-c:v', 'libvpx-vp9', '-crf', '34', '-b:v', '0',
+      '-deadline', 'realtime', '-cpu-used', '8', '-row-mt', '1', '-threads', '2',
+      '-pix_fmt', 'yuv420p', '-an',
+      outPath,
+    ]
+    const p = spawn('ffmpeg', args)
+    p.on('error', () => resolve(false))
+    p.on('exit', (code) => resolve(code === 0))
+  })
+}
+
+async function ensureUploadDir() {
+  await fs.mkdir(UPLOAD_DIR, { recursive: true })
+}
+async function readUploadMeta() {
+  try {
+    const raw = await fs.readFile(UPLOAD_META, 'utf-8')
+    return JSON.parse(raw)
+  } catch { return [] }
+}
+async function writeUploadMeta(arr) {
+  await ensureUploadDir()
+  await fs.writeFile(UPLOAD_META, JSON.stringify(arr, null, 2))
+}
 
 // Local videos served from /public/videos/*.mp4 (no Content-Disposition issues, no CORS)
 const v = (id) => `/videos/${id}.mp4`
@@ -71,12 +107,72 @@ export async function GET(request, { params }) {
     return NextResponse.json({ posts, nextCursor: cursor + limit, hasMore: true })
   }
 
+  if (path === '/uploads') {
+    const meta = await readUploadMeta()
+    return NextResponse.json({ posts: meta })
+  }
+
   if (path === '/' || path === '') {
     return NextResponse.json({ ok: true, service: 'snaptok-api' })
   }
   return NextResponse.json({ error: 'not_found', path }, { status: 404 })
 }
 
-export async function POST() {
+export async function POST(request, { params }) {
+  const segs = (params?.path) || []
+  const path = '/' + segs.join('/')
+
+  if (path === '/upload') {
+    try {
+      const formData = await request.formData()
+      const file = formData.get('file')
+      const description = (formData.get('description') || 'Mi vídeo subido 📹').toString()
+      if (!file || typeof file === 'string') {
+        return NextResponse.json({ error: 'no_file' }, { status: 400 })
+      }
+      const arrayBuffer = await file.arrayBuffer()
+      const bytes = Buffer.from(arrayBuffer)
+      const id = crypto.randomBytes(8).toString('hex')
+      // best-effort extension
+      const name = file.name || 'video.mp4'
+      const ext = name.includes('.') ? name.split('.').pop().toLowerCase() : 'mp4'
+      const safeExt = ['mp4', 'webm', 'mov', 'm4v'].includes(ext) ? ext : 'mp4'
+      const filename = `${id}.${safeExt}`
+      await ensureUploadDir()
+      const filePath = nodePath.join(UPLOAD_DIR, filename)
+      await fs.writeFile(filePath, bytes)
+      // Best-effort: transcode to webm in background so Chromium-without-H.264 and Firefox can play it.
+      const webmPath = nodePath.join(UPLOAD_DIR, `${id}.webm`)
+      transcodeToWebm(filePath, webmPath).then((ok) => {
+        if (!ok) console.warn('webm transcode failed for', filename)
+      })
+      const url = `/uploads/${filename}`
+      const post = {
+        id: `upload_${id}`,
+        videoUrl: url,
+        thumbnailUrl: '',
+        author: {
+          username: 'tu_canal',
+          name: 'Tú',
+          avatarUrl: 'https://i.pravatar.cc/120?img=68',
+        },
+        description,
+        music: 'Tu vídeo original',
+        stats: {
+          likes: 0, comments: 0, shares: 0, saves: 0,
+        },
+        duration: 0,
+        uploadedAt: new Date().toISOString(),
+      }
+      const meta = await readUploadMeta()
+      meta.unshift(post)
+      await writeUploadMeta(meta)
+      return NextResponse.json({ ok: true, post })
+    } catch (err) {
+      console.error('upload error', err)
+      return NextResponse.json({ error: 'upload_failed', detail: String(err?.message || err) }, { status: 500 })
+    }
+  }
+
   return NextResponse.json({ ok: true })
 }

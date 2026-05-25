@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Swiper, SwiperSlide } from 'swiper/react'
 import { Virtual, Mousewheel, Keyboard } from 'swiper/modules'
 import 'swiper/css'
@@ -15,11 +15,20 @@ async function fetchPage(cursor) {
   return res.json()
 }
 
+async function fetchUploads() {
+  try {
+    const res = await fetch('/api/uploads', { cache: 'no-store' })
+    if (!res.ok) return []
+    const data = await res.json()
+    return data.posts || []
+  } catch { return [] }
+}
+
 export default function Feed() {
   const [posts, setPosts] = useState([])
   const [cursor, setCursor] = useState(0)
   const [activeIdx, setActiveIdx] = useState(0)
-  const [muted, setMuted] = useState(true) // start muted (browser autoplay policy)
+  const [muted, setMuted] = useState(true)
   const loadingRef = useRef(false)
   const swiperRef = useRef(null)
 
@@ -37,35 +46,36 @@ export default function Feed() {
     }
   }, [cursor])
 
-  // initial load
+  // initial: load uploads first (pinned at top), then page 1
   useEffect(() => {
-    loadMore()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    (async () => {
+      const uploads = await fetchUploads()
+      const data = await fetchPage(0)
+      setPosts([...uploads, ...data.posts])
+      setCursor(data.nextCursor)
+    })()
   }, [])
 
-  // prefetch when near the end
   useEffect(() => {
     if (posts.length === 0) return
-    if (activeIdx >= posts.length - 3) {
-      loadMore()
-    }
+    if (activeIdx >= posts.length - 3) loadMore()
   }, [activeIdx, posts.length, loadMore])
 
   const handleSlideChange = useCallback((swiper) => {
     setActiveIdx(swiper.activeIndex)
   }, [])
 
-  const onFirstInteraction = useCallback(() => {
-    setMuted(false)
+  const onFirstInteraction = useCallback(() => setMuted(false), [])
+
+  const handleUploaded = useCallback((newPost) => {
+    setPosts((prev) => [newPost, ...prev])
+    setActiveIdx(0)
+    if (swiperRef.current) swiperRef.current.slideTo(0, 0)
   }, [])
 
   return (
-    <div
-      className="feed-container fixed inset-0 bg-black"
-      onPointerDown={muted ? onFirstInteraction : undefined}
-    >
+    <div className="feed-container fixed inset-0 bg-black" onPointerDown={muted ? onFirstInteraction : undefined}>
       <TopBar muted={muted} onToggleMute={() => setMuted((m) => !m)} />
-
       {posts.length === 0 ? (
         <div className="w-full h-full flex items-center justify-center">
           <div className="w-12 h-12 rounded-full border-2 border-white/20 border-t-white animate-spin" />
@@ -88,7 +98,7 @@ export default function Feed() {
           followFinger={true}
           mousewheel={{ forceToAxis: true, sensitivity: 1, releaseOnEdges: false, thresholdDelta: 20 }}
           keyboard={{ enabled: true, onlyInViewport: true }}
-          virtual={{ enabled: true, addSlidesBefore: 2, addSlidesAfter: 3, cache: true }}
+          virtual={{ enabled: true, addSlidesBefore: 1, addSlidesAfter: 2, cache: true }}
           observer={true}
           observeParents={true}
           onSwiper={(s) => (swiperRef.current = s)}
@@ -102,14 +112,12 @@ export default function Feed() {
                 isActive={i === activeIdx}
                 isNear={Math.abs(i - activeIdx) <= 1}
                 muted={muted}
-                onToggleMute={() => setMuted((m) => !m)}
               />
             </SwiperSlide>
           ))}
         </Swiper>
       )}
-
-      <BottomNav />
+      <BottomNav onUploaded={handleUploaded} />
     </div>
   )
 }

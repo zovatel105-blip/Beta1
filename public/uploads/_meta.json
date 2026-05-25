@@ -1,0 +1,22 @@
+[
+  {
+    "id": "upload_41759f7b969108b2",
+    "videoUrl": "/uploads/41759f7b969108b2.mp4",
+    "thumbnailUrl": "",
+    "author": {
+      "username": "tu_canal",
+      "name": "Tú",
+      "avatarUrl": "https://i.pravatar.cc/120?img=68"
+    },
+    "description": "Mi primer vídeo subido 🎬 #test",
+    "music": "Tu vídeo original",
+    "stats": {
+      "likes": 0,
+      "comments": 0,
+      "shares": 0,
+      "saves": 0
+    },
+    "duration": 0,
+    "uploadedAt": "2026-05-25T18:48:04.059Z"
+  }
+]
