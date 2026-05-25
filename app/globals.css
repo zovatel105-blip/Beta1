@@ -1,0 +1,100 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #__next {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    background: #000;
+    color: #fff;
+    overflow: hidden;
+    overscroll-behavior: none;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing: antialiased;
+}
+
+* { -webkit-tap-highlight-color: transparent; }
+
+/* Swiper container */
+.snaptok-swiper, .snaptok-swiper .swiper-wrapper, .snaptok-swiper .swiper-slide {
+    height: 100% !important;
+    width: 100% !important;
+}
+.snaptok-swiper .swiper-slide {
+    will-change: transform;
+    transform: translate3d(0,0,0);
+}
+
+/* Feed container HW accel */
+.feed-container {
+    will-change: transform;
+    transform: translate3d(0, 0, 0);
+    -webkit-transform: translate3d(0, 0, 0);
+}
+
+/* Shimmer skeleton */
+@keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+.skeleton-shimmer {
+    background: linear-gradient(90deg, #0d0d0d 25%, #1f1f1f 50%, #0d0d0d 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.4s infinite;
+}
+
+/* Like animation (double tap) */
+@keyframes likePop {
+    0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.2) rotate(-8deg); }
+    25%  { opacity: 1; transform: translate(-50%, -50%) scale(1.25) rotate(0deg); }
+    60%  { opacity: 1; transform: translate(-50%, -50%) scale(1.0) rotate(0deg); }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(1.4) rotate(8deg); }
+}
+.like-pop { animation: likePop 800ms ease-out forwards; }
+
+/* Audio wave decorative */
+@keyframes wave1 { 0%,100% { transform: scaleY(0.4) } 50% { transform: scaleY(1) } }
+@keyframes wave2 { 0%,100% { transform: scaleY(0.7) } 50% { transform: scaleY(0.3) } }
+@keyframes wave3 { 0%,100% { transform: scaleY(0.5) } 50% { transform: scaleY(0.9) } }
+.bar { transform-origin: bottom; }
+.bar-1 { animation: wave1 600ms ease-in-out infinite; }
+.bar-2 { animation: wave2 700ms ease-in-out infinite; }
+.bar-3 { animation: wave3 500ms ease-in-out infinite; }
+
+/* Heart bump on like */
+@keyframes heartBump { 0%,100% { transform: scale(1) } 30% { transform: scale(1.3) } }
+.heart-bump { animation: heartBump 350ms ease-out; }
+
+/* Description gradient fade */
+.desc-fade {
+    mask-image: linear-gradient(to bottom, black 70%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, black 70%, transparent 100%);
+}
+
+/* Hide scrollbars */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Native scroll-snap fallback (only if used) */
+.snap-fallback {
+    height: 100dvh;
+    overflow-y: auto;
+    scroll-snap-type: y mandatory;
+    scroll-behavior: smooth;
+}
+.snap-fallback > * {
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+    height: 100dvh;
+}
+
+@layer base {
+  :root {
+    --background: 0 0% 0%;
+    --foreground: 0 0% 100%;
+    --border: 0 0% 15%;
+    --ring: 0 0% 30%;
+    --radius: 0.5rem;
+  }
+}
