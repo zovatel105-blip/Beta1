@@ -33,18 +33,25 @@ function VideoSlide({ post, isActive, isNear, muted }) {
     const player = pool.acquire(post.id, post.videoUrl)
     playerRef.current = player
     const v = player.video
-    // mount into our slot
-    if (mountRef.current && !mountRef.current.contains(v)) {
-      mountRef.current.appendChild(v)
-    }
-    setErrored(false)
-    // initial state: muted handled by parent state below
+    // mount into our slot (this auto-detaches from any previous parent)
+    try {
+      if (v.parentNode !== mountRef.current && mountRef.current) {
+        mountRef.current.appendChild(v)
+      }
+    } catch (e) {}
     v.muted = muted
+
+    // CRITICAL: sync React state with the actual video element state, otherwise
+    // a re-acquired player can leave the UI showing stale "paused/loaded/errored" flags.
+    setLoaded(v.readyState >= 3)
+    setPaused(v.paused)
+    setErrored(false)
 
     const onCanPlay = () => { setLoaded(true); setErrored(false) }
     const onLoadedData = () => { setLoaded(true); setErrored(false) }
-    const onError = (e) => {
-      // Only show error if the <video> itself has no playable source.
+    const onLoadStart = () => { setLoaded(false) }
+    const onWaiting = () => { setLoaded(false) }
+    const onError = () => {
       if (v.networkState === 3 /* NO_SOURCE */ && v.readyState === 0) {
         setErrored(true)
       }
@@ -53,34 +60,46 @@ function VideoSlide({ post, isActive, isNear, muted }) {
     const onPause = () => setPaused(true)
     v.addEventListener('canplay', onCanPlay)
     v.addEventListener('loadeddata', onLoadedData)
-    v.addEventListener('error', onError, true) // capture: catches <source> failures too
+    v.addEventListener('loadstart', onLoadStart)
+    v.addEventListener('waiting', onWaiting)
+    v.addEventListener('error', onError, true)
     v.addEventListener('play', onPlay)
     v.addEventListener('pause', onPause)
 
     return () => {
       v.removeEventListener('canplay', onCanPlay)
       v.removeEventListener('loadeddata', onLoadedData)
+      v.removeEventListener('loadstart', onLoadStart)
+      v.removeEventListener('waiting', onWaiting)
       v.removeEventListener('error', onError, true)
       v.removeEventListener('play', onPlay)
       v.removeEventListener('pause', onPause)
-      // detach element from mount slot
       try {
+        // Only detach if WE still own the element (it may have been moved by another slide).
         if (mountRef.current && mountRef.current.contains(v)) {
           mountRef.current.removeChild(v)
         }
       } catch (e) {}
-      // release back to pool (lazy)
       pool.release(post.id)
       playerRef.current = null
     }
-  }, [isNear, post.id, post.videoUrl, muted])
+  }, [isNear, post.id, post.videoUrl])
 
-  // Play / pause based on isActive
+  // Play / pause based on isActive. Also re-runs when this slide (re)acquires a player,
+  // so a returning slide always either resumes playback or pauses cleanly.
   useEffect(() => {
+    if (!isNear) return
     const p = playerRef.current
     if (!p) return
     const v = p.video
     v.muted = muted
+    // Ensure the element is actually mounted in our slot (it may have been moved away
+    // by a sibling slide stealing the player from the pool LRU).
+    try {
+      if (v.parentNode !== mountRef.current && mountRef.current) {
+        mountRef.current.appendChild(v)
+      }
+    } catch (e) {}
     if (isActive) {
       const tryPlay = async () => {
         try { await v.play() } catch {
@@ -91,7 +110,7 @@ function VideoSlide({ post, isActive, isNear, muted }) {
     } else {
       try { v.pause() } catch {}
     }
-  }, [isActive, muted])
+  }, [isActive, muted, isNear, post.id, post.videoUrl])
 
   // progress bar via rAF
   useEffect(() => {

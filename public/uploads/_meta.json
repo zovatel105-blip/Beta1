@@ -1,5 +1,85 @@
 [
   {
+    "id": "upload_8d899ff4d1d4d3d5",
+    "videoUrl": "/uploads/8d899ff4d1d4d3d5.mp4",
+    "thumbnailUrl": "",
+    "author": {
+      "username": "tu_canal",
+      "name": "Tú",
+      "avatarUrl": "https://i.pravatar.cc/120?img=68"
+    },
+    "description": "Mi vídeo subido 📹 #miupload",
+    "music": "Tu vídeo original",
+    "stats": {
+      "likes": 0,
+      "comments": 0,
+      "shares": 0,
+      "saves": 0
+    },
+    "duration": 0,
+    "uploadedAt": "2026-05-25T19:02:52.533Z"
+  },
+  {
+    "id": "upload_08759b7c7a86dd54",
+    "videoUrl": "/uploads/08759b7c7a86dd54.mp4",
+    "thumbnailUrl": "",
+    "author": {
+      "username": "tu_canal",
+      "name": "Tú",
+      "avatarUrl": "https://i.pravatar.cc/120?img=68"
+    },
+    "description": "Mi vídeo subido 📹 #miupload",
+    "music": "Tu vídeo original",
+    "stats": {
+      "likes": 0,
+      "comments": 0,
+      "shares": 0,
+      "saves": 0
+    },
+    "duration": 0,
+    "uploadedAt": "2026-05-25T19:01:41.144Z"
+  },
+  {
+    "id": "upload_7108ac03ce531dec",
+    "videoUrl": "/uploads/7108ac03ce531dec.mp4",
+    "thumbnailUrl": "",
+    "author": {
+      "username": "tu_canal",
+      "name": "Tú",
+      "avatarUrl": "https://i.pravatar.cc/120?img=68"
+    },
+    "description": "Mi vídeo subido 📹 #miupload",
+    "music": "Tu vídeo original",
+    "stats": {
+      "likes": 0,
+      "comments": 0,
+      "shares": 0,
+      "saves": 0
+    },
+    "duration": 0,
+    "uploadedAt": "2026-05-25T18:58:43.731Z"
+  },
+  {
+    "id": "upload_1b44252d52840147",
+    "videoUrl": "/uploads/1b44252d52840147.mp4",
+    "thumbnailUrl": "",
+    "author": {
+      "username": "tu_canal",
+      "name": "Tú",
+      "avatarUrl": "https://i.pravatar.cc/120?img=68"
+    },
+    "description": "Mi vídeo subido 📹 #miupload",
+    "music": "Tu vídeo original",
+    "stats": {
+      "likes": 0,
+      "comments": 0,
+      "shares": 0,
+      "saves": 0
+    },
+    "duration": 0,
+    "uploadedAt": "2026-05-25T18:54:44.862Z"
+  },
+  {
     "id": "upload_41759f7b969108b2",
     "videoUrl": "/uploads/41759f7b969108b2.mp4",
     "thumbnailUrl": "",
