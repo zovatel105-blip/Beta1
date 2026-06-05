@@ -6,8 +6,10 @@ import { Virtual, Mousewheel, Keyboard } from 'swiper/modules'
 import 'swiper/css'
 import 'swiper/css/virtual'
 import VideoSlide from './VideoSlide'
+import DuetSlide from './DuetSlide'
 import BottomNav from './BottomNav'
 import TopBar from './TopBar'
+import UploadDialog from './UploadDialog'
 
 async function fetchPage(cursor) {
   const res = await fetch(`/api/feed?cursor=${cursor}&limit=8`, { cache: 'no-store' })
@@ -29,6 +31,7 @@ export default function Feed() {
   const [cursor, setCursor] = useState(0)
   const [activeIdx, setActiveIdx] = useState(0)
   const [muted, setMuted] = useState(true)
+  const [uploadOpen, setUploadOpen] = useState(false)
   const loadingRef = useRef(false)
   const swiperRef = useRef(null)
 
@@ -107,17 +110,27 @@ export default function Feed() {
         >
           {posts.map((post, i) => (
             <SwiperSlide key={post.id} virtualIndex={i}>
-              <VideoSlide
-                post={post}
-                isActive={i === activeIdx}
-                isNear={Math.abs(i - activeIdx) <= 1}
-                muted={muted}
-              />
+              {post.type === 'duet' ? (
+                <DuetSlide
+                  post={post}
+                  isActive={i === activeIdx}
+                  isNear={Math.abs(i - activeIdx) <= 1}
+                  muted={muted}
+                />
+              ) : (
+                <VideoSlide
+                  post={post}
+                  isActive={i === activeIdx}
+                  isNear={Math.abs(i - activeIdx) <= 1}
+                  muted={muted}
+                />
+              )}
             </SwiperSlide>
           ))}
         </Swiper>
       )}
-      <BottomNav onUploaded={handleUploaded} />
+      <BottomNav onOpenUpload={() => setUploadOpen(true)} />
+      <UploadDialog open={uploadOpen} onClose={() => setUploadOpen(false)} onUploaded={handleUploaded} />
     </div>
   )
 }

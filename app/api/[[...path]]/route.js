@@ -112,6 +112,32 @@ export async function GET(request, { params }) {
     return NextResponse.json({ posts: meta })
   }
 
+  // Catálogo de vídeos disponibles para emparejar en un 1vs1.
+  // Mezcla los vídeos del feed + uploads del usuario.
+  if (path === '/feed-options') {
+    const uploads = await readUploadMeta()
+    // Solo permitimos emparejar con publicaciones de tipo 'normal' (no anidamos duets).
+    const userOptions = uploads
+      .filter((p) => p.type !== 'duet')
+      .map((p) => ({
+        id: p.id,
+        videoUrl: p.videoUrl,
+        author: p.author,
+        description: p.description,
+        music: p.music,
+        source: 'upload',
+      }))
+    const builtin = VIDEOS.map((vd, i) => ({
+      id: `builtin_${i}`,
+      videoUrl: vd.url,
+      author: vd.author,
+      description: vd.description,
+      music: vd.music,
+      source: 'builtin',
+    }))
+    return NextResponse.json({ options: [...userOptions, ...builtin] })
+  }
+
   if (path === '/' || path === '') {
     return NextResponse.json({ ok: true, service: 'snaptok-api' })
   }
@@ -123,34 +149,121 @@ export async function POST(request, { params }) {
   const path = '/' + segs.join('/')
 
   if (path === '/upload') {
-    try {
-      const formData = await request.formData()
-      const file = formData.get('file')
-      const description = (formData.get('description') || 'Mi vídeo subido 📹').toString()
-      if (!file || typeof file === 'string') {
-        return NextResponse.json({ error: 'no_file' }, { status: 400 })
-      }
-      const arrayBuffer = await file.arrayBuffer()
-      const bytes = Buffer.from(arrayBuffer)
-      const id = crypto.randomBytes(8).toString('hex')
-      // best-effort extension
-      const name = file.name || 'video.mp4'
-      const ext = name.includes('.') ? name.split('.').pop().toLowerCase() : 'mp4'
-      const safeExt = ['mp4', 'webm', 'mov', 'm4v'].includes(ext) ? ext : 'mp4'
-      const filename = `${id}.${safeExt}`
-      await ensureUploadDir()
-      const filePath = nodePath.join(UPLOAD_DIR, filename)
-      await fs.writeFile(filePath, bytes)
-      // Best-effort: transcode to webm in background so Chromium-without-H.264 and Firefox can play it.
-      const webmPath = nodePath.join(UPLOAD_DIR, `${id}.webm`)
-      transcodeToWebm(filePath, webmPath).then((ok) => {
-        if (!ok) console.warn('webm transcode failed for', filename)
-      })
-      const url = `/uploads/${filename}`
-      const post = {
-        id: `upload_${id}`,
-        videoUrl: url,
-        thumbnailUrl: '',
+    return handleNormalUpload(request)
+  }
+
+  if (path === '/duet') {
+    return handleDuetUpload(request)
+  }
+
+  if (path === '/vote') {
+    return handleVote(request)
+  }
+
+  return NextResponse.json({ ok: true })
+}
+
+async function handleNormalUpload(request) {
+  try {
+    const formData = await request.formData()
+    const file = formData.get('file')
+    const description = (formData.get('description') || 'Mi vídeo subido 📹').toString()
+    if (!file || typeof file === 'string') {
+      return NextResponse.json({ error: 'no_file' }, { status: 400 })
+    }
+    const arrayBuffer = await file.arrayBuffer()
+    const bytes = Buffer.from(arrayBuffer)
+    const id = crypto.randomBytes(8).toString('hex')
+    const name = file.name || 'video.mp4'
+    const ext = name.includes('.') ? name.split('.').pop().toLowerCase() : 'mp4'
+    const safeExt = ['mp4', 'webm', 'mov', 'm4v'].includes(ext) ? ext : 'mp4'
+    const filename = `${id}.${safeExt}`
+    await ensureUploadDir()
+    const filePath = nodePath.join(UPLOAD_DIR, filename)
+    await fs.writeFile(filePath, bytes)
+    const webmPath = nodePath.join(UPLOAD_DIR, `${id}.webm`)
+    transcodeToWebm(filePath, webmPath).then((ok) => {
+      if (!ok) console.warn('webm transcode failed for', filename)
+    })
+    const url = `/uploads/${filename}`
+    const post = {
+      id: `upload_${id}`,
+      type: 'normal',
+      videoUrl: url,
+      thumbnailUrl: '',
+      author: {
+        username: 'tu_canal',
+        name: 'Tú',
+        avatarUrl: 'https://i.pravatar.cc/120?img=68',
+      },
+      description,
+      music: 'Tu vídeo original',
+      stats: { likes: 0, comments: 0, shares: 0, saves: 0 },
+      duration: 0,
+      uploadedAt: new Date().toISOString(),
+    }
+    const meta = await readUploadMeta()
+    meta.unshift(post)
+    await writeUploadMeta(meta)
+    return NextResponse.json({ ok: true, post })
+  } catch (err) {
+    console.error('upload error', err)
+    return NextResponse.json({ error: 'upload_failed', detail: String(err?.message || err) }, { status: 500 })
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// 1vs1 (Duet) endpoints
+// ────────────────────────────────────────────────────────────────────────────
+
+// POST /api/duet
+//   FormData: file, description, layout ('horizontal'|'vertical'),
+//             pairVideoUrl, pairAuthor (JSON), pairMusic, pairDescription
+// Creates a post with type='duet' that contains videoA (the upload) + videoB (the pair).
+async function handleDuetUpload(request) {
+  try {
+    const formData = await request.formData()
+    const file = formData.get('file')
+    const description = (formData.get('description') || '¿Quién gana? 🥊 #1vs1').toString()
+    const layoutRaw = (formData.get('layout') || 'horizontal').toString()
+    const layout = layoutRaw === 'vertical' ? 'vertical' : 'horizontal'
+    const pairVideoUrl = (formData.get('pairVideoUrl') || '').toString()
+    let pairAuthor = null
+    try { pairAuthor = JSON.parse((formData.get('pairAuthor') || 'null').toString()) } catch {}
+    const pairMusic = (formData.get('pairMusic') || '').toString()
+    const pairDescription = (formData.get('pairDescription') || '').toString()
+
+    if (!file || typeof file === 'string') {
+      return NextResponse.json({ error: 'no_file' }, { status: 400 })
+    }
+    if (!pairVideoUrl || !pairAuthor) {
+      return NextResponse.json({ error: 'no_pair' }, { status: 400 })
+    }
+
+    const arrayBuffer = await file.arrayBuffer()
+    const bytes = Buffer.from(arrayBuffer)
+    const id = crypto.randomBytes(8).toString('hex')
+    const name = file.name || 'video.mp4'
+    const ext = name.includes('.') ? name.split('.').pop().toLowerCase() : 'mp4'
+    const safeExt = ['mp4', 'webm', 'mov', 'm4v'].includes(ext) ? ext : 'mp4'
+    const filename = `${id}.${safeExt}`
+    await ensureUploadDir()
+    const filePath = nodePath.join(UPLOAD_DIR, filename)
+    await fs.writeFile(filePath, bytes)
+    // best-effort webm transcode for the user's side (helps Firefox/Chromium-w/o-H264)
+    const webmPath = nodePath.join(UPLOAD_DIR, `${id}.webm`)
+    transcodeToWebm(filePath, webmPath).then((ok) => {
+      if (!ok) console.warn('webm transcode failed for duet', filename)
+    })
+
+    const myUrl = `/uploads/${filename}`
+    const post = {
+      id: `duet_${id}`,
+      type: 'duet',
+      layout, // 'horizontal' | 'vertical'
+      // Side A = el vídeo que sube el usuario (suena por defecto)
+      sideA: {
+        videoUrl: myUrl,
         author: {
           username: 'tu_canal',
           name: 'Tú',
@@ -158,21 +271,61 @@ export async function POST(request, { params }) {
         },
         description,
         music: 'Tu vídeo original',
-        stats: {
-          likes: 0, comments: 0, shares: 0, saves: 0,
-        },
-        duration: 0,
-        uploadedAt: new Date().toISOString(),
-      }
-      const meta = await readUploadMeta()
-      meta.unshift(post)
-      await writeUploadMeta(meta)
-      return NextResponse.json({ ok: true, post })
-    } catch (err) {
-      console.error('upload error', err)
-      return NextResponse.json({ error: 'upload_failed', detail: String(err?.message || err) }, { status: 500 })
+      },
+      // Side B = el vídeo emparejado (existente del feed o de otro upload)
+      sideB: {
+        videoUrl: pairVideoUrl,
+        author: pairAuthor,
+        description: pairDescription,
+        music: pairMusic,
+      },
+      // Mantenemos los mismos campos que un post normal para compat con el feed
+      author: {
+        username: 'tu_canal',
+        name: 'Tú',
+        avatarUrl: 'https://i.pravatar.cc/120?img=68',
+      },
+      description,
+      music: 'Tu vídeo original',
+      videoUrl: myUrl,
+      thumbnailUrl: '',
+      stats: { likes: 0, comments: 0, shares: 0, saves: 0 },
+      votes: { a: 0, b: 0 },
+      duration: 0,
+      uploadedAt: new Date().toISOString(),
     }
+    const meta = await readUploadMeta()
+    meta.unshift(post)
+    await writeUploadMeta(meta)
+    return NextResponse.json({ ok: true, post })
+  } catch (err) {
+    console.error('duet upload error', err)
+    return NextResponse.json({ error: 'duet_failed', detail: String(err?.message || err) }, { status: 500 })
   }
+}
 
-  return NextResponse.json({ ok: true })
+// POST /api/vote   body: { id, side: 'a'|'b' }
+// Increments the vote counter for that side of a duet, persisted in _meta.json.
+async function handleVote(request) {
+  try {
+    const body = await request.json().catch(() => null)
+    const id = body?.id
+    const side = body?.side
+    if (!id || (side !== 'a' && side !== 'b')) {
+      return NextResponse.json({ error: 'bad_request' }, { status: 400 })
+    }
+    const meta = await readUploadMeta()
+    const idx = meta.findIndex((p) => p.id === id && p.type === 'duet')
+    if (idx === -1) {
+      return NextResponse.json({ error: 'not_found' }, { status: 404 })
+    }
+    const p = meta[idx]
+    p.votes = p.votes || { a: 0, b: 0 }
+    p.votes[side] = (p.votes[side] || 0) + 1
+    meta[idx] = p
+    await writeUploadMeta(meta)
+    return NextResponse.json({ ok: true, votes: p.votes })
+  } catch (err) {
+    return NextResponse.json({ error: 'vote_failed', detail: String(err?.message || err) }, { status: 500 })
+  }
 }

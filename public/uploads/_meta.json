@@ -1,5 +1,72 @@
 [
   {
+    "id": "duet_330e71a435185d61",
+    "type": "duet",
+    "layout": "vertical",
+    "sideA": {
+      "videoUrl": "/uploads/330e71a435185d61.mp4",
+      "author": {
+        "username": "tu_canal",
+        "name": "Tú",
+        "avatarUrl": "https://i.pravatar.cc/120?img=68"
+      },
+      "description": "¿Quién gana? 🥊 #1vs1",
+      "music": "Tu vídeo original"
+    },
+    "sideB": {
+      "videoUrl": "/uploads/08759b7c7a86dd54.mp4",
+      "author": {
+        "username": "tu_canal",
+        "name": "Tú",
+        "avatarUrl": "https://i.pravatar.cc/120?img=68"
+      },
+      "description": "Mi vídeo subido 📹 #miupload",
+      "music": "Tu vídeo original"
+    },
+    "author": {
+      "username": "tu_canal",
+      "name": "Tú",
+      "avatarUrl": "https://i.pravatar.cc/120?img=68"
+    },
+    "description": "¿Quién gana? 🥊 #1vs1",
+    "music": "Tu vídeo original",
+    "videoUrl": "/uploads/330e71a435185d61.mp4",
+    "thumbnailUrl": "",
+    "stats": {
+      "likes": 0,
+      "comments": 0,
+      "shares": 0,
+      "saves": 0
+    },
+    "votes": {
+      "a": 0,
+      "b": 0
+    },
+    "duration": 0,
+    "uploadedAt": "2026-06-05T07:22:27.010Z"
+  },
+  {
+    "id": "upload_61e6353895c7bdfc",
+    "type": "normal",
+    "videoUrl": "/uploads/61e6353895c7bdfc.mp4",
+    "thumbnailUrl": "",
+    "author": {
+      "username": "tu_canal",
+      "name": "Tú",
+      "avatarUrl": "https://i.pravatar.cc/120?img=68"
+    },
+    "description": "Mi vídeo subido 📹 #miupload",
+    "music": "Tu vídeo original",
+    "stats": {
+      "likes": 0,
+      "comments": 0,
+      "shares": 0,
+      "saves": 0
+    },
+    "duration": 0,
+    "uploadedAt": "2026-05-26T10:33:45.050Z"
+  },
+  {
     "id": "upload_8d899ff4d1d4d3d5",
     "videoUrl": "/uploads/8d899ff4d1d4d3d5.mp4",
     "thumbnailUrl": "",
