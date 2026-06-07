@@ -455,7 +455,7 @@ function DuetSlide({ post, isActive, isNear, muted: globalMuted, onRequestNext, 
 
       {/* Columna social derecha — estilo Twyk (abajo) */}
       <div
-        className="absolute z-20 right-2 bottom-24 flex flex-col items-center gap-5 pointer-events-auto"
+        className="absolute z-20 right-2 bottom-20 flex flex-col items-center gap-5 pointer-events-auto"
       >
         {/* Votos */}
         <button aria-label="votos" onClick={(e) => e.stopPropagation()} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
