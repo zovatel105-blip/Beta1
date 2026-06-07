@@ -41,6 +41,7 @@ function CarouselSlide({ post, isActive, isNear, muted: globalMuted, onRequestNe
   const [saved, setSaved] = useState(false)
   const [following, setFollowing] = useState(false)
   const [floatingHearts, setFloatingHearts] = useState([])
+  const [voteBursts, setVoteBursts] = useState([])
   const [dragX, setDragX] = useState(0)
   const [dragging, setDragging] = useState(false)
 
@@ -138,7 +139,13 @@ function CarouselSlide({ post, isActive, isNear, muted: globalMuted, onRequestNe
     setVoting(true)
     setUserVote(s)
     setVotes((v) => ({ ...v, [s]: (v[s] || 0) + 1 }))
-    setShowWinner(true)
+    // Burst del icono de voto sobre el vídeo (color del lado: A lila / B azul)
+    const burstColor = s === 'a' ? '#A855F7' : '#3B82F6'
+    const burstId = Math.random().toString(36).slice(2)
+    setVoteBursts((b) => [...b, { id: burstId, color: burstColor }])
+    setTimeout(() => setVoteBursts((b) => b.filter((x) => x.id !== burstId)), 850)
+    // Mostrar la tarjeta de ganador después de la animación del icono
+    setTimeout(() => setShowWinner(true), 650)
     try { localStorage.setItem(`versus_vote_${post.id}`, s) } catch { /* ignore */ }
     try {
       const res = await fetch('/api/vote', {
@@ -308,6 +315,15 @@ function CarouselSlide({ post, isActive, isNear, muted: globalMuted, onRequestNe
           className="absolute z-30 like-pop pointer-events-none"
           style={{ left: h.x, top: h.y, transform: 'translate(-50%, -50%)' }}
         />
+      ))}
+
+      {/* burst del icono de voto al votar (sobre el vídeo) */}
+      {voteBursts.map((vb) => (
+        <div key={vb.id} className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none">
+          <span className="like-pop" style={{ color: vb.color, filter: 'drop-shadow(0 6px 18px rgba(0,0,0,0.55))' }}>
+            <VoteIcon className="w-32 h-32" strokeWidth={320} filled />
+          </span>
+        </div>
       ))}
 
       {/* Top header — avatar + nombre (estilo Twyk, igual que el vídeo normal) */}
