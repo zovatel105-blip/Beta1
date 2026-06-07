@@ -333,7 +333,7 @@ function CarouselSlide({ post, isActive, isNear, muted: globalMuted, onRequestNe
             <button
               onClick={(e) => { e.stopPropagation(); setFollowing((f) => !f) }}
               aria-label="seguir"
-              className="absolute bottom-1 right-1 rounded-full p-[3px] shadow-lg transition-all duration-200 hover:scale-125 active:scale-95"
+              className="absolute -bottom-2 right-0 rounded-full p-[3px] shadow-lg transition-all duration-200 hover:scale-125 active:scale-95"
               style={following ? { background: '#fff' } : { background: 'linear-gradient(135deg, #6366F1, #8B5CF6)' }}
             >
               {following
