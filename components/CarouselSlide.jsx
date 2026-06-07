@@ -220,22 +220,6 @@ function CarouselSlide({ post, isActive, isNear, muted: globalMuted }) {
         onPointerUp={onPointerUp}
       />
 
-      {/* Flechas laterales para indicar el carrusel */}
-      {sideIdx === 1 && (
-        <button
-          aria-label="anterior"
-          onClick={(e) => { e.stopPropagation(); goTo(0) }}
-          className="absolute left-1 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-black/40 backdrop-blur flex items-center justify-center text-white text-lg active:scale-90"
-        >‹</button>
-      )}
-      {sideIdx === 0 && (
-        <button
-          aria-label="siguiente"
-          onClick={(e) => { e.stopPropagation(); goTo(1) }}
-          className="absolute right-12 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-black/40 backdrop-blur flex items-center justify-center text-white text-lg active:scale-90"
-        >›</button>
-      )}
-
       {/* Etiqueta de opción A/B (con % tras votar) */}
       <div className="absolute top-2 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 bg-black/55 backdrop-blur px-3 py-1 rounded-full">
         <span className={cn('text-[11px] font-bold', side === 'a' ? 'text-rose-400' : 'text-cyan-300')}>
