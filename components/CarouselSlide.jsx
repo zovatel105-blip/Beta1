@@ -237,6 +237,8 @@ function CarouselSlide({ post, isActive, isNear, muted: globalMuted, onRequestNe
   const loserPct = 100 - winnerPct
   const winnerName = winnerSide.author?.name || (winnerSide.author?.username ? `@${winnerSide.author.username}` : '')
   const loserName = loserSide.author?.name || (loserSide.author?.username ? `@${loserSide.author.username}` : '')
+  // Vídeo a mostrar en la winner card = la opción que ELIGIÓ el usuario (su voto).
+  const chosenSide = userVote === 'b' ? sideB : sideA
 
   const renderVideo = (s, ref) => (
     <div className="relative w-1/2 h-full overflow-hidden">
@@ -402,8 +404,8 @@ function CarouselSlide({ post, isActive, isNear, muted: globalMuted, onRequestNe
         winnerSide={winnerKey}
         winnerName={winnerName}
         winnerPercentage={winnerPct}
-        winnerImage={winnerSide.author?.avatarUrl}
-        winnerVideoUrl={winnerSide.videoUrl}
+        winnerImage={chosenSide.author?.avatarUrl}
+        winnerVideoUrl={chosenSide.videoUrl}
         loserName={loserName}
         loserPercentage={loserPct}
         totalVotes={totalVotes}
