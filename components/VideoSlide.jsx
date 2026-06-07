@@ -11,6 +11,11 @@ function formatCount(n) {
   return String(n)
 }
 
+// Si el contador es 0, mostramos un mensaje (estilo TikTokScrollView) en vez de "0".
+function countLabel(n, placeholder) {
+  return (Number(n) || 0) === 0 ? placeholder : formatCount(n)
+}
+
 function VideoSlide({ post, isActive, isNear, muted }) {
   const mountRef = useRef(null)
   const overlayRef = useRef(null)
@@ -212,7 +217,7 @@ function VideoSlide({ post, isActive, isNear, muted }) {
       {/* Top header — avatar + nombre (estilo Twyk) */}
       <div
         className="absolute top-0 left-0 right-0 z-20 bg-gradient-to-b from-black/70 to-transparent px-4 pb-10 pointer-events-none"
-        style={{ paddingTop: 'max(3.5rem, env(safe-area-inset-top))' }}
+        style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}
       >
         <div className="flex items-center gap-2 w-fit pointer-events-auto">
           {/* Avatar + botón seguir (sin anillo de historia) */}
@@ -252,28 +257,28 @@ function VideoSlide({ post, isActive, isNear, muted }) {
         <button aria-label="votos" onClick={(e) => e.stopPropagation()} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
           <Vote className="w-[40px] h-[40px] text-white" strokeWidth={1.8} />
           <span className="text-[8px] font-medium text-white leading-none">
-            {post.stats.votes ? formatCount(post.stats.votes) : 'Votar'}
+            {countLabel(post.stats.votes, 'Votar')}
           </span>
         </button>
         {/* Like */}
         <button aria-label="like" onClick={(e) => { e.stopPropagation(); toggleLike() }} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
           <Heart className={cn('w-[23px] h-[23px] transition-all duration-200', liked ? 'fill-current text-red-500 scale-110' : 'text-white')} />
-          <span className="text-[8px] font-medium text-white leading-none">{formatCount(likes)}</span>
+          <span className="text-[8px] font-medium text-white leading-none">{countLabel(likes, 'Me gusta')}</span>
         </button>
         {/* Comentar */}
         <button aria-label="comments" onClick={(e) => e.stopPropagation()} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
           <MessageCircle className="w-[23px] h-[23px] text-white" />
-          <span className="text-[8px] font-medium text-white leading-none">{formatCount(post.stats.comments)}</span>
+          <span className="text-[8px] font-medium text-white leading-none">{countLabel(post.stats.comments, 'Comentar')}</span>
         </button>
         {/* Compartir */}
         <button aria-label="share" onClick={(e) => e.stopPropagation()} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
           <Share2 className="w-[23px] h-[23px] text-white" />
-          <span className="text-[8px] font-medium text-white leading-none">{formatCount(post.stats.shares)}</span>
+          <span className="text-[8px] font-medium text-white leading-none">{countLabel(post.stats.shares, 'Compartir')}</span>
         </button>
         {/* Guardar */}
         <button aria-label="bookmark" onClick={(e) => { e.stopPropagation(); setSaved((s) => !s) }} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
           <Bookmark className={cn('w-[23px] h-[23px] transition-all duration-200', saved ? 'fill-current text-yellow-400' : 'text-white')} />
-          <span className="text-[8px] font-medium text-white leading-none">{formatCount(post.stats.saves)}</span>
+          <span className="text-[8px] font-medium text-white leading-none">{countLabel(post.stats.saves, 'Guardar')}</span>
         </button>
         {/* Disco de música giratorio */}
         <div className="mt-1 w-10 h-10 rounded-full overflow-hidden border border-white/30 bg-gradient-to-br from-zinc-700 to-black flex items-center justify-center" style={{ animation: 'spin 6s linear infinite' }}>

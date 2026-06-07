@@ -8,7 +8,6 @@ import 'swiper/css/virtual'
 import VideoSlide from './VideoSlide'
 import DuetSlide from './DuetSlide'
 import BottomNav from './BottomNav'
-import TopBar from './TopBar'
 import UploadDialog from './UploadDialog'
 
 async function fetchPage(cursor) {
@@ -78,7 +77,6 @@ export default function Feed() {
 
   return (
     <div className="feed-container fixed inset-0 bg-black" onPointerDown={muted ? onFirstInteraction : undefined}>
-      <TopBar muted={muted} onToggleMute={() => setMuted((m) => !m)} />
       {posts.length === 0 ? (
         <div className="w-full h-full flex items-center justify-center">
           <div className="w-12 h-12 rounded-full border-2 border-white/20 border-t-white animate-spin" />
