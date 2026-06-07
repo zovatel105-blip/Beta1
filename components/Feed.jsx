@@ -5,7 +5,6 @@ import { Swiper, SwiperSlide } from 'swiper/react'
 import { Virtual, Mousewheel, Keyboard } from 'swiper/modules'
 import 'swiper/css'
 import 'swiper/css/virtual'
-import VideoSlide from './VideoSlide'
 import DuetSlide from './DuetSlide'
 import CarouselSlide from './CarouselSlide'
 import BottomNav from './BottomNav'
@@ -22,7 +21,8 @@ async function fetchUploads() {
     const res = await fetch('/api/uploads', { cache: 'no-store' })
     if (!res.ok) return []
     const data = await res.json()
-    return data.posts || []
+    // Solo se muestran publicaciones de votación (1vs1 / versus).
+    return (data.posts || []).filter((p) => p.type === 'duet' || p.type === 'versus')
   } catch { return [] }
 }
 
@@ -117,20 +117,13 @@ export default function Feed() {
                   muted={muted}
                   onRequestNext={() => swiperRef.current?.slideNext()}
                 />
-              ) : post.type === 'versus' ? (
+              ) : (
                 <CarouselSlide
                   post={post}
                   isActive={i === activeIdx}
                   isNear={Math.abs(i - activeIdx) <= 1}
                   muted={muted}
                   onRequestNext={() => swiperRef.current?.slideNext()}
-                />
-              ) : (
-                <VideoSlide
-                  post={post}
-                  isActive={i === activeIdx}
-                  isNear={Math.abs(i - activeIdx) <= 1}
-                  muted={muted}
                 />
               )}
             </SwiperSlide>

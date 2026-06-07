@@ -141,10 +141,10 @@ export async function GET(request, { params }) {
   }
 
   // Catálogo de vídeos disponibles para emparejar en un 1vs1.
-  // Mezcla los vídeos del feed + uploads del usuario.
+  // Mezcla los vídeos del feed + uploads del usuario (versus).
   if (path === '/feed-options') {
     const uploads = await readUploadMeta()
-    // Solo permitimos emparejar con publicaciones de tipo 'normal' (no anidamos duets).
+    // No anidamos duets como opción de emparejamiento.
     const userOptions = uploads
       .filter((p) => p.type !== 'duet')
       .map((p) => ({
@@ -176,10 +176,6 @@ export async function POST(request, { params }) {
   const segs = (params?.path) || []
   const path = '/' + segs.join('/')
 
-  if (path === '/upload') {
-    return handleNormalUpload(request)
-  }
-
   if (path === '/versus') {
     return handleVersusUpload(request)
   }
@@ -195,62 +191,6 @@ export async function POST(request, { params }) {
   return NextResponse.json({ ok: true })
 }
 
-async function handleNormalUpload(request) {
-  try {
-    const formData = await request.formData()
-    const file = formData.get('file')
-    const description = (formData.get('description') || 'Mi vídeo subido 📹').toString()
-    if (!file || typeof file === 'string') {
-      return NextResponse.json({ error: 'no_file' }, { status: 400 })
-    }
-    const arrayBuffer = await file.arrayBuffer()
-    const bytes = Buffer.from(arrayBuffer)
-    const id = crypto.randomBytes(8).toString('hex')
-    const name = file.name || 'video.mp4'
-    const ext = name.includes('.') ? name.split('.').pop().toLowerCase() : 'mp4'
-    const safeExt = ['mp4', 'webm', 'mov', 'm4v'].includes(ext) ? ext : 'mp4'
-    const filename = `${id}.${safeExt}`
-    await ensureUploadDir()
-    const filePath = nodePath.join(UPLOAD_DIR, filename)
-    await fs.writeFile(filePath, bytes)
-    const webmPath = nodePath.join(UPLOAD_DIR, `${id}.webm`)
-    transcodeToWebm(filePath, webmPath).then((ok) => {
-      if (!ok) console.warn('webm transcode failed for', filename)
-    })
-    const url = `/uploads/${filename}`
-    const post = {
-      id: `upload_${id}`,
-      type: 'normal',
-      videoUrl: url,
-      thumbnailUrl: '',
-      author: {
-        username: 'tu_canal',
-        name: 'Tú',
-        avatarUrl: 'https://i.pravatar.cc/120?img=68',
-      },
-      description,
-      music: 'Tu vídeo original',
-      stats: { likes: 0, comments: 0, shares: 0, saves: 0 },
-      duration: 0,
-      uploadedAt: new Date().toISOString(),
-    }
-    const meta = await readUploadMeta()
-    meta.unshift(post)
-    await writeUploadMeta(meta)
-    return NextResponse.json({ ok: true, post })
-  } catch (err) {
-    console.error('upload error', err)
-    return NextResponse.json({ error: 'upload_failed', detail: String(err?.message || err) }, { status: 500 })
-  }
-}
-
-// ────────────────────────────────────────────────────────────────────────────
-// Versus (carrusel de 2 vídeos) endpoint
-// ────────────────────────────────────────────────────────────────────────────
-
-// POST /api/versus
-//   FormData: fileA, fileB, description, captionA?, captionB?
-// Crea un post type='versus' con sideA + sideB (carrusel) y votos {a,b}.
 async function handleVersusUpload(request) {
   try {
     const formData = await request.formData()
