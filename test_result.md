@@ -101,3 +101,86 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+user_problem_statement: "Las publicaciones normales deben ser un carrusel de 2 vídeos (opción A / opción B) entre los que se desliza y se vota tocando el vídeo. Se suben 2 vídeos. Reemplaza el vídeo normal."
+
+backend:
+  - task: "GET /api/feed returns 'versus' carousel posts with sideA/sideB/votes"
+    implemented: true
+    working: "NA"
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "makePosts now generates type='versus', layout='carousel' with sideA/sideB (paired from VIDEOS) and votes attached from _votes.json store or seedVotes(id). Verify shape and that votes are present integers."
+
+  - task: "POST /api/versus uploads 2 videos (fileA, fileB) -> versus post"
+    implemented: true
+    working: "NA"
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "New endpoint. Requires multipart fileA AND fileB. Returns post with type='versus', sideA/sideB videoUrls under /uploads, votes {a:0,b:0}, persisted in _meta.json. Should 400 with error 'need_two_files' if either file missing."
+
+  - task: "POST /api/vote generalized for versus (built-in store + uploaded meta) and duet"
+    implemented: true
+    working: "NA"
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "vote increments side a/b. For built-in feed ids (e.g. 'versus_0') persists in _votes.json seeded by seedVotes. For uploaded duet/versus updates _meta.json. Returns {ok:true, votes:{a,b}}. Verify versus_0 vote increments and is reflected on next /api/feed call; verify still works for an uploaded duet id if any; invalid side -> 400."
+
+  - task: "Backward compat: /api/upload (single) and /api/duet still work"
+    implemented: true
+    working: "NA"
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "Existing endpoints unchanged. /api/duet requires file+pair fields. /api/upload requires single file. Verify they still return ok."
+
+frontend:
+  - task: "CarouselSlide: horizontal A/B carousel with swipe, dots, tap-to-vote, Twyk UI"
+    implemented: true
+    working: "NA"
+    file: "components/CarouselSlide.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "Manually validated in browser: swipe A<->B works, dots/arrows, header reflects visible side, social column matches normal video, tap votes and shows result bar + percentages. Not requesting automated frontend test yet (pending user)."
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 1
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "GET /api/feed returns 'versus' carousel posts with sideA/sideB/votes"
+    - "POST /api/versus uploads 2 videos (fileA, fileB) -> versus post"
+    - "POST /api/vote generalized for versus (built-in store + uploaded meta) and duet"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    -agent: "main"
+    -message: "Implemented versus carousel feature. Please test BACKEND only: 1) GET /api/feed?cursor=0&limit=4 -> each post type='versus', has sideA{videoUrl,author}, sideB{videoUrl,author}, votes{a,b} as numbers. 2) POST /api/versus multipart with fileA AND fileB (small dummy mp4 bytes ok) -> 200 {ok,post} with type='versus', sideA.videoUrl & sideB.videoUrl starting /uploads/, votes{a:0,b:0}; missing one file -> 400 'need_two_files'. 3) POST /api/vote {id:'versus_0', side:'a'} -> 200 {votes:{a,b}}; call again /api/feed and confirm versus_0 votes.a increased (persisted in _votes.json). 4) POST /api/vote with bad side -> 400. 5) Backward compat: /api/upload single file still 200; /api/duet with file+pair fields still 200. Do NOT modify Testing Protocol."

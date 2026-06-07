@@ -7,6 +7,7 @@ import 'swiper/css'
 import 'swiper/css/virtual'
 import VideoSlide from './VideoSlide'
 import DuetSlide from './DuetSlide'
+import CarouselSlide from './CarouselSlide'
 import BottomNav from './BottomNav'
 import UploadDialog from './UploadDialog'
 
@@ -110,6 +111,13 @@ export default function Feed() {
             <SwiperSlide key={post.id} virtualIndex={i}>
               {post.type === 'duet' ? (
                 <DuetSlide
+                  post={post}
+                  isActive={i === activeIdx}
+                  isNear={Math.abs(i - activeIdx) <= 1}
+                  muted={muted}
+                />
+              ) : post.type === 'versus' ? (
+                <CarouselSlide
                   post={post}
                   isActive={i === activeIdx}
                   isNear={Math.abs(i - activeIdx) <= 1}

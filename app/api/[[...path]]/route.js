@@ -39,6 +39,22 @@ async function writeUploadMeta(arr) {
   await fs.writeFile(UPLOAD_META, JSON.stringify(arr, null, 2))
 }
 
+// Votes store for built-in (non-persisted) feed posts, keyed by post id.
+const VOTES_STORE = nodePath.join(UPLOAD_DIR, '_votes.json')
+async function readVotesStore() {
+  try { return JSON.parse(await fs.readFile(VOTES_STORE, 'utf-8')) } catch { return {} }
+}
+async function writeVotesStore(obj) {
+  await ensureUploadDir()
+  await fs.writeFile(VOTES_STORE, JSON.stringify(obj, null, 2))
+}
+// Deterministic base votes so each built-in versus feels "alive" before voting.
+function seedVotes(id) {
+  let h = 0
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0
+  return { a: 60 + (h % 900), b: 60 + (Math.floor(h / 7) % 900) }
+}
+
 // Local videos served from /public/videos/*.mp4 (no Content-Disposition issues, no CORS)
 const v = (id) => `/videos/${id}.mp4`
 
@@ -73,22 +89,30 @@ VIDEOS[0].url = v(51330)
 function makePosts(start, count) {
   const posts = []
   for (let i = 0; i < count; i++) {
-    const idx = (start + i) % VIDEOS.length
-    const base = VIDEOS[idx]
-    const id = `post_${start + i}`
+    const n = start + i
+    const a = VIDEOS[(2 * n) % VIDEOS.length]
+    const b = VIDEOS[(2 * n + 1) % VIDEOS.length]
+    const id = `versus_${n}`
     posts.push({
       id,
-      videoUrl: base.url,
+      type: 'versus',
+      layout: 'carousel',
+      // Carrusel de 2 opciones (A / B) entre las que se desliza y se vota.
+      sideA: { videoUrl: a.url, author: a.author, description: a.description, music: a.music },
+      sideB: { videoUrl: b.url, author: b.author, description: b.description, music: b.music },
+      // Campos top-level por compat con el resto del feed (cabecera, etc.)
+      author: a.author,
+      description: a.description,
+      music: a.music,
+      videoUrl: a.url,
       thumbnailUrl: '',
-      author: base.author,
-      description: base.description,
-      music: base.music,
       stats: {
         likes: 1200 + Math.floor(Math.random() * 90000),
         comments: 30 + Math.floor(Math.random() * 4000),
         shares: 10 + Math.floor(Math.random() * 1200),
         saves: 5 + Math.floor(Math.random() * 800),
       },
+      votes: { a: 0, b: 0 },
       duration: 12 + Math.floor(Math.random() * 30),
     })
   }
@@ -103,7 +127,11 @@ export async function GET(request, { params }) {
     const { searchParams } = new URL(request.url)
     const cursor = parseInt(searchParams.get('cursor') || '0', 10)
     const limit = Math.min(parseInt(searchParams.get('limit') || '8', 10), 20)
-    const posts = makePosts(cursor, limit)
+    const store = await readVotesStore()
+    const posts = makePosts(cursor, limit).map((p) => ({
+      ...p,
+      votes: store[p.id] || seedVotes(p.id),
+    }))
     return NextResponse.json({ posts, nextCursor: cursor + limit, hasMore: true })
   }
 
@@ -150,6 +178,10 @@ export async function POST(request, { params }) {
 
   if (path === '/upload') {
     return handleNormalUpload(request)
+  }
+
+  if (path === '/versus') {
+    return handleVersusUpload(request)
   }
 
   if (path === '/duet') {
@@ -209,6 +241,81 @@ async function handleNormalUpload(request) {
   } catch (err) {
     console.error('upload error', err)
     return NextResponse.json({ error: 'upload_failed', detail: String(err?.message || err) }, { status: 500 })
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Versus (carrusel de 2 vídeos) endpoint
+// ────────────────────────────────────────────────────────────────────────────
+
+// POST /api/versus
+//   FormData: fileA, fileB, description, captionA?, captionB?
+// Crea un post type='versus' con sideA + sideB (carrusel) y votos {a,b}.
+async function handleVersusUpload(request) {
+  try {
+    const formData = await request.formData()
+    const fileA = formData.get('fileA')
+    const fileB = formData.get('fileB')
+    const description = (formData.get('description') || '¿Cuál prefieres? 🅰️🆚🅱️').toString()
+    const captionA = (formData.get('captionA') || '').toString()
+    const captionB = (formData.get('captionB') || '').toString()
+
+    if (!fileA || typeof fileA === 'string' || !fileB || typeof fileB === 'string') {
+      return NextResponse.json({ error: 'need_two_files' }, { status: 400 })
+    }
+
+    const saveOne = async (file) => {
+      const arrayBuffer = await file.arrayBuffer()
+      const bytes = Buffer.from(arrayBuffer)
+      const id = crypto.randomBytes(8).toString('hex')
+      const name = file.name || 'video.mp4'
+      const ext = name.includes('.') ? name.split('.').pop().toLowerCase() : 'mp4'
+      const safeExt = ['mp4', 'webm', 'mov', 'm4v'].includes(ext) ? ext : 'mp4'
+      const filename = `${id}.${safeExt}`
+      await ensureUploadDir()
+      const filePath = nodePath.join(UPLOAD_DIR, filename)
+      await fs.writeFile(filePath, bytes)
+      const webmPath = nodePath.join(UPLOAD_DIR, `${id}.webm`)
+      transcodeToWebm(filePath, webmPath).then((ok) => {
+        if (!ok) console.warn('webm transcode failed for versus', filename)
+      })
+      return `/uploads/${filename}`
+    }
+
+    await ensureUploadDir()
+    const urlA = await saveOne(fileA)
+    const urlB = await saveOne(fileB)
+    const id = crypto.randomBytes(8).toString('hex')
+
+    const meAuthor = {
+      username: 'tu_canal',
+      name: 'Tú',
+      avatarUrl: 'https://i.pravatar.cc/120?img=68',
+    }
+
+    const post = {
+      id: `versus_up_${id}`,
+      type: 'versus',
+      layout: 'carousel',
+      sideA: { videoUrl: urlA, author: meAuthor, description: captionA || description, music: 'Opción A' },
+      sideB: { videoUrl: urlB, author: meAuthor, description: captionB || description, music: 'Opción B' },
+      author: meAuthor,
+      description,
+      music: 'Tu versus original',
+      videoUrl: urlA,
+      thumbnailUrl: '',
+      stats: { likes: 0, comments: 0, shares: 0, saves: 0 },
+      votes: { a: 0, b: 0 },
+      duration: 0,
+      uploadedAt: new Date().toISOString(),
+    }
+    const meta = await readUploadMeta()
+    meta.unshift(post)
+    await writeUploadMeta(meta)
+    return NextResponse.json({ ok: true, post })
+  } catch (err) {
+    console.error('versus upload error', err)
+    return NextResponse.json({ error: 'versus_failed', detail: String(err?.message || err) }, { status: 500 })
   }
 }
 
@@ -305,7 +412,8 @@ async function handleDuetUpload(request) {
 }
 
 // POST /api/vote   body: { id, side: 'a'|'b' }
-// Increments the vote counter for that side of a duet, persisted in _meta.json.
+// Increments the vote counter for that side of a duet/versus post.
+// Uploads persist in _meta.json; built-in feed posts persist in _votes.json.
 async function handleVote(request) {
   try {
     const body = await request.json().catch(() => null)
@@ -314,17 +422,24 @@ async function handleVote(request) {
     if (!id || (side !== 'a' && side !== 'b')) {
       return NextResponse.json({ error: 'bad_request' }, { status: 400 })
     }
+    // 1) Uploaded posts (duet or versus) -> persist in meta
     const meta = await readUploadMeta()
-    const idx = meta.findIndex((p) => p.id === id && p.type === 'duet')
-    if (idx === -1) {
-      return NextResponse.json({ error: 'not_found' }, { status: 404 })
+    const idx = meta.findIndex((p) => p.id === id && (p.type === 'duet' || p.type === 'versus'))
+    if (idx !== -1) {
+      const p = meta[idx]
+      p.votes = p.votes || { a: 0, b: 0 }
+      p.votes[side] = (p.votes[side] || 0) + 1
+      meta[idx] = p
+      await writeUploadMeta(meta)
+      return NextResponse.json({ ok: true, votes: p.votes })
     }
-    const p = meta[idx]
-    p.votes = p.votes || { a: 0, b: 0 }
-    p.votes[side] = (p.votes[side] || 0) + 1
-    meta[idx] = p
-    await writeUploadMeta(meta)
-    return NextResponse.json({ ok: true, votes: p.votes })
+    // 2) Built-in feed versus posts -> persist in votes store (seed if first time)
+    const store = await readVotesStore()
+    const base = store[id] || seedVotes(id)
+    base[side] = (base[side] || 0) + 1
+    store[id] = base
+    await writeVotesStore(store)
+    return NextResponse.json({ ok: true, votes: base })
   } catch (err) {
     return NextResponse.json({ error: 'vote_failed', detail: String(err?.message || err) }, { status: 500 })
   }

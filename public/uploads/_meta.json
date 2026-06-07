@@ -1,5 +1,26 @@
 [
   {
+    "id": "upload_3ad06d3d4751ee36",
+    "type": "normal",
+    "videoUrl": "/uploads/3ad06d3d4751ee36.mp4",
+    "thumbnailUrl": "",
+    "author": {
+      "username": "tu_canal",
+      "name": "Tú",
+      "avatarUrl": "https://i.pravatar.cc/120?img=68"
+    },
+    "description": "Mi vídeo 📹",
+    "music": "Tu vídeo original",
+    "stats": {
+      "likes": 0,
+      "comments": 0,
+      "shares": 0,
+      "saves": 0
+    },
+    "duration": 0,
+    "uploadedAt": "2026-06-07T02:44:14.702Z"
+  },
+  {
     "id": "duet_330e71a435185d61",
     "type": "duet",
     "layout": "vertical",

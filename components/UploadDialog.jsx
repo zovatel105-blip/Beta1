@@ -11,6 +11,7 @@ import { X, ChevronRight, Loader2, Film, Swords, Rows3, Columns3, Check, ArrowLe
  */
 export default function UploadDialog({ open, onClose, onUploaded }) {
   const inputRef = useRef(null)
+  const inputBRef = useRef(null)
   const [step, setStep] = useState('mode') // mode | layout | pair | file | uploading
   const [mode, setMode] = useState(null) // 'normal' | 'duet'
   const [layout, setLayout] = useState('horizontal') // 'horizontal' | 'vertical'
@@ -18,13 +19,14 @@ export default function UploadDialog({ open, onClose, onUploaded }) {
   const [options, setOptions] = useState([])
   const [optionsLoading, setOptionsLoading] = useState(false)
   const [file, setFile] = useState(null)
+  const [fileB, setFileB] = useState(null)
   const [description, setDescription] = useState('')
   const [progress, setProgress] = useState(0)
   const [error, setError] = useState(null)
 
   const reset = () => {
     setStep('mode'); setMode(null); setLayout('horizontal'); setPair(null)
-    setFile(null); setDescription(''); setProgress(0); setError(null)
+    setFile(null); setFileB(null); setDescription(''); setProgress(0); setError(null)
   }
 
   useEffect(() => {
@@ -43,18 +45,25 @@ export default function UploadDialog({ open, onClose, onUploaded }) {
   }, [step])
 
   const pickFile = () => inputRef.current?.click()
+  const pickFileB = () => inputBRef.current?.click()
 
-  const handleFileChange = (e) => {
+  const handleFileChange = (slot) => (e) => {
     const f = e.target.files?.[0]
     if (!f) return
     if (!f.type.startsWith('video/')) { setError('Selecciona un vídeo'); return }
     if (f.size > 80 * 1024 * 1024) { setError('Máximo 80MB'); return }
     setError(null)
-    setFile(f)
+    if (slot === 'b') setFileB(f)
+    else setFile(f)
   }
 
   const doUpload = async () => {
-    if (!file) return
+    // normal -> versus necesita 2 vídeos; duet necesita 1 + pareja
+    if (mode === 'normal') {
+      if (!file || !fileB) { setError('Sube los 2 vídeos (A y B)'); return }
+    } else if (!file) {
+      return
+    }
     setStep('uploading')
     setProgress(0)
     try {
@@ -71,9 +80,9 @@ export default function UploadDialog({ open, onClose, onUploaded }) {
         xhr.onerror = () => reject(new Error('network'))
       })
       const fd = new FormData()
-      fd.append('file', file)
       if (mode === 'duet') {
         xhr.open('POST', '/api/duet')
+        fd.append('file', file)
         fd.append('layout', layout)
         fd.append('pairVideoUrl', pair.videoUrl)
         fd.append('pairAuthor', JSON.stringify(pair.author))
@@ -81,8 +90,10 @@ export default function UploadDialog({ open, onClose, onUploaded }) {
         fd.append('pairDescription', pair.description || '')
         fd.append('description', description || '¿Quién gana? 🥊 #1vs1')
       } else {
-        xhr.open('POST', '/api/upload')
-        fd.append('description', description || 'Mi vídeo 📹')
+        xhr.open('POST', '/api/versus')
+        fd.append('fileA', file)
+        fd.append('fileB', fileB)
+        fd.append('description', description || '¿Cuál prefieres? 🅰️🆚🅱️')
       }
       xhr.send(fd)
       const data = await promise
@@ -122,7 +133,7 @@ export default function UploadDialog({ open, onClose, onUploaded }) {
               {step === 'mode' && 'Nueva publicación'}
               {step === 'layout' && 'Elige el formato'}
               {step === 'pair' && 'Elige el rival'}
-              {step === 'file' && (mode === 'duet' ? 'Tu lado del duelo' : 'Tu vídeo')}
+              {step === 'file' && (mode === 'duet' ? 'Tu lado del duelo' : 'Tus 2 vídeos (A / B)')}
               {step === 'uploading' && 'Subiendo…'}
             </h2>
           </div>
@@ -144,8 +155,8 @@ export default function UploadDialog({ open, onClose, onUploaded }) {
                   <Film size={24} />
                 </div>
                 <div className="flex-1">
-                  <div className="font-bold">Vídeo normal</div>
-                  <div className="text-xs text-white/60">Sube un vídeo vertical estándar</div>
+                  <div className="font-bold">Versus (carrusel)</div>
+                  <div className="text-xs text-white/60">Sube 2 vídeos (A y B) y deja que voten deslizando</div>
                 </div>
                 <ChevronRight size={20} className="text-white/40" />
               </button>
@@ -248,33 +259,82 @@ export default function UploadDialog({ open, onClose, onUploaded }) {
                 </div>
               )}
 
-              <input ref={inputRef} type="file" accept="video/*" className="hidden" onChange={handleFileChange} />
-              <button
-                onClick={pickFile}
-                className="w-full aspect-[9/16] max-h-72 rounded-2xl border-2 border-dashed border-white/20 bg-white/5 hover:bg-white/10 active:scale-[0.99] transition flex flex-col items-center justify-center gap-2 overflow-hidden relative"
-              >
-                {file ? (
-                  <>
-                    <video src={URL.createObjectURL(file)} muted playsInline className="absolute inset-0 w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center">
-                      <Check size={32} className="text-emerald-400" />
-                      <span className="text-xs font-semibold mt-1">{file.name}</span>
-                      <span className="text-[10px] text-white/60 mt-1 underline">Cambiar</span>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <Film size={36} className="text-white/40" />
-                    <span className="text-sm font-semibold">Toca para elegir un vídeo</span>
-                    <span className="text-[10px] text-white/40">MP4 / WebM · max 80MB</span>
-                  </>
-                )}
-              </button>
+              <input ref={inputRef} type="file" accept="video/*" className="hidden" onChange={handleFileChange('a')} />
+              <input ref={inputBRef} type="file" accept="video/*" className="hidden" onChange={handleFileChange('b')} />
+
+              {mode === 'normal' ? (
+                /* Versus: dos cajas (A / B) */
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={pickFile}
+                    className="w-full aspect-[9/16] rounded-2xl border-2 border-dashed border-white/20 bg-white/5 hover:bg-white/10 active:scale-[0.99] transition flex flex-col items-center justify-center gap-2 overflow-hidden relative"
+                  >
+                    <span className="absolute top-1.5 left-1.5 z-10 text-[11px] font-bold text-rose-400 bg-black/50 rounded-full px-2 py-0.5">Opción A</span>
+                    {file ? (
+                      <>
+                        <video src={URL.createObjectURL(file)} muted playsInline className="absolute inset-0 w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center">
+                          <Check size={28} className="text-emerald-400" />
+                          <span className="text-[10px] text-white/60 mt-1 underline">Cambiar</span>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <Film size={28} className="text-white/40" />
+                        <span className="text-[11px] font-semibold text-center px-1">Elegir vídeo A</span>
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={pickFileB}
+                    className="w-full aspect-[9/16] rounded-2xl border-2 border-dashed border-white/20 bg-white/5 hover:bg-white/10 active:scale-[0.99] transition flex flex-col items-center justify-center gap-2 overflow-hidden relative"
+                  >
+                    <span className="absolute top-1.5 left-1.5 z-10 text-[11px] font-bold text-cyan-300 bg-black/50 rounded-full px-2 py-0.5">Opción B</span>
+                    {fileB ? (
+                      <>
+                        <video src={URL.createObjectURL(fileB)} muted playsInline className="absolute inset-0 w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center">
+                          <Check size={28} className="text-emerald-400" />
+                          <span className="text-[10px] text-white/60 mt-1 underline">Cambiar</span>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <Film size={28} className="text-white/40" />
+                        <span className="text-[11px] font-semibold text-center px-1">Elegir vídeo B</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              ) : (
+                /* Dueto: una caja */
+                <button
+                  onClick={pickFile}
+                  className="w-full aspect-[9/16] max-h-72 rounded-2xl border-2 border-dashed border-white/20 bg-white/5 hover:bg-white/10 active:scale-[0.99] transition flex flex-col items-center justify-center gap-2 overflow-hidden relative"
+                >
+                  {file ? (
+                    <>
+                      <video src={URL.createObjectURL(file)} muted playsInline className="absolute inset-0 w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center">
+                        <Check size={32} className="text-emerald-400" />
+                        <span className="text-xs font-semibold mt-1">{file.name}</span>
+                        <span className="text-[10px] text-white/60 mt-1 underline">Cambiar</span>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <Film size={36} className="text-white/40" />
+                      <span className="text-sm font-semibold">Toca para elegir un vídeo</span>
+                      <span className="text-[10px] text-white/40">MP4 / WebM · max 80MB</span>
+                    </>
+                  )}
+                </button>
+              )}
 
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder={mode === 'duet' ? '¿Quién gana? 🥊 #1vs1' : 'Describe tu vídeo… #hashtag'}
+                placeholder={mode === 'duet' ? '¿Quién gana? 🥊 #1vs1' : '¿Cuál prefieres? 🅰️🆚🅱️'}
                 rows={2}
                 className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm placeholder:text-white/30 focus:outline-none focus:border-rose-500"
               />
@@ -283,10 +343,10 @@ export default function UploadDialog({ open, onClose, onUploaded }) {
 
               <button
                 onClick={doUpload}
-                disabled={!file}
+                disabled={mode === 'normal' ? (!file || !fileB) : !file}
                 className="w-full bg-rose-500 disabled:bg-white/10 disabled:text-white/40 hover:bg-rose-600 active:scale-[0.98] transition rounded-full py-3 font-bold"
               >
-                {mode === 'duet' ? 'Publicar 1vs1' : 'Publicar'}
+                {mode === 'duet' ? 'Publicar 1vs1' : 'Publicar versus'}
               </button>
             </div>
           )}
