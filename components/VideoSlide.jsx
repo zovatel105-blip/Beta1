@@ -1,7 +1,7 @@
 'use client'
 
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
-import { Heart, MessageCircle, Bookmark, Share2, Music, Play, Plus, CheckCircle, Vote } from 'lucide-react'
+import { Heart, MessageCircle, Bookmark, Share2, Play, Plus, CheckCircle, Vote } from 'lucide-react'
 import { getVideoPool } from '@/lib/videoPool'
 import { cn } from '@/lib/utils'
 
@@ -215,19 +215,10 @@ function VideoSlide({ post, isActive, isNear, muted }) {
         style={{ paddingTop: 'max(3.5rem, env(safe-area-inset-top))' }}
       >
         <div className="flex items-center gap-2 w-fit pointer-events-auto">
-          {/* Avatar con anillo de historia + botón seguir */}
+          {/* Avatar + botón seguir (sin anillo de historia) */}
           <div className="group relative">
-            <button onClick={(e) => e.stopPropagation()} className="w-12 h-12 rounded-full relative block">
-              <div
-                className="absolute inset-0 rounded-full bg-gradient-to-tr from-[#6366F1] via-[#8B5CF6] to-[#B061FF]"
-                style={{
-                  WebkitMaskImage: 'radial-gradient(circle, transparent 22.5px, black 23px)',
-                  maskImage: 'radial-gradient(circle, transparent 22.5px, black 23px)',
-                }}
-              />
-              <div className="absolute rounded-full overflow-hidden" style={{ inset: '3.5px' }}>
-                <img src={post.author.avatarUrl} alt={post.author.username} className="w-full h-full object-cover" draggable={false} />
-              </div>
+            <button onClick={(e) => e.stopPropagation()} className="w-12 h-12 rounded-full overflow-hidden block">
+              <img src={post.author.avatarUrl} alt={post.author.username} className="w-full h-full object-cover" draggable={false} />
             </button>
             <button
               onClick={(e) => { e.stopPropagation(); setFollowing((f) => !f) }}
@@ -246,6 +237,10 @@ function VideoSlide({ post, isActive, isNear, muted }) {
             <p className="text-sm text-white/70 leading-tight">@{post.author.username}</p>
           </div>
         </div>
+        {/* Título / descripción */}
+        <div className="mt-1 pointer-events-auto">
+          <h2 className="text-white text-sm leading-tight line-clamp-2">{post.description}</h2>
+        </div>
       </div>
 
       {/* Columna social derecha — estilo Twyk (centrada vertical) */}
@@ -255,49 +250,34 @@ function VideoSlide({ post, isActive, isNear, muted }) {
       >
         {/* Votos */}
         <button aria-label="votos" onClick={(e) => e.stopPropagation()} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
-          <Vote className="w-[34px] h-[34px] text-white" strokeWidth={1.8} />
-          <span className="text-[10px] font-medium text-white leading-none">
+          <Vote className="w-[40px] h-[40px] text-white" strokeWidth={1.8} />
+          <span className="text-[8px] font-medium text-white leading-none">
             {post.stats.votes ? formatCount(post.stats.votes) : 'Votar'}
           </span>
         </button>
         {/* Like */}
         <button aria-label="like" onClick={(e) => { e.stopPropagation(); toggleLike() }} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
-          <Heart className={cn('w-[30px] h-[30px] transition-all duration-200', liked ? 'fill-current text-red-500 scale-110' : 'text-white')} />
-          <span className="text-[10px] font-medium text-white leading-none">{formatCount(likes)}</span>
+          <Heart className={cn('w-[23px] h-[23px] transition-all duration-200', liked ? 'fill-current text-red-500 scale-110' : 'text-white')} />
+          <span className="text-[8px] font-medium text-white leading-none">{formatCount(likes)}</span>
         </button>
         {/* Comentar */}
         <button aria-label="comments" onClick={(e) => e.stopPropagation()} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
-          <MessageCircle className="w-[30px] h-[30px] text-white" />
-          <span className="text-[10px] font-medium text-white leading-none">{formatCount(post.stats.comments)}</span>
+          <MessageCircle className="w-[23px] h-[23px] text-white" />
+          <span className="text-[8px] font-medium text-white leading-none">{formatCount(post.stats.comments)}</span>
         </button>
         {/* Compartir */}
         <button aria-label="share" onClick={(e) => e.stopPropagation()} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
-          <Share2 className="w-[30px] h-[30px] text-white" />
-          <span className="text-[10px] font-medium text-white leading-none">{formatCount(post.stats.shares)}</span>
+          <Share2 className="w-[23px] h-[23px] text-white" />
+          <span className="text-[8px] font-medium text-white leading-none">{formatCount(post.stats.shares)}</span>
         </button>
         {/* Guardar */}
         <button aria-label="bookmark" onClick={(e) => { e.stopPropagation(); setSaved((s) => !s) }} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
-          <Bookmark className={cn('w-[30px] h-[30px] transition-all duration-200', saved ? 'fill-current text-yellow-400' : 'text-white')} />
-          <span className="text-[10px] font-medium text-white leading-none">{formatCount(post.stats.saves)}</span>
+          <Bookmark className={cn('w-[23px] h-[23px] transition-all duration-200', saved ? 'fill-current text-yellow-400' : 'text-white')} />
+          <span className="text-[8px] font-medium text-white leading-none">{formatCount(post.stats.saves)}</span>
         </button>
         {/* Disco de música giratorio */}
-        <div className="mt-1 w-11 h-11 rounded-full overflow-hidden border border-white/30 bg-gradient-to-br from-zinc-700 to-black flex items-center justify-center" style={{ animation: 'spin 6s linear infinite' }}>
-          <img src={post.author.avatarUrl} alt="" className="w-7 h-7 rounded-full object-cover" draggable={false} />
-        </div>
-      </div>
-
-      {/* Caption inferior — descripción + música */}
-      <div className="absolute left-0 right-16 bottom-20 z-20 px-3 pb-1">
-        <div className="text-[13px] leading-snug max-h-10 overflow-hidden desc-fade">{post.description}</div>
-        <div className="mt-2 flex items-center gap-2 text-[12px] text-white/90">
-          <Music size={14} />
-          <span className="truncate max-w-[200px]">{post.music}</span>
-          <div className="flex items-end gap-[2px] h-3 ml-1">
-            <span className="bar bar-1 w-[2px] h-full bg-white inline-block" />
-            <span className="bar bar-2 w-[2px] h-full bg-white inline-block" />
-            <span className="bar bar-3 w-[2px] h-full bg-white inline-block" />
-            <span className="bar bar-1 w-[2px] h-full bg-white inline-block" />
-          </div>
+        <div className="mt-1 w-10 h-10 rounded-full overflow-hidden border border-white/30 bg-gradient-to-br from-zinc-700 to-black flex items-center justify-center" style={{ animation: 'spin 6s linear infinite' }}>
+          <img src={post.author.avatarUrl} alt="" className="w-6 h-6 rounded-full object-cover" draggable={false} />
         </div>
       </div>
 
