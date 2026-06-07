@@ -434,7 +434,7 @@ function DuetSlide({ post, isActive, isNear, muted: globalMuted, onRequestNext, 
             <button
               onClick={(e) => { e.stopPropagation(); setFollowing((f) => !f) }}
               aria-label="seguir"
-              className="absolute bottom-1 right-1 rounded-full p-[3px] shadow-lg transition-all duration-200 hover:scale-125 active:scale-95"
+              className="absolute -bottom-2 left-1/2 -translate-x-1/2 rounded-full p-[3px] shadow-lg transition-all duration-200 hover:scale-125 active:scale-95"
               style={following ? { background: '#fff' } : { background: 'linear-gradient(135deg, #6366F1, #8B5CF6)' }}
             >
               {following
@@ -445,7 +445,6 @@ function DuetSlide({ post, isActive, isNear, muted: globalMuted, onRequestNext, 
           {/* Nombre + usuario */}
           <div className="drop-shadow-md">
             <h3 className="text-white font-semibold text-[15px] leading-tight">{headAuthor.name}</h3>
-            <p className="text-[13px] text-white/70 leading-tight">@{headAuthor.username}</p>
           </div>
         </div>
         {/* Título / descripción */}

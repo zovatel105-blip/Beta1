@@ -1,5 +1,55 @@
 [
   {
+    "id": "versus_ch_62896b153d3bc7ef",
+    "type": "versus",
+    "layout": "carousel",
+    "sideA": {
+      "videoUrl": "/uploads/840b3584b3f9234e.mp4",
+      "posterUrl": "/uploads/840b3584b3f9234e.jpg",
+      "author": {
+        "username": "tu_canal",
+        "name": "Tú",
+        "avatarUrl": "https://i.pravatar.cc/120?img=68"
+      },
+      "description": "Mi reto",
+      "music": "Reto"
+    },
+    "sideB": {
+      "videoUrl": "/uploads/d599ab34920925ab.mp4",
+      "posterUrl": "/uploads/d599ab34920925ab.jpg",
+      "author": {
+        "username": "tu_canal",
+        "name": "Tú",
+        "avatarUrl": "https://i.pravatar.cc/120?img=68"
+      },
+      "description": "¿Cuál prefieres? 🅰️🆚🅱️",
+      "music": "Opción A"
+    },
+    "author": {
+      "username": "tu_canal",
+      "name": "Tú",
+      "avatarUrl": "https://i.pravatar.cc/120?img=68"
+    },
+    "description": "Reto: @tu_canal 🆚 @tu_canal 🥊",
+    "music": "Reto aceptado",
+    "videoUrl": "/uploads/840b3584b3f9234e.mp4",
+    "posterUrl": "/uploads/840b3584b3f9234e.jpg",
+    "thumbnailUrl": "/uploads/840b3584b3f9234e.jpg",
+    "stats": {
+      "likes": 0,
+      "comments": 0,
+      "shares": 0,
+      "saves": 0
+    },
+    "votes": {
+      "a": 0,
+      "b": 0
+    },
+    "duration": 0,
+    "uploadedAt": "2026-06-07T18:49:58.753Z",
+    "isChallenge": true
+  },
+  {
     "id": "versus_up_d93e326f74fe5814",
     "type": "versus",
     "layout": "carousel",
