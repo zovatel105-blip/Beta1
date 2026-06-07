@@ -357,9 +357,9 @@ function CarouselSlide({ post, isActive, isNear, muted: globalMuted, onRequestNe
       >
         <button aria-label="votos" onClick={(e) => e.stopPropagation()} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
           <span style={{ color: userVote === 'a' ? '#A855F7' : userVote === 'b' ? '#3B82F6' : '#fff', display: 'inline-flex', transition: 'color 200ms' }}>
-            <VoteIcon className="w-[34px] h-[34px]" strokeWidth={320} filled={!!userVote} />
+            <VoteIcon className="w-[40px] h-[40px]" strokeWidth={320} filled={!!userVote} />
           </span>
-          <span className="text-[10px] font-semibold text-white leading-none">{countLabel(totalVotes, 'Votar')}</span>
+          <span className="text-[11px] font-semibold text-white leading-none">{countLabel(totalVotes, 'Votar')}</span>
         </button>
         <button aria-label="retar" onClick={(e) => { e.stopPropagation(); onChallenge?.({ videoUrl: current.videoUrl, author: headAuthor, description: current.description || post.description, music: current.music || post.music }) }} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
           <Swords className="w-[25px] h-[25px] text-white" strokeWidth={1.5} />
