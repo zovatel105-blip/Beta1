@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils'
  * El botón + abre el diálogo de subida (onOpenUpload). El resto sólo
  * gestiona el estado visual "activo" (la app es de una sola página).
  */
-export default function BottomNav({ onOpenUpload, onOpenInbox, unreadCount = 0 }) {
+export default function BottomNav({ onOpenUpload, onOpenInbox, onOpenProfile, onGoHome, unreadCount = 0 }) {
   const [active, setActive] = useState('home')
 
   return (
@@ -23,7 +23,7 @@ export default function BottomNav({ onOpenUpload, onOpenInbox, unreadCount = 0 }
         {/* Home */}
         <button
           aria-label="Inicio"
-          onClick={() => setActive('home')}
+          onClick={() => { setActive('home'); onGoHome?.() }}
           className="flex items-center justify-center w-9 h-9 transition-all duration-200 active:scale-90"
         >
           <Home
@@ -90,7 +90,7 @@ export default function BottomNav({ onOpenUpload, onOpenInbox, unreadCount = 0 }
         {/* Perfil */}
         <button
           aria-label="Perfil"
-          onClick={() => setActive('profile')}
+          onClick={() => { setActive('profile'); onOpenProfile?.() }}
           className="flex items-center justify-center w-9 h-9 transition-all duration-200 active:scale-90"
         >
           <User
