@@ -19,9 +19,9 @@ function formatCount(n) {
 
 /**
  * VSWinnerCard — overlay de "ganador" que se muestra sobre un duelo (VS) tras
- * votar. Misma medida que la VSContentCard (card 9:16 centrada con glow del
- * color del ganador) y muestra el VÍDEO del ganador de fondo, con la info
- * (trofeo, %, barra de resultados y acciones) superpuesta.
+ * votar. Misma medida que la VSContentCard (card 9:16 centrada) y muestra el
+ * VÍDEO del ganador de fondo. El borde y el glow lateral se ADAPTAN a la barra
+ * de resultados: izquierda = color A hasta el % de A, derecha = color B.
  *
  * Interacción:
  *  - Click fuera de la card (backdrop) -> onClose
@@ -53,6 +53,9 @@ export default function VSWinnerCard({
   // Porcentajes alineados a las opciones A/B para la barra de resultados.
   const aPct = winnerSide === 'a' ? winnerPercentage : loserPercentage
   const bPct = winnerSide === 'a' ? loserPercentage : winnerPercentage
+
+  // Degradado que refleja la barra: A (izquierda) hasta aPct, B (derecha) el resto.
+  const barGradient = `linear-gradient(90deg, ${COLORS.a.primary} 0%, ${COLORS.a.primary} ${aPct}%, ${COLORS.b.primary} ${aPct}%, ${COLORS.b.primary} 100%)`
 
   const handleTouchStart = (e) => {
     const t = e.touches?.[0]
@@ -93,88 +96,96 @@ export default function VSWinnerCard({
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
-      {/* Card 9:16 (misma medida que la VSContentCard) con el vídeo del ganador y glow */}
-      <div
-        className="relative w-[88vw] max-w-[420px] aspect-[9/16] rounded-[28px] overflow-hidden animate-[winnerPop_280ms_cubic-bezier(0.16,1,0.3,1)]"
-        style={{ boxShadow: `0 0 0 2px ${winColor.primary}, 0 0 44px 6px ${winColor.glow}, 0 18px 60px -10px rgba(0,0,0,0.7)`, filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.9))' }}
-      >
-        {/* Vídeo del ganador de fondo */}
-        {winnerVideoUrl ? (
-          <video src={winnerVideoUrl} muted loop autoPlay playsInline className="absolute inset-0 w-full h-full object-cover" />
-        ) : winnerImage ? (
-          <img src={winnerImage} alt={winnerName} className="absolute inset-0 w-full h-full object-cover" draggable={false} />
-        ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-zinc-800 to-black" />
-        )}
+      {/* Card 9:16 (misma medida que la VSContentCard). Borde + glow adaptados a la barra. */}
+      <div className="relative w-[88vw] max-w-[420px] aspect-[9/16] animate-[winnerPop_280ms_cubic-bezier(0.16,1,0.3,1)]">
+        {/* Glow lateral adaptado a la barra (A izquierda / B derecha) */}
+        <div
+          className="absolute inset-0 rounded-[36px] blur-2xl opacity-75 scale-[1.05] pointer-events-none"
+          style={{ background: barGradient }}
+        />
 
-        {/* Vignette para legibilidad */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/65 via-black/15 to-black/90" />
+        {/* Borde con degradado que refleja la barra */}
+        <div className="relative w-full h-full rounded-[28px] p-[2.5px] shadow-[0_18px_60px_-10px_rgba(0,0,0,0.7)]" style={{ background: barGradient }}>
+          <div className="relative w-full h-full rounded-[26px] overflow-hidden bg-black">
+            {/* Vídeo del ganador de fondo */}
+            {winnerVideoUrl ? (
+              <video src={winnerVideoUrl} muted loop autoPlay playsInline className="absolute inset-0 w-full h-full object-cover" />
+            ) : winnerImage ? (
+              <img src={winnerImage} alt={winnerName} className="absolute inset-0 w-full h-full object-cover" draggable={false} />
+            ) : (
+              <div className="absolute inset-0 bg-gradient-to-br from-zinc-800 to-black" />
+            )}
 
-        {/* Contenido superpuesto */}
-        <div className="relative z-10 h-full flex flex-col items-center justify-between py-6 px-5 text-center">
-          {/* Top */}
-          <div className="flex flex-col items-center gap-2.5">
-            <span className="text-white/70 text-[11px] font-bold tracking-[0.4em]">DUELO</span>
-            <div
-              className="flex items-center gap-1.5 text-[12px] font-extrabold tracking-wider text-white px-3.5 py-1.5 rounded-full"
-              style={{ background: `${winColor.primary}cc`, boxShadow: `0 0 22px ${winColor.glow}` }}
-            >
-              <Trophy size={15} className="stroke-[2.5]" /> GANADOR
-            </div>
-          </div>
+            {/* Vignette para legibilidad */}
+            <div className="absolute inset-0 bg-gradient-to-b from-black/65 via-black/15 to-black/90" />
 
-          {/* Middle: nombre + porcentaje grande */}
-          <div className="flex flex-col items-center">
-            {winnerName ? (
-              <h3 className="text-white text-xl font-extrabold drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] max-w-full truncate">{winnerName}</h3>
-            ) : null}
-            <h4
-              className="text-7xl font-black leading-none text-white"
-              style={{ textShadow: `0 0 28px ${winColor.glow}, 0 2px 12px rgba(0,0,0,0.8)` }}
-            >
-              {winnerPercentage}%
-            </h4>
-          </div>
-
-          {/* Bottom: barra de resultados + acciones */}
-          <div className="w-full flex flex-col gap-3">
-            <div>
-              <div className="flex items-center justify-between text-[11px] font-bold mb-1.5 drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">
-                <span style={{ color: COLORS.a.primary }}>A · {aPct}%</span>
-                <span className="text-white/60 font-medium">{formatCount(totalVotes)} votos</span>
-                <span style={{ color: COLORS.b.primary }}>B · {bPct}%</span>
-              </div>
-              <div className="h-2.5 w-full rounded-full overflow-hidden flex bg-white/15">
-                <div className="h-full transition-all duration-700" style={{ width: `${aPct}%`, background: COLORS.a.primary }} />
-                <div className="h-full transition-all duration-700" style={{ width: `${bPct}%`, background: COLORS.b.primary }} />
-              </div>
-              {loserName ? (
-                <p className="text-white/55 text-[11px] mt-1.5 drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">vs {loserName} · {loserPercentage}%</p>
-              ) : null}
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <div className="flex gap-2">
-                <button
-                  onClick={(e) => { e.stopPropagation(); onShare?.(); onClose?.() }}
-                  className="flex-1 flex items-center justify-center gap-1.5 bg-white/15 hover:bg-white/25 backdrop-blur text-white font-semibold text-[13px] py-2.5 rounded-xl active:scale-95 transition-all"
+            {/* Contenido superpuesto */}
+            <div className="relative z-10 h-full flex flex-col items-center justify-between py-6 px-5 text-center">
+              {/* Top */}
+              <div className="flex flex-col items-center gap-2.5">
+                <span className="text-white/70 text-[11px] font-bold tracking-[0.4em]">DUELO</span>
+                <div
+                  className="flex items-center gap-1.5 text-[12px] font-extrabold tracking-wider text-white px-3.5 py-1.5 rounded-full"
+                  style={{ background: `${winColor.primary}cc`, boxShadow: `0 0 22px ${winColor.glow}` }}
                 >
-                  <Share2 size={15} /> Compartir
-                </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); onComments?.(); onClose?.() }}
-                  className="flex-1 flex items-center justify-center gap-1.5 bg-white/15 hover:bg-white/25 backdrop-blur text-white font-semibold text-[13px] py-2.5 rounded-xl active:scale-95 transition-all"
-                >
-                  <MessageCircle size={15} /> Comentarios
-                </button>
+                  <Trophy size={15} className="stroke-[2.5]" /> GANADOR
+                </div>
               </div>
-              <button
-                onClick={(e) => { e.stopPropagation(); onNext?.() }}
-                className="w-full flex items-center justify-center gap-2 text-white font-bold text-sm py-3 rounded-xl active:scale-95 transition-transform"
-                style={{ background: `linear-gradient(135deg, ${COLORS.a.primary}, ${COLORS.b.primary})`, boxShadow: `0 8px 24px -6px ${winColor.glow}` }}
-              >
-                Siguiente duelo <ChevronDown size={18} className="stroke-[2.5]" />
-              </button>
+
+              {/* Middle: nombre + porcentaje grande */}
+              <div className="flex flex-col items-center">
+                {winnerName ? (
+                  <h3 className="text-white text-xl font-extrabold drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] max-w-full truncate">{winnerName}</h3>
+                ) : null}
+                <h4
+                  className="text-7xl font-black leading-none text-white"
+                  style={{ textShadow: `0 0 28px ${winColor.glow}, 0 2px 12px rgba(0,0,0,0.8)` }}
+                >
+                  {winnerPercentage}%
+                </h4>
+              </div>
+
+              {/* Bottom: barra de resultados + acciones */}
+              <div className="w-full flex flex-col gap-3">
+                <div>
+                  <div className="flex items-center justify-between text-[11px] font-bold mb-1.5 drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">
+                    <span style={{ color: COLORS.a.primary }}>A · {aPct}%</span>
+                    <span className="text-white/60 font-medium">{formatCount(totalVotes)} votos</span>
+                    <span style={{ color: COLORS.b.primary }}>B · {bPct}%</span>
+                  </div>
+                  <div className="h-2.5 w-full rounded-full overflow-hidden flex bg-white/15">
+                    <div className="h-full transition-all duration-700" style={{ width: `${aPct}%`, background: COLORS.a.primary }} />
+                    <div className="h-full transition-all duration-700" style={{ width: `${bPct}%`, background: COLORS.b.primary }} />
+                  </div>
+                  {loserName ? (
+                    <p className="text-white/55 text-[11px] mt-1.5 drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">vs {loserName} · {loserPercentage}%</p>
+                  ) : null}
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <div className="flex gap-2">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onShare?.(); onClose?.() }}
+                      className="flex-1 flex items-center justify-center gap-1.5 bg-white/15 hover:bg-white/25 backdrop-blur text-white font-semibold text-[13px] py-2.5 rounded-xl active:scale-95 transition-all"
+                    >
+                      <Share2 size={15} /> Compartir
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onComments?.(); onClose?.() }}
+                      className="flex-1 flex items-center justify-center gap-1.5 bg-white/15 hover:bg-white/25 backdrop-blur text-white font-semibold text-[13px] py-2.5 rounded-xl active:scale-95 transition-all"
+                    >
+                      <MessageCircle size={15} /> Comentarios
+                    </button>
+                  </div>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onNext?.() }}
+                    className="w-full flex items-center justify-center gap-2 text-white font-bold text-sm py-3 rounded-xl active:scale-95 transition-transform"
+                    style={{ background: barGradient, boxShadow: `0 8px 24px -6px ${winColor.glow}` }}
+                  >
+                    Siguiente duelo <ChevronDown size={18} className="stroke-[2.5]" />
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
