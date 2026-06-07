@@ -158,16 +158,17 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
   return (
     <div className="fixed inset-0 z-40 bg-white overflow-y-auto overscroll-contain">
       {/* Header: título centrado + menú hamburguesa */}
-      <div className="relative flex items-center justify-center h-14 px-4"
-           style={{ paddingTop: 'max(env(safe-area-inset-top), 0px)' }}>
-        <h1 className="text-[20px] font-bold text-gray-900">{ME.username}</h1>
-        <button aria-label="menú" className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-900 active:scale-90 transition">
-          <Menu className="w-7 h-7" strokeWidth={2} />
+      <div className="relative flex items-center justify-center px-3 sm:px-6 py-3"
+           style={{ paddingTop: 'max(env(safe-area-inset-top), 12px)' }}>
+        <h1 className="text-lg font-semibold text-gray-900">{ME.username}</h1>
+        <button aria-label="menú" className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 p-1 text-gray-700 active:scale-90 transition">
+          <Menu strokeWidth={2} style={{ width: '26px', height: '26px' }} />
         </button>
       </div>
 
-      {/* Avatar con métricas alrededor en diseño 3x3 (estructura exacta del diseño de referencia) */}
-      <div className="px-3 sm:px-6 mt-4">
+      {/* Bloque de cabecera del perfil: stats + nombre + botones con espaciado uniforme */}
+      <div className="px-3 sm:px-6 py-6 sm:py-8 space-y-6 sm:space-y-8">
+        {/* Avatar con métricas alrededor en diseño 3x3 (estructura exacta del diseño de referencia) */}
         <div className="relative max-w-sm mx-auto w-full">
           <div className="grid grid-cols-3 gap-1 sm:gap-2 items-center">
 
@@ -254,25 +255,25 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
             </button>
           </div>
         </div>
-      </div>
 
-      {/* Nombre */}
-      <div className="text-center space-y-2 max-w-sm mx-auto mt-6">
-        <h2 className="text-lg sm:text-xl font-bold text-gray-900">{ME.username}</h2>
-      </div>
+        {/* Nombre */}
+        <div className="text-center space-y-2 max-w-sm mx-auto">
+          <h2 className="text-lg sm:text-xl font-bold text-gray-900">{ME.username}</h2>
+        </div>
 
-      {/* Botones de acción - Edit profile / Statistics */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 max-w-sm mx-auto mt-6 px-3 sm:px-6">
-        <button className="h-11 sm:h-12 rounded-2xl bg-gray-50 hover:bg-gray-100 font-medium text-sm text-gray-900 transition-colors">
-          Edit profile
-        </button>
-        <button className="h-11 sm:h-12 rounded-2xl bg-gray-50 hover:bg-gray-100 font-medium text-sm text-gray-900 transition-colors">
-          Statistics
-        </button>
+        {/* Botones de acción - Edit profile / Statistics */}
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 max-w-sm mx-auto">
+          <button className="h-11 sm:h-12 rounded-2xl bg-gray-50 hover:bg-gray-100 font-medium text-sm text-gray-900 transition-colors">
+            Edit profile
+          </button>
+          <button className="h-11 sm:h-12 rounded-2xl bg-gray-50 hover:bg-gray-100 font-medium text-sm text-gray-900 transition-colors">
+            Statistics
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}
-      <div className="px-1 sm:px-2 mt-5">
+      <div className="px-1 sm:px-2">
         <div className="grid grid-cols-5 w-full bg-gray-50 rounded-2xl p-1">
           {TABS.map((tab) => {
             const active = activeTab === tab.key
