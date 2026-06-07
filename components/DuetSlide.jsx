@@ -327,15 +327,14 @@ function DuetSlide({ post, isActive, isNear, muted: globalMuted }) {
         </div>
 
         <div className={dividerClass} />
-        {/* VS badge */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-none flex flex-col items-center gap-2">
-          <div className="vs-badge">VS</div>
-          {!userVote && (
+        {/* Pista de votación (centro) */}
+        {!userVote && (
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-none flex flex-col items-center gap-2">
             <div className="bg-black/55 backdrop-blur text-white text-[10px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap">
               Toca un vídeo para votar
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* play overlay */}
