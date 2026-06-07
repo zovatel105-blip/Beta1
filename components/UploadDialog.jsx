@@ -4,16 +4,17 @@ import { useEffect, useRef, useState } from 'react'
 import { X, ChevronRight, Loader2, Film, Swords, Rows3, Columns3, Check, ArrowLeft } from 'lucide-react'
 
 /**
- * UploadDialog — flujo multi-paso para subir vídeos normales o 1vs1 (dueto).
+ * UploadDialog — flujo multi-paso para crear publicaciones de votación: Versus
+ * (carrusel de 2 vídeos A/B) o 1vs1 (dueto).
  *
- * Pasos para Normal:  mode -> file -> upload
+ * Pasos para Versus:  mode -> file -> upload
  * Pasos para 1vs1:    mode -> layout -> pair -> file -> upload
  */
 export default function UploadDialog({ open, onClose, onUploaded }) {
   const inputRef = useRef(null)
   const inputBRef = useRef(null)
   const [step, setStep] = useState('mode') // mode | layout | pair | file | uploading
-  const [mode, setMode] = useState(null) // 'normal' | 'duet'
+  const [mode, setMode] = useState(null) // 'versus' | 'duet'
   const [layout, setLayout] = useState('horizontal') // 'horizontal' | 'vertical'
   const [pair, setPair] = useState(null)
   const [options, setOptions] = useState([])
@@ -58,8 +59,8 @@ export default function UploadDialog({ open, onClose, onUploaded }) {
   }
 
   const doUpload = async () => {
-    // normal -> versus necesita 2 vídeos; duet necesita 1 + pareja
-    if (mode === 'normal') {
+    // versus -> necesita 2 vídeos; duet necesita 1 + pareja
+    if (mode === 'versus') {
       if (!file || !fileB) { setError('Sube los 2 vídeos (A y B)'); return }
     } else if (!file) {
       return
@@ -148,7 +149,7 @@ export default function UploadDialog({ open, onClose, onUploaded }) {
           {step === 'mode' && (
             <div className="space-y-3">
               <button
-                onClick={() => { setMode('normal'); setStep('file') }}
+                onClick={() => { setMode('versus'); setStep('file') }}
                 className="w-full flex items-center gap-3 p-4 rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 active:scale-[0.98] transition text-left"
               >
                 <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center">
@@ -262,7 +263,7 @@ export default function UploadDialog({ open, onClose, onUploaded }) {
               <input ref={inputRef} type="file" accept="video/*" className="hidden" onChange={handleFileChange('a')} />
               <input ref={inputBRef} type="file" accept="video/*" className="hidden" onChange={handleFileChange('b')} />
 
-              {mode === 'normal' ? (
+              {mode === 'versus' ? (
                 /* Versus: dos cajas (A / B) */
                 <div className="grid grid-cols-2 gap-3">
                   <button
@@ -343,7 +344,7 @@ export default function UploadDialog({ open, onClose, onUploaded }) {
 
               <button
                 onClick={doUpload}
-                disabled={mode === 'normal' ? (!file || !fileB) : !file}
+                disabled={mode === 'versus' ? (!file || !fileB) : !file}
                 className="w-full bg-rose-500 disabled:bg-white/10 disabled:text-white/40 hover:bg-rose-600 active:scale-[0.98] transition rounded-full py-3 font-bold"
               >
                 {mode === 'duet' ? 'Publicar 1vs1' : 'Publicar versus'}
