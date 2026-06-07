@@ -63,6 +63,7 @@ function CarouselSlide({ post, isActive, isNear, muted: globalMuted, onRequestNe
     if (typeof window === 'undefined') return
     try {
       const v = localStorage.getItem(`versus_vote_${post.id}`)
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (v === 'a' || v === 'b') setUserVote(v)
     } catch { /* ignore */ }
   }, [post.id])
@@ -237,23 +238,32 @@ function CarouselSlide({ post, isActive, isNear, muted: globalMuted, onRequestNe
   const chosenSide = userVote === 'b' ? sideB : sideA
 
   const renderVideo = (s, ref) => (
-    <div className="relative w-1/2 h-full overflow-hidden">
-      {isNear ? (
+    <div className="relative w-1/2 h-full overflow-hidden bg-black">
+      {/* Poster: primer fotograma -> la publicación se ve al instante. */}
+      {s.posterUrl && (
+        <img
+          src={s.posterUrl}
+          alt=""
+          aria-hidden
+          draggable={false}
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+      )}
+      {isNear && (
         <video
           ref={ref}
-          className="absolute inset-0 w-full h-full object-cover bg-black"
+          className="absolute inset-0 w-full h-full object-cover bg-transparent"
           loop
           muted
           playsInline
           preload="auto"
+          poster={s.posterUrl || undefined}
           onPlay={onVideoPlay}
           onPause={onVideoPause}
         >
           <source src={s.videoUrl} type="video/mp4" />
           {hasWebm(s.videoUrl) && <source src={webmFor(s.videoUrl)} type="video/webm" />}
         </video>
-      ) : (
-        <div className="absolute inset-0 bg-black" />
       )}
     </div>
   )
@@ -331,8 +341,8 @@ function CarouselSlide({ post, isActive, isNear, muted: globalMuted, onRequestNe
             </button>
           </div>
           <div className="drop-shadow-md">
-            <h3 className="text-white font-semibold text-base leading-tight">{headAuthor.name}</h3>
-            <p className="text-sm text-white/70 leading-tight">@{headAuthor.username}</p>
+            <h3 className="text-white font-semibold text-[15px] leading-tight">{headAuthor.name}</h3>
+            <p className="text-[13px] text-white/70 leading-tight">@{headAuthor.username}</p>
           </div>
         </div>
         <div className="mt-1 pointer-events-auto">
@@ -347,25 +357,25 @@ function CarouselSlide({ post, isActive, isNear, muted: globalMuted, onRequestNe
       >
         <button aria-label="votos" onClick={(e) => e.stopPropagation()} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
           <span style={{ color: userVote === 'a' ? '#A855F7' : userVote === 'b' ? '#3B82F6' : '#fff', display: 'inline-flex', transition: 'color 200ms' }}>
-            <VoteIcon className="w-[40px] h-[40px]" strokeWidth={320} filled={!!userVote} />
+            <VoteIcon className="w-[34px] h-[34px]" strokeWidth={320} filled={!!userVote} />
           </span>
-          <span className="text-[8px] font-medium text-white leading-none">{countLabel(totalVotes, 'Votar')}</span>
+          <span className="text-[10px] font-semibold text-white leading-none">{countLabel(totalVotes, 'Votar')}</span>
         </button>
         <button aria-label="retar" onClick={(e) => { e.stopPropagation(); onChallenge?.({ videoUrl: current.videoUrl, author: headAuthor, description: current.description || post.description, music: current.music || post.music }) }} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
-          <Swords className="w-[26px] h-[26px] text-white" />
-          <span className="text-[8px] font-medium text-white leading-none">Retar</span>
+          <Swords className="w-[25px] h-[25px] text-white" />
+          <span className="text-[10px] font-semibold text-white leading-none">Retar</span>
         </button>
         <button aria-label="comments" onClick={(e) => e.stopPropagation()} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
-          <MessageCircle className="w-[23px] h-[23px] text-white" />
-          <span className="text-[8px] font-medium text-white leading-none">{countLabel(post.stats?.comments, 'Comentar')}</span>
+          <MessageCircle className="w-[25px] h-[25px] text-white" />
+          <span className="text-[10px] font-semibold text-white leading-none">{countLabel(post.stats?.comments, 'Comentar')}</span>
         </button>
         <button aria-label="share" onClick={(e) => e.stopPropagation()} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
-          <Share2 className="w-[23px] h-[23px] text-white" />
-          <span className="text-[8px] font-medium text-white leading-none">{countLabel(post.stats?.shares, 'Compartir')}</span>
+          <Share2 className="w-[25px] h-[25px] text-white" />
+          <span className="text-[10px] font-semibold text-white leading-none">{countLabel(post.stats?.shares, 'Compartir')}</span>
         </button>
         <button aria-label="bookmark" onClick={(e) => { e.stopPropagation(); setSaved((s) => !s) }} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
-          <Bookmark className={cn('w-[23px] h-[23px] transition-all duration-200', saved ? 'fill-current text-yellow-400' : 'text-white')} />
-          <span className="text-[8px] font-medium text-white leading-none">{countLabel(post.stats?.saves, 'Guardar')}</span>
+          <Bookmark className={cn('w-[25px] h-[25px] transition-all duration-200', saved ? 'fill-current text-yellow-400' : 'text-white')} />
+          <span className="text-[10px] font-semibold text-white leading-none">{countLabel(post.stats?.saves, 'Guardar')}</span>
         </button>
         <div className="mt-1 w-10 h-10 rounded-full overflow-hidden border border-white/30 bg-gradient-to-br from-zinc-700 to-black flex items-center justify-center" style={{ animation: 'spin 6s linear infinite' }}>
           <img src={headAuthor.avatarUrl} alt="" className="w-6 h-6 rounded-full object-cover" draggable={false} />

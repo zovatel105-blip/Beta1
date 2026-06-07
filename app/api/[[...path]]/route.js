@@ -74,6 +74,20 @@ const ME_AUTHOR = {
 // Local videos served from /public/videos/*.mp4 (no Content-Disposition issues, no CORS)
 const v = (id) => `/videos/${id}.mp4`
 
+// Poster (primer fotograma) asociado a un vídeo: /videos/x.mp4 -> /videos/x.jpg,
+// /uploads/x.mp4 -> /uploads/x.jpg. Permite mostrar la publicación al instante.
+const posterFor = (url) => (typeof url === 'string' ? url.replace(/\.(mp4|webm|mov|m4v)$/i, '.jpg') : '')
+
+// Genera un poster JPG del primer fotograma de un vídeo subido (best-effort).
+function makePoster(inPath, outPath) {
+  return new Promise((resolve) => {
+    const args = ['-y', '-ss', '0.1', '-i', inPath, '-frames:v', '1', '-vf', "scale='min(480,iw)':-2", '-q:v', '4', outPath]
+    const p = spawn('ffmpeg', args)
+    p.on('error', () => resolve(false))
+    p.on('exit', (code) => resolve(code === 0))
+  })
+}
+
 const VIDEOS = [
   { url: v(51265 - 0), author: { username: 'wanderlust', name: 'Sofía Vela', avatarUrl: 'https://i.pravatar.cc/120?img=47' }, description: 'Atardeceres que detienen el tiempo 🌅 #viajes #naturaleza', music: 'Sofía Vela — Horizonte (original)' },
   { url: v(4467),  author: { username: 'urbanlife',  name: 'Marco Ruiz',   avatarUrl: 'https://i.pravatar.cc/120?img=12' }, description: 'La ciudad nunca duerme ✨🏙️ #urban #night #vibes', music: 'Marco Ruiz — Neon Lights' },
@@ -114,14 +128,15 @@ function makePosts(start, count) {
       type: 'versus',
       layout: 'carousel',
       // Carrusel de 2 opciones (A / B) entre las que se desliza y se vota.
-      sideA: { videoUrl: a.url, author: a.author, description: a.description, music: a.music },
-      sideB: { videoUrl: b.url, author: b.author, description: b.description, music: b.music },
+      sideA: { videoUrl: a.url, posterUrl: posterFor(a.url), author: a.author, description: a.description, music: a.music },
+      sideB: { videoUrl: b.url, posterUrl: posterFor(b.url), author: b.author, description: b.description, music: b.music },
       // Campos top-level por compat con el resto del feed (cabecera, etc.)
       author: a.author,
       description: a.description,
       music: a.music,
       videoUrl: a.url,
-      thumbnailUrl: '',
+      posterUrl: posterFor(a.url),
+      thumbnailUrl: posterFor(a.url),
       stats: {
         likes: 1200 + Math.floor(Math.random() * 90000),
         comments: 30 + Math.floor(Math.random() * 4000),
@@ -254,6 +269,8 @@ async function handleVersusUpload(request) {
       transcodeToWebm(filePath, webmPath).then((ok) => {
         if (!ok) console.warn('webm transcode failed for versus', filename)
       })
+      // Poster del primer fotograma para carga instantánea.
+      makePoster(filePath, nodePath.join(UPLOAD_DIR, `${id}.jpg`))
       return `/uploads/${filename}`
     }
 
@@ -272,13 +289,14 @@ async function handleVersusUpload(request) {
       id: `versus_up_${id}`,
       type: 'versus',
       layout: 'carousel',
-      sideA: { videoUrl: urlA, author: meAuthor, description: captionA || description, music: 'Opción A' },
-      sideB: { videoUrl: urlB, author: meAuthor, description: captionB || description, music: 'Opción B' },
+      sideA: { videoUrl: urlA, posterUrl: posterFor(urlA), author: meAuthor, description: captionA || description, music: 'Opción A' },
+      sideB: { videoUrl: urlB, posterUrl: posterFor(urlB), author: meAuthor, description: captionB || description, music: 'Opción B' },
       author: meAuthor,
       description,
       music: 'Tu versus original',
       videoUrl: urlA,
-      thumbnailUrl: '',
+      posterUrl: posterFor(urlA),
+      thumbnailUrl: posterFor(urlA),
       stats: { likes: 0, comments: 0, shares: 0, saves: 0 },
       votes: { a: 0, b: 0 },
       duration: 0,
@@ -337,6 +355,7 @@ async function handleDuetUpload(request) {
     transcodeToWebm(filePath, webmPath).then((ok) => {
       if (!ok) console.warn('webm transcode failed for duet', filename)
     })
+    makePoster(filePath, nodePath.join(UPLOAD_DIR, `${id}.jpg`))
 
     const myUrl = `/uploads/${filename}`
     const post = {
@@ -346,6 +365,7 @@ async function handleDuetUpload(request) {
       // Side A = el vídeo que sube el usuario (suena por defecto)
       sideA: {
         videoUrl: myUrl,
+        posterUrl: posterFor(myUrl),
         author: {
           username: 'tu_canal',
           name: 'Tú',
@@ -357,6 +377,7 @@ async function handleDuetUpload(request) {
       // Side B = el vídeo emparejado (existente del feed o de otro upload)
       sideB: {
         videoUrl: pairVideoUrl,
+        posterUrl: posterFor(pairVideoUrl),
         author: pairAuthor,
         description: pairDescription,
         music: pairMusic,
@@ -440,6 +461,7 @@ async function saveUploadedVideo(file) {
   transcodeToWebm(filePath, webmPath).then((ok) => {
     if (!ok) console.warn('webm transcode failed for challenge', filename)
   })
+  makePoster(filePath, nodePath.join(UPLOAD_DIR, `${id}.jpg`))
   return `/uploads/${filename}`
 }
 
@@ -501,13 +523,14 @@ async function handleAcceptChallenge(cid) {
       id: `versus_ch_${id}`,
       type: 'versus',
       layout: 'carousel',
-      sideA: { videoUrl: c.challengerVideoUrl, author: c.from, description: c.message || 'Mi reto', music: 'Reto' },
-      sideB: { videoUrl: c.targetVideoUrl, author: c.to, description: c.targetDescription || '', music: c.targetMusic || '' },
+      sideA: { videoUrl: c.challengerVideoUrl, posterUrl: posterFor(c.challengerVideoUrl), author: c.from, description: c.message || 'Mi reto', music: 'Reto' },
+      sideB: { videoUrl: c.targetVideoUrl, posterUrl: posterFor(c.targetVideoUrl), author: c.to, description: c.targetDescription || '', music: c.targetMusic || '' },
       author: c.from,
       description: c.message || `Reto: @${c.from?.username} 🆚 @${c.to?.username} 🥊`,
       music: 'Reto aceptado',
       videoUrl: c.challengerVideoUrl,
-      thumbnailUrl: '',
+      posterUrl: posterFor(c.challengerVideoUrl),
+      thumbnailUrl: posterFor(c.challengerVideoUrl),
       stats: { likes: 0, comments: 0, shares: 0, saves: 0 },
       votes: { a: 0, b: 0 },
       duration: 0,

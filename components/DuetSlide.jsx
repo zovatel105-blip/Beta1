@@ -87,6 +87,7 @@ function DuetSlide({ post, isActive, isNear, muted: globalMuted, onRequestNext, 
     if (typeof window === 'undefined') return
     try {
       const v = localStorage.getItem(`duet_vote_${post.id}`)
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (v === 'a' || v === 'b') setUserVote(v)
     } catch { /* ignore */ }
   }, [post.id])
@@ -116,8 +117,8 @@ function DuetSlide({ post, isActive, isNear, muted: globalMuted, onRequestNext, 
     if (!pool) return
     const slideIdA = `${post.id}__a`
     const slideIdB = `${post.id}__b`
-    const pa = pool.acquire(slideIdA, sideA.videoUrl)
-    const pb = pool.acquire(slideIdB, sideB.videoUrl)
+    const pa = pool.acquire(slideIdA, sideA.videoUrl, sideA.posterUrl)
+    const pb = pool.acquire(slideIdB, sideB.videoUrl, sideB.posterUrl)
     playerARef.current = pa
     playerBRef.current = pb
     const va = pa.video
@@ -133,6 +134,7 @@ function DuetSlide({ post, isActive, isNear, muted: globalMuted, onRequestNext, 
     va.muted = globalMuted || audibleSide !== 'a'
     vb.muted = globalMuted || audibleSide !== 'b'
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoadedA(va.readyState >= 3)
     setLoadedB(vb.readyState >= 3)
     setPaused(va.paused && vb.paused)
@@ -435,14 +437,14 @@ function DuetSlide({ post, isActive, isNear, muted: globalMuted, onRequestNext, 
               style={following ? { background: '#fff' } : { background: 'linear-gradient(135deg, #6366F1, #8B5CF6)' }}
             >
               {following
-                ? <CheckCircle className="w-3.5 h-3.5 text-indigo-500" />
-                : <Plus className="w-3.5 h-3.5 text-white stroke-[3]" />}
+                ? <CheckCircle className="w-4 h-4 text-indigo-500" />
+                : <Plus className="w-4 h-4 text-white stroke-[3]" />}
             </button>
           </div>
           {/* Nombre + usuario */}
           <div className="drop-shadow-md">
-            <h3 className="text-white font-semibold text-base leading-tight">{headAuthor.name}</h3>
-            <p className="text-sm text-white/70 leading-tight">@{headAuthor.username}</p>
+            <h3 className="text-white font-semibold text-[15px] leading-tight">{headAuthor.name}</h3>
+            <p className="text-[13px] text-white/70 leading-tight">@{headAuthor.username}</p>
           </div>
         </div>
         {/* Título / descripción */}
@@ -459,31 +461,31 @@ function DuetSlide({ post, isActive, isNear, muted: globalMuted, onRequestNext, 
         {/* Votos */}
         <button aria-label="votos" onClick={(e) => e.stopPropagation()} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
           <span style={{ color: userVote === 'a' ? '#A855F7' : userVote === 'b' ? '#3B82F6' : '#fff', display: 'inline-flex', transition: 'color 200ms' }}>
-            <VoteIcon className="w-[40px] h-[40px]" strokeWidth={320} filled={!!userVote} />
+            <VoteIcon className="w-[34px] h-[34px]" strokeWidth={320} filled={!!userVote} />
           </span>
-          <span className="text-[8px] font-medium text-white leading-none">
+          <span className="text-[10px] font-semibold text-white leading-none">
             {countLabel(totalVotes, 'Votar')}
           </span>
         </button>
         {/* Like */}
         <button aria-label="retar" onClick={(e) => { e.stopPropagation(); onChallenge?.({ videoUrl: sideA.videoUrl, author: headAuthor, description: sideA.description || post.description, music: sideA.music }) }} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
-          <Swords className="w-[26px] h-[26px] text-white" />
-          <span className="text-[8px] font-medium text-white leading-none">Retar</span>
+          <Swords className="w-[25px] h-[25px] text-white" />
+          <span className="text-[10px] font-semibold text-white leading-none">Retar</span>
         </button>
         {/* Comentar */}
         <button aria-label="comments" onClick={(e) => e.stopPropagation()} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
-          <MessageCircle className="w-[23px] h-[23px] text-white" />
-          <span className="text-[8px] font-medium text-white leading-none">{countLabel(post.stats?.comments, 'Comentar')}</span>
+          <MessageCircle className="w-[25px] h-[25px] text-white" />
+          <span className="text-[10px] font-semibold text-white leading-none">{countLabel(post.stats?.comments, 'Comentar')}</span>
         </button>
         {/* Compartir */}
         <button aria-label="share" onClick={(e) => e.stopPropagation()} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
-          <Share2 className="w-[23px] h-[23px] text-white" />
-          <span className="text-[8px] font-medium text-white leading-none">{countLabel(post.stats?.shares, 'Compartir')}</span>
+          <Share2 className="w-[25px] h-[25px] text-white" />
+          <span className="text-[10px] font-semibold text-white leading-none">{countLabel(post.stats?.shares, 'Compartir')}</span>
         </button>
         {/* Guardar */}
         <button aria-label="bookmark" onClick={(e) => { e.stopPropagation(); setSaved((s) => !s) }} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
-          <Bookmark className={cn('w-[23px] h-[23px] transition-all duration-200', saved ? 'fill-current text-yellow-400' : 'text-white')} />
-          <span className="text-[8px] font-medium text-white leading-none">{countLabel(post.stats?.saves, 'Guardar')}</span>
+          <Bookmark className={cn('w-[25px] h-[25px] transition-all duration-200', saved ? 'fill-current text-yellow-400' : 'text-white')} />
+          <span className="text-[10px] font-semibold text-white leading-none">{countLabel(post.stats?.saves, 'Guardar')}</span>
         </button>
         {/* Disco de música giratorio */}
         <div className="mt-1 w-10 h-10 rounded-full overflow-hidden border border-white/30 bg-gradient-to-br from-zinc-700 to-black flex items-center justify-center" style={{ animation: 'spin 6s linear infinite' }}>

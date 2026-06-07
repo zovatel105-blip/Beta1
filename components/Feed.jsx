@@ -1,4 +1,5 @@
 'use client'
+/* eslint-disable react-hooks/set-state-in-effect -- setState en event handlers (useCallback) y carga inicial async; falso positivo de la regla experimental. */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Swiper, SwiperSlide } from 'swiper/react'
@@ -88,6 +89,33 @@ export default function Feed() {
   const handleSlideChange = useCallback((swiper) => {
     setActiveIdx(swiper.activeIndex)
   }, [])
+
+  // Prefetch de las próximas publicaciones: calienta la caché del navegador con
+  // los posters (instantáneos) y los vídeos de los siguientes 2 slides, de modo
+  // que al deslizar ya están listos. Usa <link rel="prefetch"> (baja prioridad).
+  useEffect(() => {
+    if (typeof document === 'undefined' || posts.length === 0) return
+    const urls = []
+    for (let k = 1; k <= 2; k++) {
+      const p = posts[activeIdx + k]
+      if (!p) continue
+      const sides = [p.sideA, p.sideB].filter(Boolean)
+      for (const s of sides) {
+        if (s.posterUrl) urls.push({ href: s.posterUrl, as: 'image' })
+        if (s.videoUrl) urls.push({ href: s.videoUrl, as: 'video' })
+      }
+      if (!sides.length && p.videoUrl) urls.push({ href: p.videoUrl, as: 'video' })
+    }
+    const links = urls.map(({ href, as }) => {
+      const l = document.createElement('link')
+      l.rel = 'prefetch'
+      l.as = as
+      l.href = href
+      document.head.appendChild(l)
+      return l
+    })
+    return () => { links.forEach((l) => { try { document.head.removeChild(l) } catch { /* ignore */ } }) }
+  }, [activeIdx, posts])
 
   const onFirstInteraction = useCallback(() => setMuted(false), [])
 

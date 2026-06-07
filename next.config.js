@@ -24,6 +24,23 @@ const nextConfig = {
   },
   async headers() {
     return [
+      // Vídeos integrados: inmutables -> el navegador los cachea para siempre,
+      // así la 2ª vez (y los vídeos repetidos entre versus) cargan al instante.
+      {
+        source: "/videos/:file*",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+          { key: "Accept-Ranges", value: "bytes" },
+        ],
+      },
+      // Subidas de usuario: caché larga (cada archivo tiene un id único).
+      {
+        source: "/uploads/:file*",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=604800" },
+          { key: "Accept-Ranges", value: "bytes" },
+        ],
+      },
       {
         source: "/(.*)",
         headers: [
