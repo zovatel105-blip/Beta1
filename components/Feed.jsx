@@ -70,11 +70,11 @@ export default function Feed() {
     }
   }, [cursor])
 
-  // initial: load uploads first (pinned at top), then page 1
+  // initial: load uploads + page 1 en PARALELO (antes iban en serie y
+  // retrasaban el primer render del feed).
   useEffect(() => {
     (async () => {
-      const uploads = await fetchUploads()
-      const data = await fetchPage(0)
+      const [uploads, data] = await Promise.all([fetchUploads(), fetchPage(0)])
       setPosts([...uploads, ...data.posts])
       setCursor(data.nextCursor)
     })()

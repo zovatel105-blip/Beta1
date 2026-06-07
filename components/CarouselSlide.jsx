@@ -17,6 +17,10 @@ function countLabel(n, placeholder) {
 }
 
 const webmFor = (url) => (typeof url === 'string' ? url.replace(/\.mp4$/, '.webm') : '')
+// Solo los vídeos integrados (/videos/) tienen .webm garantizado. Los uploads
+// pueden no tenerlo aún -> no añadimos un <source> webm que dé 404 (en dev
+// cada 404 dispara un render de página completo y ralentiza la carga del feed).
+const hasWebm = (url) => typeof url === 'string' && url.startsWith('/videos/')
 
 /**
  * CarouselSlide — publicación "versus": carrusel horizontal de 2 vídeos (A / B).
@@ -246,7 +250,7 @@ function CarouselSlide({ post, isActive, isNear, muted: globalMuted, onRequestNe
           onPause={onVideoPause}
         >
           <source src={s.videoUrl} type="video/mp4" />
-          <source src={webmFor(s.videoUrl)} type="video/webm" />
+          {hasWebm(s.videoUrl) && <source src={webmFor(s.videoUrl)} type="video/webm" />}
         </video>
       ) : (
         <div className="absolute inset-0 bg-black" />
