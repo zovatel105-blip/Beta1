@@ -5,6 +5,8 @@ import { Heart, MessageCircle, Bookmark, Share2, Play, Plus, CheckCircle, Volume
 import { getVideoPool } from '@/lib/videoPool'
 import { cn } from '@/lib/utils'
 import VoteIcon from './icons/VoteIcon'
+import VSWinnerCard from './VSWinnerCard'
+import VSContentCard from './VSContentCard'
 
 function formatCount(n) {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M'
@@ -26,7 +28,7 @@ function countLabel(n, placeholder) {
  *   - double tap  -> like (corazón flotante).
  * La UI (cabecera superior + columna social derecha) es idéntica a la del vídeo normal.
  */
-function DuetSlide({ post, isActive, isNear, muted: globalMuted }) {
+function DuetSlide({ post, isActive, isNear, muted: globalMuted, onRequestNext }) {
   const mountARef = useRef(null)
   const mountBRef = useRef(null)
   const playerARef = useRef(null)
@@ -54,6 +56,33 @@ function DuetSlide({ post, isActive, isNear, muted: globalMuted }) {
   })
   const [userVote, setUserVote] = useState(null) // 'a' | 'b' | null
   const [voting, setVoting] = useState(false)
+
+  // Overlays: winner card (tras votar) + content card (long-press)
+  const [showWinner, setShowWinner] = useState(false)
+  const [showContent, setShowContent] = useState(false)
+  const [contentIdx, setContentIdx] = useState(0)
+
+  // Long-press para abrir la content card
+  const lpTimerRef = useRef(null)
+  const lpFiredRef = useRef(false)
+  const lpStartRef = useRef({ x: 0, y: 0 })
+  const cancelLongPress = useCallback(() => {
+    if (lpTimerRef.current) { clearTimeout(lpTimerRef.current); lpTimerRef.current = null }
+  }, [])
+  const startLongPress = useCallback((idx) => (e) => {
+    lpFiredRef.current = false
+    lpStartRef.current = { x: e.clientX, y: e.clientY }
+    cancelLongPress()
+    lpTimerRef.current = setTimeout(() => {
+      lpFiredRef.current = true
+      setContentIdx(idx)
+      setShowContent(true)
+    }, 450)
+  }, [cancelLongPress])
+  const moveLongPress = useCallback((e) => {
+    const s = lpStartRef.current
+    if (Math.abs(e.clientX - s.x) > 10 || Math.abs(e.clientY - s.y) > 10) cancelLongPress()
+  }, [cancelLongPress])
 
   // Read prior vote from localStorage
   useEffect(() => {
@@ -203,6 +232,22 @@ function DuetSlide({ post, isActive, isNear, muted: globalMuted }) {
     return () => cancelAnimationFrame(rafRef.current)
   }, [isActive, audibleSide])
 
+  // Pausar los vídeos de fondo mientras hay un overlay (winner / content) abierto.
+  useEffect(() => {
+    const pa = playerARef.current
+    const pb = playerBRef.current
+    if (!pa || !pb) return
+    const va = pa.video
+    const vb = pb.video
+    if (showWinner || showContent) {
+      try { va.pause() } catch { /* ignore */ }
+      try { vb.pause() } catch { /* ignore */ }
+    } else if (isActive && isNear) {
+      va.play().catch(() => {})
+      vb.play().catch(() => {})
+    }
+  }, [showWinner, showContent, isActive, isNear])
+
   const doLike = useCallback((fromDoubleTap, evt) => {
     if (!liked) {
       setLiked(true)
@@ -229,6 +274,7 @@ function DuetSlide({ post, isActive, isNear, muted: globalMuted }) {
     setUserVote(side)
     setAudibleSide(side)
     setVotes((v) => ({ ...v, [side]: (v[side] || 0) + 1 }))
+    setShowWinner(true)
     try { localStorage.setItem(`duet_vote_${post.id}`, side) } catch { /* ignore */ }
     try {
       const res = await fetch('/api/vote', {
@@ -249,6 +295,7 @@ function DuetSlide({ post, isActive, isNear, muted: globalMuted }) {
   //   double-tap  -> like
   //   single-tap  -> si aún no has votado, vota por ese lado; si ya votaste, play/pause
   const handleTapSide = useCallback((side) => (e) => {
+    if (lpFiredRef.current) { lpFiredRef.current = false; return }
     const now = Date.now()
     const isDouble = lastTapRef.current.side === side && (now - lastTapRef.current.t) < 320
     lastTapRef.current = { side, t: now }
@@ -278,6 +325,15 @@ function DuetSlide({ post, isActive, isNear, muted: globalMuted }) {
   const pctA = totalVotes > 0 ? Math.round(((votes.a || 0) / totalVotes) * 100) : 50
   const pctB = 100 - pctA
 
+  // Determinar ganador (para la winner card)
+  const winnerKey = (votes.a || 0) >= (votes.b || 0) ? 'a' : 'b'
+  const winnerSide = winnerKey === 'a' ? sideA : sideB
+  const loserSide = winnerKey === 'a' ? sideB : sideA
+  const winnerPct = winnerKey === 'a' ? pctA : pctB
+  const loserPct = 100 - winnerPct
+  const winnerName = winnerSide.author?.name || (winnerSide.author?.username ? `@${winnerSide.author.username}` : '')
+  const loserName = loserSide.author?.name || (loserSide.author?.username ? `@${loserSide.author.username}` : '')
+
   // Split styles
   const splitWrapperClass = isHorizontal
     ? 'absolute inset-0 flex flex-col'
@@ -296,7 +352,15 @@ function DuetSlide({ post, isActive, isNear, muted: globalMuted }) {
         <div className={cn(halfClass, userVote === 'a' && 'ring-2 ring-rose-500 ring-inset')}>
           <div ref={mountARef} className="absolute inset-0" />
           {/* tap layer A */}
-          <div className="absolute inset-0 z-10" onClick={handleTapSide('a')} />
+          <div
+            className="absolute inset-0 z-10"
+            onClick={handleTapSide('a')}
+            onPointerDown={startLongPress(0)}
+            onPointerMove={moveLongPress}
+            onPointerUp={cancelLongPress}
+            onPointerLeave={cancelLongPress}
+            onPointerCancel={cancelLongPress}
+          />
           {!loadedA && (
             <div className="absolute inset-0 skeleton-shimmer" />
           )}
@@ -312,7 +376,15 @@ function DuetSlide({ post, isActive, isNear, muted: globalMuted }) {
 
         <div className={cn(halfClass, userVote === 'b' && 'ring-2 ring-cyan-400 ring-inset')}>
           <div ref={mountBRef} className="absolute inset-0" />
-          <div className="absolute inset-0 z-10" onClick={handleTapSide('b')} />
+          <div
+            className="absolute inset-0 z-10"
+            onClick={handleTapSide('b')}
+            onPointerDown={startLongPress(1)}
+            onPointerMove={moveLongPress}
+            onPointerUp={cancelLongPress}
+            onPointerLeave={cancelLongPress}
+            onPointerCancel={cancelLongPress}
+          />
           {!loadedB && (
             <div className="absolute inset-0 skeleton-shimmer" />
           )}
@@ -430,6 +502,29 @@ function DuetSlide({ post, isActive, isNear, muted: globalMuted }) {
       <div className="absolute left-0 right-0 bottom-16 z-20 h-[2px] bg-white/15">
         <div className="h-full bg-white/80" style={{ width: `${progress}%`, transform: 'translateZ(0)' }} />
       </div>
+
+      {/* Winner card — aparece automáticamente tras votar */}
+      <VSWinnerCard
+        visible={showWinner}
+        winnerName={winnerName}
+        winnerPercentage={winnerPct}
+        winnerImage={winnerSide.author?.avatarUrl}
+        winnerVideoUrl={winnerSide.videoUrl}
+        loserName={loserName}
+        loserPercentage={loserPct}
+        totalVotes={totalVotes}
+        onClose={() => setShowWinner(false)}
+        onNext={() => { setShowWinner(false); onRequestNext?.() }}
+      />
+
+      {/* Content card — solo 1vs1, se abre manteniendo pulsada una opción */}
+      <VSContentCard
+        visible={showContent}
+        optionA={sideA}
+        optionB={sideB}
+        initialIndex={contentIdx}
+        onClose={() => setShowContent(false)}
+      />
     </div>
   )
 }

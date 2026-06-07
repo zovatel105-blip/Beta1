@@ -4,6 +4,7 @@ import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { Heart, MessageCircle, Bookmark, Share2, Play, Plus, CheckCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import VoteIcon from './icons/VoteIcon'
+import VSWinnerCard from './VSWinnerCard'
 
 function formatCount(n) {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M'
@@ -23,7 +24,7 @@ const webmFor = (url) => (typeof url === 'string' ? url.replace(/\.mp4$/, '.webm
  * Se vota tocando directamente el vídeo (toca = vota la opción visible).
  * La UI (cabecera + columna social) es la misma que la de un vídeo normal.
  */
-function CarouselSlide({ post, isActive, isNear, muted: globalMuted }) {
+function CarouselSlide({ post, isActive, isNear, muted: globalMuted, onRequestNext }) {
   const overlayRef = useRef(null)
   const videoARef = useRef(null)
   const videoBRef = useRef(null)
@@ -46,6 +47,7 @@ function CarouselSlide({ post, isActive, isNear, muted: globalMuted }) {
   const [votes, setVotes] = useState({ a: post.votes?.a || 0, b: post.votes?.b || 0 })
   const [userVote, setUserVote] = useState(null)
   const [voting, setVoting] = useState(false)
+  const [showWinner, setShowWinner] = useState(false)
 
   const side = sideIdx === 0 ? 'a' : 'b'
 
@@ -98,6 +100,17 @@ function CarouselSlide({ post, isActive, isNear, muted: globalMuted }) {
     return () => cancelAnimationFrame(rafRef.current)
   }, [isActive, getVisible])
 
+  // Pausar el vídeo visible mientras la winner card está abierta.
+  useEffect(() => {
+    const vis = getVisible()
+    if (!vis) return
+    if (showWinner) {
+      try { vis.pause() } catch { /* ignore */ }
+    } else if (isActive && isNear) {
+      vis.play().catch(() => {})
+    }
+  }, [showWinner, isActive, isNear, getVisible])
+
   const onVideoPlay = useCallback(() => setPaused(false), [])
   const onVideoPause = useCallback(() => {
     const vis = getVisible()
@@ -125,6 +138,7 @@ function CarouselSlide({ post, isActive, isNear, muted: globalMuted }) {
     setVoting(true)
     setUserVote(s)
     setVotes((v) => ({ ...v, [s]: (v[s] || 0) + 1 }))
+    setShowWinner(true)
     try { localStorage.setItem(`versus_vote_${post.id}`, s) } catch { /* ignore */ }
     try {
       const res = await fetch('/api/vote', {
@@ -214,6 +228,15 @@ function CarouselSlide({ post, isActive, isNear, muted: globalMuted }) {
   const totalVotes = (votes.a || 0) + (votes.b || 0)
   const pctA = totalVotes > 0 ? Math.round(((votes.a || 0) / totalVotes) * 100) : 50
   const pctB = 100 - pctA
+
+  // Ganador para la winner card
+  const winnerKey = (votes.a || 0) >= (votes.b || 0) ? 'a' : 'b'
+  const winnerSide = winnerKey === 'a' ? sideA : sideB
+  const loserSide = winnerKey === 'a' ? sideB : sideA
+  const winnerPct = winnerKey === 'a' ? pctA : pctB
+  const loserPct = 100 - winnerPct
+  const winnerName = winnerSide.author?.name || (winnerSide.author?.username ? `@${winnerSide.author.username}` : '')
+  const loserName = loserSide.author?.name || (loserSide.author?.username ? `@${loserSide.author.username}` : '')
 
   const renderVideo = (s, ref) => (
     <div className="relative w-1/2 h-full overflow-hidden">
@@ -387,6 +410,20 @@ function CarouselSlide({ post, isActive, isNear, muted: globalMuted }) {
       <div className="absolute left-0 right-0 bottom-16 z-20 h-[2px] bg-white/15">
         <div className="h-full bg-white/80" style={{ width: `${progress}%`, transform: 'translateZ(0)' }} />
       </div>
+
+      {/* Winner card — aparece automáticamente tras votar */}
+      <VSWinnerCard
+        visible={showWinner}
+        winnerName={winnerName}
+        winnerPercentage={winnerPct}
+        winnerImage={winnerSide.author?.avatarUrl}
+        winnerVideoUrl={winnerSide.videoUrl}
+        loserName={loserName}
+        loserPercentage={loserPct}
+        totalVotes={totalVotes}
+        onClose={() => setShowWinner(false)}
+        onNext={() => { setShowWinner(false); onRequestNext?.() }}
+      />
     </div>
   )
 }

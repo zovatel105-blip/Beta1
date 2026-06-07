@@ -115,6 +115,7 @@ export default function Feed() {
                   isActive={i === activeIdx}
                   isNear={Math.abs(i - activeIdx) <= 1}
                   muted={muted}
+                  onRequestNext={() => swiperRef.current?.slideNext()}
                 />
               ) : post.type === 'versus' ? (
                 <CarouselSlide
@@ -122,6 +123,7 @@ export default function Feed() {
                   isActive={i === activeIdx}
                   isNear={Math.abs(i - activeIdx) <= 1}
                   muted={muted}
+                  onRequestNext={() => swiperRef.current?.slideNext()}
                 />
               ) : (
                 <VideoSlide

@@ -88,6 +88,13 @@ html, body, #__next {
     50% { transform: scale(1.08); }
 }
 
+/* Fade-in usado por VSWinnerCard / VSContentCard */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+
 /* Description gradient fade */
 .desc-fade {
     mask-image: linear-gradient(to bottom, black 70%, transparent 100%);
