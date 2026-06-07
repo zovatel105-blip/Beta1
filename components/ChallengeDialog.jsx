@@ -112,7 +112,7 @@ export default function ChallengeDialog({ open, onClose, target, onCreated }) {
             <>
               {/* Enfrentamiento: tu vídeo (A) vs el contenido retado (B) */}
               <div className="grid grid-cols-2 gap-3">
-                <input ref={inputRef} type="file" accept="video/*" capture="user" className="hidden" onChange={handleFileChange} />
+                <input ref={inputRef} type="file" accept="video/*" className="hidden" onChange={handleFileChange} />
                 <button
                   onClick={pickFile}
                   className="w-full aspect-[9/16] rounded-2xl border-2 border-dashed border-white/20 bg-white/5 hover:bg-white/10 active:scale-[0.99] transition flex flex-col items-center justify-center gap-2 overflow-hidden relative"
