@@ -349,7 +349,7 @@ function CarouselSlide({ post, isActive, isNear, muted: globalMuted, onRequestNe
         style={{ top: '50%', transform: 'translateY(-50%)' }}
       >
         <button aria-label="votos" onClick={(e) => e.stopPropagation()} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
-          <VoteIcon className={cn('w-[40px] h-[40px]', userVote ? 'text-rose-500' : 'text-white')} filled={!!userVote} />
+          <VoteIcon className={cn('w-[40px] h-[40px]', userVote ? 'text-rose-500' : 'text-white')} strokeWidth={320} filled={!!userVote} />
           <span className="text-[8px] font-medium text-white leading-none">{countLabel(totalVotes, 'Votar')}</span>
         </button>
         <button aria-label="like" onClick={(e) => { e.stopPropagation(); toggleLike() }} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
