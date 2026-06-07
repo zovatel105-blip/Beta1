@@ -1,9 +1,10 @@
 'use client'
 
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
-import { Heart, MessageCircle, Bookmark, Share2, Play, Plus, CheckCircle, Vote } from 'lucide-react'
+import { Heart, MessageCircle, Bookmark, Share2, Play, Plus, CheckCircle } from 'lucide-react'
 import { getVideoPool } from '@/lib/videoPool'
 import { cn } from '@/lib/utils'
+import VoteIcon from './icons/VoteIcon'
 
 function formatCount(n) {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M'
@@ -255,7 +256,7 @@ function VideoSlide({ post, isActive, isNear, muted }) {
       >
         {/* Votos */}
         <button aria-label="votos" onClick={(e) => e.stopPropagation()} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
-          <Vote className="w-[40px] h-[40px] text-white" strokeWidth={1.8} />
+          <VoteIcon className="w-[40px] h-[40px] text-white" filled={false} />
           <span className="text-[8px] font-medium text-white leading-none">
             {countLabel(post.stats.votes, 'Votar')}
           </span>
