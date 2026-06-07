@@ -1,7 +1,7 @@
 'use client'
 
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
-import { MessageCircle, Bookmark, Share2, Play, Plus, CheckCircle, Volume2, VolumeX, Swords } from 'lucide-react'
+import { MessageCircle, Bookmark, Forward, Play, Plus, CheckCircle, Volume2, VolumeX, Swords } from 'lucide-react'
 import { getVideoPool } from '@/lib/videoPool'
 import { cn } from '@/lib/utils'
 import VoteIcon from './icons/VoteIcon'
@@ -478,7 +478,7 @@ function DuetSlide({ post, isActive, isNear, muted: globalMuted, onRequestNext, 
         </button>
         {/* Compartir */}
         <button aria-label="share" onClick={(e) => e.stopPropagation()} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
-          <Share2 className="w-[25px] h-[25px] text-white" strokeWidth={1.25} />
+          <Forward className="w-[25px] h-[25px] text-white" strokeWidth={1.25} />
           <span className="text-[10px] font-semibold text-white leading-none">{countLabel(post.stats?.shares, 'Compartir')}</span>
         </button>
         {/* Guardar */}
