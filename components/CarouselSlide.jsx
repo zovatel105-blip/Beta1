@@ -379,21 +379,6 @@ function CarouselSlide({ post, isActive, isNear, muted: globalMuted, onRequestNe
         </div>
       </div>
 
-      {/* Resultado de la votación (barra A/B) */}
-      {userVote && (
-        <div className="absolute left-3 right-16 bottom-24 z-20">
-          <div className="flex items-center justify-between text-[11px] font-semibold mb-1">
-            <span className={userVote === 'a' ? 'text-rose-400' : 'text-white/80'}>A · {pctA}%</span>
-            <span className="text-white/60">{formatCount(totalVotes)} votos</span>
-            <span className={userVote === 'b' ? 'text-cyan-300' : 'text-white/80'}>B · {pctB}%</span>
-          </div>
-          <div className="h-2 w-full rounded-full overflow-hidden bg-white/10 flex">
-            <div className="h-full bg-rose-500 transition-all duration-500" style={{ width: `${pctA}%` }} />
-            <div className="h-full bg-cyan-400 transition-all duration-500" style={{ width: `${pctB}%` }} />
-          </div>
-        </div>
-      )}
-
       {/* Puntitos del carrusel */}
       <div className="absolute left-1/2 -translate-x-1/2 bottom-20 z-20 flex items-center gap-1.5">
         {[0, 1].map((i) => (
