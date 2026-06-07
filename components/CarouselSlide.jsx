@@ -1,7 +1,8 @@
 'use client'
 
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
-import { MessageCircle, Bookmark, Forward, Play, Plus, CheckCircle, Swords } from 'lucide-react'
+import { MessageCircle, Bookmark, Play, Plus, CheckCircle, Swords } from 'lucide-react'
+import ShareIcon from './icons/ShareIcon'
 import { cn } from '@/lib/utils'
 import VoteIcon from './icons/VoteIcon'
 import VSWinnerCard from './VSWinnerCard'
@@ -369,7 +370,7 @@ function CarouselSlide({ post, isActive, isNear, muted: globalMuted, onRequestNe
           <span className="text-[10px] font-semibold text-white leading-none">{countLabel(post.stats?.comments, 'Comentar')}</span>
         </button>
         <button aria-label="share" onClick={(e) => e.stopPropagation()} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
-          <Forward className="w-[25px] h-[25px] text-white" strokeWidth={1.25} />
+          <ShareIcon className="w-[25px] h-[25px] text-white" strokeWidth={1.6} />
           <span className="text-[10px] font-semibold text-white leading-none">{countLabel(post.stats?.shares, 'Compartir')}</span>
         </button>
         <button aria-label="bookmark" onClick={(e) => { e.stopPropagation(); setSaved((s) => !s) }} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
