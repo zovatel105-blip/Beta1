@@ -54,8 +54,12 @@ export default function VSWinnerCard({
   const aPct = winnerSide === 'a' ? winnerPercentage : loserPercentage
   const bPct = winnerSide === 'a' ? loserPercentage : winnerPercentage
 
-  // Degradado que refleja la barra: A (izquierda) hasta aPct, B (derecha) el resto.
-  const barGradient = `linear-gradient(90deg, ${COLORS.a.primary} 0%, ${COLORS.a.primary} ${aPct}%, ${COLORS.b.primary} ${aPct}%, ${COLORS.b.primary} 100%)`
+  // Degradado que refleja la barra: A (izquierda) y B (derecha), con una zona de
+  // transición difuminada alrededor de aPct para que NO se vea una línea de corte.
+  const feather = 16
+  const lo = Math.max(0, aPct - feather)
+  const hi = Math.min(100, aPct + feather)
+  const barGradient = `linear-gradient(90deg, ${COLORS.a.primary} 0%, ${COLORS.a.primary} ${lo}%, ${COLORS.b.primary} ${hi}%, ${COLORS.b.primary} 100%)`
 
   const handleTouchStart = (e) => {
     const t = e.touches?.[0]
