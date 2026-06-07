@@ -48,13 +48,13 @@ const GridItem = ({ post }) => {
   const thumb = thumbFor(post)
   const totalVotes = (post?.votes?.a || 0) + (post?.votes?.b || 0)
   return (
-    <div className="relative aspect-[9/16] bg-gray-100 overflow-hidden">
+    <div className="relative aspect-[9/16] bg-gray-100 overflow-hidden rounded-xl">
       {thumb ? (
         <img src={thumb} alt="" className="w-full h-full object-cover" draggable={false} />
       ) : (
         <div className="w-full h-full bg-gradient-to-br from-zinc-200 to-zinc-300" />
       )}
-      <span className="absolute bottom-1 left-1 text-white text-[11px] font-semibold inline-flex items-center gap-1 drop-shadow">
+      <span className="absolute bottom-1.5 left-1.5 text-white text-[11px] font-semibold inline-flex items-center gap-1 drop-shadow">
         <VoteIcon className="w-3.5 h-3.5" strokeWidth={260} filled />
         {formatNumber(totalVotes)}
       </span>
@@ -124,7 +124,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
         )
       }
       return (
-        <div className="grid grid-cols-3 gap-0.5">
+        <div className="grid grid-cols-3 gap-1.5 px-1.5">
           {posts.map((p) => <GridItem key={p.id} post={p} />)}
         </div>
       )
