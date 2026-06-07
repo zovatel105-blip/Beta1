@@ -286,16 +286,6 @@ function CarouselSlide({ post, isActive, isNear, muted: globalMuted, onRequestNe
         onPointerCancel={onPointerCancel}
       />
 
-      {/* Etiqueta de opción A/B (con % tras votar) */}
-      <div className="absolute top-2 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 bg-black/55 backdrop-blur px-3 py-1 rounded-full">
-        <span className={cn('text-[11px] font-bold', side === 'a' ? 'text-rose-400' : 'text-cyan-300')}>
-          Opción {side === 'a' ? 'A' : 'B'}
-        </span>
-        {userVote && (
-          <span className="text-[11px] font-bold text-white">· {side === 'a' ? pctA : pctB}%</span>
-        )}
-      </div>
-
       {/* Pista para votar */}
       {!userVote && (
         <div className="absolute top-12 left-1/2 -translate-x-1/2 z-20 pointer-events-none bg-black/45 backdrop-blur text-white text-[10px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap">
