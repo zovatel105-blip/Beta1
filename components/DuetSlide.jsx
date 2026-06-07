@@ -436,13 +436,15 @@ function DuetSlide({ post, isActive, isNear, muted: globalMuted, onRequestNext }
         <div className="flex items-center gap-2 w-fit pointer-events-auto">
           {/* Avatar + botón seguir */}
           <div className="group relative">
-            <button onClick={(e) => e.stopPropagation()} className="w-12 h-12 rounded-full overflow-hidden block">
-              <img src={headAuthor.avatarUrl} alt={headAuthor.username} className="w-full h-full object-cover" draggable={false} />
+            <button onClick={(e) => e.stopPropagation()} className="w-12 h-12 rounded-full relative block">
+              <div className="absolute rounded-full overflow-hidden" style={{ inset: '3.5px' }}>
+                <img src={headAuthor.avatarUrl} alt={headAuthor.username} className="w-full h-full object-cover" draggable={false} />
+              </div>
             </button>
             <button
               onClick={(e) => { e.stopPropagation(); setFollowing((f) => !f) }}
               aria-label="seguir"
-              className="absolute bottom-0 right-0 rounded-full p-[3px] shadow-lg transition-all duration-200 hover:scale-125 active:scale-95"
+              className="absolute bottom-1 right-1 rounded-full p-[3px] shadow-lg transition-all duration-200 hover:scale-125 active:scale-95"
               style={following ? { background: '#fff' } : { background: 'linear-gradient(135deg, #6366F1, #8B5CF6)' }}
             >
               {following
