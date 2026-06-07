@@ -30,6 +30,7 @@ function CarouselSlide({ post, isActive, isNear, muted: globalMuted }) {
   const rafRef = useRef(0)
   const downRef = useRef({ x: 0, y: 0, t: 0 })
   const lastTapRef = useRef(0)
+  const swipedRef = useRef(false)
 
   const [sideIdx, setSideIdx] = useState(0) // 0 = A, 1 = B
   const [paused, setPaused] = useState(false)
@@ -39,6 +40,8 @@ function CarouselSlide({ post, isActive, isNear, muted: globalMuted }) {
   const [saved, setSaved] = useState(false)
   const [following, setFollowing] = useState(false)
   const [floatingHearts, setFloatingHearts] = useState([])
+  const [dragX, setDragX] = useState(0)
+  const [dragging, setDragging] = useState(false)
 
   const [votes, setVotes] = useState({ a: post.votes?.a || 0, b: post.votes?.b || 0 })
   const [userVote, setUserVote] = useState(null)
@@ -142,39 +145,71 @@ function CarouselSlide({ post, isActive, isNear, muted: globalMuted }) {
     setSideIdx(Math.max(0, Math.min(1, idx)))
   }, [])
 
-  // Gesto: deslizar horizontal = cambiar lado; toque = votar / like / play-pause
+  const endDrag = useCallback(() => {
+    setDragging(false)
+    setDragX(0)
+  }, [])
+
+  // Gesto: arrastrar horizontal = deslizar/cambiar lado; toque = votar / like / play-pause
   const onPointerDown = useCallback((e) => {
     downRef.current = { x: e.clientX, y: e.clientY, t: Date.now() }
+    swipedRef.current = false
   }, [])
+
+  const onPointerMove = useCallback((e) => {
+    if (swipedRef.current) return
+    const d = downRef.current
+    if (!d.t) return
+    const dx = e.clientX - d.x
+    const dy = e.clientY - d.y
+    // intención vertical -> dejamos pasar el scroll del feed
+    if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 10) {
+      if (dragging) endDrag()
+      return
+    }
+    if (Math.abs(dx) < 6) return
+    const w = overlayRef.current?.clientWidth || 360
+    // limitar el arrastre según el lado actual
+    const nx = sideIdx === 0 ? Math.max(-w, Math.min(0, dx)) : Math.min(w, Math.max(0, dx))
+    if (!dragging) setDragging(true)
+    setDragX(nx)
+    // superado el umbral -> cambiar de lado (no esperamos al pointerup)
+    if (Math.abs(dx) > w * 0.18) {
+      swipedRef.current = true
+      setDragging(false)
+      setDragX(0)
+      if (dx < 0) goTo(sideIdx + 1)
+      else goTo(sideIdx - 1)
+    }
+  }, [dragging, sideIdx, goTo, endDrag])
 
   const onPointerUp = useCallback((e) => {
     const d = downRef.current
     const dx = e.clientX - d.x
     const dy = e.clientY - d.y
-    const adx = Math.abs(dx)
-    const ady = Math.abs(dy)
-    // Swipe horizontal claro -> cambiar de lado
-    if (adx > 45 && adx > ady * 1.3) {
-      if (dx < 0) goTo(sideIdx + 1)
-      else goTo(sideIdx - 1)
-      return
-    }
-    // Si hubo desplazamiento vertical notable, dejamos pasar (scroll del feed)
-    if (ady > 12) return
-    // Tap
+    const wasSwipe = swipedRef.current
+    endDrag()
+    downRef.current = { x: 0, y: 0, t: 0 }
+    if (wasSwipe) { swipedRef.current = false; return }
+    // si hubo arrastre que no cruzó el umbral, solo recolocamos (sin tap)
+    if (Math.abs(dx) > 12 || Math.abs(dy) > 12) return
     const now = Date.now()
     const isDouble = now - lastTapRef.current < 300
     lastTapRef.current = now
     if (isDouble) { doLike(e); return }
     setTimeout(() => {
-      // evitar disparar el tap simple si justo después llegó un doble
       if (Date.now() - lastTapRef.current < 280) return
       if (!userVote) { submitVote(side); return }
       const vis = getVisible()
       if (!vis) return
       if (vis.paused) vis.play().catch(() => {}); else vis.pause()
     }, 280)
-  }, [sideIdx, side, userVote, goTo, doLike, submitVote, getVisible])
+  }, [side, userVote, endDrag, doLike, submitVote, getVisible])
+
+  const onPointerCancel = useCallback(() => {
+    endDrag()
+    downRef.current = { x: 0, y: 0, t: 0 }
+  }, [endDrag])
 
   const totalVotes = (votes.a || 0) + (votes.b || 0)
   const pctA = totalVotes > 0 ? Math.round(((votes.a || 0) / totalVotes) * 100) : 50
@@ -206,8 +241,11 @@ function CarouselSlide({ post, isActive, isNear, muted: globalMuted }) {
     <div ref={overlayRef} className="relative w-full h-full bg-black overflow-hidden select-none">
       {/* Carrusel: track de 2 vídeos que se desliza horizontalmente */}
       <div
-        className="absolute inset-0 flex w-[200%] h-full transition-transform duration-300 ease-out"
-        style={{ transform: `translateX(${sideIdx === 0 ? '0%' : '-50%'})` }}
+        className="absolute inset-0 flex w-[200%] h-full"
+        style={{
+          transform: `translateX(calc(${sideIdx === 0 ? '0%' : '-50%'} + ${dragX}px))`,
+          transition: dragging ? 'none' : 'transform 280ms ease-out',
+        }}
       >
         {renderVideo(sideA, videoARef)}
         {renderVideo(sideB, videoBRef)}
@@ -216,8 +254,11 @@ function CarouselSlide({ post, isActive, isNear, muted: globalMuted }) {
       {/* Capa de gestos (swipe + tap) */}
       <div
         className="absolute inset-0 z-10"
+        style={{ touchAction: 'pan-y' }}
         onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
+        onPointerCancel={onPointerCancel}
       />
 
       {/* Etiqueta de opción A/B (con % tras votar) */}
@@ -331,13 +372,13 @@ function CarouselSlide({ post, isActive, isNear, muted: globalMuted }) {
       )}
 
       {/* Puntitos del carrusel */}
-      <div className="absolute left-1/2 -translate-x-1/2 bottom-20 z-20 flex items-center gap-2">
+      <div className="absolute left-1/2 -translate-x-1/2 bottom-20 z-20 flex items-center gap-1.5">
         {[0, 1].map((i) => (
           <button
             key={i}
             aria-label={`opción ${i === 0 ? 'A' : 'B'}`}
             onClick={(e) => { e.stopPropagation(); goTo(i) }}
-            className={cn('rounded-full transition-all duration-200', sideIdx === i ? 'w-5 h-2 bg-white' : 'w-2 h-2 bg-white/40')}
+            className={cn('rounded-full transition-all duration-200', sideIdx === i ? 'w-4 h-1.5 bg-white' : 'w-1.5 h-1.5 bg-white/40')}
           />
         ))}
       </div>
