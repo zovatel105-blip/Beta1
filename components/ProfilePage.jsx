@@ -6,10 +6,21 @@ import { Menu, Heart, Users, UserPlus, Bookmark, UserCircle, Link as LinkIcon } 
 import VoteIcon from './icons/VoteIcon'
 
 const ME = {
-  username: 'tu_canal',
-  name: 'Tú',
-  avatarUrl: 'https://i.pravatar.cc/120?img=68',
+  username: 'nexus',
+  name: 'nexus',
+  avatarUrl: '',
 }
+
+// Avatar por defecto: círculo gris claro con silueta de persona (gris medio),
+// idéntico al de la imagen de referencia.
+const DefaultAvatar = ({ className = '' }) => (
+  <div className={`rounded-full bg-gray-200 overflow-hidden flex items-end justify-center ${className}`}>
+    <svg viewBox="0 0 64 64" className="w-full h-full" aria-hidden="true">
+      <circle cx="32" cy="25" r="12" fill="#9ca3af" />
+      <path d="M14 60c0-11 8-18 18-18s18 7 18 18z" fill="#9ca3af" />
+    </svg>
+  </div>
+)
 
 const formatNumber = (num) => {
   const n = Number(num)
@@ -32,26 +43,6 @@ const ColumnsIcon = ({ className }) => (
     <line x1="3" y1="12" x2="21" y2="12" />
   </svg>
 )
-
-// Bloque de estadística en esquina. align='left' → icono a la izquierda; 'right' → icono a la derecha.
-const StatCorner = ({ value, label, icon, bg, align = 'left' }) => {
-  const IconCircle = (
-    <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${bg}`}>
-      {icon}
-    </div>
-  )
-  const Text = (
-    <div className={align === 'left' ? 'text-left' : 'text-right'}>
-      <p className="text-[22px] font-bold text-gray-900 leading-none">{value}</p>
-      <p className="text-[13px] text-gray-500 leading-tight mt-0.5">{label}</p>
-    </div>
-  )
-  return (
-    <div className="flex items-center gap-2.5">
-      {align === 'left' ? (<>{IconCircle}{Text}</>) : (<>{Text}{IconCircle}</>)}
-    </div>
-  )
-}
 
 const GridItem = ({ post }) => {
   const thumb = thumbFor(post)
@@ -170,76 +161,107 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
         </button>
       </div>
 
-      {/* Stats en 4 esquinas alrededor del avatar */}
-      <div className="relative px-5 mt-2" style={{ minHeight: '230px' }}>
-        {/* Avatar centrado */}
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-          <img
-            src={ME.avatarUrl}
-            alt={ME.username}
-            className="w-28 h-28 rounded-full object-cover bg-gray-200"
-            draggable={false}
-          />
-        </div>
+      {/* Avatar con métricas alrededor en diseño 3x3 (estructura exacta del diseño de referencia) */}
+      <div className="px-3 sm:px-6 mt-4">
+        <div className="relative max-w-sm mx-auto w-full">
+          <div className="grid grid-cols-3 gap-1 sm:gap-2 items-center">
 
-        {/* Top-left: Votes */}
-        <div className="absolute top-0 left-5">
-          <StatCorner
-            align="left"
-            value={formatNumber(stats.votos)}
-            label="Votes"
-            bg="bg-blue-50"
-            icon={<VoteIcon className="w-6 h-6 text-blue-500" strokeWidth={240} />}
-          />
-        </div>
+            {/* Votos - Esquina superior izquierda */}
+            <div className="text-left">
+              <div className="flex items-center gap-2">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0">
+                  <VoteIcon className="w-7 h-7 sm:w-8 sm:h-8 text-blue-600" strokeWidth={260} filled={false} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xl sm:text-2xl font-bold text-gray-900 leading-none">{formatNumber(stats.votos)}</p>
+                  <p className="text-xs sm:text-sm text-gray-600">Votes</p>
+                </div>
+              </div>
+            </div>
 
-        {/* Top-right: Likes */}
-        <div className="absolute top-0 right-5">
-          <StatCorner
-            align="right"
-            value={formatNumber(stats.likes)}
-            label="Likes"
-            bg="bg-pink-50"
-            icon={<Heart className="w-6 h-6 text-pink-500 fill-pink-500" strokeWidth={1.5} />}
-          />
-        </div>
+            {/* Espacio vacío superior centro */}
+            <div></div>
 
-        {/* Bottom-left: Followers */}
-        <div className="absolute bottom-0 left-5">
-          <StatCorner
-            align="left"
-            value="0"
-            label="Followers"
-            bg="bg-green-50"
-            icon={<Users className="w-6 h-6 text-green-500" strokeWidth={1.8} />}
-          />
-        </div>
+            {/* Me gusta - Esquina superior derecha */}
+            <div className="text-right">
+              <div className="flex items-center gap-2 justify-end">
+                <div className="min-w-0 text-right order-1">
+                  <p className="text-xl sm:text-2xl font-bold text-gray-900 leading-none">{formatNumber(stats.likes)}</p>
+                  <p className="text-xs sm:text-sm text-gray-600">Likes</p>
+                </div>
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-pink-50 flex items-center justify-center flex-shrink-0 order-2">
+                  <Heart className="w-5 h-5 sm:w-6 sm:h-6 text-pink-500 fill-pink-500" strokeWidth={1.5} />
+                </div>
+              </div>
+            </div>
 
-        {/* Bottom-right: Following */}
-        <div className="absolute bottom-0 right-5">
-          <StatCorner
-            align="right"
-            value="0"
-            label="Following"
-            bg="bg-purple-50"
-            icon={<UserPlus className="w-6 h-6 text-purple-500" strokeWidth={1.8} />}
-          />
+            {/* Espacio vacío centro izquierda */}
+            <div></div>
+
+            {/* Avatar - Centro */}
+            <div className="flex justify-center">
+              <div className="relative w-20 h-20 sm:w-24 sm:h-24">
+                <div className="w-full h-full bg-white rounded-full overflow-hidden">
+                  {ME.avatarUrl ? (
+                    <img
+                      src={ME.avatarUrl}
+                      alt={ME.username}
+                      className="w-full h-full rounded-full object-cover"
+                      draggable={false}
+                    />
+                  ) : (
+                    <DefaultAvatar className="w-full h-full" />
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Espacio vacío centro derecha */}
+            <div></div>
+
+            {/* Seguidores - Esquina inferior izquierda */}
+            <button className="text-left hover:bg-gray-50 rounded-xl p-1 sm:p-2 transition-colors">
+              <div className="flex items-center gap-2">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-green-50 flex items-center justify-center flex-shrink-0">
+                  <Users className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" strokeWidth={1.5} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xl sm:text-2xl font-bold text-gray-900 leading-none">0</p>
+                  <p className="text-xs sm:text-sm text-gray-600">Followers</p>
+                </div>
+              </div>
+            </button>
+
+            {/* Espacio vacío inferior centro */}
+            <div></div>
+
+            {/* Seguidos - Esquina inferior derecha */}
+            <button className="text-right hover:bg-gray-50 rounded-xl p-1 sm:p-2 transition-colors">
+              <div className="flex items-center gap-2 justify-end">
+                <div className="min-w-0 text-right order-1">
+                  <p className="text-xl sm:text-2xl font-bold text-gray-900 leading-none">0</p>
+                  <p className="text-xs sm:text-sm text-gray-600">Following</p>
+                </div>
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-purple-50 flex items-center justify-center flex-shrink-0 order-2">
+                  <UserPlus className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" strokeWidth={1.5} />
+                </div>
+              </div>
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Nombre */}
-      <h2 className="text-center text-[22px] font-bold text-gray-900 mt-3">{ME.username}</h2>
+      <div className="text-center space-y-2 max-w-sm mx-auto mt-6">
+        <h2 className="text-lg sm:text-xl font-bold text-gray-900">{ME.username}</h2>
+      </div>
 
-      {/* Acciones: Edit profile / Statistics */}
-      <div className="flex items-center gap-3 px-4 mt-5">
-        <button
-          className="flex-1 h-12 rounded-2xl bg-gray-100 text-gray-900 text-[16px] font-bold active:scale-[0.98] transition"
-        >
+      {/* Botones de acción - Edit profile / Statistics */}
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 max-w-sm mx-auto mt-6 px-3 sm:px-6">
+        <button className="h-11 sm:h-12 rounded-2xl bg-gray-50 hover:bg-gray-100 font-medium text-sm text-gray-900 transition-colors">
           Edit profile
         </button>
-        <button
-          className="flex-1 h-12 rounded-2xl bg-gray-100 text-gray-900 text-[16px] font-bold active:scale-[0.98] transition"
-        >
+        <button className="h-11 sm:h-12 rounded-2xl bg-gray-50 hover:bg-gray-100 font-medium text-sm text-gray-900 transition-colors">
           Statistics
         </button>
       </div>
