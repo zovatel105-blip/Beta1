@@ -1,7 +1,7 @@
 'use client'
 
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
-import { Heart, MessageCircle, Bookmark, Share2, Play, Plus, CheckCircle, Volume2, VolumeX } from 'lucide-react'
+import { MessageCircle, Bookmark, Share2, Play, Plus, CheckCircle, Volume2, VolumeX, Swords } from 'lucide-react'
 import { getVideoPool } from '@/lib/videoPool'
 import { cn } from '@/lib/utils'
 import VoteIcon from './icons/VoteIcon'
@@ -28,7 +28,7 @@ function countLabel(n, placeholder) {
  *   - double tap  -> like (corazón flotante).
  * La UI (cabecera superior + columna social derecha) es idéntica a la del vídeo normal.
  */
-function DuetSlide({ post, isActive, isNear, muted: globalMuted, onRequestNext }) {
+function DuetSlide({ post, isActive, isNear, muted: globalMuted, onRequestNext, onChallenge }) {
   const mountARef = useRef(null)
   const mountBRef = useRef(null)
   const playerARef = useRef(null)
@@ -43,11 +43,8 @@ function DuetSlide({ post, isActive, isNear, muted: globalMuted, onRequestNext }
   const [loadedB, setLoadedB] = useState(false)
   const [progress, setProgress] = useState(0)
   const [audibleSide, setAudibleSide] = useState('a') // 'a' | 'b'
-  const [likes, setLikes] = useState(post.stats?.likes || 0)
-  const [liked, setLiked] = useState(false)
   const [saved, setSaved] = useState(false)
   const [following, setFollowing] = useState(false)
-  const [floatingHearts, setFloatingHearts] = useState([])
   const [voteBursts, setVoteBursts] = useState([])
 
   // Live votes + user vote tracking
@@ -249,23 +246,8 @@ function DuetSlide({ post, isActive, isNear, muted: globalMuted, onRequestNext }
     }
   }, [showWinner, showContent, isActive, isNear])
 
-  const doLike = useCallback((fromDoubleTap, evt) => {
-    if (!liked) {
-      setLiked(true)
-      setLikes((n) => n + 1)
-    }
-    if (fromDoubleTap && evt) {
-      const rect = overlayRef.current?.getBoundingClientRect()
-      const x = rect ? evt.clientX - rect.left : 100
-      const y = rect ? evt.clientY - rect.top : 200
-      const id = Math.random().toString(36).slice(2)
-      setFloatingHearts((h) => [...h, { id, x, y }])
-      setTimeout(() => setFloatingHearts((h) => h.filter((p) => p.id !== id)), 850)
-    }
-  }, [liked])
-
-  const toggleLike = useCallback(() => {
-    setLiked((prev) => { setLikes((n) => n + (prev ? -1 : 1)); return !prev })
+  const doLike = useCallback(() => {
+    // Like eliminado: el doble toque ahora vota (ver handleTapSide).
   }, [])
 
   const submitVote = useCallback(async (side) => {
@@ -308,14 +290,11 @@ function DuetSlide({ post, isActive, isNear, muted: globalMuted, onRequestNext }
     lastTapRef.current = { side, t: now }
     if (isDouble) {
       clearTimeout(tapTimerRef.current)
-      doLike(true, e)
+      if (!userVote) submitVote(side)
       return
     }
     tapTimerRef.current = setTimeout(() => {
-      if (!userVote) {
-        submitVote(side)
-        return
-      }
+      // toque simple = play/pausa
       const pa = playerARef.current; const pb = playerBRef.current
       if (!pa || !pb) return
       if (pa.video.paused || pb.video.paused) {
@@ -326,7 +305,7 @@ function DuetSlide({ post, isActive, isNear, muted: globalMuted, onRequestNext }
         pb.video.pause()
       }
     }, 280)
-  }, [userVote, submitVote, doLike])
+  }, [userVote, submitVote])
 
   const totalVotes = (votes.a || 0) + (votes.b || 0)
   const pctA = totalVotes > 0 ? Math.round(((votes.a || 0) / totalVotes) * 100) : 50
@@ -412,7 +391,7 @@ function DuetSlide({ post, isActive, isNear, muted: globalMuted, onRequestNext }
         {!userVote && (
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-none flex flex-col items-center gap-2">
             <div className="bg-black/55 backdrop-blur text-white text-[10px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap">
-              Toca un vídeo para votar
+              Doble toque para votar
             </div>
           </div>
         )}
@@ -426,14 +405,6 @@ function DuetSlide({ post, isActive, isNear, muted: globalMuted, onRequestNext }
           </div>
         </div>
       )}
-
-      {/* floating hearts (double-tap) */}
-      {floatingHearts.map((h) => (
-        <Heart key={h.id} size={120} fill="#ff2d55" color="#ff2d55"
-          className="absolute z-30 like-pop pointer-events-none"
-          style={{ left: h.x, top: h.y, transform: 'translate(-50%, -50%)' }}
-        />
-      ))}
 
       {/* burst del icono de voto al votar (sobre el vídeo) */}
       {voteBursts.map((vb) => (
@@ -495,9 +466,9 @@ function DuetSlide({ post, isActive, isNear, muted: globalMuted, onRequestNext }
           </span>
         </button>
         {/* Like */}
-        <button aria-label="like" onClick={(e) => { e.stopPropagation(); toggleLike() }} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
-          <Heart className={cn('w-[23px] h-[23px] transition-all duration-200', liked ? 'fill-current text-red-500 scale-110' : 'text-white')} />
-          <span className="text-[8px] font-medium text-white leading-none">{countLabel(likes, 'Me gusta')}</span>
+        <button aria-label="retar" onClick={(e) => { e.stopPropagation(); onChallenge?.({ videoUrl: sideA.videoUrl, author: headAuthor, description: sideA.description || post.description, music: sideA.music }) }} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
+          <Swords className="w-[26px] h-[26px] text-white" />
+          <span className="text-[8px] font-medium text-white leading-none">Retar</span>
         </button>
         {/* Comentar */}
         <button aria-label="comments" onClick={(e) => e.stopPropagation()} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>

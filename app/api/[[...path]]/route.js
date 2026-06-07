@@ -55,6 +55,22 @@ function seedVotes(id) {
   return { a: 60 + (h % 900), b: 60 + (Math.floor(h / 7) % 900) }
 }
 
+// Retos (challenges) store: solicitudes de enfrentamiento pendientes.
+const CHALLENGES_STORE = nodePath.join(UPLOAD_DIR, '_challenges.json')
+async function readChallenges() {
+  try { return JSON.parse(await fs.readFile(CHALLENGES_STORE, 'utf-8')) } catch { return [] }
+}
+async function writeChallenges(arr) {
+  await ensureUploadDir()
+  await fs.writeFile(CHALLENGES_STORE, JSON.stringify(arr, null, 2))
+}
+
+const ME_AUTHOR = {
+  username: 'tu_canal',
+  name: 'Tú',
+  avatarUrl: 'https://i.pravatar.cc/120?img=68',
+}
+
 // Local videos served from /public/videos/*.mp4 (no Content-Disposition issues, no CORS)
 const v = (id) => `/videos/${id}.mp4`
 
@@ -140,6 +156,12 @@ export async function GET(request, { params }) {
     return NextResponse.json({ posts: meta })
   }
 
+  // Lista de retos (solicitudes de enfrentamiento) pendientes.
+  if (path === '/challenges') {
+    const list = await readChallenges()
+    return NextResponse.json({ challenges: list })
+  }
+
   // Catálogo de vídeos disponibles para emparejar en un 1vs1.
   // Mezcla los vídeos del feed + uploads del usuario (versus).
   if (path === '/feed-options') {
@@ -186,6 +208,19 @@ export async function POST(request, { params }) {
 
   if (path === '/vote') {
     return handleVote(request)
+  }
+
+  // Crear un reto (solicitud de enfrentamiento) con un vídeo subido.
+  if (path === '/challenges') {
+    return handleCreateChallenge(request)
+  }
+  // Aceptar un reto -> publica un versus (A=retador, B=retado).
+  if (segs[0] === 'challenges' && segs[2] === 'accept') {
+    return handleAcceptChallenge(segs[1])
+  }
+  // Rechazar / cancelar un reto.
+  if (segs[0] === 'challenges' && segs[2] === 'reject') {
+    return handleRejectChallenge(segs[1])
   }
 
   return NextResponse.json({ ok: true })
@@ -382,5 +417,123 @@ async function handleVote(request) {
     return NextResponse.json({ ok: true, votes: base })
   } catch (err) {
     return NextResponse.json({ error: 'vote_failed', detail: String(err?.message || err) }, { status: 500 })
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Retos (challenges)
+// ────────────────────────────────────────────────────────────────────────────
+
+// Guarda un vídeo subido y devuelve su URL pública (/uploads/...).
+async function saveUploadedVideo(file) {
+  const arrayBuffer = await file.arrayBuffer()
+  const bytes = Buffer.from(arrayBuffer)
+  const id = crypto.randomBytes(8).toString('hex')
+  const name = file.name || 'video.mp4'
+  const ext = name.includes('.') ? name.split('.').pop().toLowerCase() : 'mp4'
+  const safeExt = ['mp4', 'webm', 'mov', 'm4v'].includes(ext) ? ext : 'mp4'
+  const filename = `${id}.${safeExt}`
+  await ensureUploadDir()
+  const filePath = nodePath.join(UPLOAD_DIR, filename)
+  await fs.writeFile(filePath, bytes)
+  const webmPath = nodePath.join(UPLOAD_DIR, `${id}.webm`)
+  transcodeToWebm(filePath, webmPath).then((ok) => {
+    if (!ok) console.warn('webm transcode failed for challenge', filename)
+  })
+  return `/uploads/${filename}`
+}
+
+// POST /api/challenges
+//   FormData: file (vídeo del retador), targetVideoUrl, targetAuthor (JSON),
+//             targetDescription, targetMusic, message
+async function handleCreateChallenge(request) {
+  try {
+    const formData = await request.formData()
+    const file = formData.get('file')
+    const targetVideoUrl = (formData.get('targetVideoUrl') || '').toString()
+    let targetAuthor = null
+    try { targetAuthor = JSON.parse((formData.get('targetAuthor') || 'null').toString()) } catch {}
+    const targetDescription = (formData.get('targetDescription') || '').toString()
+    const targetMusic = (formData.get('targetMusic') || '').toString()
+    const message = (formData.get('message') || '').toString()
+
+    if (!file || typeof file === 'string') {
+      return NextResponse.json({ error: 'no_file' }, { status: 400 })
+    }
+    if (!targetVideoUrl || !targetAuthor) {
+      return NextResponse.json({ error: 'no_target' }, { status: 400 })
+    }
+
+    const myUrl = await saveUploadedVideo(file)
+    const cid = crypto.randomBytes(8).toString('hex')
+    const challenge = {
+      id: `challenge_${cid}`,
+      status: 'pending',
+      from: ME_AUTHOR,
+      to: targetAuthor,
+      challengerVideoUrl: myUrl, // lado A = tu vídeo
+      targetVideoUrl,            // lado B = el vídeo retado
+      targetAuthor,
+      targetDescription,
+      targetMusic,
+      message,
+      createdAt: new Date().toISOString(),
+    }
+    const list = await readChallenges()
+    list.unshift(challenge)
+    await writeChallenges(list)
+    return NextResponse.json({ ok: true, challenge })
+  } catch (err) {
+    console.error('create challenge error', err)
+    return NextResponse.json({ error: 'challenge_failed', detail: String(err?.message || err) }, { status: 500 })
+  }
+}
+
+// POST /api/challenges/{id}/accept -> publica un versus y elimina el reto.
+async function handleAcceptChallenge(cid) {
+  try {
+    const list = await readChallenges()
+    const idx = list.findIndex((c) => c.id === cid)
+    if (idx === -1) return NextResponse.json({ error: 'not_found' }, { status: 404 })
+    const c = list[idx]
+    const id = crypto.randomBytes(8).toString('hex')
+    const post = {
+      id: `versus_ch_${id}`,
+      type: 'versus',
+      layout: 'carousel',
+      sideA: { videoUrl: c.challengerVideoUrl, author: c.from, description: c.message || 'Mi reto', music: 'Reto' },
+      sideB: { videoUrl: c.targetVideoUrl, author: c.to, description: c.targetDescription || '', music: c.targetMusic || '' },
+      author: c.from,
+      description: c.message || `Reto: @${c.from?.username} 🆚 @${c.to?.username} 🥊`,
+      music: 'Reto aceptado',
+      videoUrl: c.challengerVideoUrl,
+      thumbnailUrl: '',
+      stats: { likes: 0, comments: 0, shares: 0, saves: 0 },
+      votes: { a: 0, b: 0 },
+      duration: 0,
+      uploadedAt: new Date().toISOString(),
+      isChallenge: true,
+    }
+    const meta = await readUploadMeta()
+    meta.unshift(post)
+    await writeUploadMeta(meta)
+    list.splice(idx, 1)
+    await writeChallenges(list)
+    return NextResponse.json({ ok: true, post })
+  } catch (err) {
+    console.error('accept challenge error', err)
+    return NextResponse.json({ error: 'accept_failed', detail: String(err?.message || err) }, { status: 500 })
+  }
+}
+
+// POST /api/challenges/{id}/reject -> elimina el reto.
+async function handleRejectChallenge(cid) {
+  try {
+    const list = await readChallenges()
+    const next = list.filter((c) => c.id !== cid)
+    await writeChallenges(next)
+    return NextResponse.json({ ok: true })
+  } catch (err) {
+    return NextResponse.json({ error: 'reject_failed', detail: String(err?.message || err) }, { status: 500 })
   }
 }

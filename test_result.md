@@ -102,10 +102,10 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Las publicaciones normales deben ser un carrusel de 2 vídeos (opción A / opción B) entre los que se desliza y se vota tocando el vídeo. Se suben 2 vídeos. Reemplaza el vídeo normal."
+user_problem_statement: "Las publicaciones normales deben ser un carrusel de 2 vídeos (opción A / opción B) entre los que se desliza y se vota tocando el vídeo. Se suben 2 vídeos. Reemplaza el vídeo normal. AÑADIDO: votar = doble toque, quitar el corazón/Me gusta, y nueva función 'Retar' (solicitud de enfrentamiento con un vídeo subido que el retado acepta/cancela en la Bandeja)."
 
 backend:
-  - task: "GET /api/feed returns 'versus' carousel posts with sideA/sideB/votes"
+  - task: "POST /api/challenges crea una solicitud de reto (multipart: file + targetVideoUrl + targetAuthor)"
     implemented: true
     working: "NA"
     file: "app/api/[[...path]]/route.js"
@@ -115,9 +115,8 @@ backend:
     status_history:
         -working: "NA"
         -agent: "main"
-        -comment: "makePosts now generates type='versus', layout='carousel' with sideA/sideB (paired from VIDEOS) and votes attached from _votes.json store or seedVotes(id). Verify shape and that votes are present integers."
-
-  - task: "POST /api/versus uploads 2 videos (fileA, fileB) -> versus post"
+        -comment: "Nuevo endpoint. Requiere multipart 'file' (vídeo del retador) + 'targetVideoUrl' + 'targetAuthor' (JSON). Guarda el vídeo en /uploads, crea un challenge status='pending' en _challenges.json con from=ME_AUTHOR(tu_canal), to=targetAuthor, challengerVideoUrl, targetVideoUrl. Falta de file -> 400 'no_file'; falta target -> 400 'no_target'. Devuelve {ok:true, challenge}."
+  - task: "GET /api/challenges lista los retos pendientes"
     implemented: true
     working: "NA"
     file: "app/api/[[...path]]/route.js"
@@ -127,9 +126,8 @@ backend:
     status_history:
         -working: "NA"
         -agent: "main"
-        -comment: "New endpoint. Requires multipart fileA AND fileB. Returns post with type='versus', sideA/sideB videoUrls under /uploads, votes {a:0,b:0}, persisted in _meta.json. Should 400 with error 'need_two_files' if either file missing."
-
-  - task: "POST /api/vote generalized for versus (built-in store + uploaded meta) and duet"
+        -comment: "Devuelve {challenges: [...]} desde _challenges.json. Verificar que tras POST /api/challenges el reto aparece aquí."
+  - task: "POST /api/challenges/{id}/accept publica un versus y elimina el reto"
     implemented: true
     working: "NA"
     file: "app/api/[[...path]]/route.js"
@@ -139,9 +137,8 @@ backend:
     status_history:
         -working: "NA"
         -agent: "main"
-        -comment: "vote increments side a/b. For built-in feed ids (e.g. 'versus_0') persists in _votes.json seeded by seedVotes. For uploaded duet/versus updates _meta.json. Returns {ok:true, votes:{a,b}}. Verify versus_0 vote increments and is reflected on next /api/feed call; verify still works for an uploaded duet id if any; invalid side -> 400."
-
-  - task: "Backward compat: /api/upload (single) and /api/duet still work"
+        -comment: "Crea un post type='versus' en _meta.json (sideA=challengerVideoUrl/from, sideB=targetVideoUrl/to), lo añade al inicio de uploads, elimina el challenge de _challenges.json. Devuelve {ok:true, post}. id inexistente -> 404. Verificar que el versus aparece luego en GET /api/uploads y que el reto desaparece de GET /api/challenges."
+  - task: "POST /api/challenges/{id}/reject elimina el reto"
     implemented: true
     working: "NA"
     file: "app/api/[[...path]]/route.js"
@@ -151,12 +148,45 @@ backend:
     status_history:
         -working: "NA"
         -agent: "main"
-        -comment: "Existing endpoints unchanged. /api/duet requires file+pair fields. /api/upload requires single file. Verify they still return ok."
+        -comment: "Elimina el challenge de _challenges.json. Devuelve {ok:true}. Verificar que ya no aparece en GET /api/challenges."
+  - task: "GET /api/feed returns 'versus' carousel posts with sideA/sideB/votes"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "makePosts now generates type='versus', layout='carousel' with sideA/sideB (paired from VIDEOS) and votes attached from _votes.json store or seedVotes(id). Verify shape and that votes are present integers."
+  - task: "POST /api/vote generalized for versus (built-in store + uploaded meta) and duet"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "vote increments side a/b. Already validated previously."
 
 frontend:
-  - task: "CarouselSlide: horizontal A/B carousel with swipe, dots, tap-to-vote, Twyk UI"
+  - task: "Votar = doble toque; quitar corazón/Me gusta; botón Retar en columna social"
     implemented: true
     working: "NA"
+    file: "components/CarouselSlide.jsx, components/DuetSlide.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "Validado manualmente en navegador: el corazón/Me gusta fue eliminado y sustituido por 'Retar' (Swords). El doble toque vota (con burst del icono). Hint actualizado a 'doble toque para votar'. Bandeja de retos abre desde el inbox. Pendiente test frontend automatizado (a confirmar por el usuario)."
+  - task: "CarouselSlide: horizontal A/B carousel with swipe, dots, tap-to-vote, Twyk UI"
+    implemented: true
+    working: true
     file: "components/CarouselSlide.jsx"
     stuck_count: 0
     priority: "high"
@@ -164,23 +194,24 @@ frontend:
     status_history:
         -working: "NA"
         -agent: "main"
-        -comment: "Manually validated in browser: swipe A<->B works, dots/arrows, header reflects visible side, social column matches normal video, tap votes and shows result bar + percentages. Not requesting automated frontend test yet (pending user)."
+        -comment: "Manually validated in browser previously."
 
 metadata:
   created_by: "main_agent"
-  version: "1.0"
-  test_sequence: 1
+  version: "1.1"
+  test_sequence: 2
   run_ui: false
 
 test_plan:
   current_focus:
-    - "GET /api/feed returns 'versus' carousel posts with sideA/sideB/votes"
-    - "POST /api/versus uploads 2 videos (fileA, fileB) -> versus post"
-    - "POST /api/vote generalized for versus (built-in store + uploaded meta) and duet"
+    - "POST /api/challenges crea una solicitud de reto (multipart: file + targetVideoUrl + targetAuthor)"
+    - "GET /api/challenges lista los retos pendientes"
+    - "POST /api/challenges/{id}/accept publica un versus y elimina el reto"
+    - "POST /api/challenges/{id}/reject elimina el reto"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 
 agent_communication:
     -agent: "main"
-    -message: "Implemented versus carousel feature. Please test BACKEND only: 1) GET /api/feed?cursor=0&limit=4 -> each post type='versus', has sideA{videoUrl,author}, sideB{videoUrl,author}, votes{a,b} as numbers. 2) POST /api/versus multipart with fileA AND fileB (small dummy mp4 bytes ok) -> 200 {ok,post} with type='versus', sideA.videoUrl & sideB.videoUrl starting /uploads/, votes{a:0,b:0}; missing one file -> 400 'need_two_files'. 3) POST /api/vote {id:'versus_0', side:'a'} -> 200 {votes:{a,b}}; call again /api/feed and confirm versus_0 votes.a increased (persisted in _votes.json). 4) POST /api/vote with bad side -> 400. 5) Backward compat: /api/upload single file still 200; /api/duet with file+pair fields still 200. Do NOT modify Testing Protocol."
+    -message: "Implementada función RETAR (challenges). Por favor testea SOLO BACKEND de los nuevos endpoints de retos: 1) POST /api/challenges multipart con 'file' (bytes mp4 dummy), 'targetVideoUrl'='/videos/4467.mp4', 'targetAuthor'=JSON {username:'urbanlife',name:'Marco Ruiz',avatarUrl:'x'} -> 200 {ok:true, challenge} con status='pending', from.username='tu_canal', challengerVideoUrl empieza con /uploads/. Sin file -> 400 'no_file'. Sin targetVideoUrl/targetAuthor -> 400 'no_target'. 2) GET /api/challenges -> {challenges:[...]} incluye el reto creado. 3) POST /api/challenges/{id}/accept -> 200 {ok:true, post} con type='versus', sideA.videoUrl=challengerVideoUrl, sideB.videoUrl=targetVideoUrl; luego GET /api/uploads contiene ese versus y GET /api/challenges YA NO lo contiene. accept con id inexistente -> 404. 4) POST /api/challenges/{id}/reject -> 200 {ok:true} y desaparece de GET /api/challenges. NO modificar el Testing Protocol."

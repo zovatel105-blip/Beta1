@@ -9,6 +9,8 @@ import DuetSlide from './DuetSlide'
 import CarouselSlide from './CarouselSlide'
 import BottomNav from './BottomNav'
 import UploadDialog from './UploadDialog'
+import ChallengeDialog from './ChallengeDialog'
+import ChallengesInbox from './ChallengesInbox'
 
 async function fetchPage(cursor) {
   const res = await fetch(`/api/feed?cursor=${cursor}&limit=8`, { cache: 'no-store' })
@@ -32,8 +34,27 @@ export default function Feed() {
   const [activeIdx, setActiveIdx] = useState(0)
   const [muted, setMuted] = useState(true)
   const [uploadOpen, setUploadOpen] = useState(false)
+  const [challengeOpen, setChallengeOpen] = useState(false)
+  const [challengeTarget, setChallengeTarget] = useState(null)
+  const [inboxOpen, setInboxOpen] = useState(false)
+  const [pendingCount, setPendingCount] = useState(0)
   const loadingRef = useRef(false)
   const swiperRef = useRef(null)
+
+  const refreshChallenges = useCallback(async () => {
+    try {
+      const res = await fetch('/api/challenges', { cache: 'no-store' })
+      const data = await res.json()
+      setPendingCount((data.challenges || []).length)
+    } catch { /* ignore */ }
+  }, [])
+
+  useEffect(() => { refreshChallenges() }, [refreshChallenges])
+
+  const openChallenge = useCallback((target) => {
+    setChallengeTarget(target)
+    setChallengeOpen(true)
+  }, [])
 
   const loadMore = useCallback(async () => {
     if (loadingRef.current) return
@@ -116,6 +137,7 @@ export default function Feed() {
                   isNear={Math.abs(i - activeIdx) <= 1}
                   muted={muted}
                   onRequestNext={() => swiperRef.current?.slideNext()}
+                  onChallenge={openChallenge}
                 />
               ) : (
                 <CarouselSlide
@@ -124,14 +146,27 @@ export default function Feed() {
                   isNear={Math.abs(i - activeIdx) <= 1}
                   muted={muted}
                   onRequestNext={() => swiperRef.current?.slideNext()}
+                  onChallenge={openChallenge}
                 />
               )}
             </SwiperSlide>
           ))}
         </Swiper>
       )}
-      <BottomNav onOpenUpload={() => setUploadOpen(true)} />
+      <BottomNav onOpenUpload={() => setUploadOpen(true)} onOpenInbox={() => setInboxOpen(true)} unreadCount={pendingCount} />
       <UploadDialog open={uploadOpen} onClose={() => setUploadOpen(false)} onUploaded={handleUploaded} />
+      <ChallengeDialog
+        open={challengeOpen}
+        onClose={() => setChallengeOpen(false)}
+        target={challengeTarget}
+        onCreated={() => { refreshChallenges() }}
+      />
+      <ChallengesInbox
+        open={inboxOpen}
+        onClose={() => setInboxOpen(false)}
+        onAccepted={handleUploaded}
+        onChanged={refreshChallenges}
+      />
     </div>
   )
 }

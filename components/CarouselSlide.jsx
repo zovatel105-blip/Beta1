@@ -1,7 +1,7 @@
 'use client'
 
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
-import { Heart, MessageCircle, Bookmark, Share2, Play, Plus, CheckCircle } from 'lucide-react'
+import { MessageCircle, Bookmark, Share2, Play, Plus, CheckCircle, Swords } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import VoteIcon from './icons/VoteIcon'
 import VSWinnerCard from './VSWinnerCard'
@@ -24,7 +24,7 @@ const webmFor = (url) => (typeof url === 'string' ? url.replace(/\.mp4$/, '.webm
  * Se vota tocando directamente el vídeo (toca = vota la opción visible).
  * La UI (cabecera + columna social) es la misma que la de un vídeo normal.
  */
-function CarouselSlide({ post, isActive, isNear, muted: globalMuted, onRequestNext }) {
+function CarouselSlide({ post, isActive, isNear, muted: globalMuted, onRequestNext, onChallenge }) {
   const overlayRef = useRef(null)
   const videoARef = useRef(null)
   const videoBRef = useRef(null)
@@ -36,11 +36,8 @@ function CarouselSlide({ post, isActive, isNear, muted: globalMuted, onRequestNe
   const [sideIdx, setSideIdx] = useState(0) // 0 = A, 1 = B
   const [paused, setPaused] = useState(false)
   const [progress, setProgress] = useState(0)
-  const [likes, setLikes] = useState(post.stats?.likes || 0)
-  const [liked, setLiked] = useState(false)
   const [saved, setSaved] = useState(false)
   const [following, setFollowing] = useState(false)
-  const [floatingHearts, setFloatingHearts] = useState([])
   const [voteBursts, setVoteBursts] = useState([])
   const [dragX, setDragX] = useState(0)
   const [dragging, setDragging] = useState(false)
@@ -119,19 +116,7 @@ function CarouselSlide({ post, isActive, isNear, muted: globalMuted, onRequestNe
   }, [getVisible])
 
   const doLike = useCallback((evt) => {
-    if (!liked) { setLiked(true); setLikes((n) => n + 1) }
-    if (evt) {
-      const rect = overlayRef.current?.getBoundingClientRect()
-      const x = rect ? evt.clientX - rect.left : 100
-      const y = rect ? evt.clientY - rect.top : 200
-      const id = Math.random().toString(36).slice(2)
-      setFloatingHearts((h) => [...h, { id, x, y }])
-      setTimeout(() => setFloatingHearts((h) => h.filter((p) => p.id !== id)), 850)
-    }
-  }, [liked])
-
-  const toggleLike = useCallback(() => {
-    setLiked((prev) => { setLikes((n) => n + (prev ? -1 : 1)); return !prev })
+    // Like eliminado: el doble toque ahora vota (ver onPointerUp).
   }, [])
 
   const submitVote = useCallback(async (s) => {
@@ -217,10 +202,10 @@ function CarouselSlide({ post, isActive, isNear, muted: globalMuted, onRequestNe
     const now = Date.now()
     const isDouble = now - lastTapRef.current < 300
     lastTapRef.current = now
-    if (isDouble) { doLike(e); return }
+    if (isDouble) { if (!userVote) submitVote(side); return }
     setTimeout(() => {
       if (Date.now() - lastTapRef.current < 280) return
-      if (!userVote) { submitVote(side); return }
+      // toque simple = play/pausa
       const vis = getVisible()
       if (!vis) return
       if (vis.paused) vis.play().catch(() => {}); else vis.pause()
@@ -296,7 +281,7 @@ function CarouselSlide({ post, isActive, isNear, muted: globalMuted, onRequestNe
       {/* Pista para votar */}
       {!userVote && (
         <div className="absolute top-12 left-1/2 -translate-x-1/2 z-20 pointer-events-none bg-black/45 backdrop-blur text-white text-[10px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap">
-          Desliza para comparar · toca para votar
+          Desliza para comparar · doble toque para votar
         </div>
       )}
 
@@ -308,14 +293,6 @@ function CarouselSlide({ post, isActive, isNear, muted: globalMuted, onRequestNe
           </div>
         </div>
       )}
-
-      {/* floating hearts */}
-      {floatingHearts.map((h) => (
-        <Heart key={h.id} size={120} fill="#ff2d55" color="#ff2d55"
-          className="absolute z-30 like-pop pointer-events-none"
-          style={{ left: h.x, top: h.y, transform: 'translate(-50%, -50%)' }}
-        />
-      ))}
 
       {/* burst del icono de voto al votar (sobre el vídeo) */}
       {voteBursts.map((vb) => (
@@ -370,9 +347,9 @@ function CarouselSlide({ post, isActive, isNear, muted: globalMuted, onRequestNe
           </span>
           <span className="text-[8px] font-medium text-white leading-none">{countLabel(totalVotes, 'Votar')}</span>
         </button>
-        <button aria-label="like" onClick={(e) => { e.stopPropagation(); toggleLike() }} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
-          <Heart className={cn('w-[23px] h-[23px] transition-all duration-200', liked ? 'fill-current text-red-500 scale-110' : 'text-white')} />
-          <span className="text-[8px] font-medium text-white leading-none">{countLabel(likes, 'Me gusta')}</span>
+        <button aria-label="retar" onClick={(e) => { e.stopPropagation(); onChallenge?.({ videoUrl: current.videoUrl, author: headAuthor, description: current.description || post.description, music: current.music || post.music }) }} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
+          <Swords className="w-[26px] h-[26px] text-white" />
+          <span className="text-[8px] font-medium text-white leading-none">Retar</span>
         </button>
         <button aria-label="comments" onClick={(e) => e.stopPropagation()} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
           <MessageCircle className="w-[23px] h-[23px] text-white" />

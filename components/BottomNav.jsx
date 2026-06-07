@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils'
  * El botón + abre el diálogo de subida (onOpenUpload). El resto sólo
  * gestiona el estado visual "activo" (la app es de una sola página).
  */
-export default function BottomNav({ onOpenUpload, unreadCount = 0 }) {
+export default function BottomNav({ onOpenUpload, onOpenInbox, unreadCount = 0 }) {
   const [active, setActive] = useState('home')
 
   return (
@@ -71,7 +71,7 @@ export default function BottomNav({ onOpenUpload, unreadCount = 0 }) {
         <div className="relative flex items-center justify-center">
           <button
             aria-label="Bandeja"
-            onClick={() => setActive('messages')}
+            onClick={() => { setActive('messages'); onOpenInbox?.() }}
             className="flex items-center justify-center w-9 h-9 transition-all duration-200 active:scale-90"
           >
             <Inbox
