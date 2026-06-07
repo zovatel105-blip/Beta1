@@ -12,12 +12,12 @@ const ME = {
 }
 
 // Avatar por defecto: círculo gris claro con silueta de persona (gris medio),
-// idéntico al de la imagen de referencia.
+// idéntico al de la imagen de referencia (cabeza + busto que rellenan el círculo).
 const DefaultAvatar = ({ className = '' }) => (
-  <div className={`rounded-full bg-gray-200 overflow-hidden flex items-end justify-center ${className}`}>
-    <svg viewBox="0 0 64 64" className="w-full h-full" aria-hidden="true">
-      <circle cx="32" cy="25" r="12" fill="#9ca3af" />
-      <path d="M14 60c0-11 8-18 18-18s18 7 18 18z" fill="#9ca3af" />
+  <div className={`rounded-full bg-gray-200 overflow-hidden ${className}`}>
+    <svg viewBox="0 0 100 100" className="w-full h-full" aria-hidden="true">
+      <circle cx="50" cy="40" r="16" fill="#9ca3af" />
+      <path d="M16 100C16 75 31 62 50 62s34 13 34 38z" fill="#9ca3af" />
     </svg>
   </div>
 )
@@ -63,11 +63,11 @@ const GridItem = ({ post }) => {
 }
 
 const TABS = [
-  { key: 'polls', icon: (active) => <ColumnsIcon className="w-5 h-5" /> },
-  { key: 'liked', icon: () => <Heart className="w-5 h-5" strokeWidth={1.6} /> },
-  { key: 'mentions', icon: () => <UserCircle className="w-5 h-5" strokeWidth={1.6} /> },
-  { key: 'saved', icon: () => <Bookmark className="w-5 h-5" strokeWidth={1.6} /> },
-  { key: 'links', icon: () => <LinkIcon className="w-5 h-5" strokeWidth={1.6} /> },
+  { key: 'polls', icon: () => <ColumnsIcon className="w-4 h-4" /> },
+  { key: 'liked', icon: () => <Heart className="w-4 h-4" strokeWidth={1.5} /> },
+  { key: 'mentions', icon: () => <UserCircle className="w-4 h-4" strokeWidth={1.5} /> },
+  { key: 'saved', icon: () => <Bookmark className="w-4 h-4" strokeWidth={1.5} /> },
+  { key: 'links', icon: () => <LinkIcon className="w-4 h-4" strokeWidth={1.5} /> },
 ]
 
 export default function ProfilePage({ open, onClose, onOpenUpload }) {
@@ -112,19 +112,19 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
       }
       if (posts.length === 0) {
         return (
-          <div className="text-center py-14 space-y-3">
-            <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto text-gray-400">
-              <ColumnsIcon className="w-8 h-8" />
+          <div className="text-center py-16 space-y-4 px-4">
+            <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto shadow-sm">
+              <ColumnsIcon className="w-7 h-7 text-gray-400" />
             </div>
             <div className="space-y-1">
-              <h3 className="text-lg font-bold text-gray-900">No posts yet</h3>
+              <h3 className="text-base font-semibold text-gray-900">No posts yet</h3>
               <p className="text-gray-400 text-sm">Start creating content</p>
             </div>
           </div>
         )
       }
       return (
-        <div className="grid grid-cols-3 gap-[2px]">
+        <div className="grid grid-cols-3 gap-0.5">
           {posts.map((p) => <GridItem key={p.id} post={p} />)}
         </div>
       )
@@ -138,12 +138,12 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
     }
     const e = emptyMap[activeTab]
     return (
-      <div className="text-center py-14 space-y-3">
-        <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto text-gray-400">
-          <e.Icon className="w-8 h-8" strokeWidth={1.6} />
+      <div className="text-center py-16 space-y-4 px-4">
+        <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto shadow-sm text-gray-400">
+          <e.Icon className="w-7 h-7" strokeWidth={1.5} />
         </div>
         <div className="space-y-1">
-          <h3 className="text-lg font-bold text-gray-900">{e.title}</h3>
+          <h3 className="text-base font-semibold text-gray-900">{e.title}</h3>
           <p className="text-gray-400 text-sm">{e.desc}</p>
         </div>
       </div>
@@ -267,8 +267,8 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
       </div>
 
       {/* Tabs */}
-      <div className="px-4 mt-5">
-        <div className="flex items-center justify-between bg-gray-50 rounded-2xl p-1">
+      <div className="px-1 sm:px-2 mt-5">
+        <div className="grid grid-cols-5 w-full bg-gray-50 rounded-2xl p-1">
           {TABS.map((tab) => {
             const active = activeTab === tab.key
             return (
@@ -276,7 +276,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
                 aria-label={tab.key}
-                className={`flex-1 h-11 rounded-xl flex items-center justify-center transition-all ${
+                className={`rounded-xl py-3 text-sm font-medium flex items-center justify-center transition-all ${
                   active ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400'
                 }`}
               >
