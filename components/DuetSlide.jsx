@@ -461,7 +461,7 @@ function DuetSlide({ post, isActive, isNear, muted: globalMuted, onRequestNext, 
         {/* Votos */}
         <button aria-label="votos" onClick={(e) => e.stopPropagation()} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
           <span style={{ color: userVote === 'a' ? '#A855F7' : userVote === 'b' ? '#3B82F6' : '#fff', display: 'inline-flex', transition: 'color 200ms' }}>
-            <VoteIcon className="w-[36px] h-[36px]" strokeWidth={320} filled={!!userVote} />
+            <VoteIcon className="w-[36px] h-[36px]" strokeWidth={180} filled={!!userVote} />
           </span>
           <span className="text-[10px] font-semibold text-white leading-none">
             {countLabel(totalVotes, 'Votar')}
