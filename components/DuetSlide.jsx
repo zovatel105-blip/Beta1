@@ -506,6 +506,7 @@ function DuetSlide({ post, isActive, isNear, muted: globalMuted, onRequestNext }
       {/* Winner card — aparece automáticamente tras votar */}
       <VSWinnerCard
         visible={showWinner}
+        winnerSide={winnerKey}
         winnerName={winnerName}
         winnerPercentage={winnerPct}
         winnerImage={winnerSide.author?.avatarUrl}

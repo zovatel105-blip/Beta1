@@ -414,6 +414,7 @@ function CarouselSlide({ post, isActive, isNear, muted: globalMuted, onRequestNe
       {/* Winner card — aparece automáticamente tras votar */}
       <VSWinnerCard
         visible={showWinner}
+        winnerSide={winnerKey}
         winnerName={winnerName}
         winnerPercentage={winnerPct}
         winnerImage={winnerSide.author?.avatarUrl}
