@@ -13,6 +13,8 @@ import UploadDialog from './UploadDialog'
 import ChallengeDialog from './ChallengeDialog'
 import ChallengesInbox from './ChallengesInbox'
 import ProfilePage from './ProfilePage'
+import CompletedBattlesPage from './CompletedBattlesPage'
+import ActiveChallengesPage from './ActiveChallengesPage'
 
 async function fetchPage(cursor) {
   const res = await fetch(`/api/feed?cursor=${cursor}&limit=8`, { cache: 'no-store' })
@@ -40,6 +42,8 @@ export default function Feed() {
   const [challengeTarget, setChallengeTarget] = useState(null)
   const [inboxOpen, setInboxOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
+  const [battlesOpen, setBattlesOpen] = useState(false)
+  const [activeChallengesOpen, setActiveChallengesOpen] = useState(false)
   const [pendingCount, setPendingCount] = useState(0)
   const loadingRef = useRef(false)
   const swiperRef = useRef(null)
@@ -188,6 +192,7 @@ export default function Feed() {
         onOpenInbox={() => setInboxOpen(true)}
         onOpenProfile={() => setProfileOpen(true)}
         onGoHome={() => setProfileOpen(false)}
+        onOpenBattles={() => setBattlesOpen(true)}
         unreadCount={pendingCount}
       />
       <ProfilePage
@@ -207,6 +212,18 @@ export default function Feed() {
         onClose={() => setInboxOpen(false)}
         onAccepted={handleUploaded}
         onChanged={refreshChallenges}
+      />
+      <CompletedBattlesPage
+        open={battlesOpen}
+        onClose={() => setBattlesOpen(false)}
+        onOpenActive={() => setActiveChallengesOpen(true)}
+        onOpenUpload={() => { setBattlesOpen(false); setUploadOpen(true) }}
+        onOpenInbox={() => { setBattlesOpen(false); setInboxOpen(true) }}
+        onOpenProfile={() => { setBattlesOpen(false); setProfileOpen(true) }}
+      />
+      <ActiveChallengesPage
+        open={activeChallengesOpen}
+        onClose={() => setActiveChallengesOpen(false)}
       />
     </div>
   )
