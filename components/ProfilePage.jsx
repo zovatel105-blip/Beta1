@@ -48,16 +48,21 @@ const GridItem = ({ post }) => {
   const thumb = thumbFor(post)
   const totalVotes = (post?.votes?.a || 0) + (post?.votes?.b || 0)
   return (
-    <div className="relative aspect-[9/16] bg-gray-100 overflow-hidden rounded-xl">
+    <div className="group relative aspect-[9/16] overflow-hidden rounded-lg bg-gray-100">
       {thumb ? (
-        <img src={thumb} alt="" className="w-full h-full object-cover" draggable={false} />
+        <img src={thumb} alt="" className="w-full h-full object-cover rounded-lg" draggable={false} />
       ) : (
-        <div className="w-full h-full bg-gradient-to-br from-zinc-200 to-zinc-300" />
+        <div className="w-full h-full bg-gradient-to-br from-gray-700 via-gray-800 to-gray-900" />
       )}
-      <span className="absolute bottom-1.5 left-1.5 text-white text-[11px] font-semibold inline-flex items-center gap-1 drop-shadow">
-        <VoteIcon className="w-3.5 h-3.5" strokeWidth={260} filled />
-        {formatNumber(totalVotes)}
-      </span>
+      {/* Overlay oscuro */}
+      <div className="absolute inset-0 bg-black/20 pointer-events-none z-10" />
+      {/* Contador de votos - píldora abajo-izquierda */}
+      {totalVotes > 0 && (
+        <div className="absolute bottom-2 left-2 flex items-center gap-1 bg-black/60 backdrop-blur-sm px-2 py-1 rounded-full text-white text-xs font-medium pointer-events-none z-30">
+          <VoteIcon className="w-3 h-3" strokeWidth={260} filled />
+          <span>{formatNumber(totalVotes)}</span>
+        </div>
+      )}
     </div>
   )
 }
@@ -124,7 +129,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
         )
       }
       return (
-        <div className="grid grid-cols-3 gap-1.5 px-1.5">
+        <div className="grid grid-cols-3 gap-1">
           {posts.map((p) => <GridItem key={p.id} post={p} />)}
         </div>
       )
