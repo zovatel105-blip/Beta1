@@ -203,6 +203,20 @@ export async function GET(request, { params }) {
     return NextResponse.json({ options: [...userOptions, ...builtin] })
   }
 
+  // Lista de creadores (usuarios demo) para elegir a quién retar.
+  if (path === '/users') {
+    const seen = new Set()
+    const users = []
+    for (const vd of VIDEOS) {
+      const a = vd.author
+      if (a && a.username && !seen.has(a.username)) {
+        seen.add(a.username)
+        users.push(a)
+      }
+    }
+    return NextResponse.json({ users })
+  }
+
   if (path === '/' || path === '') {
     return NextResponse.json({ ok: true, service: 'snaptok-api' })
   }
@@ -231,7 +245,7 @@ export async function POST(request, { params }) {
   }
   // Aceptar un reto -> publica un versus (A=retador, B=retado).
   if (segs[0] === 'challenges' && segs[2] === 'accept') {
-    return handleAcceptChallenge(segs[1])
+    return handleAcceptChallenge(segs[1], request)
   }
   // Rechazar / cancelar un reto.
   if (segs[0] === 'challenges' && segs[2] === 'reject') {
@@ -317,81 +331,39 @@ async function handleVersusUpload(request) {
 // ────────────────────────────────────────────────────────────────────────────
 
 // POST /api/duet
-//   FormData: file, description, layout ('horizontal'|'vertical'),
-//             pairVideoUrl, pairAuthor (JSON), pairMusic, pairDescription
-// Creates a post with type='duet' that contains videoA (the upload) + videoB (the pair).
+//   FormData: fileA, fileB, description, layout ('horizontal'|'vertical')
+//   El usuario sube SUS DOS vídeos (A y B). Se publica como type='duet' con el
+//   layout elegido (horizontal = arriba/abajo, vertical = izq/der).
 async function handleDuetUpload(request) {
   try {
     const formData = await request.formData()
-    const file = formData.get('file')
+    const fileA = formData.get('fileA')
+    const fileB = formData.get('fileB')
     const description = (formData.get('description') || '¿Quién gana? 🥊 #1vs1').toString()
     const layoutRaw = (formData.get('layout') || 'horizontal').toString()
     const layout = layoutRaw === 'vertical' ? 'vertical' : 'horizontal'
-    const pairVideoUrl = (formData.get('pairVideoUrl') || '').toString()
-    let pairAuthor = null
-    try { pairAuthor = JSON.parse((formData.get('pairAuthor') || 'null').toString()) } catch {}
-    const pairMusic = (formData.get('pairMusic') || '').toString()
-    const pairDescription = (formData.get('pairDescription') || '').toString()
 
-    if (!file || typeof file === 'string') {
-      return NextResponse.json({ error: 'no_file' }, { status: 400 })
-    }
-    if (!pairVideoUrl || !pairAuthor) {
-      return NextResponse.json({ error: 'no_pair' }, { status: 400 })
+    if (!fileA || typeof fileA === 'string' || !fileB || typeof fileB === 'string') {
+      return NextResponse.json({ error: 'need_two_files' }, { status: 400 })
     }
 
-    const arrayBuffer = await file.arrayBuffer()
-    const bytes = Buffer.from(arrayBuffer)
+    const urlA = await saveUploadedVideo(fileA)
+    const urlB = await saveUploadedVideo(fileB)
     const id = crypto.randomBytes(8).toString('hex')
-    const name = file.name || 'video.mp4'
-    const ext = name.includes('.') ? name.split('.').pop().toLowerCase() : 'mp4'
-    const safeExt = ['mp4', 'webm', 'mov', 'm4v'].includes(ext) ? ext : 'mp4'
-    const filename = `${id}.${safeExt}`
-    await ensureUploadDir()
-    const filePath = nodePath.join(UPLOAD_DIR, filename)
-    await fs.writeFile(filePath, bytes)
-    // best-effort webm transcode for the user's side (helps Firefox/Chromium-w/o-H264)
-    const webmPath = nodePath.join(UPLOAD_DIR, `${id}.webm`)
-    transcodeToWebm(filePath, webmPath).then((ok) => {
-      if (!ok) console.warn('webm transcode failed for duet', filename)
-    })
-    makePoster(filePath, nodePath.join(UPLOAD_DIR, `${id}.jpg`))
 
-    const myUrl = `/uploads/${filename}`
     const post = {
       id: `duet_${id}`,
       type: 'duet',
       layout, // 'horizontal' | 'vertical'
-      // Side A = el vídeo que sube el usuario (suena por defecto)
-      sideA: {
-        videoUrl: myUrl,
-        posterUrl: posterFor(myUrl),
-        author: {
-          username: 'tu_canal',
-          name: 'Tú',
-          avatarUrl: 'https://i.pravatar.cc/120?img=68',
-        },
-        description,
-        music: 'Tu vídeo original',
-      },
-      // Side B = el vídeo emparejado (existente del feed o de otro upload)
-      sideB: {
-        videoUrl: pairVideoUrl,
-        posterUrl: posterFor(pairVideoUrl),
-        author: pairAuthor,
-        description: pairDescription,
-        music: pairMusic,
-      },
-      // Mantenemos los mismos campos que un post normal para compat con el feed
-      author: {
-        username: 'tu_canal',
-        name: 'Tú',
-        avatarUrl: 'https://i.pravatar.cc/120?img=68',
-      },
+      // Ambos lados son contenido propio del usuario.
+      sideA: { videoUrl: urlA, posterUrl: posterFor(urlA), author: ME_AUTHOR, description, music: 'Opción A' },
+      sideB: { videoUrl: urlB, posterUrl: posterFor(urlB), author: ME_AUTHOR, description, music: 'Opción B' },
+      author: ME_AUTHOR,
       description,
-      music: 'Tu vídeo original',
-      videoUrl: myUrl,
-      thumbnailUrl: '',
+      music: 'Tu 1vs1 original',
+      videoUrl: urlA,
+      posterUrl: posterFor(urlA),
+      thumbnailUrl: posterFor(urlA),
       stats: { likes: 0, comments: 0, shares: 0, saves: 0 },
       votes: { a: 0, b: 0 },
       duration: 0,
@@ -482,7 +454,7 @@ async function handleCreateChallenge(request) {
     if (!file || typeof file === 'string') {
       return NextResponse.json({ error: 'no_file' }, { status: 400 })
     }
-    if (!targetVideoUrl || !targetAuthor) {
+    if (!targetAuthor) {
       return NextResponse.json({ error: 'no_target' }, { status: 400 })
     }
 
@@ -494,7 +466,7 @@ async function handleCreateChallenge(request) {
       from: ME_AUTHOR,
       to: targetAuthor,
       challengerVideoUrl: myUrl, // lado A = tu vídeo
-      targetVideoUrl,            // lado B = el vídeo retado
+      targetVideoUrl: targetVideoUrl || null, // lado B = lo sube el retado al aceptar
       targetAuthor,
       targetDescription,
       targetMusic,
@@ -512,19 +484,36 @@ async function handleCreateChallenge(request) {
 }
 
 // POST /api/challenges/{id}/accept -> publica un versus y elimina el reto.
-async function handleAcceptChallenge(cid) {
+// El retado puede subir SU vídeo (multipart 'file'); si el reto ya traía
+// targetVideoUrl (reto a un contenido concreto) se usa ese.
+async function handleAcceptChallenge(cid, request) {
   try {
     const list = await readChallenges()
     const idx = list.findIndex((c) => c.id === cid)
     if (idx === -1) return NextResponse.json({ error: 'not_found' }, { status: 404 })
     const c = list[idx]
+
+    // Vídeo de respuesta del retado: el subido al aceptar, o el ya conocido.
+    let responseVideoUrl = c.targetVideoUrl || null
+    try {
+      const formData = await request.formData()
+      const file = formData.get('file')
+      if (file && typeof file !== 'string') {
+        responseVideoUrl = await saveUploadedVideo(file)
+      }
+    } catch { /* sin cuerpo multipart, se usa targetVideoUrl si existe */ }
+
+    if (!responseVideoUrl) {
+      return NextResponse.json({ error: 'no_response_video' }, { status: 400 })
+    }
+
     const id = crypto.randomBytes(8).toString('hex')
     const post = {
       id: `versus_ch_${id}`,
       type: 'versus',
       layout: 'carousel',
       sideA: { videoUrl: c.challengerVideoUrl, posterUrl: posterFor(c.challengerVideoUrl), author: c.from, description: c.message || 'Mi reto', music: 'Reto' },
-      sideB: { videoUrl: c.targetVideoUrl, posterUrl: posterFor(c.targetVideoUrl), author: c.to, description: c.targetDescription || '', music: c.targetMusic || '' },
+      sideB: { videoUrl: responseVideoUrl, posterUrl: posterFor(responseVideoUrl), author: c.to, description: c.targetDescription || '', music: c.targetMusic || '' },
       author: c.from,
       description: c.message || `Reto: @${c.from?.username} 🆚 @${c.to?.username} 🥊`,
       music: 'Reto aceptado',

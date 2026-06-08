@@ -105,7 +105,7 @@
 user_problem_statement: "Las publicaciones normales deben ser un carrusel de 2 vídeos (opción A / opción B) entre los que se desliza y se vota tocando el vídeo. Se suben 2 vídeos. Reemplaza el vídeo normal. AÑADIDO: votar = doble toque, quitar el corazón/Me gusta, y nueva función 'Retar' (solicitud de enfrentamiento con un vídeo subido que el retado acepta/cancela en la Bandeja)."
 
 backend:
-  - task: "POST /api/challenges crea una solicitud de reto (multipart: file + targetVideoUrl + targetAuthor)"
+  - task: "GET /api/users devuelve la lista de creadores demo"
     implemented: true
     working: "NA"
     file: "app/api/[[...path]]/route.js"
@@ -115,8 +115,8 @@ backend:
     status_history:
         -working: "NA"
         -agent: "main"
-        -comment: "Nuevo endpoint. Requiere multipart 'file' (vídeo del retador) + 'targetVideoUrl' + 'targetAuthor' (JSON). Guarda el vídeo en /uploads, crea un challenge status='pending' en _challenges.json con from=ME_AUTHOR(tu_canal), to=targetAuthor, challengerVideoUrl, targetVideoUrl. Falta de file -> 400 'no_file'; falta target -> 400 'no_target'. Devuelve {ok:true, challenge}."
-  - task: "GET /api/challenges lista los retos pendientes"
+        -comment: "Nuevo endpoint. Devuelve {users:[{username,name,avatarUrl}]} derivado de los autores de VIDEOS (únicos por username, sin 'tu_canal'). Verificar que devuelve una lista no vacía y con esos campos."
+  - task: "POST /api/duet ahora recibe fileA + fileB + layout (2 vídeos propios)"
     implemented: true
     working: "NA"
     file: "app/api/[[...path]]/route.js"
@@ -126,8 +126,8 @@ backend:
     status_history:
         -working: "NA"
         -agent: "main"
-        -comment: "Devuelve {challenges: [...]} desde _challenges.json. Verificar que tras POST /api/challenges el reto aparece aquí."
-  - task: "POST /api/challenges/{id}/accept publica un versus y elimina el reto"
+        -comment: "CAMBIO: ya no usa pairVideoUrl. Multipart 'fileA' + 'fileB' (bytes mp4 dummy) + 'layout' ('horizontal'|'vertical') + 'description'. Devuelve {ok:true, post} con type='duet', layout correcto, sideA.videoUrl y sideB.videoUrl empiezan con /uploads/, ambos author.username='tu_canal'. Falta de alguno de los 2 archivos -> 400 'need_two_files'. Verificar que aparece luego en GET /api/uploads."
+  - task: "POST /api/challenges con usuario destino (targetVideoUrl opcional)"
     implemented: true
     working: "NA"
     file: "app/api/[[...path]]/route.js"
@@ -137,18 +137,29 @@ backend:
     status_history:
         -working: "NA"
         -agent: "main"
-        -comment: "Crea un post type='versus' en _meta.json (sideA=challengerVideoUrl/from, sideB=targetVideoUrl/to), lo añade al inicio de uploads, elimina el challenge de _challenges.json. Devuelve {ok:true, post}. id inexistente -> 404. Verificar que el versus aparece luego en GET /api/uploads y que el reto desaparece de GET /api/challenges."
+        -comment: "CAMBIO: 'targetVideoUrl' ahora OPCIONAL. Multipart 'file' (tu vídeo) + 'targetAuthor' (JSON del usuario destino) + 'message' opcional. Devuelve {ok:true, challenge} con status='pending', from.username='tu_canal', to=targetAuthor, challengerVideoUrl empieza con /uploads/, targetVideoUrl=null si no se envía. Sin file -> 400 'no_file'. Sin targetAuthor -> 400 'no_target'. Compat: si se envía targetVideoUrl también debe funcionar (flujo ChallengeDialog)."
+  - task: "POST /api/challenges/{id}/accept acepta el vídeo del retado (multipart file)"
+    implemented: true
+    working: "NA"
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "CAMBIO: accept ahora puede recibir multipart 'file' (vídeo del retado). Si el reto NO tiene targetVideoUrl y se envía file -> usa ese. Si el reto YA tiene targetVideoUrl y se acepta SIN body -> usa ese (compat). Si no hay ninguno -> 400 'no_response_video'. Devuelve {ok:true, post} type='versus' con sideA=challenger, sideB=respuesta; luego aparece en GET /api/uploads y desaparece de GET /api/challenges. id inexistente -> 404. PROBAR LOS 2 CAMINOS: (1) crear challenge SIN targetVideoUrl y aceptar CON file; (2) crear challenge CON targetVideoUrl y aceptar SIN body."
   - task: "POST /api/challenges/{id}/reject elimina el reto"
     implemented: true
-    working: "NA"
+    working: true
     file: "app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "medium"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         -working: "NA"
         -agent: "main"
-        -comment: "Elimina el challenge de _challenges.json. Devuelve {ok:true}. Verificar que ya no aparece en GET /api/challenges."
+        -comment: "Sin cambios. Elimina el challenge. Devuelve {ok:true}."
   - task: "GET /api/feed returns 'versus' carousel posts with sideA/sideB/votes"
     implemented: true
     working: true
