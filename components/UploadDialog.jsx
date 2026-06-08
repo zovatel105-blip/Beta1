@@ -27,10 +27,12 @@ export default function UploadDialog({ open, onClose, onUploaded }) {
   const [description, setDescription] = useState('')
   const [progress, setProgress] = useState(0)
   const [error, setError] = useState(null)
+  const [selected, setSelected] = useState('versus')
 
   const reset = () => {
     setStep('mode'); setMode(null); setLayout('horizontal'); setPair(null)
     setFile(null); setFileB(null); setDescription(''); setProgress(0); setError(null)
+    setSelected('versus')
   }
 
   useEffect(() => {
@@ -149,38 +151,62 @@ export default function UploadDialog({ open, onClose, onUploaded }) {
 
       {/* Body */}
       <div className="relative z-10 flex-1 overflow-y-auto px-5 pt-2 pb-10">
-        {/* STEP: mode */}
+        {/* STEP: mode — control segmentado (estilo referencia) */}
         {step === 'mode' && (
           <div className="max-w-md mx-auto">
-            <p className="text-zinc-400 text-[15px] leading-relaxed mb-6">
-              Elige cómo quieres que la gente vote tu contenido.
-            </p>
-            <div className="space-y-3">
-              <button
-                onClick={() => { setMode('versus'); setStep('file') }}
-                className="w-full flex items-center gap-4 p-4 rounded-2xl border border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06] active:scale-[0.99] transition text-left"
+            {/* Control segmentado */}
+            <div className="flex justify-center mb-9">
+              <div className="inline-flex p-1 rounded-full bg-white/[0.06] border border-white/10">
+                <button
+                  onClick={() => setSelected('versus')}
+                  className={`px-7 py-2 rounded-full text-[14px] font-semibold transition ${selected === 'versus' ? 'bg-white text-black' : 'text-zinc-300 hover:text-white'}`}
+                >
+                  Versus
+                </button>
+                <button
+                  onClick={() => setSelected('duet')}
+                  className={`px-7 py-2 rounded-full text-[14px] font-semibold transition ${selected === 'duet' ? 'bg-white text-black' : 'text-zinc-300 hover:text-white'}`}
+                >
+                  1 vs 1
+                </button>
+              </div>
+            </div>
+
+            {/* Preview del modo seleccionado */}
+            <div className="flex flex-col items-center text-center">
+              <div
+                className="w-20 h-20 rounded-3xl bg-white/[0.04] border border-white/10 flex items-center justify-center mb-6"
+                style={{ boxShadow: '0 0 48px -14px rgba(214,178,122,0.42)' }}
               >
-                <div className="w-12 h-12 rounded-2xl bg-white/[0.05] border border-white/10 flex items-center justify-center shrink-0">
-                  <Film size={22} strokeWidth={1.5} style={{ color: GOLD }} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-[15px]">Versus (carrusel)</div>
-                  <div className="text-[13px] text-zinc-500 mt-0.5">Sube 2 vídeos (A y B) y deja que voten deslizando</div>
-                </div>
-                <ChevronRight size={18} className="text-zinc-600 shrink-0" />
-              </button>
+                {selected === 'versus'
+                  ? <Film className="w-9 h-9" strokeWidth={1.25} style={{ color: GOLD }} />
+                  : <Swords className="w-9 h-9" strokeWidth={1.25} style={{ color: GOLD }} />}
+              </div>
+
+              <h2 className="text-white text-[22px] font-semibold tracking-tight">
+                {selected === 'versus' ? 'Versus (carrusel)' : '1 vs 1 (Dueto)'}
+              </h2>
+              <p className="text-zinc-400 text-[15px] mt-2 max-w-[18rem] leading-relaxed">
+                {selected === 'versus'
+                  ? 'Sube 2 vídeos (A y B) y deja que la gente vote deslizando entre ellos.'
+                  : 'Empareja tu vídeo con el de otro creador y que la gente decida quién gana.'}
+              </p>
+
+              {/* Mini ilustración del formato */}
+              <div className="mt-7 w-40 h-28 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-2 flex gap-2">
+                <div className="flex-1 rounded-xl bg-white/10 flex items-center justify-center text-white/70 text-sm font-bold">A</div>
+                <div className="flex-1 rounded-xl bg-white/[0.06] flex items-center justify-center text-white/50 text-sm font-bold">B</div>
+              </div>
+
               <button
-                onClick={() => { setMode('duet'); setStep('layout') }}
-                className="w-full flex items-center gap-4 p-4 rounded-2xl border border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06] active:scale-[0.99] transition text-left"
+                onClick={() => {
+                  if (selected === 'versus') { setMode('versus'); setStep('file') }
+                  else { setMode('duet'); setStep('layout') }
+                }}
+                className="mt-8 w-full h-12 rounded-full bg-white text-black font-semibold text-[15px] flex items-center justify-center gap-1.5 hover:bg-zinc-100 active:scale-[0.99] transition"
               >
-                <div className="w-12 h-12 rounded-2xl bg-white/[0.05] border border-white/10 flex items-center justify-center shrink-0">
-                  <Swords size={22} strokeWidth={1.5} style={{ color: GOLD }} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-[15px]">1 vs 1 (Dueto)</div>
-                  <div className="text-[13px] text-zinc-500 mt-0.5">Empareja tu vídeo con otro y deja que voten</div>
-                </div>
-                <ChevronRight size={18} className="text-zinc-600 shrink-0" />
+                Continuar
+                <ChevronRight size={18} strokeWidth={2.5} />
               </button>
             </div>
           </div>
