@@ -1,7 +1,7 @@
 'use client'
 
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
-import { MessageCircle, Bookmark, Play, Volume2, VolumeX, Swords, MoreHorizontal, Flag, EyeOff, Link2 } from 'lucide-react'
+import { MessageCircle, Bookmark, Play, Volume2, VolumeX, Swords, MoreVertical, Flag, EyeOff, Link2 } from 'lucide-react'
 import ShareIcon from './icons/ShareIcon'
 import { getVideoPool } from '@/lib/videoPool'
 import { cn } from '@/lib/utils'
@@ -481,9 +481,8 @@ function DuetSlide({ post, isActive, isNear, muted: globalMuted, onRequestNext, 
           <span className="text-[10px] font-semibold text-white leading-none">{countLabel(post.stats?.saves, 'Guardar')}</span>
         </button>
         {/* Más opciones */}
-        <button aria-label="mas-opciones" onClick={(e) => { e.stopPropagation(); setMenuOpen(true) }} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
-          <MoreHorizontal className="w-[25px] h-[25px] text-white" strokeWidth={1.25} />
-          <span className="text-[10px] font-semibold text-white leading-none">Más</span>
+        <button aria-label="mas-opciones" onClick={(e) => { e.stopPropagation(); setMenuOpen(true) }} className="flex flex-col items-center hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
+          <MoreVertical className="w-[25px] h-[25px] text-white" strokeWidth={2.25} />
         </button>
         {/* Disco de música giratorio */}
         <div className="mt-1 w-10 h-10 rounded-full overflow-hidden border border-white/30 bg-gradient-to-br from-zinc-700 to-black flex items-center justify-center" style={{ animation: 'spin 6s linear infinite' }}>
