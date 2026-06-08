@@ -6,9 +6,7 @@ import { Bell, Swords, Heart, UserPlus, MessageCircle, Check, ChevronLeft } from
 import { MOCK_NOTIFICATIONS } from '@/lib/notifications'
 
 /**
- * NotificationsInbox — Página de notificaciones general.
- * Reemplaza a la antigua bandeja de retos (que ahora vive en "Retos activos").
- * Muestra notificaciones simuladas: votos, retos, aceptaciones, seguidores y comentarios.
+ * NotificationsInbox — Página de notificaciones (diseño premium minimalista, móvil).
  *
  * props:
  *   open    bool
@@ -16,12 +14,12 @@ import { MOCK_NOTIFICATIONS } from '@/lib/notifications'
  */
 const iconFor = (type) => {
   switch (type) {
-    case 'challenge': return { Icon: Swords, bg: 'linear-gradient(135deg, #A855F7, #3B82F6)' }
-    case 'vote': return { Icon: Heart, bg: 'linear-gradient(135deg, #EF4444, #EC4899)' }
-    case 'accepted': return { Icon: Check, bg: 'linear-gradient(135deg, #22C55E, #16A34A)' }
-    case 'follow': return { Icon: UserPlus, bg: 'linear-gradient(135deg, #3B82F6, #06B6D4)' }
-    case 'comment': return { Icon: MessageCircle, bg: 'linear-gradient(135deg, #F59E0B, #F97316)' }
-    default: return { Icon: Bell, bg: 'linear-gradient(135deg, #71717A, #52525B)' }
+    case 'challenge': return { Icon: Swords, color: '#E4C79B' }
+    case 'vote': return { Icon: Heart, color: '#F87186' }
+    case 'accepted': return { Icon: Check, color: '#6EE7A8' }
+    case 'follow': return { Icon: UserPlus, color: '#7DB7FF' }
+    case 'comment': return { Icon: MessageCircle, color: '#E4C79B' }
+    default: return { Icon: Bell, color: '#A1A1AA' }
   }
 }
 
@@ -35,62 +33,74 @@ export default function NotificationsInbox({ open, onClose }) {
   if (!open) return null
 
   const markAllRead = () => setList((prev) => prev.map((n) => ({ ...n, read: true })))
+  const hasUnread = list.some((n) => !n.read)
 
   return (
-    <div className="fixed inset-0 z-[60] bg-zinc-950 flex flex-col text-white">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-white/10" style={{ paddingTop: 'max(env(safe-area-inset-top), 12px)' }}>
-          <div className="flex items-center gap-1.5">
-            <button onClick={onClose} aria-label="Volver" className="w-9 h-9 -ml-1.5 rounded-full flex items-center justify-center hover:bg-white/10 text-white">
-              <ChevronLeft size={22} />
-            </button>
-            <h2 className="font-bold text-base text-white">Notificaciones</h2>
-          </div>
-          <button onClick={markAllRead} className="text-xs font-semibold text-white/60 hover:text-white px-2.5 py-1.5 rounded-full hover:bg-white/10">
+    <div className="fixed inset-0 z-[60] bg-[#0a0a0b] flex flex-col text-white">
+      {/* Glow superior sutil */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-44"
+           style={{ background: 'radial-gradient(60% 100% at 50% 0%, rgba(214,178,122,0.07), transparent 70%)' }} />
+
+      {/* Header */}
+      <div className="relative z-10 flex items-center justify-between px-4 pb-3"
+           style={{ paddingTop: 'max(env(safe-area-inset-top), 14px)' }}>
+        <div className="flex items-center gap-1">
+          <button onClick={onClose} aria-label="Volver" className="w-9 h-9 -ml-1.5 rounded-full flex items-center justify-center hover:bg-white/5 active:scale-90 transition text-white">
+            <ChevronLeft size={22} strokeWidth={1.75} />
+          </button>
+          <h1 className="text-[17px] font-semibold tracking-tight">Notificaciones</h1>
+        </div>
+        {hasUnread && (
+          <button onClick={markAllRead} className="text-[13px] font-medium text-zinc-400 hover:text-white px-2.5 py-1.5 rounded-full hover:bg-white/5 transition">
             Marcar leídas
           </button>
-        </div>
+        )}
+      </div>
 
-        <div className="flex-1 overflow-y-auto">
-          {list.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center px-6">
-              <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
-                <Bell className="w-8 h-8 text-white/40" />
-              </div>
-              <p className="text-white font-semibold">No tienes notificaciones todavía</p>
-              <p className="text-white/50 text-sm mt-1">Cuando haya actividad en tus retos, aparecerá aquí.</p>
+      {/* Lista */}
+      <div className="relative z-10 flex-1 overflow-y-auto px-4 pb-10">
+        {list.length === 0 ? (
+          <div className="flex flex-col items-center justify-center text-center pt-32">
+            <div className="w-20 h-20 rounded-full border border-white/10 bg-white/[0.03] flex items-center justify-center mb-6"
+                 style={{ boxShadow: '0 0 48px -14px rgba(214,178,122,0.4)' }}>
+              <Bell className="w-9 h-9" strokeWidth={1.25} style={{ color: '#E4C79B' }} />
             </div>
-          ) : (
-            <div className="divide-y divide-white/[0.06]">
-              {list.map((n) => {
-                const { Icon, bg } = iconFor(n.type)
-                return (
-                  <div
-                    key={n.id}
-                    className={`flex items-center gap-3 px-4 py-3 ${n.read ? '' : 'bg-white/[0.04]'}`}
-                  >
-                    <div className="relative shrink-0">
-                      <img src={n.user?.avatarUrl} alt="" className="w-11 h-11 rounded-full object-cover" />
-                      <span
-                        className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center border-2 border-zinc-950"
-                        style={{ background: bg }}
-                      >
-                        <Icon size={11} className="text-white" />
-                      </span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-white leading-snug">
-                        <span className="font-bold">@{n.user?.username}</span>{' '}
-                        <span className="text-white/80">{n.text}</span>
-                      </p>
-                      <p className="text-xs text-white/40 mt-0.5">{n.time}</p>
-                    </div>
-                    {!n.read && <span className="shrink-0 w-2.5 h-2.5 bg-purple-500 rounded-full" />}
+            <h2 className="text-white text-[22px] font-semibold tracking-tight">Sin notificaciones</h2>
+            <p className="text-zinc-400 text-[15px] mt-2 max-w-[16rem] leading-relaxed">
+              Cuando haya actividad en tus retos, aparecerá aquí.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-1.5 pt-1">
+            {list.map((n) => {
+              const { Icon, color } = iconFor(n.type)
+              return (
+                <div
+                  key={n.id}
+                  className={`flex items-center gap-3 px-3 py-3 rounded-2xl transition ${
+                    n.read ? 'hover:bg-white/[0.03]' : 'bg-white/[0.04] border border-white/[0.06]'
+                  }`}
+                >
+                  <div className="relative shrink-0">
+                    <img src={n.user?.avatarUrl} alt="" className="w-11 h-11 rounded-full object-cover ring-1 ring-white/10" />
+                    <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center bg-zinc-900 border border-white/10">
+                      <Icon size={11} style={{ color }} />
+                    </span>
                   </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[14.5px] text-white leading-snug">
+                      <span className="font-semibold">@{n.user?.username}</span>{' '}
+                      <span className="text-zinc-300">{n.text}</span>
+                    </p>
+                    <p className="text-[12px] text-zinc-500 mt-0.5">{n.time}</p>
+                  </div>
+                  {!n.read && <span className="shrink-0 w-2 h-2 rounded-full" style={{ background: '#E4C79B' }} />}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
