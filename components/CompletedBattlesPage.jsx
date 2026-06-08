@@ -6,9 +6,18 @@ import { Mousewheel, Keyboard } from 'swiper/modules'
 import 'swiper/css'
 import {
   Home, Swords, Plus, Inbox, User, Heart, MessageCircle, Share2, Bookmark,
-  Trophy, Crown, Play, Eye, ChevronUp, ChevronDown,
+  Trophy, Crown, Play, Eye, ChevronUp, ChevronDown, X, UserPlus, Search,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+
+// Cuentas sugeridas para retar (estado vacío)
+const suggestedAccounts = [
+  { id: 's1', username: 'creatorpro', name: 'Creator Pro', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop', meta: 'Te sigue' },
+  { id: 's2', username: 'dancequeen', name: 'Dance Queen', avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop', meta: 'Te sigue' },
+  { id: 's3', username: 'gamerx', name: 'Gamer X', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop', meta: 'Sugerido para ti' },
+  { id: 's4', username: 'chefmario', name: 'Chef Mario', avatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&h=150&fit=crop', meta: 'Te sigue' },
+  { id: 's5', username: 'pianomaster', name: 'Piano Master', avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&h=150&fit=crop', meta: 'Sugerido para ti' },
+]
 
 // Datos de ejemplo para retos completados
 const mockCompletedBattles = [
@@ -217,13 +226,118 @@ const CompletedBattleCard = ({ battle, onUserClick }) => {
   )
 }
 
+// Estado vacío de "Retos completados" inspirado en la pantalla de referencia.
+const EmptyCompletedState = ({ onOpenUpload, onOpenActive, onOpenProfile }) => {
+  const [dismissed, setDismissed] = useState([])
+  const visibleAccounts = suggestedAccounts.filter((a) => !dismissed.includes(a.id))
+
+  return (
+    <div className="relative w-full h-full overflow-y-auto bg-black">
+      {/* Decoración de fondo (líneas/halos suaves como en la referencia) */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -top-24 -right-16 w-72 h-72 rounded-full bg-purple-600/20 blur-3xl" />
+        <div className="absolute top-40 -left-20 w-72 h-72 rounded-full bg-blue-600/20 blur-3xl" />
+        <div className="absolute right-6 top-24 w-64 h-80 rounded-[40px] border border-white/[0.06] rotate-6" />
+        <div className="absolute right-10 top-32 w-64 h-80 rounded-[40px] border border-white/[0.05] rotate-12" />
+      </div>
+
+      <div className="relative z-10 px-5 pt-24 pb-32">
+        {/* Barra de búsqueda superior */}
+        <div className="flex items-center gap-3 mb-8">
+          <div className="flex-1 flex items-center gap-2 h-11 px-4 rounded-xl bg-zinc-800/80 border border-white/5">
+            <Search className="w-4 h-4 text-zinc-400" />
+            <span className="text-zinc-400 text-sm">Buscar creadores</span>
+          </div>
+        </div>
+
+        {/* Título grande estilo referencia */}
+        <h1 className="text-white font-extrabold leading-[0.95] tracking-tight text-[44px]">
+          Mira los
+          <br />
+          retos
+          <br />
+          completados
+        </h1>
+        <p className="text-zinc-400 text-base mt-4 max-w-[18rem]">
+          Aún no se ha completado ningún reto. ¡Crea uno y empieza la batalla!
+        </p>
+
+        {/* Botón principal (blanco con borde degradado, como la referencia) */}
+        <button
+          onClick={onOpenUpload}
+          className="mt-7 w-full h-[52px] rounded-xl font-bold text-base text-black flex items-center justify-center gap-2 active:scale-[0.99] transition-transform"
+          style={{
+            border: '3px solid transparent',
+            backgroundImage: 'linear-gradient(#fff, #fff), linear-gradient(90deg, #3B82F6 0%, #A855F7 50%, #EC4899 100%)',
+            backgroundOrigin: 'border-box',
+            backgroundClip: 'padding-box, border-box',
+          }}
+        >
+          <Plus className="w-5 h-5" />
+          Crear un reto
+        </button>
+
+        {/* Botón secundario */}
+        <button
+          onClick={onOpenActive}
+          className="mt-3 w-full h-[52px] rounded-xl bg-zinc-800/90 hover:bg-zinc-700/90 font-bold text-base text-white flex items-center justify-center gap-2 active:scale-[0.99] transition"
+        >
+          <Swords className="w-5 h-5" />
+          Ver retos activos
+        </button>
+
+        {/* Cuentas sugeridas */}
+        <div className="mt-10">
+          <div className="flex items-center gap-2 mb-2">
+            <h3 className="text-white font-semibold text-[15px]">Cuentas sugeridas</h3>
+            <Trophy className="w-3.5 h-3.5 text-zinc-500" />
+          </div>
+
+          <div className="divide-y divide-white/[0.04]">
+            {visibleAccounts.map((acc) => (
+              <div key={acc.id} className="flex items-center gap-3 py-3">
+                <button onClick={onOpenProfile} className="shrink-0">
+                  <Avatar src={acc.avatar} alt={acc.name} className="w-12 h-12" />
+                </button>
+                <button onClick={onOpenProfile} className="flex-1 min-w-0 text-left">
+                  <p className="text-white font-semibold text-[15px] truncate">{acc.name}</p>
+                  <p className="text-zinc-500 text-sm truncate">{acc.meta}</p>
+                </button>
+                <button
+                  onClick={onOpenUpload}
+                  className="shrink-0 h-9 px-5 rounded-md font-semibold text-sm text-white flex items-center gap-1.5 active:scale-95 transition-transform"
+                  style={{ background: 'linear-gradient(135deg, #A855F7 0%, #3B82F6 100%)' }}
+                >
+                  <Swords className="w-4 h-4" />
+                  Retar
+                </button>
+                <button
+                  onClick={() => setDismissed((d) => [...d, acc.id])}
+                  className="shrink-0 w-7 h-7 flex items-center justify-center text-zinc-500 hover:text-white"
+                  aria-label="Descartar"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+            {visibleAccounts.length === 0 && (
+              <p className="text-zinc-500 text-sm py-6 text-center">No hay más cuentas sugeridas.</p>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function CompletedBattlesPage({ open, onClose, onOpenActive, onOpenUpload, onOpenInbox, onOpenProfile }) {
-  const [battles] = useState(mockCompletedBattles)
+  const [battles] = useState([])
   const [activeIndex, setActiveIndex] = useState(0)
 
   if (!open) return null
 
   const handleUserClick = () => onOpenProfile?.()
+  const isEmpty = battles.length === 0
 
   return (
     <div className="fixed inset-0 z-[55] bg-black overflow-hidden">
@@ -242,23 +356,31 @@ export default function CompletedBattlesPage({ open, onClose, onOpenActive, onOp
         </div>
       </div>
 
-      {/* Swiper de batallas completadas */}
-      <Swiper
-        direction="vertical"
-        slidesPerView={1}
-        spaceBetween={0}
-        mousewheel
-        keyboard
-        modules={[Mousewheel, Keyboard]}
-        onSlideChange={(s) => setActiveIndex(s.activeIndex)}
-        className="w-full h-full"
-      >
-        {battles.map((battle) => (
-          <SwiperSlide key={battle.id}>
-            <CompletedBattleCard battle={battle} onUserClick={handleUserClick} />
-          </SwiperSlide>
-        ))}
-      </Swiper>
+      {/* Swiper de batallas completadas o estado vacío */}
+      {isEmpty ? (
+        <EmptyCompletedState
+          onOpenUpload={onOpenUpload}
+          onOpenActive={onOpenActive}
+          onOpenProfile={onOpenProfile}
+        />
+      ) : (
+        <Swiper
+          direction="vertical"
+          slidesPerView={1}
+          spaceBetween={0}
+          mousewheel
+          keyboard
+          modules={[Mousewheel, Keyboard]}
+          onSlideChange={(s) => setActiveIndex(s.activeIndex)}
+          className="w-full h-full"
+        >
+          {battles.map((battle) => (
+            <SwiperSlide key={battle.id}>
+              <CompletedBattleCard battle={battle} onUserClick={handleUserClick} />
+            </SwiperSlide>
+          ))}
+        </Swiper>
+      )}
 
       {/* Menú lateral derecho */}
       <div className="fixed right-2 top-1/2 -translate-y-1/2 flex flex-col gap-3 z-50">
