@@ -1,15 +1,27 @@
 [
   {
-    "id": "challenge_demo01",
+    "id": "challenge_9bc92f11e0a1885f",
     "status": "pending",
-    "from": { "username": "tu_canal", "name": "Tú", "avatarUrl": "https://i.pravatar.cc/120?img=68" },
-    "to": { "username": "urbanlife", "name": "Marco Ruiz", "avatarUrl": "https://i.pravatar.cc/120?img=12" },
-    "challengerVideoUrl": "/videos/1108.mp4",
-    "targetVideoUrl": "/videos/4467.mp4",
-    "targetAuthor": { "username": "urbanlife", "name": "Marco Ruiz", "avatarUrl": "https://i.pravatar.cc/120?img=12" },
-    "targetDescription": "La ciudad nunca duerme",
-    "targetMusic": "Neon Lights",
-    "message": "Reto de baile urbano 🔥 ¿Aceptas?",
-    "createdAt": "2025-07-01T10:00:00.000Z"
+    "from": {
+      "username": "tu_canal",
+      "name": "Tú",
+      "avatarUrl": "https://i.pravatar.cc/120?img=68"
+    },
+    "to": {
+      "username": "tu_canal",
+      "name": "Tú",
+      "avatarUrl": "https://i.pravatar.cc/120?img=68"
+    },
+    "challengerVideoUrl": "/uploads/b539d9a6e13345ad.mp4",
+    "targetVideoUrl": "/uploads/9e4f2b1cc0c79c27.mp4",
+    "targetAuthor": {
+      "username": "tu_canal",
+      "name": "Tú",
+      "avatarUrl": "https://i.pravatar.cc/120?img=68"
+    },
+    "targetDescription": "Mi reto",
+    "targetMusic": "Reto",
+    "message": "",
+    "createdAt": "2026-06-08T19:53:09.981Z"
   }
 ]

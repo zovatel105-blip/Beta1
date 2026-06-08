@@ -1,5 +1,55 @@
 [
   {
+    "id": "versus_ch_9dba68926b695923",
+    "type": "versus",
+    "layout": "carousel",
+    "sideA": {
+      "videoUrl": "/videos/1108.mp4",
+      "posterUrl": "/videos/1108.jpg",
+      "author": {
+        "username": "tu_canal",
+        "name": "Tú",
+        "avatarUrl": "https://i.pravatar.cc/120?img=68"
+      },
+      "description": "Reto de baile urbano 🔥 ¿Aceptas?",
+      "music": "Reto"
+    },
+    "sideB": {
+      "videoUrl": "/videos/4467.mp4",
+      "posterUrl": "/videos/4467.jpg",
+      "author": {
+        "username": "urbanlife",
+        "name": "Marco Ruiz",
+        "avatarUrl": "https://i.pravatar.cc/120?img=12"
+      },
+      "description": "La ciudad nunca duerme",
+      "music": "Neon Lights"
+    },
+    "author": {
+      "username": "tu_canal",
+      "name": "Tú",
+      "avatarUrl": "https://i.pravatar.cc/120?img=68"
+    },
+    "description": "Reto de baile urbano 🔥 ¿Aceptas?",
+    "music": "Reto aceptado",
+    "videoUrl": "/videos/1108.mp4",
+    "posterUrl": "/videos/1108.jpg",
+    "thumbnailUrl": "/videos/1108.jpg",
+    "stats": {
+      "likes": 0,
+      "comments": 0,
+      "shares": 0,
+      "saves": 0
+    },
+    "votes": {
+      "a": 0,
+      "b": 0
+    },
+    "duration": 0,
+    "uploadedAt": "2026-06-08T19:51:32.334Z",
+    "isChallenge": true
+  },
+  {
     "id": "duet_d156e6043002226b",
     "type": "duet",
     "layout": "horizontal",
