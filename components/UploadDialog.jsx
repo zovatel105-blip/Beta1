@@ -1,4 +1,5 @@
 'use client'
+/* eslint-disable react-hooks/set-state-in-effect -- setState en efectos de carga/reset async; falso positivo de la regla experimental. */
 
 import { useEffect, useRef, useState } from 'react'
 import { X, ChevronRight, Loader2, Film, Swords, Rows3, Columns3, Check, ArrowLeft } from 'lucide-react'
@@ -110,13 +111,9 @@ export default function UploadDialog({ open, onClose, onUploaded }) {
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm" onClick={onClose}>
-      <div
-        className="relative w-full sm:max-w-md sm:rounded-2xl rounded-t-3xl bg-zinc-950 border border-white/10 max-h-[90vh] overflow-hidden flex flex-col"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="fixed inset-0 z-[60] bg-zinc-950 flex flex-col text-white">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-white/10" style={{ paddingTop: 'max(env(safe-area-inset-top), 12px)' }}>
           <div className="flex items-center gap-2">
             {step !== 'mode' && step !== 'uploading' && (
               <button
@@ -364,7 +361,6 @@ export default function UploadDialog({ open, onClose, onUploaded }) {
             </div>
           )}
         </div>
-      </div>
     </div>
   )
 }

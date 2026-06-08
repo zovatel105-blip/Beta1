@@ -2,7 +2,7 @@
 /* eslint-disable react-hooks/set-state-in-effect -- carga de notificaciones en useEffect al abrir; falso positivo de la regla experimental. */
 
 import { useEffect, useState } from 'react'
-import { X, Bell, Swords, Heart, UserPlus, MessageCircle, Check } from 'lucide-react'
+import { Bell, Swords, Heart, UserPlus, MessageCircle, Check, ChevronLeft } from 'lucide-react'
 import { MOCK_NOTIFICATIONS } from '@/lib/notifications'
 
 /**
@@ -37,26 +37,17 @@ export default function NotificationsInbox({ open, onClose }) {
   const markAllRead = () => setList((prev) => prev.map((n) => ({ ...n, read: true })))
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm" onClick={onClose}>
-      <div
-        className="relative w-full sm:max-w-md sm:rounded-2xl rounded-t-3xl bg-zinc-950 border border-white/10 max-h-[85vh] overflow-hidden flex flex-col"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #A855F7, #3B82F6)' }}>
-              <Bell size={16} className="text-white" />
-            </div>
+    <div className="fixed inset-0 z-[60] bg-zinc-950 flex flex-col text-white">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-white/10" style={{ paddingTop: 'max(env(safe-area-inset-top), 12px)' }}>
+          <div className="flex items-center gap-1.5">
+            <button onClick={onClose} aria-label="Volver" className="w-9 h-9 -ml-1.5 rounded-full flex items-center justify-center hover:bg-white/10 text-white">
+              <ChevronLeft size={22} />
+            </button>
             <h2 className="font-bold text-base text-white">Notificaciones</h2>
           </div>
-          <div className="flex items-center gap-1">
-            <button onClick={markAllRead} className="text-xs font-semibold text-white/60 hover:text-white px-2 py-1 rounded-full hover:bg-white/10">
-              Marcar leídas
-            </button>
-            <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/10 text-white">
-              <X size={18} />
-            </button>
-          </div>
+          <button onClick={markAllRead} className="text-xs font-semibold text-white/60 hover:text-white px-2.5 py-1.5 rounded-full hover:bg-white/10">
+            Marcar leídas
+          </button>
         </div>
 
         <div className="flex-1 overflow-y-auto">
@@ -100,7 +91,6 @@ export default function NotificationsInbox({ open, onClose }) {
             </div>
           )}
         </div>
-      </div>
     </div>
   )
 }
