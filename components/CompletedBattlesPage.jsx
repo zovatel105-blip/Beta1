@@ -382,41 +382,47 @@ export default function CompletedBattlesPage({ open, onClose, onOpenActive, onOp
         </Swiper>
       )}
 
-      {/* Menú lateral derecho */}
-      <div className="fixed right-2 top-1/2 -translate-y-1/2 flex flex-col gap-3 z-50">
-        {/* Home/Feed */}
-        <button onClick={onClose} className="w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-300 bg-white/20 backdrop-blur-sm hover:bg-white/30 border border-white/10">
-          <Home className="w-5 h-5 text-white" />
-        </button>
-        {/* Retos Activos */}
-        <button onClick={onOpenActive} className="w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-300 bg-white/20 backdrop-blur-sm hover:bg-white/30 border border-white/10">
-          <Swords className="w-5 h-5 text-white" />
-        </button>
-        {/* Retos Completados (actual) */}
-        <button className="w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-300 bg-yellow-500 hover:bg-yellow-600 shadow-lg shadow-yellow-500/30">
-          <Trophy className="w-5 h-5 text-white" />
-        </button>
-        {/* Crear */}
-        <button
-          onClick={onOpenUpload}
-          className="w-12 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 relative overflow-hidden hover:scale-105 shadow-xl"
-          style={{
-            border: '2px solid transparent',
-            backgroundImage: 'linear-gradient(#000, #000), linear-gradient(180deg, #A855F7 0%, #3B82F6 100%)',
-            backgroundOrigin: 'border-box',
-            backgroundClip: 'padding-box, border-box',
-          }}
-        >
-          <Plus className="w-6 h-6 text-white" />
-        </button>
-        {/* Mensajes */}
-        <button onClick={onOpenInbox} className="w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-300 bg-white/20 backdrop-blur-sm hover:bg-white/30 border border-white/10">
-          <Inbox className="w-5 h-5 text-white" />
-        </button>
-        {/* Perfil */}
-        <button onClick={onOpenProfile} className="w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-300 bg-white/20 backdrop-blur-sm hover:bg-white/30 border border-white/10">
-          <User className="w-5 h-5 text-white" />
-        </button>
+      {/* Barra de navegación inferior */}
+      <div
+        className="fixed bottom-0 left-0 right-0 z-50 bg-black/85 backdrop-blur-md rounded-t-3xl"
+        style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 8px)' }}
+      >
+        <div className="flex items-center justify-around px-4 py-2.5">
+          {/* Home/Feed */}
+          <button onClick={onClose} aria-label="Inicio" className="flex items-center justify-center w-9 h-9 active:scale-90 transition">
+            <Home className="w-5 h-5 text-white/70" />
+          </button>
+          {/* Retos Activos */}
+          <button onClick={onOpenActive} aria-label="Retos activos" className="flex items-center justify-center w-9 h-9 active:scale-90 transition">
+            <Swords className="w-5 h-5 text-white/70" />
+          </button>
+          {/* Crear */}
+          <button
+            onClick={onOpenUpload}
+            aria-label="Crear"
+            className="flex items-center justify-center w-9 h-9 rounded-xl active:scale-90 relative overflow-hidden flex-shrink-0"
+            style={{
+              border: '2px solid transparent',
+              backgroundImage: 'linear-gradient(#000, #000), linear-gradient(90deg, #A855F7 0%, #3B82F6 100%)',
+              backgroundOrigin: 'border-box',
+              backgroundClip: 'padding-box, border-box',
+            }}
+          >
+            <Plus className="w-5 h-5 text-white" />
+          </button>
+          {/* Retos Completados (actual) */}
+          <button aria-label="Retos completados" className="flex items-center justify-center w-9 h-9 active:scale-90 transition">
+            <Trophy className="w-5 h-5 text-yellow-500" />
+          </button>
+          {/* Mensajes */}
+          <button onClick={onOpenInbox} aria-label="Bandeja" className="flex items-center justify-center w-9 h-9 active:scale-90 transition">
+            <Inbox className="w-5 h-5 text-white/70" />
+          </button>
+          {/* Perfil */}
+          <button onClick={onOpenProfile} aria-label="Perfil" className="flex items-center justify-center w-9 h-9 active:scale-90 transition">
+            <User className="w-5 h-5 text-white/70" />
+          </button>
+        </div>
       </div>
 
       {/* Indicador de progreso */}

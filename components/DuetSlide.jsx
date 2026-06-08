@@ -425,7 +425,7 @@ function DuetSlide({ post, isActive, isNear, muted: globalMuted, onRequestNext, 
       >
         <div className="flex items-center gap-2 w-fit pointer-events-auto">
           {/* Avatar + usuario + botón seguir (estilo referencia) */}
-          <button onClick={(e) => e.stopPropagation()} className="w-10 h-10 rounded-full overflow-hidden block shrink-0">
+          <button onClick={(e) => e.stopPropagation()} className="w-[38px] h-[38px] rounded-full overflow-hidden block shrink-0">
             <img src={headAuthor.avatarUrl} alt={headAuthor.username} className="w-full h-full object-cover" draggable={false} />
           </button>
           <span className="text-white font-semibold text-[13px] leading-tight drop-shadow-md">{headAuthor.username || headAuthor.name}</span>
