@@ -202,7 +202,7 @@ export default function Feed() {
         onClose={() => setProfileOpen(false)}
         onOpenUpload={() => { setProfileOpen(false); setUploadOpen(true) }}
       />
-      <UploadDialog open={uploadOpen} onClose={() => setUploadOpen(false)} onUploaded={handleUploaded} />
+      <UploadDialog open={uploadOpen} onClose={() => setUploadOpen(false)} onUploaded={handleUploaded} onChallengeCreated={refreshChallenges} />
       <ChallengeDialog
         open={challengeOpen}
         onClose={() => setChallengeOpen(false)}

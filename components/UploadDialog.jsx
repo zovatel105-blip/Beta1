@@ -2,7 +2,7 @@
 /* eslint-disable react-hooks/set-state-in-effect -- setState en efectos de carga/reset async; falso positivo de la regla experimental. */
 
 import { useEffect, useRef, useState } from 'react'
-import { ChevronRight, Loader2, Film, Swords, Rows3, Columns3, Check, ArrowLeft, X } from 'lucide-react'
+import { ChevronRight, Loader2, Film, Swords, Users, Rows3, Columns3, Check, ArrowLeft, X } from 'lucide-react'
 
 /**
  * UploadDialog — flujo multi-paso para crear publicaciones de votación: Versus
@@ -13,7 +13,7 @@ import { ChevronRight, Loader2, Film, Swords, Rows3, Columns3, Check, ArrowLeft,
  */
 const GOLD = '#E4C79B'
 
-export default function UploadDialog({ open, onClose, onUploaded }) {
+export default function UploadDialog({ open, onClose, onUploaded, onChallengeCreated }) {
   const inputRef = useRef(null)
   const inputBRef = useRef(null)
   const [step, setStep] = useState('mode') // mode | layout | pair | file | uploading
@@ -66,6 +66,8 @@ export default function UploadDialog({ open, onClose, onUploaded }) {
   const doUpload = async () => {
     if (mode === 'versus') {
       if (!file || !fileB) { setError('Sube los 2 vídeos (A y B)'); return }
+    } else if (mode === 'challenge') {
+      if (!file || !pair) { setError('Elige un rival y sube tu vídeo'); return }
     } else if (!file) {
       return
     }
@@ -94,6 +96,14 @@ export default function UploadDialog({ open, onClose, onUploaded }) {
         fd.append('pairMusic', pair.music || '')
         fd.append('pairDescription', pair.description || '')
         fd.append('description', description || '¿Quién gana? 🥊 #1vs1')
+      } else if (mode === 'challenge') {
+        xhr.open('POST', '/api/challenges')
+        fd.append('file', file)
+        fd.append('targetVideoUrl', pair.videoUrl)
+        fd.append('targetAuthor', JSON.stringify(pair.author))
+        fd.append('targetDescription', pair.description || '')
+        fd.append('targetMusic', pair.music || '')
+        fd.append('message', description || '')
       } else {
         xhr.open('POST', '/api/versus')
         fd.append('fileA', file)
@@ -102,7 +112,11 @@ export default function UploadDialog({ open, onClose, onUploaded }) {
       }
       xhr.send(fd)
       const data = await promise
-      if (onUploaded && data?.post) onUploaded(data.post)
+      if (mode === 'challenge') {
+        if (onChallengeCreated) onChallengeCreated()
+      } else if (onUploaded && data?.post) {
+        onUploaded(data.post)
+      }
       onClose()
     } catch (err) {
       console.error(err)
@@ -115,8 +129,8 @@ export default function UploadDialog({ open, onClose, onUploaded }) {
 
   const goBack = () => {
     if (step === 'layout') setStep('mode')
-    else if (step === 'pair') setStep('layout')
-    else if (step === 'file') setStep(mode === 'duet' ? 'pair' : 'mode')
+    else if (step === 'pair') setStep(mode === 'duet' ? 'layout' : 'mode')
+    else if (step === 'file') setStep(mode === 'versus' ? 'mode' : 'pair')
   }
 
   return (
@@ -140,8 +154,8 @@ export default function UploadDialog({ open, onClose, onUploaded }) {
             {step === 'mode' && 'Crear contenido'}
             {step === 'layout' && 'Elige el formato'}
             {step === 'pair' && 'Elige el rival'}
-            {step === 'file' && (mode === 'duet' ? 'Tu lado del duelo' : 'Tus 2 vídeos')}
-            {step === 'uploading' && 'Subiendo'}
+            {step === 'file' && (mode === 'versus' ? 'Tus 2 vídeos' : mode === 'challenge' ? 'Tu vídeo del reto' : 'Tu lado del duelo')}
+            {step === 'uploading' && (mode === 'challenge' ? 'Enviando reto' : 'Subiendo')}
           </h1>
         </div>
         <button onClick={onClose} aria-label="Cerrar" className="w-9 h-9 -mr-1.5 rounded-full flex items-center justify-center hover:bg-white/5 active:scale-90 transition text-zinc-400 hover:text-white">
@@ -159,15 +173,21 @@ export default function UploadDialog({ open, onClose, onUploaded }) {
               <div className="inline-flex p-1 rounded-full bg-white/[0.06] border border-white/10">
                 <button
                   onClick={() => setSelected('versus')}
-                  className={`px-7 py-2 rounded-full text-[14px] font-semibold transition ${selected === 'versus' ? 'bg-white text-black' : 'text-zinc-300 hover:text-white'}`}
+                  className={`px-4 py-2 rounded-full text-[13px] font-semibold transition ${selected === 'versus' ? 'bg-white text-black' : 'text-zinc-300 hover:text-white'}`}
                 >
                   Versus
                 </button>
                 <button
                   onClick={() => setSelected('duet')}
-                  className={`px-7 py-2 rounded-full text-[14px] font-semibold transition ${selected === 'duet' ? 'bg-white text-black' : 'text-zinc-300 hover:text-white'}`}
+                  className={`px-4 py-2 rounded-full text-[13px] font-semibold transition ${selected === 'duet' ? 'bg-white text-black' : 'text-zinc-300 hover:text-white'}`}
                 >
                   1 vs 1
+                </button>
+                <button
+                  onClick={() => setSelected('challenge')}
+                  className={`px-4 py-2 rounded-full text-[13px] font-semibold transition ${selected === 'challenge' ? 'bg-white text-black' : 'text-zinc-300 hover:text-white'}`}
+                >
+                  Retos
                 </button>
               </div>
             </div>
@@ -178,30 +198,41 @@ export default function UploadDialog({ open, onClose, onUploaded }) {
                 className="w-20 h-20 rounded-3xl bg-white/[0.04] border border-white/10 flex items-center justify-center mb-6"
                 style={{ boxShadow: '0 0 48px -14px rgba(214,178,122,0.42)' }}
               >
-                {selected === 'versus'
-                  ? <Film className="w-9 h-9" strokeWidth={1.25} style={{ color: GOLD }} />
-                  : <Swords className="w-9 h-9" strokeWidth={1.25} style={{ color: GOLD }} />}
+                {selected === 'versus' && <Film className="w-9 h-9" strokeWidth={1.25} style={{ color: GOLD }} />}
+                {selected === 'duet' && <Users className="w-9 h-9" strokeWidth={1.25} style={{ color: GOLD }} />}
+                {selected === 'challenge' && <Swords className="w-9 h-9" strokeWidth={1.25} style={{ color: GOLD }} />}
               </div>
 
               <h2 className="text-white text-[22px] font-semibold tracking-tight">
-                {selected === 'versus' ? 'Versus (carrusel)' : '1 vs 1 (Dueto)'}
+                {selected === 'versus' && 'Versus (carrusel)'}
+                {selected === 'duet' && '1 vs 1 (Dueto)'}
+                {selected === 'challenge' && 'Reto a un creador'}
               </h2>
               <p className="text-zinc-400 text-[15px] mt-2 max-w-[18rem] leading-relaxed">
-                {selected === 'versus'
-                  ? 'Sube 2 vídeos (A y B) y deja que la gente vote deslizando entre ellos.'
-                  : 'Empareja tu vídeo con el de otro creador y que la gente decida quién gana.'}
+                {selected === 'versus' && 'Sube 2 vídeos (A y B) y deja que la gente vote deslizando entre ellos.'}
+                {selected === 'duet' && 'Empareja tu vídeo con el de otro creador y que la gente decida quién gana.'}
+                {selected === 'challenge' && 'Sube tu vídeo y reta a un creador. Aparecerá en sus retos activos para que lo acepte.'}
               </p>
 
               {/* Mini ilustración del formato */}
-              <div className="mt-7 w-40 h-28 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-2 flex gap-2">
-                <div className="flex-1 rounded-xl bg-white/10 flex items-center justify-center text-white/70 text-sm font-bold">A</div>
-                <div className="flex-1 rounded-xl bg-white/[0.06] flex items-center justify-center text-white/50 text-sm font-bold">B</div>
-              </div>
+              {selected === 'challenge' ? (
+                <div className="mt-7 flex items-center gap-3">
+                  <div className="w-16 h-24 rounded-2xl border border-white/[0.08] bg-white/[0.06] flex items-center justify-center text-white/80 text-[11px] font-bold">TÚ</div>
+                  <span className="text-white/60 font-black text-sm">VS</span>
+                  <div className="w-16 h-24 rounded-2xl border border-white/[0.08] bg-white/[0.02] flex items-center justify-center text-white/40 text-[11px] font-bold">RIVAL</div>
+                </div>
+              ) : (
+                <div className="mt-7 w-40 h-28 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-2 flex gap-2">
+                  <div className="flex-1 rounded-xl bg-white/10 flex items-center justify-center text-white/70 text-sm font-bold">A</div>
+                  <div className="flex-1 rounded-xl bg-white/[0.06] flex items-center justify-center text-white/50 text-sm font-bold">B</div>
+                </div>
+              )}
 
               <button
                 onClick={() => {
                   if (selected === 'versus') { setMode('versus'); setStep('file') }
-                  else { setMode('duet'); setStep('layout') }
+                  else if (selected === 'duet') { setMode('duet'); setStep('layout') }
+                  else { setMode('challenge'); setStep('pair') }
                 }}
                 className="mt-8 w-full h-12 rounded-full bg-white text-black font-semibold text-[15px] flex items-center justify-center gap-1.5 hover:bg-zinc-100 active:scale-[0.99] transition"
               >
@@ -286,7 +317,7 @@ export default function UploadDialog({ open, onClose, onUploaded }) {
         {/* STEP: file */}
         {step === 'file' && (
           <div className="max-w-md mx-auto space-y-4">
-            {mode === 'duet' && pair && (
+            {(mode === 'duet' || mode === 'challenge') && pair && (
               <div className="flex items-center gap-2 p-2.5 bg-white/[0.03] rounded-xl border border-white/[0.08]">
                 <span className="text-[11px] text-zinc-500">vs</span>
                 <img src={pair.author?.avatarUrl} className="w-7 h-7 rounded-full" alt="" />
@@ -380,7 +411,7 @@ export default function UploadDialog({ open, onClose, onUploaded }) {
               disabled={mode === 'versus' ? (!file || !fileB) : !file}
               className="w-full h-12 rounded-full bg-white text-black font-semibold text-[15px] disabled:bg-white/10 disabled:text-white/40 hover:bg-zinc-100 active:scale-[0.99] transition"
             >
-              {mode === 'duet' ? 'Publicar 1vs1' : 'Publicar versus'}
+              {mode === 'duet' ? 'Publicar 1vs1' : mode === 'challenge' ? 'Enviar reto' : 'Publicar versus'}
             </button>
           </div>
         )}
@@ -396,7 +427,7 @@ export default function UploadDialog({ open, onClose, onUploaded }) {
             <div className="w-full h-1.5 rounded-full bg-white/10 overflow-hidden">
               <div className="h-full transition-all" style={{ width: `${progress}%`, background: GOLD }} />
             </div>
-            <div className="text-[13px] text-zinc-500">{mode === 'duet' ? 'Creando tu 1vs1…' : 'Subiendo tu versus…'}</div>
+            <div className="text-[13px] text-zinc-500">{mode === 'challenge' ? 'Enviando tu reto…' : mode === 'duet' ? 'Creando tu 1vs1…' : 'Subiendo tu versus…'}</div>
           </div>
         )}
       </div>
