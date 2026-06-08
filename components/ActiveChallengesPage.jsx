@@ -1,115 +1,82 @@
 'use client'
-/* eslint-disable react-hooks/set-state-in-effect -- carga async en useEffect (carga inicial); falso positivo de la regla experimental. */
+/* eslint-disable react-hooks/set-state-in-effect -- carga async al abrir; falso positivo de la regla experimental. */
 
 import { useEffect, useState } from 'react'
-import { Swiper, SwiperSlide } from 'swiper/react'
-import { Mousewheel, Keyboard } from 'swiper/modules'
-import 'swiper/css'
-import { Swords, ChevronLeft, Check, X, Loader2, User } from 'lucide-react'
+import { Swords, Check, X, Loader2, User } from 'lucide-react'
 
 /**
- * ActiveChallengesPage — Retos activos.
- * Aquí aparecen ahora las SOLICITUDES de reto (antes en la bandeja).
- * Cada reto se muestra como una tarjeta a pantalla completa (vídeo del retador
- * de fondo) con: participantes (Listo / Invitado), VS, estado "ESPERANDO 1/2
- * listos" y botones Aceptar (verde) / Rechazar.
- * Aceptar publica el versus en el feed; Rechazar lo descarta.
+ * ActiveChallengesPage — Retos activos (diseño premium minimalista, móvil).
+ * Aquí aparecen las SOLICITUDES de reto pendientes. Cada una se puede Aceptar
+ * (se publica como versus en el feed) o Rechazar.
  *
  * props:
  *   open        bool
- *   onClose     () => void
- *   onAccepted  (post) => void  // publica el versus en el feed
- *   onChanged   () => void      // refresca el contador del badge
+ *   onClose     () => void   // vuelve a "Completados"
+ *   onAccepted  (post) => void
+ *   onChanged   () => void
  */
+const GOLD = '#E4C79B'
 
-// Avatar circular con anillo de estado.
-const RingAvatar = ({ src, ring }) => (
-  <div className="w-14 h-14 rounded-full p-[3px]" style={{ background: ring }}>
-    <div className="w-full h-full rounded-full overflow-hidden bg-zinc-800 flex items-center justify-center">
-      {src ? (
-        <img src={src} alt="" className="w-full h-full object-cover" draggable={false} />
-      ) : (
-        <User className="w-6 h-6 text-white/70" />
-      )}
+const Side = ({ url, author, label, labelColor }) => (
+  <div className="relative flex-1 aspect-[3/4] rounded-2xl overflow-hidden bg-zinc-900 ring-1 ring-white/[0.06]">
+    {url ? (
+      <video src={url + '#t=0.3'} muted playsInline preload="metadata" className="absolute inset-0 w-full h-full object-cover" />
+    ) : (
+      <div className="absolute inset-0 bg-zinc-800" />
+    )}
+    <div className="absolute inset-x-0 bottom-0 p-2 pt-6 bg-gradient-to-t from-black/85 to-transparent">
+      <div className="flex items-center gap-1.5">
+        {author?.avatarUrl ? (
+          <img src={author.avatarUrl} className="w-5 h-5 rounded-full object-cover" alt="" />
+        ) : (
+          <span className="w-5 h-5 rounded-full bg-zinc-700 flex items-center justify-center"><User size={11} className="text-white/70" /></span>
+        )}
+        <span className="text-[11px] font-semibold text-white truncate">@{author?.username}</span>
+      </div>
+      <span className="text-[10px] font-semibold" style={{ color: labelColor }}>{label}</span>
     </div>
   </div>
 )
 
 const ChallengeCard = ({ c, busy, onAccept, onReject }) => (
-  <div className="relative w-full h-full bg-black overflow-hidden">
-    {/* Fondo: vídeo del retador */}
-    {c.challengerVideoUrl ? (
-      <video
-        src={c.challengerVideoUrl + '#t=0.3'}
-        muted
-        playsInline
-        loop
-        autoPlay
-        preload="metadata"
-        className="absolute inset-0 w-full h-full object-cover"
-      />
-    ) : (
-      <div className="absolute inset-0 bg-gradient-to-br from-purple-900 to-blue-900" />
+  <div className="rounded-3xl border border-white/[0.08] bg-white/[0.025] p-3">
+    {/* Preview versus */}
+    <div className="relative flex gap-2">
+      <Side url={c.challengerVideoUrl} author={c.from} label="Listo" labelColor={GOLD} />
+      <Side url={c.targetVideoUrl} author={c.to} label="Invitado" labelColor="#A1A1AA" />
+      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-[#0a0a0b] border border-white/15 flex items-center justify-center text-white font-black text-[11px]">VS</div>
+    </div>
+
+    {(c.message || c.targetDescription) && (
+      <p className="text-[13.5px] text-zinc-300 text-center mt-3 line-clamp-2">{c.message || c.targetDescription}</p>
     )}
-    {/* Overlay para legibilidad */}
-    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-black/40" />
 
-    {/* Contenido inferior */}
-    <div className="absolute inset-x-0 bottom-0 z-10 px-5 pb-28 pt-10">
-      {/* Participantes */}
-      <div className="flex items-center justify-between gap-3 bg-black/45 backdrop-blur-md rounded-2xl px-4 py-3 border border-white/10">
-        {/* Retador (Listo) */}
-        <div className="flex items-center gap-2 min-w-0">
-          <RingAvatar src={c.from?.avatarUrl} ring="#22C55E" />
-          <div className="min-w-0">
-            <p className="text-white font-bold text-sm truncate">@{c.from?.username}</p>
-            <p className="text-green-400 text-xs font-semibold">Listo</p>
-          </div>
-        </div>
+    {/* Estado */}
+    <div className="flex justify-center mt-3">
+      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.05] border border-white/10 text-[12px] text-zinc-300">
+        <span className="w-1.5 h-1.5 rounded-full" style={{ background: GOLD }} />
+        Esperando · 1/2 listos
+      </span>
+    </div>
 
-        <span className="text-white font-black text-lg shrink-0">VS</span>
-
-        {/* Retado (Invitado) */}
-        <div className="flex items-center gap-2 min-w-0 justify-end">
-          <div className="min-w-0 text-right">
-            <p className="text-white font-bold text-sm truncate">@{c.to?.username}</p>
-            <p className="text-blue-400 text-xs font-semibold">Invitado</p>
-          </div>
-          <RingAvatar src={c.to?.avatarUrl} ring="#3B82F6" />
-        </div>
-      </div>
-
-      {/* Título / mensaje */}
-      {(c.message || c.targetDescription) && (
-        <p className="text-white/90 text-sm mt-3 line-clamp-2">{c.message || c.targetDescription}</p>
-      )}
-
-      {/* Estado */}
-      <div className="mt-3 inline-flex items-center gap-2 rounded-full px-3 py-1.5"
-           style={{ background: 'linear-gradient(90deg, #F59E0B, #F97316)' }}>
-        <span className="text-white font-bold text-xs tracking-wide">ESPERANDO</span>
-        <span className="text-white/90 text-xs">· 1/2 listos</span>
-      </div>
-
-      {/* Botones */}
-      <div className="flex gap-3 mt-4">
-        <button
-          onClick={() => onAccept(c)}
-          disabled={busy}
-          className="flex-1 rounded-full py-3.5 font-bold text-white bg-green-500 hover:bg-green-600 active:scale-[0.98] transition disabled:opacity-50 flex items-center justify-center gap-2"
-        >
-          {busy ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
-          Aceptar
-        </button>
-        <button
-          onClick={() => onReject(c)}
-          disabled={busy}
-          className="flex-1 rounded-full py-3.5 font-bold text-white bg-zinc-700 hover:bg-zinc-600 active:scale-[0.98] transition disabled:opacity-50 flex items-center justify-center gap-2"
-        >
-          <X size={18} />
-          Rechazar
-        </button>
-      </div>
+    {/* Acciones */}
+    <div className="flex gap-2 mt-4">
+      <button
+        onClick={() => onAccept(c)}
+        disabled={busy}
+        className="flex-1 h-11 rounded-full bg-white text-black font-semibold text-[14px] flex items-center justify-center gap-1.5 hover:bg-zinc-100 active:scale-[0.99] transition disabled:opacity-50"
+      >
+        {busy ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} strokeWidth={2.5} />}
+        Aceptar
+      </button>
+      <button
+        onClick={() => onReject(c)}
+        disabled={busy}
+        className="flex-1 h-11 rounded-full border border-white/15 text-white font-medium text-[14px] flex items-center justify-center gap-1.5 hover:bg-white/[0.04] active:scale-[0.99] transition disabled:opacity-50"
+      >
+        <X size={16} />
+        Rechazar
+      </button>
     </div>
   </div>
 )
@@ -159,63 +126,53 @@ export default function ActiveChallengesPage({ open, onClose, onAccepted, onChan
   }
 
   return (
-    <div className="fixed inset-0 z-[58] bg-black overflow-hidden">
-      {/* Header */}
-      <div className="absolute top-0 left-0 right-0 z-40 flex items-center gap-3 px-3 py-3 bg-gradient-to-b from-black/80 to-transparent"
-           style={{ paddingTop: 'max(env(safe-area-inset-top), 12px)' }}>
-        <button
-          onClick={onClose}
-          aria-label="Volver"
-          className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm hover:bg-black/60 flex items-center justify-center text-white active:scale-95 transition"
-        >
-          <ChevronLeft className="w-6 h-6" />
-        </button>
-        <h1 className="text-white text-lg font-bold flex items-center gap-2">
-          <Swords className="w-5 h-5 text-purple-400" />
-          Retos activos
-          {list.length > 0 && (
-            <span className="text-xs font-bold bg-purple-500 text-white rounded-full px-2 py-0.5">{list.length}</span>
-          )}
-        </h1>
+    <div className="fixed inset-0 z-[58] bg-[#0a0a0b] flex flex-col text-white">
+      {/* Glow superior sutil */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-44"
+           style={{ background: 'radial-gradient(60% 100% at 50% 0%, rgba(214,178,122,0.08), transparent 70%)' }} />
+
+      {/* Header — control segmentado */}
+      <div className="relative z-10 px-6 pb-4" style={{ paddingTop: 'max(env(safe-area-inset-top), 14px)' }}>
+        <div className="flex items-center justify-center">
+          <div className="inline-flex p-1 rounded-full bg-white/[0.06] border border-white/10 backdrop-blur-md">
+            <button onClick={onClose} className="px-5 py-1.5 rounded-full text-[13px] font-medium text-zinc-300 hover:text-white transition">
+              Completados
+            </button>
+            <button className="px-5 py-1.5 rounded-full text-[13px] font-semibold bg-white text-black transition">
+              Activos
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Contenido */}
-      {loading ? (
-        <div className="w-full h-full flex items-center justify-center">
-          <Loader2 className="w-8 h-8 text-white animate-spin" />
-        </div>
-      ) : list.length === 0 ? (
-        <div className="w-full h-full flex flex-col items-center justify-center px-6 text-center">
-          <div className="w-20 h-20 mb-5 rounded-full bg-zinc-800 flex items-center justify-center">
-            <Swords className="w-10 h-10 text-zinc-500" strokeWidth={1.5} />
+      <div className="relative z-10 flex-1 overflow-y-auto px-5 pb-28">
+        {loading ? (
+          <div className="flex justify-center pt-32"><Loader2 className="w-7 h-7 animate-spin text-zinc-400" /></div>
+        ) : list.length === 0 ? (
+          <div className="flex flex-col items-center justify-center text-center pt-28">
+            <div className="w-20 h-20 rounded-full border border-white/10 bg-white/[0.03] flex items-center justify-center mb-6"
+                 style={{ boxShadow: '0 0 48px -14px rgba(214,178,122,0.42)' }}>
+              <Swords className="w-9 h-9" strokeWidth={1.25} style={{ color: GOLD }} />
+            </div>
+            <h2 className="text-white text-[22px] font-semibold tracking-tight">Sin retos activos</h2>
+            <p className="text-zinc-400 text-[15px] mt-2 max-w-[17rem] leading-relaxed">
+              Cuando alguien te rete, la solicitud aparecerá aquí para aceptarla o rechazarla.
+            </p>
           </div>
-          <h2 className="font-bold text-white text-2xl">Sin retos activos</h2>
-          <p className="text-sm text-zinc-400 mt-2 max-w-xs">
-            Cuando alguien te rete, la solicitud aparecerá aquí para que la aceptes o la rechaces.
-          </p>
-        </div>
-      ) : (
-        <Swiper
-          direction="vertical"
-          slidesPerView={1}
-          spaceBetween={0}
-          mousewheel
-          keyboard
-          modules={[Mousewheel, Keyboard]}
-          className="w-full h-full"
-        >
-          {list.map((c) => (
-            <SwiperSlide key={c.id}>
-              <ChallengeCard
-                c={c}
-                busy={busyId === c.id}
-                onAccept={accept}
-                onReject={reject}
-              />
-            </SwiperSlide>
-          ))}
-        </Swiper>
-      )}
+        ) : (
+          <div className="max-w-md mx-auto pt-1">
+            <p className="text-zinc-400 text-[12px] uppercase tracking-[0.14em] font-medium mb-3">
+              {list.length} {list.length === 1 ? 'reto pendiente' : 'retos pendientes'}
+            </p>
+            <div className="space-y-4">
+              {list.map((c) => (
+                <ChallengeCard key={c.id} c={c} busy={busyId === c.id} onAccept={accept} onReject={reject} />
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
