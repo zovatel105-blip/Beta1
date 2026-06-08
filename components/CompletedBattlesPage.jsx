@@ -228,94 +228,81 @@ const CompletedBattleCard = ({ battle, onUserClick }) => {
   )
 }
 
-// Estado vacío de "Retos completados" inspirado en la pantalla de referencia.
+// Estado vacío de "Retos completados" — diseño premium minimalista.
 const EmptyCompletedState = ({ onOpenUpload, onOpenActive, onOpenProfile }) => {
   const [dismissed, setDismissed] = useState([])
   const visibleAccounts = suggestedAccounts.filter((a) => !dismissed.includes(a.id))
 
   return (
-    <div className="relative w-full h-full overflow-y-auto bg-black">
-      {/* Decoración de fondo (líneas/halos suaves como en la referencia) */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -top-24 -right-16 w-72 h-72 rounded-full bg-purple-600/20 blur-3xl" />
-        <div className="absolute top-40 -left-20 w-72 h-72 rounded-full bg-blue-600/20 blur-3xl" />
-        <div className="absolute right-6 top-24 w-64 h-80 rounded-[40px] border border-white/[0.06] rotate-6" />
-        <div className="absolute right-10 top-32 w-64 h-80 rounded-[40px] border border-white/[0.05] rotate-12" />
-      </div>
+    <div className="relative w-full h-full overflow-y-auto bg-[#0a0a0b]">
+      {/* Glow superior cálido y muy sutil */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-80"
+           style={{ background: 'radial-gradient(60% 100% at 50% 0%, rgba(214,178,122,0.10), transparent 70%)' }} />
 
-      <div className="relative z-10 px-5 pt-24 pb-32">
-        {/* Barra de búsqueda superior */}
-        <div className="flex items-center gap-3 mb-8">
-          <div className="flex-1 flex items-center gap-2 h-11 px-4 rounded-xl bg-zinc-800/80 border border-white/5">
-            <Search className="w-4 h-4 text-zinc-400" />
-            <span className="text-zinc-400 text-sm">Buscar creadores</span>
+      <div className="relative z-10 px-6 pt-28 pb-32 max-w-md mx-auto">
+        {/* Hero — emblema + título + acciones */}
+        <div className="flex flex-col items-center text-center">
+          <div
+            className="w-20 h-20 rounded-full border border-white/10 bg-white/[0.03] flex items-center justify-center mb-6"
+            style={{ boxShadow: '0 0 48px -14px rgba(214,178,122,0.45)' }}
+          >
+            <Trophy className="w-9 h-9" strokeWidth={1.25} style={{ color: '#E4C79B' }} />
           </div>
+          <h1 className="text-white text-[26px] font-semibold tracking-tight leading-snug">
+            Aún no hay retos completados
+          </h1>
+          <p className="text-zinc-400 text-[15px] mt-3 leading-relaxed max-w-[18rem]">
+            Crea tu primer reto y empieza a competir. Los ganadores aparecerán aquí.
+          </p>
+
+          <button
+            onClick={onOpenUpload}
+            className="mt-8 w-full h-12 rounded-full bg-white text-black font-semibold text-[15px] flex items-center justify-center gap-2 hover:bg-zinc-100 active:scale-[0.99] transition"
+          >
+            <Plus className="w-[18px] h-[18px]" strokeWidth={2.5} />
+            Crear un reto
+          </button>
+          <button
+            onClick={onOpenActive}
+            className="mt-3 w-full h-12 rounded-full border border-white/15 text-white font-medium text-[15px] flex items-center justify-center gap-2 hover:bg-white/[0.04] active:scale-[0.99] transition"
+          >
+            <Swords className="w-[18px] h-[18px]" strokeWidth={1.75} />
+            Ver retos activos
+          </button>
         </div>
 
-        {/* Título grande estilo referencia */}
-        <h1 className="text-white font-extrabold leading-[0.95] tracking-tight text-[44px]">
-          Mira los
-          <br />
-          retos
-          <br />
-          completados
-        </h1>
-        <p className="text-zinc-400 text-base mt-4 max-w-[18rem]">
-          Aún no se ha completado ningún reto. ¡Crea uno y empieza la batalla!
-        </p>
+        {/* Buscador minimalista */}
+        <div className="mt-12 flex items-center gap-2.5 h-11 px-4 rounded-full bg-white/[0.04] border border-white/10">
+          <Search className="w-4 h-4 text-zinc-500" />
+          <span className="text-zinc-500 text-sm">Buscar creadores</span>
+        </div>
 
-        {/* Botón principal (blanco con borde degradado, como la referencia) */}
-        <button
-          onClick={onOpenUpload}
-          className="mt-7 w-full h-[52px] rounded-xl font-bold text-base text-black flex items-center justify-center gap-2 active:scale-[0.99] transition-transform"
-          style={{
-            border: '3px solid transparent',
-            backgroundImage: 'linear-gradient(#fff, #fff), linear-gradient(90deg, #3B82F6 0%, #A855F7 50%, #EC4899 100%)',
-            backgroundOrigin: 'border-box',
-            backgroundClip: 'padding-box, border-box',
-          }}
-        >
-          <Plus className="w-5 h-5" />
-          Crear un reto
-        </button>
+        {/* Sugerencias para retar */}
+        <div className="mt-7">
+          <h3 className="text-zinc-400 font-medium text-[12px] uppercase tracking-[0.14em] mb-1">
+            Sugerencias para retar
+          </h3>
 
-        {/* Botón secundario */}
-        <button
-          onClick={onOpenActive}
-          className="mt-3 w-full h-[52px] rounded-xl bg-zinc-800/90 hover:bg-zinc-700/90 font-bold text-base text-white flex items-center justify-center gap-2 active:scale-[0.99] transition"
-        >
-          <Swords className="w-5 h-5" />
-          Ver retos activos
-        </button>
-
-        {/* Cuentas sugeridas */}
-        <div className="mt-10">
-          <div className="flex items-center gap-2 mb-2">
-            <h3 className="text-white font-semibold text-[15px]">Cuentas sugeridas</h3>
-            <Trophy className="w-3.5 h-3.5 text-zinc-500" />
-          </div>
-
-          <div className="divide-y divide-white/[0.04]">
+          <div className="divide-y divide-white/[0.05]">
             {visibleAccounts.map((acc) => (
-              <div key={acc.id} className="flex items-center gap-3 py-3">
+              <div key={acc.id} className="flex items-center gap-3 py-3.5">
                 <button onClick={onOpenProfile} className="shrink-0">
-                  <Avatar src={acc.avatar} alt={acc.name} className="w-12 h-12" />
+                  <Avatar src={acc.avatar} alt={acc.name} className="w-11 h-11" ringClass="ring-1 ring-white/10" />
                 </button>
                 <button onClick={onOpenProfile} className="flex-1 min-w-0 text-left">
-                  <p className="text-white font-semibold text-[15px] truncate">{acc.name}</p>
-                  <p className="text-zinc-500 text-sm truncate">{acc.meta}</p>
+                  <p className="text-white font-medium text-[15px] truncate">{acc.name}</p>
+                  <p className="text-zinc-500 text-[13px] truncate">{acc.meta}</p>
                 </button>
                 <button
                   onClick={onOpenUpload}
-                  className="shrink-0 h-9 px-5 rounded-md font-semibold text-sm text-white flex items-center gap-1.5 active:scale-95 transition-transform"
-                  style={{ background: 'linear-gradient(135deg, #A855F7 0%, #3B82F6 100%)' }}
+                  className="shrink-0 h-8 px-4 rounded-full border border-white/15 text-white text-[13px] font-medium flex items-center gap-1.5 hover:bg-white/5 active:scale-95 transition"
                 >
-                  <Swords className="w-4 h-4" />
+                  <Swords className="w-3.5 h-3.5" />
                   Retar
                 </button>
                 <button
                   onClick={() => setDismissed((d) => [...d, acc.id])}
-                  className="shrink-0 w-7 h-7 flex items-center justify-center text-zinc-500 hover:text-white"
+                  className="shrink-0 w-7 h-7 flex items-center justify-center text-zinc-600 hover:text-zinc-300 transition"
                   aria-label="Descartar"
                 >
                   <X className="w-4 h-4" />
@@ -323,7 +310,7 @@ const EmptyCompletedState = ({ onOpenUpload, onOpenActive, onOpenProfile }) => {
               </div>
             ))}
             {visibleAccounts.length === 0 && (
-              <p className="text-zinc-500 text-sm py-6 text-center">No hay más cuentas sugeridas.</p>
+              <p className="text-zinc-500 text-sm py-6 text-center">No hay más sugerencias.</p>
             )}
           </div>
         </div>
@@ -342,19 +329,22 @@ export default function CompletedBattlesPage({ open, onClose, onOpenActive, onOp
   const isEmpty = battles.length === 0
 
   return (
-    <div className="fixed inset-0 z-[55] bg-black overflow-hidden">
-      {/* Header fijo */}
-      <div className="absolute top-0 left-0 right-0 z-40 px-4 py-3 bg-gradient-to-b from-black/90 to-transparent"
-           style={{ paddingTop: 'max(env(safe-area-inset-top), 12px)' }}>
-        <div className="flex items-center justify-between">
-          <h1 className="text-white text-lg font-bold flex items-center gap-2">
-            <Trophy className="w-5 h-5 text-yellow-500" />
-            Retos completados
-          </h1>
-          <button onClick={onOpenActive} className="px-3 py-1.5 bg-purple-500 hover:bg-purple-600 rounded-full text-white text-sm font-medium transition-colors flex items-center gap-1">
-            <Swords className="w-4 h-4" />
-            Ver activos
-          </button>
+    <div className="fixed inset-0 z-[55] bg-[#0a0a0b] overflow-hidden">
+      {/* Header minimalista — control segmentado */}
+      <div className="absolute top-0 left-0 right-0 z-40 px-6 pb-4 bg-gradient-to-b from-[#0a0a0b] via-[#0a0a0b]/85 to-transparent"
+           style={{ paddingTop: 'max(env(safe-area-inset-top), 14px)' }}>
+        <div className="flex items-center justify-center">
+          <div className="inline-flex p-1 rounded-full bg-white/[0.06] border border-white/10 backdrop-blur-md">
+            <button className="px-5 py-1.5 rounded-full text-[13px] font-semibold bg-white text-black transition">
+              Completados
+            </button>
+            <button
+              onClick={onOpenActive}
+              className="px-5 py-1.5 rounded-full text-[13px] font-medium text-zinc-300 hover:text-white transition"
+            >
+              Activos
+            </button>
+          </div>
         </div>
       </div>
 
