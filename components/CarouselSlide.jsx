@@ -1,7 +1,7 @@
 'use client'
 
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
-import { MessageCircle, Bookmark, Play, Swords } from 'lucide-react'
+import { MessageCircle, Bookmark, Play, Swords, MoreHorizontal, Flag, EyeOff, Link2 } from 'lucide-react'
 import ShareIcon from './icons/ShareIcon'
 import { cn } from '@/lib/utils'
 import VoteIcon from './icons/VoteIcon'
@@ -42,6 +42,7 @@ function CarouselSlide({ post, isActive, isNear, muted: globalMuted, onRequestNe
   const [paused, setPaused] = useState(false)
   const [progress, setProgress] = useState(0)
   const [saved, setSaved] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
   const [following, setFollowing] = useState(false)
   const [voteBursts, setVoteBursts] = useState([])
   const [dragX, setDragX] = useState(0)
@@ -370,10 +371,39 @@ function CarouselSlide({ post, isActive, isNear, muted: globalMuted, onRequestNe
           <Bookmark className={cn('w-[25px] h-[25px] transition-all duration-200', saved ? 'fill-current text-yellow-400' : 'text-white')} strokeWidth={1.25} />
           <span className="text-[10px] font-semibold text-white leading-none">{countLabel(post.stats?.saves, 'Guardar')}</span>
         </button>
+        <button aria-label="mas-opciones" onClick={(e) => { e.stopPropagation(); setMenuOpen(true) }} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
+          <MoreHorizontal className="w-[25px] h-[25px] text-white" strokeWidth={1.25} />
+          <span className="text-[10px] font-semibold text-white leading-none">Más</span>
+        </button>
         <div className="mt-1 w-10 h-10 rounded-full overflow-hidden border border-white/30 bg-gradient-to-br from-zinc-700 to-black flex items-center justify-center" style={{ animation: 'spin 6s linear infinite' }}>
           <img src={headAuthor.avatarUrl} alt="" className="w-6 h-6 rounded-full object-cover" draggable={false} />
         </div>
       </div>
+
+      {/* Menú "Más opciones" (hoja inferior) */}
+      {menuOpen && (
+        <div className="absolute inset-0 z-40 flex items-end pointer-events-auto" onClick={(e) => { e.stopPropagation(); setMenuOpen(false) }}>
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-[1px]" />
+          <div className="relative w-full bg-zinc-900 rounded-t-2xl pt-2 pb-7 px-3" onClick={(e) => e.stopPropagation()}>
+            <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-white/25" />
+            <button onClick={() => setMenuOpen(false)} className="w-full flex items-center gap-3 px-3 py-3.5 rounded-xl text-white hover:bg-white/10 transition-colors">
+              <EyeOff className="w-5 h-5 text-white/80" strokeWidth={1.5} />
+              <span className="text-[15px]">No me interesa</span>
+            </button>
+            <button onClick={() => { try { navigator.clipboard?.writeText(window.location.href) } catch (_) { /* noop */ } setMenuOpen(false) }} className="w-full flex items-center gap-3 px-3 py-3.5 rounded-xl text-white hover:bg-white/10 transition-colors">
+              <Link2 className="w-5 h-5 text-white/80" strokeWidth={1.5} />
+              <span className="text-[15px]">Copiar enlace</span>
+            </button>
+            <button onClick={() => setMenuOpen(false)} className="w-full flex items-center gap-3 px-3 py-3.5 rounded-xl text-red-400 hover:bg-white/10 transition-colors">
+              <Flag className="w-5 h-5" strokeWidth={1.5} />
+              <span className="text-[15px]">Reportar</span>
+            </button>
+            <button onClick={() => setMenuOpen(false)} className="mt-1 w-full px-3 py-3.5 rounded-xl text-white/70 font-medium hover:bg-white/10 transition-colors">
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Puntitos del carrusel */}
       <div className="absolute left-1/2 -translate-x-1/2 bottom-20 z-20 flex items-center gap-1.5">

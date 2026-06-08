@@ -1,7 +1,7 @@
 'use client'
 
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
-import { MessageCircle, Bookmark, Play, Volume2, VolumeX, Swords } from 'lucide-react'
+import { MessageCircle, Bookmark, Play, Volume2, VolumeX, Swords, MoreHorizontal, Flag, EyeOff, Link2 } from 'lucide-react'
 import ShareIcon from './icons/ShareIcon'
 import { getVideoPool } from '@/lib/videoPool'
 import { cn } from '@/lib/utils'
@@ -45,6 +45,7 @@ function DuetSlide({ post, isActive, isNear, muted: globalMuted, onRequestNext, 
   const [progress, setProgress] = useState(0)
   const [audibleSide, setAudibleSide] = useState('a') // 'a' | 'b'
   const [saved, setSaved] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
   const [following, setFollowing] = useState(false)
   const [voteBursts, setVoteBursts] = useState([])
 
@@ -479,11 +480,41 @@ function DuetSlide({ post, isActive, isNear, muted: globalMuted, onRequestNext, 
           <Bookmark className={cn('w-[25px] h-[25px] transition-all duration-200', saved ? 'fill-current text-yellow-400' : 'text-white')} strokeWidth={1.25} />
           <span className="text-[10px] font-semibold text-white leading-none">{countLabel(post.stats?.saves, 'Guardar')}</span>
         </button>
+        {/* Más opciones */}
+        <button aria-label="mas-opciones" onClick={(e) => { e.stopPropagation(); setMenuOpen(true) }} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
+          <MoreHorizontal className="w-[25px] h-[25px] text-white" strokeWidth={1.25} />
+          <span className="text-[10px] font-semibold text-white leading-none">Más</span>
+        </button>
         {/* Disco de música giratorio */}
         <div className="mt-1 w-10 h-10 rounded-full overflow-hidden border border-white/30 bg-gradient-to-br from-zinc-700 to-black flex items-center justify-center" style={{ animation: 'spin 6s linear infinite' }}>
           <img src={headAuthor.avatarUrl} alt="" className="w-6 h-6 rounded-full object-cover" draggable={false} />
         </div>
       </div>
+
+      {/* Menú "Más opciones" (hoja inferior) */}
+      {menuOpen && (
+        <div className="absolute inset-0 z-40 flex items-end pointer-events-auto" onClick={(e) => { e.stopPropagation(); setMenuOpen(false) }}>
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-[1px]" />
+          <div className="relative w-full bg-zinc-900 rounded-t-2xl pt-2 pb-7 px-3" onClick={(e) => e.stopPropagation()}>
+            <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-white/25" />
+            <button onClick={() => setMenuOpen(false)} className="w-full flex items-center gap-3 px-3 py-3.5 rounded-xl text-white hover:bg-white/10 transition-colors">
+              <EyeOff className="w-5 h-5 text-white/80" strokeWidth={1.5} />
+              <span className="text-[15px]">No me interesa</span>
+            </button>
+            <button onClick={() => { try { navigator.clipboard?.writeText(window.location.href) } catch (_) { /* noop */ } setMenuOpen(false) }} className="w-full flex items-center gap-3 px-3 py-3.5 rounded-xl text-white hover:bg-white/10 transition-colors">
+              <Link2 className="w-5 h-5 text-white/80" strokeWidth={1.5} />
+              <span className="text-[15px]">Copiar enlace</span>
+            </button>
+            <button onClick={() => setMenuOpen(false)} className="w-full flex items-center gap-3 px-3 py-3.5 rounded-xl text-red-400 hover:bg-white/10 transition-colors">
+              <Flag className="w-5 h-5" strokeWidth={1.5} />
+              <span className="text-[15px]">Reportar</span>
+            </button>
+            <button onClick={() => setMenuOpen(false)} className="mt-1 w-full px-3 py-3.5 rounded-xl text-white/70 font-medium hover:bg-white/10 transition-colors">
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* progress bar */}
       <div className="absolute left-0 right-0 bottom-16 z-20 h-[2px] bg-white/15">
