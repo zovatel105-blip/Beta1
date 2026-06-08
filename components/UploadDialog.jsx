@@ -3,6 +3,8 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { ChevronRight, Loader2, Film, Swords, Users, Rows3, Columns3, ArrowLeft, X } from 'lucide-react'
+import { Swiper, SwiperSlide } from 'swiper/react'
+import 'swiper/css'
 
 /**
  * UploadDialog — flujo multi-paso para crear publicaciones de votación: Versus
@@ -12,6 +14,33 @@ import { ChevronRight, Loader2, Film, Swords, Users, Rows3, Columns3, ArrowLeft,
  * Pasos para 1vs1:    mode -> layout -> pair -> file -> upload
  */
 const GOLD = '#E4C79B'
+
+/**
+ * PreviewSlot — un "slot" de vídeo a pantalla completa con el mismo estilo que
+ * los Retos activos: vídeo en object-cover, degradado oscuro, etiqueta del lado
+ * y botón "Cambiar". Si no hay vídeo, muestra el estado para subir.
+ */
+const PreviewSlot = ({ url, badge, badgeColor, onPick }) => (
+  <div className="relative w-full h-full bg-black">
+    {url ? (
+      <>
+        <video src={url} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/25 to-black/40" />
+        <span className="absolute top-3 left-3 z-10 text-[11px] font-bold bg-black/45 backdrop-blur rounded-full px-2.5 py-1" style={{ color: badgeColor }}>{badge}</span>
+        <button onClick={onPick} className="absolute top-3 right-3 z-10 text-[11px] font-semibold text-white bg-black/55 hover:bg-black/80 active:scale-95 rounded-full px-3 py-1 transition">Cambiar</button>
+      </>
+    ) : (
+      <button onClick={onPick} className="absolute inset-0 w-full h-full flex flex-col items-center justify-center gap-2.5 bg-white/[0.02] hover:bg-white/[0.05] transition">
+        <span className="absolute top-3 left-3 z-10 text-[11px] font-bold bg-black/45 rounded-full px-2.5 py-1" style={{ color: badgeColor }}>{badge}</span>
+        <div className="w-14 h-14 rounded-2xl border border-white/10 bg-white/[0.04] flex items-center justify-center">
+          <Film size={26} strokeWidth={1.5} className="text-zinc-400" />
+        </div>
+        <span className="text-sm font-medium text-zinc-300">Toca para subir el vídeo</span>
+        <span className="text-[10px] text-zinc-500">MP4 / WebM · max 80MB</span>
+      </button>
+    )}
+  </div>
+)
 
 export default function UploadDialog({ open, onClose, onUploaded, onChallengeCreated }) {
   const inputRef = useRef(null)
@@ -30,6 +59,7 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
   const [selected, setSelected] = useState('versus')
   const [previewA, setPreviewA] = useState(null)
   const [previewB, setPreviewB] = useState(null)
+  const [pvSide, setPvSide] = useState(0)
 
   // URLs de previsualización memorizadas (evita recrearlas en cada render,
   // lo que reiniciaría el vídeo al escribir la descripción).
@@ -347,63 +377,68 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
             <input ref={inputBRef} type="file" accept="video/*" className="hidden" onChange={handleFileChange('b')} />
 
             {mode === 'versus' ? (
-              <div className="grid grid-cols-2 gap-3">
-                {/* Preview A */}
-                <div className="relative w-full aspect-[9/16] rounded-2xl overflow-hidden border border-white/15 bg-black">
-                  <span className="absolute top-2 left-2 z-10 text-[10px] font-semibold text-white bg-black/55 rounded-full px-2 py-0.5">Opción A</span>
-                  {file ? (
-                    <>
-                      <video src={previewA} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-contain" />
-                      <button onClick={pickFile} className="absolute bottom-2 right-2 z-10 text-[10px] font-semibold text-white bg-black/60 hover:bg-black/80 active:scale-95 rounded-full px-2.5 py-1 transition">Cambiar</button>
-                    </>
-                  ) : (
-                    <button onClick={pickFile} className="absolute inset-0 w-full h-full border border-dashed border-white/15 bg-white/[0.03] hover:bg-white/[0.06] active:scale-[0.99] transition flex flex-col items-center justify-center gap-2">
-                      <Film size={26} strokeWidth={1.5} className="text-zinc-500" />
-                      <span className="text-[11px] font-medium text-zinc-300 text-center px-1">Vídeo A</span>
-                    </button>
-                  )}
+              <div className="relative w-full aspect-[9/16] max-h-[70vh] mx-auto rounded-3xl overflow-hidden border border-white/10 bg-black">
+                <Swiper
+                  direction="horizontal"
+                  slidesPerView={1}
+                  spaceBetween={0}
+                  onSlideChange={(s) => setPvSide(s.activeIndex)}
+                  className="w-full h-full"
+                >
+                  <SwiperSlide>
+                    <PreviewSlot url={previewA} badge="A · @tu_canal" badgeColor={GOLD} onPick={pickFile} />
+                  </SwiperSlide>
+                  <SwiperSlide>
+                    <PreviewSlot url={previewB} badge="B · @tu_canal" badgeColor="#FFFFFF" onPick={pickFileB} />
+                  </SwiperSlide>
+                </Swiper>
+
+                {/* Pista para deslizar */}
+                <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 pointer-events-none bg-black/45 backdrop-blur text-white/90 text-[10px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap">
+                  Desliza para ver A / B
                 </div>
-                {/* Preview B */}
-                <div className="relative w-full aspect-[9/16] rounded-2xl overflow-hidden border border-white/15 bg-black">
-                  <span className="absolute top-2 left-2 z-10 text-[10px] font-semibold text-white bg-black/55 rounded-full px-2 py-0.5">Opción B</span>
-                  {fileB ? (
-                    <>
-                      <video src={previewB} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-contain" />
-                      <button onClick={pickFileB} className="absolute bottom-2 right-2 z-10 text-[10px] font-semibold text-white bg-black/60 hover:bg-black/80 active:scale-95 rounded-full px-2.5 py-1 transition">Cambiar</button>
-                    </>
-                  ) : (
-                    <button onClick={pickFileB} className="absolute inset-0 w-full h-full border border-dashed border-white/15 bg-white/[0.03] hover:bg-white/[0.06] active:scale-[0.99] transition flex flex-col items-center justify-center gap-2">
-                      <Film size={26} strokeWidth={1.5} className="text-zinc-500" />
-                      <span className="text-[11px] font-medium text-zinc-300 text-center px-1">Vídeo B</span>
-                    </button>
-                  )}
+
+                {/* Panel inferior premium (estilo retos activos) */}
+                <div className="absolute inset-x-0 bottom-0 z-20 px-3 pb-3 pointer-events-none">
+                  <div className="flex items-center justify-center gap-1.5 mb-2.5">
+                    {[0, 1].map((i) => (
+                      <span key={i} className={`rounded-full transition-all duration-200 ${pvSide === i ? 'w-5 h-1.5 bg-white' : 'w-1.5 h-1.5 bg-white/40'}`} />
+                    ))}
+                  </div>
+                  <div className="rounded-3xl border border-white/10 bg-black/40 backdrop-blur-xl p-3.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[12px] font-bold" style={{ color: GOLD }}>Opción A</span>
+                      <span className="text-white/90 font-black text-sm">VS</span>
+                      <span className="text-[12px] font-bold text-white">Opción B</span>
+                    </div>
+                    <p className="text-[13px] text-zinc-200 mt-2 line-clamp-2">{description || '¿Cuál prefieres? 🅰️🆚🅱️'}</p>
+                  </div>
                 </div>
               </div>
             ) : (
-              <div className="relative w-full aspect-[9/16] max-h-[62vh] mx-auto rounded-2xl overflow-hidden border border-white/15 bg-black">
-                {file ? (
-                  <>
-                    <video src={previewA} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-contain" />
-                    {/* Descripción superpuesta (preview de cómo se verá) */}
-                    <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/85 via-black/30 to-transparent pointer-events-none">
+              <div className="relative w-full aspect-[9/16] max-h-[70vh] mx-auto rounded-3xl overflow-hidden border border-white/10 bg-black">
+                <PreviewSlot url={previewA} badge={mode === 'challenge' ? 'TÚ · @tu_canal' : 'A · @tu_canal'} badgeColor={GOLD} onPick={pickFile} />
+
+                {/* Panel inferior premium (estilo retos activos) */}
+                {file && (
+                  <div className="absolute inset-x-0 bottom-0 z-20 px-3 pb-3 pointer-events-none">
+                    <div className="rounded-3xl border border-white/10 bg-black/40 backdrop-blur-xl p-3.5">
                       {(mode === 'duet' || mode === 'challenge') && pair && (
-                        <div className="flex items-center gap-1.5 mb-1.5">
-                          <img src={pair.author?.avatarUrl} className="w-5 h-5 rounded-full" alt="" />
-                          <span className="text-[11px] font-semibold text-white">vs @{pair.author?.username}</span>
+                        <div className="flex items-center justify-between gap-3 mb-2.5">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <img src={pair.author?.avatarUrl} className="w-7 h-7 rounded-full shrink-0" alt="" />
+                            <span className="text-[13px] font-semibold text-white truncate">
+                              {mode === 'challenge' ? 'Reto a' : 'vs'} @{pair.author?.username}
+                            </span>
+                          </div>
+                          <span className="text-white/90 font-black text-sm shrink-0">VS</span>
                         </div>
                       )}
-                      <p className="text-white text-[13px] leading-snug line-clamp-2">
+                      <p className="text-[13px] text-zinc-200 line-clamp-2">
                         {description || (mode === 'duet' ? '¿Quién gana? 🥊 #1vs1' : mode === 'challenge' ? 'Reto 🔥 ¿Aceptas?' : '¿Cuál prefieres? 🅰️🆚🅱️')}
                       </p>
                     </div>
-                    <button onClick={pickFile} className="absolute top-2 right-2 z-10 text-[11px] font-semibold text-white bg-black/60 hover:bg-black/80 active:scale-95 rounded-full px-3 py-1 transition">Cambiar</button>
-                  </>
-                ) : (
-                  <button onClick={pickFile} className="absolute inset-0 w-full h-full border border-dashed border-white/15 bg-white/[0.03] hover:bg-white/[0.06] active:scale-[0.99] transition flex flex-col items-center justify-center gap-2">
-                    <Film size={32} strokeWidth={1.5} className="text-zinc-500" />
-                    <span className="text-sm font-medium text-zinc-200">Toca para elegir un vídeo</span>
-                    <span className="text-[10px] text-zinc-500">MP4 / WebM · max 80MB</span>
-                  </button>
+                  </div>
                 )}
               </div>
             )}
