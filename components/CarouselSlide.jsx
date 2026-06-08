@@ -324,7 +324,7 @@ function CarouselSlide({ post, isActive, isNear, muted: globalMuted, onRequestNe
         style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}
       >
         <div className="flex items-center gap-2.5 w-fit pointer-events-auto">
-          <button onClick={(e) => e.stopPropagation()} className="w-9 h-9 rounded-full overflow-hidden ring-1 ring-white/70 block shrink-0">
+          <button onClick={(e) => e.stopPropagation()} className="w-10 h-10 rounded-full overflow-hidden block shrink-0">
             <img src={headAuthor.avatarUrl} alt={headAuthor.username} className="w-full h-full object-cover" draggable={false} />
           </button>
           <span className="text-white font-semibold text-[13px] leading-tight drop-shadow-md">{headAuthor.username || headAuthor.name}</span>
