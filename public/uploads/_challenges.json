@@ -1,1 +1,15 @@
-[]
+[
+  {
+    "id": "challenge_demo01",
+    "status": "pending",
+    "from": { "username": "tu_canal", "name": "Tú", "avatarUrl": "https://i.pravatar.cc/120?img=68" },
+    "to": { "username": "urbanlife", "name": "Marco Ruiz", "avatarUrl": "https://i.pravatar.cc/120?img=12" },
+    "challengerVideoUrl": "/videos/51265.mp4",
+    "targetVideoUrl": "/videos/4467.mp4",
+    "targetAuthor": { "username": "urbanlife", "name": "Marco Ruiz", "avatarUrl": "https://i.pravatar.cc/120?img=12" },
+    "targetDescription": "La ciudad nunca duerme",
+    "targetMusic": "Neon Lights",
+    "message": "Reto de baile urbano 🔥 ¿Aceptas?",
+    "createdAt": "2025-07-01T10:00:00.000Z"
+  }
+]

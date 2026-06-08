@@ -11,10 +11,11 @@ import CarouselSlide from './CarouselSlide'
 import BottomNav from './BottomNav'
 import UploadDialog from './UploadDialog'
 import ChallengeDialog from './ChallengeDialog'
-import ChallengesInbox from './ChallengesInbox'
+import NotificationsInbox from './NotificationsInbox'
 import ProfilePage from './ProfilePage'
 import CompletedBattlesPage from './CompletedBattlesPage'
 import ActiveChallengesPage from './ActiveChallengesPage'
+import { notificationsUnreadCount } from '@/lib/notifications'
 
 async function fetchPage(cursor) {
   const res = await fetch(`/api/feed?cursor=${cursor}&limit=8`, { cache: 'no-store' })
@@ -193,7 +194,8 @@ export default function Feed() {
         onOpenProfile={() => setProfileOpen(true)}
         onGoHome={() => setProfileOpen(false)}
         onOpenBattles={() => setBattlesOpen(true)}
-        unreadCount={pendingCount}
+        unreadCount={notificationsUnreadCount}
+        challengesCount={pendingCount}
       />
       <ProfilePage
         open={profileOpen}
@@ -207,11 +209,9 @@ export default function Feed() {
         target={challengeTarget}
         onCreated={() => { refreshChallenges() }}
       />
-      <ChallengesInbox
+      <NotificationsInbox
         open={inboxOpen}
         onClose={() => setInboxOpen(false)}
-        onAccepted={handleUploaded}
-        onChanged={refreshChallenges}
       />
       <CompletedBattlesPage
         open={battlesOpen}
@@ -224,6 +224,8 @@ export default function Feed() {
       <ActiveChallengesPage
         open={activeChallengesOpen}
         onClose={() => setActiveChallengesOpen(false)}
+        onAccepted={handleUploaded}
+        onChanged={refreshChallenges}
       />
     </div>
   )
