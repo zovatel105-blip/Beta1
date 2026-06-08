@@ -2,7 +2,7 @@
 /* eslint-disable react-hooks/set-state-in-effect -- setState en efectos de carga/reset async; falso positivo de la regla experimental. */
 
 import { useEffect, useRef, useState } from 'react'
-import { ChevronRight, Loader2, Film, Swords, Users, Rows3, Columns3, Check, ArrowLeft, X } from 'lucide-react'
+import { ChevronRight, Loader2, Film, Swords, Users, Rows3, Columns3, ArrowLeft, X } from 'lucide-react'
 
 /**
  * UploadDialog — flujo multi-paso para crear publicaciones de votación: Versus
@@ -28,6 +28,23 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
   const [progress, setProgress] = useState(0)
   const [error, setError] = useState(null)
   const [selected, setSelected] = useState('versus')
+  const [previewA, setPreviewA] = useState(null)
+  const [previewB, setPreviewB] = useState(null)
+
+  // URLs de previsualización memorizadas (evita recrearlas en cada render,
+  // lo que reiniciaría el vídeo al escribir la descripción).
+  useEffect(() => {
+    if (!file) { setPreviewA(null); return }
+    const url = URL.createObjectURL(file)
+    setPreviewA(url)
+    return () => URL.revokeObjectURL(url)
+  }, [file])
+  useEffect(() => {
+    if (!fileB) { setPreviewB(null); return }
+    const url = URL.createObjectURL(fileB)
+    setPreviewB(url)
+    return () => URL.revokeObjectURL(url)
+  }, [fileB])
 
   const reset = () => {
     setStep('mode'); setMode(null); setLayout('horizontal'); setPair(null)
@@ -331,69 +348,64 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
 
             {mode === 'versus' ? (
               <div className="grid grid-cols-2 gap-3">
-                <button
-                  onClick={pickFile}
-                  className="w-full aspect-[9/16] rounded-2xl border border-dashed border-white/15 bg-white/[0.03] hover:bg-white/[0.06] active:scale-[0.99] transition flex flex-col items-center justify-center gap-2 overflow-hidden relative"
-                >
-                  <span className="absolute top-2 left-2 z-10 text-[10px] font-semibold text-white bg-black/50 rounded-full px-2 py-0.5">Opción A</span>
+                {/* Preview A */}
+                <div className="relative w-full aspect-[9/16] rounded-2xl overflow-hidden border border-white/15 bg-black">
+                  <span className="absolute top-2 left-2 z-10 text-[10px] font-semibold text-white bg-black/55 rounded-full px-2 py-0.5">Opción A</span>
                   {file ? (
                     <>
-                      <video src={URL.createObjectURL(file)} muted playsInline className="absolute inset-0 w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-black/55 flex flex-col items-center justify-center">
-                        <Check size={26} style={{ color: GOLD }} />
-                        <span className="text-[10px] text-white/70 mt-1 underline">Cambiar</span>
-                      </div>
+                      <video src={previewA} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-contain" />
+                      <button onClick={pickFile} className="absolute bottom-2 right-2 z-10 text-[10px] font-semibold text-white bg-black/60 hover:bg-black/80 active:scale-95 rounded-full px-2.5 py-1 transition">Cambiar</button>
                     </>
                   ) : (
-                    <>
+                    <button onClick={pickFile} className="absolute inset-0 w-full h-full border border-dashed border-white/15 bg-white/[0.03] hover:bg-white/[0.06] active:scale-[0.99] transition flex flex-col items-center justify-center gap-2">
                       <Film size={26} strokeWidth={1.5} className="text-zinc-500" />
                       <span className="text-[11px] font-medium text-zinc-300 text-center px-1">Vídeo A</span>
-                    </>
+                    </button>
                   )}
-                </button>
-                <button
-                  onClick={pickFileB}
-                  className="w-full aspect-[9/16] rounded-2xl border border-dashed border-white/15 bg-white/[0.03] hover:bg-white/[0.06] active:scale-[0.99] transition flex flex-col items-center justify-center gap-2 overflow-hidden relative"
-                >
-                  <span className="absolute top-2 left-2 z-10 text-[10px] font-semibold text-white bg-black/50 rounded-full px-2 py-0.5">Opción B</span>
+                </div>
+                {/* Preview B */}
+                <div className="relative w-full aspect-[9/16] rounded-2xl overflow-hidden border border-white/15 bg-black">
+                  <span className="absolute top-2 left-2 z-10 text-[10px] font-semibold text-white bg-black/55 rounded-full px-2 py-0.5">Opción B</span>
                   {fileB ? (
                     <>
-                      <video src={URL.createObjectURL(fileB)} muted playsInline className="absolute inset-0 w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-black/55 flex flex-col items-center justify-center">
-                        <Check size={26} style={{ color: GOLD }} />
-                        <span className="text-[10px] text-white/70 mt-1 underline">Cambiar</span>
-                      </div>
+                      <video src={previewB} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-contain" />
+                      <button onClick={pickFileB} className="absolute bottom-2 right-2 z-10 text-[10px] font-semibold text-white bg-black/60 hover:bg-black/80 active:scale-95 rounded-full px-2.5 py-1 transition">Cambiar</button>
                     </>
                   ) : (
-                    <>
+                    <button onClick={pickFileB} className="absolute inset-0 w-full h-full border border-dashed border-white/15 bg-white/[0.03] hover:bg-white/[0.06] active:scale-[0.99] transition flex flex-col items-center justify-center gap-2">
                       <Film size={26} strokeWidth={1.5} className="text-zinc-500" />
                       <span className="text-[11px] font-medium text-zinc-300 text-center px-1">Vídeo B</span>
-                    </>
+                    </button>
                   )}
-                </button>
+                </div>
               </div>
             ) : (
-              <button
-                onClick={pickFile}
-                className="w-full aspect-[9/16] max-h-72 rounded-2xl border border-dashed border-white/15 bg-white/[0.03] hover:bg-white/[0.06] active:scale-[0.99] transition flex flex-col items-center justify-center gap-2 overflow-hidden relative"
-              >
+              <div className="relative w-full aspect-[9/16] max-h-[62vh] mx-auto rounded-2xl overflow-hidden border border-white/15 bg-black">
                 {file ? (
                   <>
-                    <video src={URL.createObjectURL(file)} muted playsInline className="absolute inset-0 w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-black/55 flex flex-col items-center justify-center">
-                      <Check size={30} style={{ color: GOLD }} />
-                      <span className="text-xs font-medium mt-1">{file.name}</span>
-                      <span className="text-[10px] text-white/70 mt-1 underline">Cambiar</span>
+                    <video src={previewA} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-contain" />
+                    {/* Descripción superpuesta (preview de cómo se verá) */}
+                    <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/85 via-black/30 to-transparent pointer-events-none">
+                      {(mode === 'duet' || mode === 'challenge') && pair && (
+                        <div className="flex items-center gap-1.5 mb-1.5">
+                          <img src={pair.author?.avatarUrl} className="w-5 h-5 rounded-full" alt="" />
+                          <span className="text-[11px] font-semibold text-white">vs @{pair.author?.username}</span>
+                        </div>
+                      )}
+                      <p className="text-white text-[13px] leading-snug line-clamp-2">
+                        {description || (mode === 'duet' ? '¿Quién gana? 🥊 #1vs1' : mode === 'challenge' ? 'Reto 🔥 ¿Aceptas?' : '¿Cuál prefieres? 🅰️🆚🅱️')}
+                      </p>
                     </div>
+                    <button onClick={pickFile} className="absolute top-2 right-2 z-10 text-[11px] font-semibold text-white bg-black/60 hover:bg-black/80 active:scale-95 rounded-full px-3 py-1 transition">Cambiar</button>
                   </>
                 ) : (
-                  <>
+                  <button onClick={pickFile} className="absolute inset-0 w-full h-full border border-dashed border-white/15 bg-white/[0.03] hover:bg-white/[0.06] active:scale-[0.99] transition flex flex-col items-center justify-center gap-2">
                     <Film size={32} strokeWidth={1.5} className="text-zinc-500" />
                     <span className="text-sm font-medium text-zinc-200">Toca para elegir un vídeo</span>
                     <span className="text-[10px] text-zinc-500">MP4 / WebM · max 80MB</span>
-                  </>
+                  </button>
                 )}
-              </button>
+              </div>
             )}
 
             <textarea
