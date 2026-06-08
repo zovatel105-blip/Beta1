@@ -5,10 +5,12 @@ import { Swiper, SwiperSlide } from 'swiper/react'
 import { Mousewheel, Keyboard } from 'swiper/modules'
 import 'swiper/css'
 import {
-  Home, Swords, Plus, Inbox, User, Heart, MessageCircle, Share2, Bookmark,
+  Swords, Plus, User, Heart, MessageCircle, Share2, Bookmark,
   Trophy, Crown, Play, Eye, ChevronUp, ChevronDown, X, UserPlus, Search,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import BottomNav from './BottomNav'
+import { notificationsUnreadCount } from '@/lib/notifications'
 
 // Cuentas sugeridas para retar (estado vacío)
 const suggestedAccounts = [
@@ -382,48 +384,15 @@ export default function CompletedBattlesPage({ open, onClose, onOpenActive, onOp
         </Swiper>
       )}
 
-      {/* Barra de navegación inferior */}
-      <div
-        className="fixed bottom-0 left-0 right-0 z-50 bg-black/85 backdrop-blur-md rounded-t-3xl"
-        style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 8px)' }}
-      >
-        <div className="flex items-center justify-around px-4 py-2.5">
-          {/* Home/Feed */}
-          <button onClick={onClose} aria-label="Inicio" className="flex items-center justify-center w-9 h-9 active:scale-90 transition">
-            <Home className="w-5 h-5 text-white/70" />
-          </button>
-          {/* Retos Activos */}
-          <button onClick={onOpenActive} aria-label="Retos activos" className="flex items-center justify-center w-9 h-9 active:scale-90 transition">
-            <Swords className="w-5 h-5 text-white/70" />
-          </button>
-          {/* Crear */}
-          <button
-            onClick={onOpenUpload}
-            aria-label="Crear"
-            className="flex items-center justify-center w-9 h-9 rounded-xl active:scale-90 relative overflow-hidden flex-shrink-0"
-            style={{
-              border: '2px solid transparent',
-              backgroundImage: 'linear-gradient(#000, #000), linear-gradient(90deg, #A855F7 0%, #3B82F6 100%)',
-              backgroundOrigin: 'border-box',
-              backgroundClip: 'padding-box, border-box',
-            }}
-          >
-            <Plus className="w-5 h-5 text-white" />
-          </button>
-          {/* Retos Completados (actual) */}
-          <button aria-label="Retos completados" className="flex items-center justify-center w-9 h-9 active:scale-90 transition">
-            <Trophy className="w-5 h-5 text-yellow-500" />
-          </button>
-          {/* Mensajes */}
-          <button onClick={onOpenInbox} aria-label="Bandeja" className="flex items-center justify-center w-9 h-9 active:scale-90 transition">
-            <Inbox className="w-5 h-5 text-white/70" />
-          </button>
-          {/* Perfil */}
-          <button onClick={onOpenProfile} aria-label="Perfil" className="flex items-center justify-center w-9 h-9 active:scale-90 transition">
-            <User className="w-5 h-5 text-white/70" />
-          </button>
-        </div>
-      </div>
+      {/* Barra de navegación inferior — la misma del feed */}
+      <BottomNav
+        onGoHome={onClose}
+        onOpenBattles={() => {}}
+        onOpenUpload={onOpenUpload}
+        onOpenInbox={onOpenInbox}
+        onOpenProfile={onOpenProfile}
+        unreadCount={notificationsUnreadCount}
+      />
 
       {/* Indicador de progreso */}
       <div className="absolute right-16 top-1/2 -translate-y-1/2 flex flex-col gap-1 z-30">
