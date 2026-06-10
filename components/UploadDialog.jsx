@@ -229,12 +229,7 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
                 {selected === 'challenge' && <Swords className="w-11 h-11" strokeWidth={1.25} style={{ color: GOLD }} />}
               </div>
 
-              <h2 className="text-white text-[24px] font-semibold tracking-tight">
-                {selected === 'versus' && 'Versus (carrusel)'}
-                {selected === 'duet' && '1 vs 1 (Dueto)'}
-                {selected === 'challenge' && 'Reto a un creador'}
-              </h2>
-              <p className="text-zinc-400 text-[15px] mt-3 max-w-[19rem] leading-relaxed">
+              <p className="text-zinc-400 text-[15px] max-w-[19rem] leading-relaxed">
                 {selected === 'versus' && 'Sube 2 vídeos (A y B) y deja que la gente vote deslizando entre ellos.'}
                 {selected === 'duet' && 'Sube 2 vídeos (A y B) con el formato que elijas y deja que la gente vote quién gana.'}
                 {selected === 'challenge' && 'Sube tu vídeo y reta a un creador. Aparecerá en sus retos activos para que lo acepte.'}
