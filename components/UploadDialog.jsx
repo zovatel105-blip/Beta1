@@ -380,9 +380,6 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
                     <button onClick={goBack} aria-label="Atrás" className="w-9 h-9 rounded-full flex items-center justify-center bg-black/35 backdrop-blur hover:bg-black/55 active:scale-90 transition">
                       <ArrowLeft size={20} strokeWidth={1.75} />
                     </button>
-                    <h1 className="text-[16px] font-semibold tracking-tight">
-                      {mode === 'versus' ? 'Tus 2 vídeos' : mode === 'duet' ? 'Tu 1vs1' : 'Tu vídeo del reto'}
-                    </h1>
                     <button onClick={onClose} aria-label="Cerrar" className="w-9 h-9 rounded-full flex items-center justify-center bg-black/35 backdrop-blur hover:bg-black/55 active:scale-90 transition text-zinc-200">
                       <X size={20} strokeWidth={1.75} />
                     </button>
