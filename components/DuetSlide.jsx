@@ -48,6 +48,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted, onR
   const [audibleSide, setAudibleSide] = useState('a') // 'a' | 'b'
   const [saved, setSaved] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [challengePickOpen, setChallengePickOpen] = useState(false)
   const [following, setFollowing] = useState(false)
   const [voteBursts, setVoteBursts] = useState([])
 
@@ -459,14 +460,8 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted, onR
             {countLabel(totalVotes, 'Votar')}
           </span>
         </button>
-        {/* Retar — reta al lado ACTUALMENTE seleccionado (el que tiene el audio,
-            o el que votaste), no siempre la opción A. */}
-        <button aria-label="retar" onClick={(e) => {
-          e.stopPropagation()
-          const selKey = userVote || audibleSide || 'a'
-          const sel = selKey === 'b' ? sideB : sideA
-          onChallenge?.({ videoUrl: sel.videoUrl, author: sel.author || headAuthor, description: sel.description || post.description, music: sel.music })
-        }} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
+        {/* Retar — abre un selector A/B para elegir explícitamente a qué opción retar. */}
+        <button aria-label="retar" onClick={(e) => { e.stopPropagation(); setChallengePickOpen(true) }} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
           <Swords className="w-[25px] h-[25px] text-white" strokeWidth={1.25} />
           <span className="text-[10px] font-semibold text-white leading-none">Retar</span>
         </button>
@@ -514,6 +509,49 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted, onR
               <span className="text-[15px]">Reportar</span>
             </button>
             <button onClick={() => setMenuOpen(false)} className="mt-1 w-full px-3 py-3.5 rounded-xl text-white/70 font-medium hover:bg-white/10 transition-colors">
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Selector de reto — elige explícitamente la opción A o B a la que retar */}
+      {challengePickOpen && (
+        <div className="absolute inset-0 z-40 flex items-end pointer-events-auto" onClick={(e) => { e.stopPropagation(); setChallengePickOpen(false) }}>
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-[1px]" />
+          <div className="relative w-full bg-zinc-900 rounded-t-2xl pt-2 pb-7 px-4" onClick={(e) => e.stopPropagation()}>
+            <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-white/25" />
+            <h3 className="text-white text-[15px] font-semibold text-center">¿A quién quieres retar?</h3>
+            <p className="text-white/50 text-[12px] text-center mb-4">Elige la opción de este 1vs1</p>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { key: 'a', sd: sideA, ring: 'ring-rose-500', label: 'Opción A' },
+                { key: 'b', sd: sideB, ring: 'ring-cyan-400', label: 'Opción B' },
+              ].map(({ key, sd, ring, label }) => (
+                <button
+                  key={key}
+                  onClick={() => {
+                    setChallengePickOpen(false)
+                    onChallenge?.({
+                      videoUrl: sd.videoUrl,
+                      author: sd.author || headAuthor,
+                      description: sd.description || post.description,
+                      music: sd.music,
+                    })
+                  }}
+                  className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-white/5 hover:bg-white/10 active:scale-95 transition-all border border-white/10"
+                >
+                  <div className={cn('w-16 h-16 rounded-full overflow-hidden ring-2', ring)}>
+                    <img src={sd.posterUrl || sd.author?.avatarUrl} alt="" className="w-full h-full object-cover" draggable={false} />
+                  </div>
+                  <span className="text-white text-[13px] font-semibold leading-tight text-center line-clamp-1">
+                    {sd.author?.name || (sd.author?.username ? `@${sd.author.username}` : label)}
+                  </span>
+                  <span className="text-white/40 text-[11px]">{label}</span>
+                </button>
+              ))}
+            </div>
+            <button onClick={() => setChallengePickOpen(false)} className="mt-3 w-full px-3 py-3 rounded-xl text-white/70 font-medium hover:bg-white/10 transition-colors">
               Cancelar
             </button>
           </div>
