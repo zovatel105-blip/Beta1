@@ -392,32 +392,46 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted,
         style={infoBottom ? undefined : { paddingTop: 'max(1rem, env(safe-area-inset-top))' }}
       >
         <div className="flex items-center gap-2.5 w-fit max-w-[calc(100%-4rem)] pointer-events-auto">
-          {/* Reto 1vs1 (estilo colaboración): dos avatares solapados + "userA y userB" + Seguir */}
-          <div className="relative w-[39px] h-[39px] shrink-0">
-            {/* Avatar trasero (arriba-derecha) recortado en media luna: el hueco deja ver la publicación */}
-            <button
-              onClick={(e) => e.stopPropagation()}
-              className="absolute top-0 right-0 w-[24px] h-[24px] rounded-full overflow-hidden block"
-              style={{
-                WebkitMaskImage: 'radial-gradient(circle 15px at -3px 27px, transparent 0 15px, #000 15px)',
-                maskImage: 'radial-gradient(circle 15px at -3px 27px, transparent 0 15px, #000 15px)',
-              }}
-            >
-              <img src={authorB.avatarUrl} alt={authorB.username} className="w-full h-full object-cover" draggable={false} />
-            </button>
-            {/* Avatar delantero (abajo-izquierda) */}
-            <button onClick={(e) => e.stopPropagation()} className="absolute bottom-0 left-0 w-[24px] h-[24px] rounded-full overflow-hidden block">
-              <img src={authorA.avatarUrl} alt={authorA.username} className="w-full h-full object-cover" draggable={false} />
-            </button>
-          </div>
-          <div className="flex flex-col min-w-0 max-w-[160px] leading-tight">
-            <span className="text-white font-semibold text-[14px] drop-shadow-md truncate">
-              {authorA.username || authorA.name} <span className="font-light">vs</span>
-            </span>
-            <span className="text-white font-semibold text-[14px] drop-shadow-md truncate">
-              {authorB.username || authorB.name}
-            </span>
-          </div>
+          {post.isChallenge ? (
+            <>
+              {/* Reto 1vs1 (estilo colaboración): dos avatares solapados + "userA / userB" */}
+              <div className="relative w-[39px] h-[39px] shrink-0">
+                {/* Avatar trasero (arriba-derecha) recortado en media luna: el hueco deja ver la publicación */}
+                <button
+                  onClick={(e) => e.stopPropagation()}
+                  className="absolute top-0 right-0 w-[24px] h-[24px] rounded-full overflow-hidden block"
+                  style={{
+                    WebkitMaskImage: 'radial-gradient(circle 15px at -3px 27px, transparent 0 15px, #000 15px)',
+                    maskImage: 'radial-gradient(circle 15px at -3px 27px, transparent 0 15px, #000 15px)',
+                  }}
+                >
+                  <img src={authorB.avatarUrl} alt={authorB.username} className="w-full h-full object-cover" draggable={false} />
+                </button>
+                {/* Avatar delantero (abajo-izquierda) */}
+                <button onClick={(e) => e.stopPropagation()} className="absolute bottom-0 left-0 w-[24px] h-[24px] rounded-full overflow-hidden block">
+                  <img src={authorA.avatarUrl} alt={authorA.username} className="w-full h-full object-cover" draggable={false} />
+                </button>
+              </div>
+              <div className="flex flex-col min-w-0 max-w-[160px] leading-tight">
+                <span className="text-white font-semibold text-[14px] drop-shadow-md truncate">
+                  {authorA.username || authorA.name} <span className="font-light">vs</span>
+                </span>
+                <span className="text-white font-semibold text-[14px] drop-shadow-md truncate">
+                  {authorB.username || authorB.name}
+                </span>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Publicación normal: un solo avatar + nombre */}
+              <button onClick={(e) => e.stopPropagation()} className="w-[38px] h-[38px] rounded-full overflow-hidden block shrink-0">
+                <img src={headAuthor.avatarUrl} alt={headAuthor.username} className="w-full h-full object-cover" draggable={false} />
+              </button>
+              <span className="text-white font-semibold text-[13px] leading-tight drop-shadow-md truncate max-w-[160px]">
+                {headAuthor.username || headAuthor.name}
+              </span>
+            </>
+          )}
           <button
             onClick={(e) => { e.stopPropagation(); setFollowing((f) => !f) }}
             aria-label="seguir"
