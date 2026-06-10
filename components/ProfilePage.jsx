@@ -34,6 +34,9 @@ const formatNumber = (num) => {
 const thumbFor = (p) =>
   p?.thumbnailUrl || p?.posterUrl || p?.sideA?.posterUrl || p?.sideB?.posterUrl || ''
 
+const videoFor = (p) =>
+  p?.videoUrl || p?.sideA?.videoUrl || p?.sideB?.videoUrl || ''
+
 // Icono de columnas (HHH) usado en la pestaña de publicaciones y en el estado vacío.
 const ColumnsIcon = ({ className }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -47,11 +50,29 @@ const ColumnsIcon = ({ className }) => (
 
 const GridItem = ({ post }) => {
   const thumb = thumbFor(post)
+  const video = videoFor(post)
+  const [imgFailed, setImgFailed] = useState(false)
   const totalVotes = (post?.votes?.a || 0) + (post?.votes?.b || 0)
+  const showImg = thumb && !imgFailed
   return (
     <div className="group relative aspect-[9/16] overflow-hidden rounded-lg bg-gray-100">
-      {thumb ? (
-        <img src={thumb} alt="" className="w-full h-full object-cover rounded-lg" draggable={false} />
+      {showImg ? (
+        <img
+          src={thumb}
+          alt=""
+          className="w-full h-full object-cover rounded-lg"
+          draggable={false}
+          onError={() => setImgFailed(true)}
+        />
+      ) : video ? (
+        // Fallback: primer fotograma del vídeo (cuando el póster .jpg no existe)
+        <video
+          src={`${video}#t=0.1`}
+          muted
+          playsInline
+          preload="auto"
+          className="w-full h-full object-cover rounded-lg"
+        />
       ) : (
         <div className="w-full h-full bg-gradient-to-br from-gray-700 via-gray-800 to-gray-900" />
       )}
