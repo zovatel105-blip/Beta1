@@ -299,7 +299,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted, onR
     <div ref={overlayRef} className="relative w-full h-full bg-black overflow-hidden select-none">
       {/* split videos */}
       <div className={splitWrapperClass}>
-        <div className={cn(halfClass, userVote === 'a' && 'ring-2 ring-rose-500 ring-inset')}>
+        <div className={cn(halfClass, userVote === 'a' && 'ring-2 ring-purple-500 ring-inset')}>
           {/* Poster instantáneo (primer fotograma) */}
           {sideA.posterUrl && (
             <img src={sideA.posterUrl} alt="" aria-hidden draggable={false} className="absolute inset-0 w-full h-full object-cover" />
@@ -335,7 +335,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted, onR
           />
         </div>
 
-        <div className={cn(halfClass, userVote === 'b' && 'ring-2 ring-cyan-400 ring-inset')}>
+        <div className={cn(halfClass, userVote === 'b' && 'ring-2 ring-blue-500 ring-inset')}>
           {/* Poster instantáneo (primer fotograma) */}
           {sideB.posterUrl && (
             <img src={sideB.posterUrl} alt="" aria-hidden draggable={false} className="absolute inset-0 w-full h-full object-cover" />
@@ -525,8 +525,8 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted, onR
             <p className="text-white/50 text-[12px] text-center mb-4">Elige la opción de este 1vs1</p>
             <div className="grid grid-cols-2 gap-3">
               {[
-                { key: 'a', sd: sideA, ring: 'ring-rose-500', label: 'Opción A' },
-                { key: 'b', sd: sideB, ring: 'ring-cyan-400', label: 'Opción B' },
+                { key: 'a', sd: sideA, ring: 'ring-purple-500', label: 'Opción A' },
+                { key: 'b', sd: sideB, ring: 'ring-blue-500', label: 'Opción B' },
               ].map(({ key, sd, ring, label }) => (
                 <button
                   key={key}
