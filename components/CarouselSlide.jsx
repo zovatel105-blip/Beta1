@@ -393,11 +393,20 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted,
       >
         <div className="flex items-center gap-2.5 w-fit max-w-[calc(100%-4rem)] pointer-events-auto">
           {/* Reto 1vs1 (estilo colaboración): dos avatares solapados + "userA y userB" + Seguir */}
-          <div className="relative w-[42px] h-[46px] shrink-0">
-            <button onClick={(e) => e.stopPropagation()} className="absolute top-0 right-0 w-[28px] h-[28px] rounded-full overflow-hidden block ring-2 ring-black/50">
+          <div className="relative w-[35px] h-[35px] shrink-0">
+            {/* Avatar trasero (arriba-derecha) recortado en media luna: el hueco deja ver la publicación */}
+            <button
+              onClick={(e) => e.stopPropagation()}
+              className="absolute top-0 right-0 w-[24px] h-[24px] rounded-full overflow-hidden block"
+              style={{
+                WebkitMaskImage: 'radial-gradient(circle 15px at 1px 23px, transparent 0 15px, #000 15px)',
+                maskImage: 'radial-gradient(circle 15px at 1px 23px, transparent 0 15px, #000 15px)',
+              }}
+            >
               <img src={authorB.avatarUrl} alt={authorB.username} className="w-full h-full object-cover" draggable={false} />
             </button>
-            <button onClick={(e) => e.stopPropagation()} className="absolute bottom-0 left-0 w-[28px] h-[28px] rounded-full overflow-hidden block ring-2 ring-black/50">
+            {/* Avatar delantero (abajo-izquierda) */}
+            <button onClick={(e) => e.stopPropagation()} className="absolute bottom-0 left-0 w-[24px] h-[24px] rounded-full overflow-hidden block">
               <img src={authorA.avatarUrl} alt={authorA.username} className="w-full h-full object-cover" draggable={false} />
             </button>
           </div>
