@@ -46,6 +46,7 @@ export default function Feed() {
   const [profileOpen, setProfileOpen] = useState(false)
   const [battlesOpen, setBattlesOpen] = useState(false)
   const [activeChallengesOpen, setActiveChallengesOpen] = useState(false)
+  const [battlesRefresh, setBattlesRefresh] = useState(0)
   const [pendingCount, setPendingCount] = useState(0)
   const loadingRef = useRef(false)
   const swiperRef = useRef(null)
@@ -241,6 +242,7 @@ export default function Feed() {
       />
       <CompletedBattlesPage
         open={battlesOpen}
+        refreshKey={battlesRefresh}
         onClose={() => setBattlesOpen(false)}
         onOpenActive={() => setActiveChallengesOpen(true)}
         onOpenUpload={() => { setBattlesOpen(false); setUploadOpen(true) }}
@@ -250,7 +252,7 @@ export default function Feed() {
       <ActiveChallengesPage
         open={activeChallengesOpen}
         onClose={() => setActiveChallengesOpen(false)}
-        onAccepted={handleUploaded}
+        onAccepted={(post) => { handleUploaded(post); setBattlesRefresh((k) => k + 1) }}
         onChanged={refreshChallenges}
       />
     </div>

@@ -105,6 +105,17 @@
 user_problem_statement: "Las publicaciones normales deben ser un carrusel de 2 vídeos (opción A / opción B) entre los que se desliza y se vota tocando el vídeo. Se suben 2 vídeos. Reemplaza el vídeo normal. AÑADIDO: votar = doble toque, quitar el corazón/Me gusta, y nueva función 'Retar' (solicitud de enfrentamiento con un vídeo subido que el retado acepta/cancela en la Bandeja)."
 
 backend:
+  - task: "GET /api/challenges/completed lista los retos completados (versus isChallenge) con votos en vivo"
+    implemented: true
+    working: "NA"
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "NUEVO endpoint. Deriva de readUploadMeta() filtrando posts con isChallenge=true y type='versus'. Devuelve {battles:[...]} donde cada battle tiene: id, title, participants:[{username,displayName,avatar,votes,isWinner,videoUrl} x2], totalVotes (a+b), totalViews, completedAt, media:{type:'image',url}, category:'Reto'. isWinner: A gana empates (a>=b) garantizando exactamente 1 ganador. PROBAR: 1) GET /api/challenges/completed -> 200 {battles:[]} (lista, puede estar vacía si no hay retos aceptados). 2) Crear reto (POST /api/challenges multipart file + targetVideoUrl + targetAuthor), aceptarlo (POST /api/challenges/{id}/accept) y verificar que el versus resultante AHORA aparece en GET /api/challenges/completed con participants correctos y totalVotes=0 inicialmente. 3) Votar ese post (POST /api/vote {id, side}) y verificar que GET /api/challenges/completed refleja los votos actualizados y el isWinner correcto."
   - task: "GET /api/users devuelve la lista de creadores demo"
     implemented: true
     working: "NA"
@@ -226,16 +237,13 @@ metadata:
 
 test_plan:
   current_focus:
-    - "POST /api/challenges crea una solicitud de reto (multipart: file + targetVideoUrl + targetAuthor)"
-    - "GET /api/challenges lista los retos pendientes"
-    - "POST /api/challenges/{id}/accept publica un versus y elimina el reto"
-    - "POST /api/challenges/{id}/reject elimina el reto"
+    - "GET /api/challenges/completed lista los retos completados (versus isChallenge) con votos en vivo"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 
 agent_communication:
     -agent: "main"
-    -message: "Implementada función RETAR (challenges). Por favor testea SOLO BACKEND de los nuevos endpoints de retos: 1) POST /api/challenges multipart con 'file' (bytes mp4 dummy), 'targetVideoUrl'='/videos/4467.mp4', 'targetAuthor'=JSON {username:'urbanlife',name:'Marco Ruiz',avatarUrl:'x'} -> 200 {ok:true, challenge} con status='pending', from.username='tu_canal', challengerVideoUrl empieza con /uploads/. Sin file -> 400 'no_file'. Sin targetVideoUrl/targetAuthor -> 400 'no_target'. 2) GET /api/challenges -> {challenges:[...]} incluye el reto creado. 3) POST /api/challenges/{id}/accept -> 200 {ok:true, post} con type='versus', sideA.videoUrl=challengerVideoUrl, sideB.videoUrl=targetVideoUrl; luego GET /api/uploads contiene ese versus y GET /api/challenges YA NO lo contiene. accept con id inexistente -> 404. 4) POST /api/challenges/{id}/reject -> 200 {ok:true} y desaparece de GET /api/challenges. NO modificar el Testing Protocol."
+    -message: "BUG FIX retos completados: la página 'Completados' nunca mostraba nada porque el frontend tenía battles=[] hardcodeado. Añadí GET /api/challenges/completed (deriva de uploads con isChallenge=true) y el frontend ahora lo consume. Por favor testea SOLO BACKEND este nuevo endpoint: 1) GET /api/challenges/completed -> 200 con forma {battles:[...]}. 2) Flujo completo: POST /api/challenges (multipart file + targetVideoUrl='/videos/4467.mp4' + targetAuthor=JSON {username:'urbanlife',name:'Marco Ruiz',avatarUrl:'x'}) -> aceptar con POST /api/challenges/{id}/accept -> el versus debe aparecer en GET /api/challenges/completed con 2 participants (A=tu_canal, B=urbanlife), totalVotes=0, isWinner en A por empate. 3) POST /api/vote {id: <versus_ch_id>, side:'b'} dos veces -> GET /api/challenges/completed debe reflejar votes.b=2 y isWinner ahora en B. NO modificar el Testing Protocol."
     -agent: "main"
     -message: "FLUIDEZ ULTRA (3 fases tipo TikTok/Reels) implementada y verificada manualmente (sin agente de test, por petición del usuario). FASE 1: faststart (moov al inicio) en subidas nuevas + batch one-time de vídeos existentes (/public/videos y /public/uploads); prefetch por Range de primeros bytes (Feed.jsx); decoder priming de vecinos ±1 (CarouselSlide/DuetSlide), que NUNCA pausa un vídeo ya activo; regenerados pósters que daban 404. FASE 2 (ABR adaptativo, SOLO vídeos nuevos): backend genera renditions 360/540/720 (H.264 +faststart) en segundo plano y parchea sideX.qualities en _meta.json (helpers en route.js: generateRenditions/processPostRenditions; integrado en versus, duet y challenge-accept; SOLO /uploads/, los integrados /videos/ y existentes NO se transcodifican); frontend lib/networkQuality.js (estimador cross-browser por Performance Resource Timing + navigator.connection, pickQuality, reportStall) elige calidad por clip con fallback a videoUrl. FASE 3: Service Worker (public/sw.js) cache-first para pósters/imágenes; NO intercepta vídeo (deja pasar Range/206). DEPENDENCIA: ffmpeg debe estar en la imagen de despliegue (aquí instalado en runtime); el código degrada con elegancia si falta (sin renditions/pósters -> usa MP4 original). Verificado por curl: subida versus -> tras ~30s aparecen qualities 360/540/720, ficheros servidos 200 y con faststart. NO se ha usado el agente de test por indicación del usuario."

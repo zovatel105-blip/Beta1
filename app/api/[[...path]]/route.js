@@ -250,6 +250,50 @@ export async function GET(request, { params }) {
     return NextResponse.json({ posts: meta })
   }
 
+  // Lista de retos COMPLETADOS (retos aceptados -> publicados como versus).
+  // Se derivan de los uploads con isChallenge=true, con sus votos en vivo.
+  if (path === '/challenges/completed') {
+    const meta = await readUploadMeta()
+    const battles = meta
+      .filter((p) => p.isChallenge && p.type === 'versus')
+      .map((p) => {
+        const a = p.votes?.a || 0
+        const b = p.votes?.b || 0
+        const total = a + b
+        const aWins = a >= b // A gana los empates (garantiza 1 solo ganador)
+        const partA = {
+          id: p.sideA?.author?.username || 'a',
+          username: p.sideA?.author?.username || 'a',
+          displayName: p.sideA?.author?.name || p.sideA?.author?.username || '',
+          avatar: p.sideA?.author?.avatarUrl || '',
+          votes: a,
+          isWinner: aWins,
+          videoUrl: p.sideA?.videoUrl,
+        }
+        const partB = {
+          id: p.sideB?.author?.username || 'b',
+          username: p.sideB?.author?.username || 'b',
+          displayName: p.sideB?.author?.name || p.sideB?.author?.username || '',
+          avatar: p.sideB?.author?.avatarUrl || '',
+          votes: b,
+          isWinner: !aWins,
+          videoUrl: p.sideB?.videoUrl,
+        }
+        return {
+          id: p.id,
+          title: p.description || `Reto: @${partA.username} 🆚 @${partB.username}`,
+          participants: [partA, partB],
+          totalViews: total,
+          totalVotes: total,
+          completedAt: p.uploadedAt || new Date().toISOString(),
+          media: { type: 'image', url: p.sideA?.posterUrl || p.posterUrl || '' },
+          category: 'Reto',
+          duration: '',
+        }
+      })
+    return NextResponse.json({ battles })
+  }
+
   // Lista de retos (solicitudes de enfrentamiento) pendientes.
   if (path === '/challenges') {
     const list = await readChallenges()

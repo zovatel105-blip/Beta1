@@ -1,12 +1,13 @@
 'use client'
+/* eslint-disable react-hooks/set-state-in-effect -- carga async al abrir; falso positivo de la regla experimental. */
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Swiper, SwiperSlide } from 'swiper/react'
 import { Mousewheel, Keyboard } from 'swiper/modules'
 import 'swiper/css'
 import {
   Swords, Plus, User, Heart, MessageCircle, Share2, Bookmark,
-  Trophy, Crown, Play, Eye, ChevronUp, ChevronDown, X, UserPlus, Search,
+  Trophy, Crown, Play, Eye, ChevronUp, ChevronDown, X, UserPlus, Search, Loader2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import BottomNav from './BottomNav'
@@ -114,7 +115,7 @@ const CompletedBattleCard = ({ battle, onUserClick }) => {
 
   const winner = battle.participants.find((p) => p.isWinner)
   const loser = battle.participants.find((p) => !p.isWinner)
-  const getVotePercentage = (votes) => Math.round((votes / battle.totalVotes) * 100)
+  const getVotePercentage = (votes) => (battle.totalVotes > 0 ? Math.round((votes / battle.totalVotes) * 100) : 50)
 
   return (
     <div className="relative w-full h-full bg-black">
@@ -319,14 +320,29 @@ const EmptyCompletedState = ({ onOpenUpload, onOpenActive, onOpenProfile }) => {
   )
 }
 
-export default function CompletedBattlesPage({ open, onClose, onOpenActive, onOpenUpload, onOpenInbox, onOpenProfile }) {
-  const [battles] = useState([])
+export default function CompletedBattlesPage({ open, onClose, onOpenActive, onOpenUpload, onOpenInbox, onOpenProfile, refreshKey = 0 }) {
+  const [battles, setBattles] = useState([])
+  const [loading, setLoading] = useState(false)
   const [activeIndex, setActiveIndex] = useState(0)
+
+  // Carga los retos completados desde el backend cada vez que se abre la página
+  // o cuando se acepta un nuevo reto (refreshKey).
+  useEffect(() => {
+    if (!open) return
+    let active = true
+    setLoading(true)
+    fetch('/api/challenges/completed', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d) => { if (active) setBattles(Array.isArray(d?.battles) ? d.battles : []) })
+      .catch(() => { if (active) setBattles([]) })
+      .finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [open, refreshKey])
 
   if (!open) return null
 
   const handleUserClick = () => onOpenProfile?.()
-  const isEmpty = battles.length === 0
+  const isEmpty = !loading && battles.length === 0
 
   return (
     <div className="fixed inset-0 z-[55] bg-[#0a0a0b] overflow-hidden">
@@ -349,7 +365,11 @@ export default function CompletedBattlesPage({ open, onClose, onOpenActive, onOp
       </div>
 
       {/* Swiper de batallas completadas o estado vacío */}
-      {isEmpty ? (
+      {loading ? (
+        <div className="w-full h-full flex items-center justify-center bg-[#0a0a0b]">
+          <Loader2 className="w-7 h-7 animate-spin text-zinc-400" />
+        </div>
+      ) : isEmpty ? (
         <EmptyCompletedState
           onOpenUpload={onOpenUpload}
           onOpenActive={onOpenActive}
