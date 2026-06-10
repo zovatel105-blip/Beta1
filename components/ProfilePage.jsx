@@ -213,8 +213,8 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
       {/* Header minimalista: solo menú */}
       <div className="sticky top-0 z-20 bg-[#0a0a0b]/70 backdrop-blur-xl border-b border-white/[0.06]"
            style={{ paddingTop: 'max(env(safe-area-inset-top), 8px)' }}>
-        <div className="flex items-center justify-end px-4 sm:px-6 h-14 max-w-md mx-auto w-full">
-          <button aria-label="menú" className="p-2 -mr-2.5 text-white active:scale-90 transition">
+        <div className="flex items-center justify-end px-2 sm:px-4 h-14 max-w-md mx-auto w-full">
+          <button aria-label="menú" className="p-2 -mr-2 text-white active:scale-90 transition">
             <Menu strokeWidth={1.9} className="w-[24px] h-[24px]" />
           </button>
         </div>
