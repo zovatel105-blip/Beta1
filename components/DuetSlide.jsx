@@ -258,16 +258,18 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted, onR
   const pctA = totalVotes > 0 ? Math.round(((votes.a || 0) / totalVotes) * 100) : 50
   const pctB = 100 - pctA
 
-  // Determinar ganador (para la winner card)
-  const winnerKey = (votes.a || 0) >= (votes.b || 0) ? 'a' : 'b'
-  const winnerSide = winnerKey === 'a' ? sideA : sideB
-  const loserSide = winnerKey === 'a' ? sideB : sideA
-  const winnerPct = winnerKey === 'a' ? pctA : pctB
-  const loserPct = 100 - winnerPct
-  const winnerName = winnerSide.author?.name || (winnerSide.author?.username ? `@${winnerSide.author.username}` : '')
-  const loserName = loserSide.author?.name || (loserSide.author?.username ? `@${loserSide.author.username}` : '')
-  // Vídeo a mostrar en la winner card = la opción que ELIGIÓ el usuario (su voto).
-  const chosenSide = userVote === 'b' ? sideB : sideA
+  // La tarjeta tras votar destaca SIEMPRE la opción que eligió el usuario (su
+  // voto): vídeo, nombre, % y color. Antes el vídeo era tu voto pero el nombre/%
+  // eran los de quien iba ganando -> votar B aparecía como A. La barra de
+  // resultados sigue mostrando A% y B% reales por separado.
+  const chosenKey = userVote === 'b' ? 'b' : 'a'
+  const chosenSide = chosenKey === 'b' ? sideB : sideA
+  const otherSide = chosenKey === 'b' ? sideA : sideB
+  const chosenPct = chosenKey === 'b' ? pctB : pctA
+  const otherPct = 100 - chosenPct
+  const chosenName = chosenSide.author?.name || (chosenSide.author?.username ? `@${chosenSide.author.username}` : '')
+  const otherName = otherSide.author?.name || (otherSide.author?.username ? `@${otherSide.author.username}` : '')
+  const chosenSrc = chosenKey === 'b' ? srcB : srcA
 
   // Split styles
   const splitWrapperClass = isHorizontal
@@ -504,13 +506,13 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted, onR
       {/* Winner card — aparece automáticamente tras votar */}
       <VSWinnerCard
         visible={showWinner}
-        winnerSide={winnerKey}
-        winnerName={winnerName}
-        winnerPercentage={winnerPct}
+        winnerSide={chosenKey}
+        winnerName={chosenName}
+        winnerPercentage={chosenPct}
         winnerImage={chosenSide.author?.avatarUrl}
-        winnerVideoUrl={chosenSide.videoUrl}
-        loserName={loserName}
-        loserPercentage={loserPct}
+        winnerVideoUrl={chosenSrc}
+        loserName={otherName}
+        loserPercentage={otherPct}
         totalVotes={totalVotes}
         onClose={() => setShowWinner(false)}
         onNext={() => { setShowWinner(false); onRequestNext?.() }}
