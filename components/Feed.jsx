@@ -157,7 +157,7 @@ export default function Feed() {
           followFinger={true}
           mousewheel={{ forceToAxis: true, sensitivity: 1, releaseOnEdges: false, thresholdDelta: 20 }}
           keyboard={{ enabled: true, onlyInViewport: true }}
-          virtual={{ enabled: true, addSlidesBefore: 2, addSlidesAfter: 3, cache: true }}
+          virtual={{ enabled: true, addSlidesBefore: 3, addSlidesAfter: 3, cache: true }}
           observer={true}
           observeParents={true}
           onSwiper={(s) => (swiperRef.current = s)}
@@ -167,10 +167,12 @@ export default function Feed() {
           {posts.map((post, i) => {
             // Reproducción: solo el slide activo.
             const isActive = i === activeIdx
-            // Precarga: ventana amplia (1 atrás + 2 adelante) para que el vídeo
-            // ya esté montado y bufferizado (preload="auto") al llegar, y para que
-            // volver atrás 1 sea instantáneo. Los no-activos se montan en PAUSA.
-            const isNear = i >= activeIdx - 1 && i <= activeIdx + 2
+            // Precarga: ventana amplia (2 atrás + 2 adelante) para que el vídeo
+            // ya esté montado y bufferizado (preload="auto") al llegar, tanto
+            // deslizando hacia delante como hacia atrás. Los no-activos se montan
+            // en PAUSA. (Las versus solo montan su 2º vídeo al activarse, así no
+            // se agota el presupuesto de decodificadores del navegador.)
+            const isNear = i >= activeIdx - 2 && i <= activeIdx + 2
             return (
               <SwiperSlide key={post.id} virtualIndex={i}>
                 {post.type === 'duet' ? (

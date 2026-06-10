@@ -239,7 +239,7 @@ function CarouselSlide({ post, isActive, isNear, muted: globalMuted, onRequestNe
   // Vídeo a mostrar en la winner card = la opción que ELIGIÓ el usuario (su voto).
   const chosenSide = userVote === 'b' ? sideB : sideA
 
-  const renderVideo = (s, ref) => (
+  const renderVideo = (s, ref, mountVideo) => (
     <div className="relative w-1/2 h-full overflow-hidden bg-black">
       {/* Poster: primer fotograma -> la publicación se ve al instante. */}
       {s.posterUrl && (
@@ -251,7 +251,7 @@ function CarouselSlide({ post, isActive, isNear, muted: globalMuted, onRequestNe
           className="absolute inset-0 w-full h-full object-cover"
         />
       )}
-      {isNear && (
+      {mountVideo && (
         <video
           ref={ref}
           className="absolute inset-0 w-full h-full object-cover bg-transparent"
@@ -280,8 +280,11 @@ function CarouselSlide({ post, isActive, isNear, muted: globalMuted, onRequestNe
           transition: dragging ? 'none' : 'transform 280ms ease-out',
         }}
       >
-        {renderVideo(sideA, videoARef)}
-        {renderVideo(sideB, videoBRef)}
+        {/* Lado A: se monta/bufferiza en toda la ventana de precarga (es el que se
+            ve primero). Lado B: solo cuando el slide está activo (o ya estabas en
+            B), para no agotar el presupuesto de decodificadores del navegador. */}
+        {renderVideo(sideA, videoARef, isNear)}
+        {renderVideo(sideB, videoBRef, isNear && (isActive || sideIdx === 1))}
       </div>
 
       {/* Capa de gestos (swipe + tap) */}

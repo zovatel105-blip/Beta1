@@ -1,5 +1,54 @@
 [
   {
+    "id": "duet_dd465b2ee9ee2fdd",
+    "type": "duet",
+    "layout": "horizontal",
+    "sideA": {
+      "videoUrl": "/uploads/57a1903d92e2b6cc.mp4",
+      "posterUrl": "/uploads/57a1903d92e2b6cc.jpg",
+      "author": {
+        "username": "tu_canal",
+        "name": "Tú",
+        "avatarUrl": "https://i.pravatar.cc/120?img=68"
+      },
+      "description": "¿Quién gana? 🥊 #1vs1",
+      "music": "Opción A"
+    },
+    "sideB": {
+      "videoUrl": "/uploads/67e32a75d1cc0cef.mp4",
+      "posterUrl": "/uploads/67e32a75d1cc0cef.jpg",
+      "author": {
+        "username": "tu_canal",
+        "name": "Tú",
+        "avatarUrl": "https://i.pravatar.cc/120?img=68"
+      },
+      "description": "¿Quién gana? 🥊 #1vs1",
+      "music": "Opción B"
+    },
+    "author": {
+      "username": "tu_canal",
+      "name": "Tú",
+      "avatarUrl": "https://i.pravatar.cc/120?img=68"
+    },
+    "description": "¿Quién gana? 🥊 #1vs1",
+    "music": "Tu 1vs1 original",
+    "videoUrl": "/uploads/57a1903d92e2b6cc.mp4",
+    "posterUrl": "/uploads/57a1903d92e2b6cc.jpg",
+    "thumbnailUrl": "/uploads/57a1903d92e2b6cc.jpg",
+    "stats": {
+      "likes": 0,
+      "comments": 0,
+      "shares": 0,
+      "saves": 0
+    },
+    "votes": {
+      "a": 0,
+      "b": 0
+    },
+    "duration": 0,
+    "uploadedAt": "2026-06-10T15:46:22.952Z"
+  },
+  {
     "id": "duet_6afe33e197a89166",
     "type": "duet",
     "layout": "horizontal",
@@ -487,7 +536,7 @@
     },
     "votes": {
       "a": 3,
-      "b": 5
+      "b": 6
     },
     "duration": 0,
     "uploadedAt": "2026-06-05T07:22:27.010Z",
