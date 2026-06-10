@@ -3,6 +3,8 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { ChevronRight, Loader2, Film, Swords, Users, Rows3, Columns3, ArrowLeft, X } from 'lucide-react'
+import { Swiper, SwiperSlide } from 'swiper/react'
+import 'swiper/css'
 
 /**
  * UploadDialog — flujo multi-paso para crear publicaciones de votación: Versus
@@ -14,6 +16,7 @@ const GOLD = '#E4C79B'
 export default function UploadDialog({ open, onClose, onUploaded, onChallengeCreated }) {
   const inputRef = useRef(null)
   const inputBRef = useRef(null)
+  const versusSwiperRef = useRef(null)
   const [step, setStep] = useState('mode') // mode | layout | target | file | uploading
   const [mode, setMode] = useState(null) // 'versus' | 'duet' | 'challenge'
   const [layout, setLayout] = useState('horizontal') // 'horizontal' | 'vertical'
@@ -146,9 +149,8 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
   if (!open) return null
 
   const goBack = () => {
-    if (step === 'layout') setStep('mode')
-    else if (step === 'target') setStep('file')
-    else if (step === 'file') setStep(mode === 'duet' ? 'layout' : 'mode')
+    if (step === 'target') setStep('file')
+    else if (step === 'file') setStep('mode')
   }
 
   return (
@@ -251,45 +253,13 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
             <button
               onClick={() => {
                 if (selected === 'versus') { setMode('versus'); setStep('file') }
-                else if (selected === 'duet') { setMode('duet'); setStep('layout') }
+                else if (selected === 'duet') { setMode('duet'); setStep('file') }
                 else { setMode('challenge'); setStep('file') }
               }}
               className="mt-4 mb-2 w-full h-12 rounded-full bg-white text-black font-semibold text-[15px] flex items-center justify-center gap-1.5 hover:bg-zinc-100 active:scale-[0.99] transition"
             >
               Continuar
               <ChevronRight size={18} strokeWidth={2.5} />
-            </button>
-          </div>
-        )}
-
-        {/* STEP: layout */}
-        {step === 'layout' && (
-          <div className="max-w-md mx-auto grid grid-cols-2 gap-3">
-            <button
-              onClick={() => { setLayout('horizontal'); setStep('file') }}
-              className={`p-4 rounded-2xl border bg-white/[0.03] hover:bg-white/[0.06] active:scale-[0.98] transition flex flex-col items-center gap-3 ${layout === 'horizontal' ? 'border-white/70' : 'border-white/[0.08]'}`}
-            >
-              <div className="w-20 h-32 rounded-xl bg-zinc-900 overflow-hidden flex flex-col gap-[2px] p-[2px]">
-                <div className="flex-1 bg-white/10 rounded-md flex items-center justify-center text-xs font-bold text-white/80">A</div>
-                <div className="flex-1 bg-white/[0.06] rounded-md flex items-center justify-center text-xs font-bold text-white/60">B</div>
-              </div>
-              <div className="flex items-center gap-1.5 text-sm font-medium">
-                <Rows3 size={14} /> Horizontal
-              </div>
-              <div className="text-[11px] text-zinc-500 -mt-2">Arriba / Abajo</div>
-            </button>
-            <button
-              onClick={() => { setLayout('vertical'); setStep('file') }}
-              className={`p-4 rounded-2xl border bg-white/[0.03] hover:bg-white/[0.06] active:scale-[0.98] transition flex flex-col items-center gap-3 ${layout === 'vertical' ? 'border-white/70' : 'border-white/[0.08]'}`}
-            >
-              <div className="w-20 h-32 rounded-xl bg-zinc-900 overflow-hidden flex gap-[2px] p-[2px]">
-                <div className="flex-1 bg-white/10 rounded-md flex items-center justify-center text-xs font-bold text-white/80">A</div>
-                <div className="flex-1 bg-white/[0.06] rounded-md flex items-center justify-center text-xs font-bold text-white/60">B</div>
-              </div>
-              <div className="flex items-center gap-1.5 text-sm font-medium">
-                <Columns3 size={14} /> Vertical
-              </div>
-              <div className="text-[11px] text-zinc-500 -mt-2">Izquierda / Derecha</div>
             </button>
           </div>
         )}
@@ -376,7 +346,17 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
                       {renderSlot(1)}
                     </div>
                   ) : mode === 'versus' ? (
-                    renderSlot(versusIdx, 'absolute inset-0 overflow-hidden bg-black')
+                    <Swiper
+                      direction="horizontal"
+                      slidesPerView={1}
+                      spaceBetween={0}
+                      onSwiper={(s) => (versusSwiperRef.current = s)}
+                      onSlideChange={(s) => setVersusIdx(s.activeIndex)}
+                      className="absolute inset-0"
+                    >
+                      <SwiperSlide>{renderSlot(0, 'relative w-full h-full overflow-hidden bg-black')}</SwiperSlide>
+                      <SwiperSlide>{renderSlot(1, 'relative w-full h-full overflow-hidden bg-black')}</SwiperSlide>
+                    </Swiper>
                   ) : (
                     <div className="absolute inset-0">
                       {previewA ? (
@@ -431,25 +411,7 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
                     </div>
                   )}
 
-                  {/* Versus: conmutador A / B (vista previa tipo carrusel) */}
-                  {mode === 'versus' && (
-                    <div className="relative z-20 px-3 flex items-center justify-center">
-                      <div className="inline-flex p-1 rounded-full bg-black/45 backdrop-blur border border-white/10">
-                        <button
-                          onClick={() => setVersusIdx(0)}
-                          className={`inline-flex items-center gap-1.5 px-5 py-2 rounded-full text-[13px] font-semibold transition ${versusIdx === 0 ? 'bg-white text-black' : 'text-white/85'}`}
-                        >
-                          Vídeo A
-                        </button>
-                        <button
-                          onClick={() => setVersusIdx(1)}
-                          className={`inline-flex items-center gap-1.5 px-5 py-2 rounded-full text-[13px] font-semibold transition ${versusIdx === 1 ? 'bg-white text-black' : 'text-white/85'}`}
-                        >
-                          Vídeo B
-                        </button>
-                      </div>
-                    </div>
-                  )}
+                  {/* Versus: la vista previa es un carrusel; se cambia de vídeo con swipe (ver puntitos abajo) */}
 
                   {/* Panel inferior: descripción + publicar */}
                   <div className="relative z-20 mt-auto px-4 space-y-3"
@@ -461,7 +423,7 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
                           <button
                             key={i}
                             aria-label={`vídeo ${i === 0 ? 'A' : 'B'}`}
-                            onClick={() => setVersusIdx(i)}
+                            onClick={() => versusSwiperRef.current?.slideTo(i)}
                             className={`rounded-full transition-all duration-200 ${versusIdx === i ? 'w-5 h-1.5 bg-white' : 'w-1.5 h-1.5 bg-white/40'}`}
                           />
                         ))}
