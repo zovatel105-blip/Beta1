@@ -3,8 +3,6 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { ChevronRight, Loader2, Film, Swords, Users, Rows3, Columns3, ArrowLeft, X } from 'lucide-react'
-import { Swiper, SwiperSlide } from 'swiper/react'
-import 'swiper/css'
 
 /**
  * UploadDialog — flujo multi-paso para crear publicaciones de votación: Versus
@@ -16,7 +14,7 @@ const GOLD = '#E4C79B'
 export default function UploadDialog({ open, onClose, onUploaded, onChallengeCreated }) {
   const inputRef = useRef(null)
   const inputBRef = useRef(null)
-  const versusSwiperRef = useRef(null)
+  const versusTouchX = useRef(0)
   const [step, setStep] = useState('mode') // mode | layout | target | file | uploading
   const [mode, setMode] = useState(null) // 'versus' | 'duet' | 'challenge'
   const [layout, setLayout] = useState('horizontal') // 'horizontal' | 'vertical'
@@ -71,6 +69,14 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
 
   const pickFile = () => inputRef.current?.click()
   const pickFileB = () => inputBRef.current?.click()
+
+  // Versus: cambiar entre vídeo A / B deslizando (un toque sin movimiento abre el selector).
+  const onVersusTouchStart = (e) => { versusTouchX.current = e.touches[0]?.clientX ?? 0 }
+  const onVersusTouchEnd = (e) => {
+    const dx = (e.changedTouches[0]?.clientX ?? 0) - versusTouchX.current
+    if (dx < -40) setVersusIdx(1)
+    else if (dx > 40) setVersusIdx(0)
+  }
 
   const handleFileChange = (slot) => (e) => {
     const f = e.target.files?.[0]
@@ -346,17 +352,13 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
                       {renderSlot(1)}
                     </div>
                   ) : mode === 'versus' ? (
-                    <Swiper
-                      direction="horizontal"
-                      slidesPerView={1}
-                      spaceBetween={0}
-                      onSwiper={(s) => (versusSwiperRef.current = s)}
-                      onSlideChange={(s) => setVersusIdx(s.activeIndex)}
-                      className="absolute inset-0"
+                    <div
+                      className="absolute inset-0 overflow-hidden bg-black"
+                      onTouchStart={onVersusTouchStart}
+                      onTouchEnd={onVersusTouchEnd}
                     >
-                      <SwiperSlide>{renderSlot(0, 'relative w-full h-full overflow-hidden bg-black')}</SwiperSlide>
-                      <SwiperSlide>{renderSlot(1, 'relative w-full h-full overflow-hidden bg-black')}</SwiperSlide>
-                    </Swiper>
+                      {renderSlot(versusIdx, 'relative w-full h-full overflow-hidden bg-black')}
+                    </div>
                   ) : (
                     <div className="absolute inset-0">
                       {previewA ? (
@@ -423,7 +425,7 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
                           <button
                             key={i}
                             aria-label={`vídeo ${i === 0 ? 'A' : 'B'}`}
-                            onClick={() => versusSwiperRef.current?.slideTo(i)}
+                            onClick={() => setVersusIdx(i)}
                             className={`rounded-full transition-all duration-200 ${versusIdx === i ? 'w-5 h-1.5 bg-white' : 'w-1.5 h-1.5 bg-white/40'}`}
                           />
                         ))}
