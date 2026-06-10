@@ -235,7 +235,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
             {/* Votos - superior izquierda */}
             <button className="flex items-center gap-2 text-left active:opacity-60 transition">
               <span className="w-10 h-10 rounded-full bg-sky-500/15 border border-sky-400/20 flex items-center justify-center shrink-0">
-                <VoteIcon className="w-5 h-5 text-sky-400" strokeWidth={260} filled />
+                <VoteIcon className="w-5 h-5 text-sky-400" strokeWidth={260} filled={false} />
               </span>
               <span className="min-w-0">
                 <p className="text-[17px] font-bold text-white leading-none tabular-nums">{formatNumber(stats.votos)}</p>
