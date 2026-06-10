@@ -160,15 +160,16 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted,
     // Like eliminado: el doble toque ahora vota (ver onPointerUp).
   }, [])
 
-  const submitVote = useCallback(async (s) => {
+  const submitVote = useCallback(async (s, pt) => {
     if (userVote || voting) return
     setVoting(true)
     setUserVote(s)
     setVotes((v) => ({ ...v, [s]: (v[s] || 0) + 1 }))
-    // Burst del icono de voto sobre el vídeo (color del lado: A lila / B azul)
+    // Burst del icono de voto: aparece justo DONDE tocaste (un poco por encima),
+    // con el color del lado (A lila / B azul). Sin punto -> centrado.
     const burstColor = s === 'a' ? '#A855F7' : '#3B82F6'
     const burstId = Math.random().toString(36).slice(2)
-    setVoteBursts((b) => [...b, { id: burstId, color: burstColor }])
+    setVoteBursts((b) => [...b, { id: burstId, color: burstColor, x: pt?.x, y: pt?.y }])
     setTimeout(() => setVoteBursts((b) => b.filter((x) => x.id !== burstId)), 850)
     // Mostrar la tarjeta de ganador después de la animación del icono
     setTimeout(() => setShowWinner(true), 650)
@@ -243,7 +244,14 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted,
     const now = Date.now()
     const isDouble = now - lastTapRef.current < 300
     lastTapRef.current = now
-    if (isDouble) { if (!userVote) submitVote(side); return }
+    if (isDouble) {
+      if (!userVote) {
+        const rect = overlayRef.current?.getBoundingClientRect()
+        const pt = rect ? { x: e.clientX - rect.left, y: e.clientY - rect.top } : null
+        submitVote(side, pt)
+      }
+      return
+    }
     setTimeout(() => {
       if (Date.now() - lastTapRef.current < 280) return
       // toque simple = play/pausa
@@ -348,13 +356,26 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted,
         </div>
       )}
 
-      {/* burst del icono de voto al votar (sobre el vídeo) */}
+      {/* burst del icono de voto al votar — aparece justo DONDE tocaste (un poco
+          por encima) y con su color (A lila / B azul). Sin coords -> centrado. */}
       {voteBursts.map((vb) => (
-        <div key={vb.id} className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none">
-          <span className="like-pop" style={{ color: vb.color, filter: 'drop-shadow(0 6px 18px rgba(0,0,0,0.55))' }}>
-            <VoteIcon className="w-32 h-32" strokeWidth={320} filled />
-          </span>
-        </div>
+        vb.x != null && vb.y != null ? (
+          <div
+            key={vb.id}
+            className="absolute z-30 pointer-events-none"
+            style={{ left: vb.x, top: vb.y, transform: 'translate(-50%, -115%)' }}
+          >
+            <span className="like-pop" style={{ color: vb.color, filter: 'drop-shadow(0 6px 18px rgba(0,0,0,0.55))' }}>
+              <VoteIcon className="w-24 h-24" strokeWidth={320} filled />
+            </span>
+          </div>
+        ) : (
+          <div key={vb.id} className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none">
+            <span className="like-pop" style={{ color: vb.color, filter: 'drop-shadow(0 6px 18px rgba(0,0,0,0.55))' }}>
+              <VoteIcon className="w-24 h-24" strokeWidth={320} filled />
+            </span>
+          </div>
+        )
       ))}
 
       {/* Top header — avatar + nombre (estilo Twyk, igual que el vídeo normal) */}
