@@ -214,24 +214,24 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
 
         {/* Nombre + handle */}
         <div className="text-center mt-6 space-y-0.5">
-          <h2 className="text-[22px] font-bold tracking-tight text-gray-900 leading-tight">{ME.name}</h2>
-          <p className="text-sm text-gray-400 font-medium">{ME.handle}</p>
+          <h2 className="text-[20px] font-bold tracking-tight text-gray-900 leading-tight">{ME.name}</h2>
+          <p className="text-[13px] text-gray-400 font-medium">{ME.handle}</p>
         </div>
 
-        {/* Botones de acción */}
-        <div className="mt-5 flex items-center gap-2.5">
-          <button className="flex-1 h-10 rounded-full bg-gray-900 hover:bg-black text-white font-semibold text-[14px] active:scale-[0.98] transition-all">
+        {/* Botones de acción - compactos y limpios */}
+        <div className="mt-5 flex items-center justify-center gap-2">
+          <button className="h-9 px-6 rounded-full bg-gray-900 hover:bg-black text-white font-semibold text-[13px] tracking-tight active:scale-[0.97] transition-all">
             Edit profile
           </button>
-          <button className="flex-1 h-10 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-900 font-semibold text-[14px] active:scale-[0.98] transition-all">
-            Share profile
+          <button className="h-9 px-6 rounded-full border border-gray-200 hover:border-gray-300 bg-white text-gray-900 font-semibold text-[13px] tracking-tight active:scale-[0.97] transition-all">
+            Share
           </button>
         </div>
       </div>
 
-      {/* Tabs - diseño píldora */}
-      <div className="px-1 sm:px-2 max-w-md mx-auto w-full">
-        <div className="grid grid-cols-3 w-full bg-gray-50 rounded-2xl p-1">
+      {/* Tabs - diseño píldora compacto */}
+      <div className="px-5 sm:px-6 max-w-md mx-auto w-full">
+        <div className="grid grid-cols-3 w-full bg-gray-50 rounded-2xl p-1 gap-1">
           {TABS.map((tab) => {
             const active = activeTab === tab.key
             return (
@@ -239,8 +239,8 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
                 aria-label={tab.key}
-                className={`rounded-xl py-3 text-sm font-medium flex items-center justify-center border transition-all ${
-                  active ? 'bg-white border-gray-900 text-gray-900' : 'border-transparent text-gray-400'
+                className={`rounded-xl py-2.5 text-sm font-medium flex items-center justify-center border transition-all ${
+                  active ? 'bg-white border-gray-900 text-gray-900' : 'border-transparent text-gray-400 hover:text-gray-500'
                 }`}
               >
                 {tab.icon(active)}
