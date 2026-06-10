@@ -97,13 +97,14 @@ export default function Feed() {
     setActiveIdx(swiper.activeIndex)
   }, [])
 
-  // Prefetch de las próximas publicaciones: calienta la caché del navegador con
-  // los posters (instantáneos) y los vídeos de los siguientes 2 slides, de modo
-  // que al deslizar ya están listos. Usa <link rel="prefetch"> (baja prioridad).
+  // Prefetch de bytes JUSTO MÁS ALLÁ de la ventana de montaje (slides +3 y +4):
+  // sus <video> aún no están montados, así que pre-calentamos la caché HTTP del
+  // navegador (posters + vídeos) para que al entrar en la ventana de precarga ya
+  // estén listos. Usa <link rel="prefetch"> (prioridad baja, no bloquea el activo).
   useEffect(() => {
     if (typeof document === 'undefined' || posts.length === 0) return
     const urls = []
-    for (let k = 1; k <= 2; k++) {
+    for (let k = 3; k <= 4; k++) {
       const p = posts[activeIdx + k]
       if (!p) continue
       const sides = [p.sideA, p.sideB].filter(Boolean)
@@ -156,36 +157,44 @@ export default function Feed() {
           followFinger={true}
           mousewheel={{ forceToAxis: true, sensitivity: 1, releaseOnEdges: false, thresholdDelta: 20 }}
           keyboard={{ enabled: true, onlyInViewport: true }}
-          virtual={{ enabled: true, addSlidesBefore: 1, addSlidesAfter: 2, cache: true }}
+          virtual={{ enabled: true, addSlidesBefore: 2, addSlidesAfter: 3, cache: true }}
           observer={true}
           observeParents={true}
           onSwiper={(s) => (swiperRef.current = s)}
           onSlideChange={handleSlideChange}
           className="snaptok-swiper"
         >
-          {posts.map((post, i) => (
-            <SwiperSlide key={post.id} virtualIndex={i}>
-              {post.type === 'duet' ? (
-                <DuetSlide
-                  post={post}
-                  isActive={i === activeIdx}
-                  isNear={Math.abs(i - activeIdx) <= 1}
-                  muted={muted}
-                  onRequestNext={() => swiperRef.current?.slideNext()}
-                  onChallenge={openChallenge}
-                />
-              ) : (
-                <CarouselSlide
-                  post={post}
-                  isActive={i === activeIdx}
-                  isNear={Math.abs(i - activeIdx) <= 1}
-                  muted={muted}
-                  onRequestNext={() => swiperRef.current?.slideNext()}
-                  onChallenge={openChallenge}
-                />
-              )}
-            </SwiperSlide>
-          ))}
+          {posts.map((post, i) => {
+            // Reproducción: solo el slide activo.
+            const isActive = i === activeIdx
+            // Precarga: ventana amplia (1 atrás + 2 adelante) para que el vídeo
+            // ya esté montado y bufferizado (preload="auto") al llegar, y para que
+            // volver atrás 1 sea instantáneo. Los no-activos se montan en PAUSA.
+            const isNear = i >= activeIdx - 1 && i <= activeIdx + 2
+            return (
+              <SwiperSlide key={post.id} virtualIndex={i}>
+                {post.type === 'duet' ? (
+                  <DuetSlide
+                    post={post}
+                    isActive={isActive}
+                    isNear={isNear}
+                    muted={muted}
+                    onRequestNext={() => swiperRef.current?.slideNext()}
+                    onChallenge={openChallenge}
+                  />
+                ) : (
+                  <CarouselSlide
+                    post={post}
+                    isActive={isActive}
+                    isNear={isNear}
+                    muted={muted}
+                    onRequestNext={() => swiperRef.current?.slideNext()}
+                    onChallenge={openChallenge}
+                  />
+                )}
+              </SwiperSlide>
+            )
+          })}
         </Swiper>
       )}
       <BottomNav
