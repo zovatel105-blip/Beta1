@@ -425,13 +425,6 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
                     )}
                     {error && <div className="text-xs text-rose-300">{error}</div>}
                     <div className="rounded-2xl bg-black/45 backdrop-blur-xl border border-white/10 px-4 py-3">
-                      {isAB && (
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-[12px] font-bold" style={{ color: GOLD }}>Opción A</span>
-                          <span className="text-white/90 font-black text-xs">VS</span>
-                          <span className="text-[12px] font-bold text-white">Opción B</span>
-                        </div>
-                      )}
                       <textarea
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
