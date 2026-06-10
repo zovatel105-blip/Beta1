@@ -48,15 +48,44 @@ const ColumnsIcon = ({ className }) => (
   </svg>
 )
 
+// Una mitad del split: muestra el póster y, si falla, el primer fotograma del vídeo.
+const GridHalf = ({ poster, video }) => {
+  const [failed, setFailed] = useState(false)
+  const showImg = poster && !failed
+  if (showImg) {
+    return <img src={poster} alt="" className="w-full h-full object-cover" draggable={false} onError={() => setFailed(true)} />
+  }
+  if (video) {
+    return <video src={`${video}#t=0.1`} muted playsInline preload="auto" className="w-full h-full object-cover" />
+  }
+  return <div className="w-full h-full bg-gradient-to-br from-gray-700 via-gray-800 to-gray-900" />
+}
+
 const GridItem = ({ post }) => {
   const thumb = thumbFor(post)
   const video = videoFor(post)
   const [imgFailed, setImgFailed] = useState(false)
   const totalVotes = (post?.votes?.a || 0) + (post?.votes?.b || 0)
   const showImg = thumb && !imgFailed
+
+  // Posts con dos lados (Versus / 1vs1) -> miniatura dividida según el layout.
+  const hasTwo = !!(post?.sideA?.videoUrl && post?.sideB?.videoUrl)
+  // Vertical (1vs1 izq/der) y carousel (versus) -> split izquierda/derecha.
+  // Horizontal (1vs1 arriba/abajo) -> split arriba/abajo.
+  const isRow = post?.layout === 'vertical' || post?.layout === 'carousel'
+
   return (
     <div className="group relative aspect-[9/16] overflow-hidden rounded-lg bg-gray-100">
-      {showImg ? (
+      {hasTwo ? (
+        <div className={`absolute inset-0 flex bg-white/30 ${isRow ? 'flex-row' : 'flex-col'}`} style={{ gap: '1.5px' }}>
+          <div className="relative flex-1 min-w-0 min-h-0 overflow-hidden bg-gray-200">
+            <GridHalf poster={post?.sideA?.posterUrl} video={post?.sideA?.videoUrl} />
+          </div>
+          <div className="relative flex-1 min-w-0 min-h-0 overflow-hidden bg-gray-200">
+            <GridHalf poster={post?.sideB?.posterUrl} video={post?.sideB?.videoUrl} />
+          </div>
+        </div>
+      ) : showImg ? (
         <img
           src={thumb}
           alt=""
@@ -76,8 +105,17 @@ const GridItem = ({ post }) => {
       ) : (
         <div className="w-full h-full bg-gradient-to-br from-gray-700 via-gray-800 to-gray-900" />
       )}
+
       {/* Overlay oscuro */}
       <div className="absolute inset-0 bg-black/20 pointer-events-none z-10" />
+
+      {/* Chip VS para posts de dos lados */}
+      {hasTwo && (
+        <div className="absolute top-2 right-2 z-20 text-[10px] font-black tracking-wide text-white bg-black/55 backdrop-blur-sm px-1.5 py-0.5 rounded-md pointer-events-none">
+          VS
+        </div>
+      )}
+
       {/* Contador de votos - píldora abajo-izquierda */}
       {totalVotes > 0 && (
         <div className="absolute bottom-2 left-2 flex items-center gap-1 bg-black/60 backdrop-blur-sm px-2 py-1 rounded-full text-white text-xs font-medium pointer-events-none z-30">
