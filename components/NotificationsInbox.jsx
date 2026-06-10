@@ -2,7 +2,8 @@
 /* eslint-disable react-hooks/set-state-in-effect -- carga de notificaciones en useEffect al abrir; falso positivo de la regla experimental. */
 
 import { useEffect, useState } from 'react'
-import { Bell, Swords, Heart, UserPlus, MessageCircle, Check, ChevronLeft } from 'lucide-react'
+import { Bell, Swords, UserPlus, MessageCircle, Check, ChevronLeft } from 'lucide-react'
+import VoteIcon from './icons/VoteIcon'
 import { MOCK_NOTIFICATIONS } from '@/lib/notifications'
 
 /**
@@ -15,7 +16,7 @@ import { MOCK_NOTIFICATIONS } from '@/lib/notifications'
 const iconFor = (type) => {
   switch (type) {
     case 'challenge': return { Icon: Swords, color: '#E4C79B' }
-    case 'vote': return { Icon: Heart, color: '#F87186' }
+    case 'vote': return { Icon: VoteIcon, color: '#F87186' }
     case 'accepted': return { Icon: Check, color: '#6EE7A8' }
     case 'follow': return { Icon: UserPlus, color: '#7DB7FF' }
     case 'comment': return { Icon: MessageCircle, color: '#E4C79B' }
@@ -138,7 +139,7 @@ export default function NotificationsInbox({ open, onClose }) {
                   <div className="relative shrink-0">
                     <img src={n.user?.avatarUrl} alt="" className="w-11 h-11 rounded-full object-cover ring-1 ring-white/10" />
                     <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center bg-zinc-900 border border-white/10">
-                      <Icon size={11} style={{ color }} />
+                      <Icon className="w-[12px] h-[12px]" style={{ color }} />
                     </span>
                   </div>
                   <div className="flex-1 min-w-0">
@@ -148,7 +149,7 @@ export default function NotificationsInbox({ open, onClose }) {
                     </p>
                     <p className="text-[12px] text-zinc-500 mt-0.5">{n.time}</p>
                   </div>
-                  {!n.read && <span className="shrink-0 w-2 h-2 rounded-full" style={{ background: '#E4C79B' }} />}
+                  {!n.read && <span className="shrink-0 w-2 h-2 rounded-full" style={{ background: '#EF4444' }} />}
                 </div>
               )
             })}
