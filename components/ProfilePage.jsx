@@ -171,14 +171,14 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
 
             {/* Votos - superior izquierda */}
             <button className="text-left active:opacity-60 transition">
-              <p className="text-[20px] font-bold text-gray-900 leading-none tabular-nums">{formatNumber(stats.votos)}</p>
-              <p className="text-[12px] text-gray-400 mt-1 font-medium">Votos</p>
+              <p className="text-[17px] font-bold text-gray-900 leading-none tabular-nums">{formatNumber(stats.votos)}</p>
+              <p className="text-[11px] text-gray-400 mt-1 font-medium">Votos</p>
             </button>
             <div />
             {/* Retos - superior derecha */}
             <button className="text-right active:opacity-60 transition">
-              <p className="text-[20px] font-bold text-gray-900 leading-none tabular-nums">{formatNumber(stats.retos)}</p>
-              <p className="text-[12px] text-gray-400 mt-1 font-medium">Retos</p>
+              <p className="text-[17px] font-bold text-gray-900 leading-none tabular-nums">{formatNumber(stats.retos)}</p>
+              <p className="text-[11px] text-gray-400 mt-1 font-medium">Retos</p>
             </button>
 
             {/* Avatar - centro */}
@@ -200,14 +200,14 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
 
             {/* Followers - inferior izquierda */}
             <button className="text-left active:opacity-60 transition">
-              <p className="text-[20px] font-bold text-gray-900 leading-none tabular-nums">0</p>
-              <p className="text-[12px] text-gray-400 mt-1 font-medium">Followers</p>
+              <p className="text-[17px] font-bold text-gray-900 leading-none tabular-nums">0</p>
+              <p className="text-[11px] text-gray-400 mt-1 font-medium">Followers</p>
             </button>
             <div />
             {/* Following - inferior derecha */}
             <button className="text-right active:opacity-60 transition">
-              <p className="text-[20px] font-bold text-gray-900 leading-none tabular-nums">0</p>
-              <p className="text-[12px] text-gray-400 mt-1 font-medium">Following</p>
+              <p className="text-[17px] font-bold text-gray-900 leading-none tabular-nums">0</p>
+              <p className="text-[11px] text-gray-400 mt-1 font-medium">Following</p>
             </button>
           </div>
         </div>
