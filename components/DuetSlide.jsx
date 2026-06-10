@@ -354,7 +354,9 @@ function DuetSlide({ post, isActive, isNear, muted: globalMuted, onRequestNext, 
             onPointerCancel={cancelLongPress}
           />
           {!loadedA && (
-            <div className="absolute inset-0 skeleton-shimmer" />
+            sideA.posterUrl
+              ? <img src={sideA.posterUrl} alt="" aria-hidden draggable={false} className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
+              : <div className="absolute inset-0 skeleton-shimmer" />
           )}
           {/* Side A badge */}
           <div className="absolute top-2 left-2 z-20 flex items-center gap-1.5 bg-black/55 backdrop-blur px-2 py-1 rounded-full">
@@ -378,7 +380,9 @@ function DuetSlide({ post, isActive, isNear, muted: globalMuted, onRequestNext, 
             onPointerCancel={cancelLongPress}
           />
           {!loadedB && (
-            <div className="absolute inset-0 skeleton-shimmer" />
+            sideB.posterUrl
+              ? <img src={sideB.posterUrl} alt="" aria-hidden draggable={false} className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
+              : <div className="absolute inset-0 skeleton-shimmer" />
           )}
           {/* Side B badge */}
           <div className={`absolute z-20 flex items-center gap-1.5 bg-black/55 backdrop-blur px-2 py-1 rounded-full ${isHorizontal ? 'top-2 left-2' : 'top-2 right-2'}`}>
