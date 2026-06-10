@@ -234,8 +234,8 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
 
             {/* Votos - superior izquierda */}
             <button className="flex items-center gap-2 text-left active:opacity-60 transition">
-              <span className="w-10 h-10 rounded-full bg-sky-500/15 border border-sky-400/20 flex items-center justify-center shrink-0">
-                <VoteIcon className="w-5 h-5 text-sky-400" strokeWidth={260} filled={false} />
+              <span className="shrink-0 flex items-center justify-center">
+                <VoteIcon className="w-7 h-7 text-sky-400" strokeWidth={220} filled={false} />
               </span>
               <span className="min-w-0">
                 <p className="text-[17px] font-bold text-white leading-none tabular-nums">{formatNumber(stats.votos)}</p>
@@ -249,8 +249,8 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
                 <p className="text-[17px] font-bold text-white leading-none tabular-nums">{formatNumber(stats.retos)}</p>
                 <p className="text-[11px] text-zinc-400 mt-1 font-medium">Retos</p>
               </span>
-              <span className="order-2 w-10 h-10 rounded-full bg-[#E4C79B]/15 border border-[#E4C79B]/25 flex items-center justify-center shrink-0">
-                <Swords className="w-5 h-5" strokeWidth={1.75} style={{ color: '#E4C79B' }} />
+              <span className="order-2 shrink-0 flex items-center justify-center">
+                <Swords className="w-7 h-7" strokeWidth={1.6} style={{ color: '#E4C79B' }} />
               </span>
             </button>
 
@@ -288,8 +288,8 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
                 <p className="text-[17px] font-bold text-white leading-none tabular-nums">0</p>
                 <p className="text-[11px] text-zinc-400 mt-1 font-medium">Following</p>
               </span>
-              <span className="order-2 w-10 h-10 rounded-full bg-fuchsia-500/15 border border-fuchsia-400/20 flex items-center justify-center shrink-0">
-                <UserPlus className="w-5 h-5 text-fuchsia-400" strokeWidth={1.75} />
+              <span className="order-2 shrink-0 flex items-center justify-center">
+                <UserPlus className="w-7 h-7 text-fuchsia-400" strokeWidth={1.6} />
               </span>
             </button>
           </div>
