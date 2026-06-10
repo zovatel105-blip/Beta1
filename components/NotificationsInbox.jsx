@@ -125,7 +125,7 @@ export default function NotificationsInbox({ open, onClose }) {
             </p>
           </div>
         ) : (
-          <div className="space-y-1.5 pt-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-1">
             {filtered.map((n) => {
               const { Icon, color } = iconFor(n.type)
               return (
