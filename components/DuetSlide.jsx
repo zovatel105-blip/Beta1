@@ -459,8 +459,14 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted, onR
             {countLabel(totalVotes, 'Votar')}
           </span>
         </button>
-        {/* Like */}
-        <button aria-label="retar" onClick={(e) => { e.stopPropagation(); onChallenge?.({ videoUrl: sideA.videoUrl, author: headAuthor, description: sideA.description || post.description, music: sideA.music }) }} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
+        {/* Retar — reta al lado ACTUALMENTE seleccionado (el que tiene el audio,
+            o el que votaste), no siempre la opción A. */}
+        <button aria-label="retar" onClick={(e) => {
+          e.stopPropagation()
+          const selKey = userVote || audibleSide || 'a'
+          const sel = selKey === 'b' ? sideB : sideA
+          onChallenge?.({ videoUrl: sel.videoUrl, author: sel.author || headAuthor, description: sel.description || post.description, music: sel.music })
+        }} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
           <Swords className="w-[25px] h-[25px] text-white" strokeWidth={1.25} />
           <span className="text-[10px] font-semibold text-white leading-none">Retar</span>
         </button>
