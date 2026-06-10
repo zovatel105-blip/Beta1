@@ -451,9 +451,14 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted, onR
               <img src={authorA.avatarUrl} alt={authorA.username} className="w-full h-full object-cover" draggable={false} />
             </button>
           </div>
-          <span className="min-w-0 max-w-[150px] text-white font-semibold text-[14px] leading-tight drop-shadow-md line-clamp-2">
-            {authorA.username || authorA.name} y {authorB.username || authorB.name}
-          </span>
+          <div className="flex flex-col min-w-0 max-w-[160px] leading-tight">
+            <span className="text-white font-semibold text-[14px] drop-shadow-md truncate">
+              {authorA.username || authorA.name} <span className="text-[#E4C79B] font-extrabold">VS</span>
+            </span>
+            <span className="text-white font-semibold text-[14px] drop-shadow-md truncate">
+              {authorB.username || authorB.name}
+            </span>
+          </div>
           <button
             onClick={(e) => { e.stopPropagation(); setFollowing((f) => !f) }}
             aria-label="seguir"
