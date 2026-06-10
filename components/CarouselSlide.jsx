@@ -30,7 +30,7 @@ const hasWebm = (url) => typeof url === 'string' && url.startsWith('/videos/')
  * Se vota tocando directamente el vídeo (toca = vota la opción visible).
  * La UI (cabecera + columna social) es la misma que la de un vídeo normal.
  */
-function CarouselSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted, onRequestNext, onChallenge }) {
+function CarouselSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted, onRequestNext, onChallenge, infoBottom = false }) {
   const overlayRef = useRef(null)
   const videoARef = useRef(null)
   const videoBRef = useRef(null)
@@ -378,10 +378,15 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted,
         )
       ))}
 
-      {/* Top header — avatar + nombre (estilo Twyk, igual que el vídeo normal) */}
+      {/* Header — avatar + nombre (estilo Twyk). Arriba por defecto; abajo si infoBottom. */}
       <div
-        className="absolute top-0 left-0 right-0 z-20 bg-gradient-to-b from-black/70 to-transparent px-4 pb-10 pointer-events-none"
-        style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}
+        className={cn(
+          'absolute z-20 px-4 pointer-events-none',
+          infoBottom
+            ? 'left-0 right-16 bottom-24 bg-gradient-to-t from-black/70 to-transparent pt-10'
+            : 'top-0 left-0 right-0 bg-gradient-to-b from-black/70 to-transparent pb-10'
+        )}
+        style={infoBottom ? undefined : { paddingTop: 'max(1rem, env(safe-area-inset-top))' }}
       >
         <div className="flex items-center gap-2.5 w-fit pointer-events-auto">
           <button onClick={(e) => e.stopPropagation()} className="w-[38px] h-[38px] rounded-full overflow-hidden block shrink-0">

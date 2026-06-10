@@ -205,6 +205,7 @@ export default function CompletedBattlesPage({ open, onClose, onOpenActive, onOp
                     isNear={isNear}
                     isAdjacent={isAdjacent}
                     muted={muted}
+                    infoBottom
                     onRequestNext={() => swiperRef.current?.slideNext()}
                   />
                 ) : (
@@ -214,6 +215,7 @@ export default function CompletedBattlesPage({ open, onClose, onOpenActive, onOp
                     isNear={isNear}
                     isAdjacent={isAdjacent}
                     muted={muted}
+                    infoBottom
                     onRequestNext={() => swiperRef.current?.slideNext()}
                   />
                 )}
