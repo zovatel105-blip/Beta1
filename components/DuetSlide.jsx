@@ -197,19 +197,18 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted, onR
     // Like eliminado: el doble toque ahora vota (ver handleTapSide).
   }, [])
 
-  const submitVote = useCallback(async (side) => {
+  const submitVote = useCallback(async (side, pt) => {
     if (userVote || voting) return
     setVoting(true)
     // Optimistic update
     setUserVote(side)
     setAudibleSide(side)
     setVotes((v) => ({ ...v, [side]: (v[side] || 0) + 1 }))
-    // Burst del icono de voto sobre el vídeo (color del lado: A lila / B azul)
+    // Burst del icono de voto: aparece justo DONDE tocaste (un poco por encima),
+    // con el color del lado (A lila / B azul). Si no hay punto, cae sobre el lado.
     const burstColor = side === 'a' ? '#A855F7' : '#3B82F6'
     const burstId = Math.random().toString(36).slice(2)
-    // Guardamos el lado votado para dibujar la animación SOBRE ese vídeo
-    // (antes salía centrada sobre toda la publicación -> parecía votar A).
-    setVoteBursts((b) => [...b, { id: burstId, color: burstColor, side }])
+    setVoteBursts((b) => [...b, { id: burstId, color: burstColor, side, x: pt?.x, y: pt?.y }])
     setTimeout(() => setVoteBursts((b) => b.filter((x) => x.id !== burstId)), 850)
     // Mostrar la tarjeta de ganador después de la animación del icono
     setTimeout(() => setShowWinner(true), 650)
@@ -239,7 +238,12 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted, onR
     lastTapRef.current = { side, t: now }
     if (isDouble) {
       clearTimeout(tapTimerRef.current)
-      if (!userVote) submitVote(side)
+      if (!userVote) {
+        // Punto del toque relativo al contenedor -> la animación sale ahí.
+        const rect = overlayRef.current?.getBoundingClientRect()
+        const pt = rect ? { x: e.clientX - rect.left, y: e.clientY - rect.top } : null
+        submitVote(side, pt)
+      }
       return
     }
     tapTimerRef.current = setTimeout(() => {
@@ -395,17 +399,30 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted, onR
         </div>
       )}
 
-      {/* burst del icono de voto al votar — se dibuja SOLO sobre el vídeo del
-          lado votado (A = mitad izq/arriba, B = mitad der/abajo) y con su color
-          (A lila / B azul), para que quede claro qué opción recibió el voto. */}
+      {/* burst del icono de voto al votar — aparece justo DONDE tocaste (un poco
+          por encima del punto) y con su color (A lila / B azul). Si por algún
+          motivo no hay coordenadas, cae sobre la mitad del lado votado. */}
       {voteBursts.map((vb) => {
+        if (vb.x != null && vb.y != null) {
+          return (
+            <div
+              key={vb.id}
+              className="absolute z-30 pointer-events-none"
+              style={{ left: vb.x, top: vb.y, transform: 'translate(-50%, -115%)' }}
+            >
+              <span className="like-pop" style={{ color: vb.color, filter: 'drop-shadow(0 6px 18px rgba(0,0,0,0.55))' }}>
+                <VoteIcon className="w-24 h-24" strokeWidth={320} filled />
+              </span>
+            </div>
+          )
+        }
         const half = isHorizontal
           ? (vb.side === 'b' ? 'left-0 right-0 bottom-0 h-1/2' : 'left-0 right-0 top-0 h-1/2')
           : (vb.side === 'b' ? 'right-0 top-0 bottom-0 w-1/2' : 'left-0 top-0 bottom-0 w-1/2')
         return (
           <div key={vb.id} className={`absolute ${half} z-30 flex items-center justify-center pointer-events-none`}>
             <span className="like-pop" style={{ color: vb.color, filter: 'drop-shadow(0 6px 18px rgba(0,0,0,0.55))' }}>
-              <VoteIcon className="w-28 h-28" strokeWidth={320} filled />
+              <VoteIcon className="w-24 h-24" strokeWidth={320} filled />
             </span>
           </div>
         )

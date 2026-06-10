@@ -1,5 +1,106 @@
 [
   {
+    "id": "versus_ch_9c9b5d2116d2a0f8",
+    "type": "versus",
+    "layout": "carousel",
+    "sideA": {
+      "videoUrl": "/uploads/b539d9a6e13345ad.mp4",
+      "posterUrl": "/uploads/b539d9a6e13345ad.jpg",
+      "author": {
+        "username": "tu_canal",
+        "name": "Tú",
+        "avatarUrl": "https://i.pravatar.cc/120?img=68"
+      },
+      "description": "Mi reto",
+      "music": "Reto",
+      "qualities": [
+        {
+          "h": 360,
+          "url": "/uploads/b539d9a6e13345ad_360.mp4",
+          "bitrate": 600000
+        },
+        {
+          "h": 540,
+          "url": "/uploads/b539d9a6e13345ad_540.mp4",
+          "bitrate": 1200000
+        },
+        {
+          "h": 720,
+          "url": "/uploads/b539d9a6e13345ad_720.mp4",
+          "bitrate": 2500000
+        }
+      ]
+    },
+    "sideB": {
+      "videoUrl": "/uploads/9e4f2b1cc0c79c27.mp4",
+      "posterUrl": "/uploads/9e4f2b1cc0c79c27.jpg",
+      "author": {
+        "username": "tu_canal",
+        "name": "Tú",
+        "avatarUrl": "https://i.pravatar.cc/120?img=68"
+      },
+      "description": "Mi reto",
+      "music": "Reto",
+      "qualities": [
+        {
+          "h": 360,
+          "url": "/uploads/9e4f2b1cc0c79c27_360.mp4",
+          "bitrate": 600000
+        },
+        {
+          "h": 540,
+          "url": "/uploads/9e4f2b1cc0c79c27_540.mp4",
+          "bitrate": 1200000
+        },
+        {
+          "h": 720,
+          "url": "/uploads/9e4f2b1cc0c79c27_720.mp4",
+          "bitrate": 2500000
+        }
+      ]
+    },
+    "author": {
+      "username": "tu_canal",
+      "name": "Tú",
+      "avatarUrl": "https://i.pravatar.cc/120?img=68"
+    },
+    "description": "Reto: @tu_canal 🆚 @tu_canal 🥊",
+    "music": "Reto aceptado",
+    "videoUrl": "/uploads/b539d9a6e13345ad.mp4",
+    "posterUrl": "/uploads/b539d9a6e13345ad.jpg",
+    "thumbnailUrl": "/uploads/b539d9a6e13345ad.jpg",
+    "stats": {
+      "likes": 0,
+      "comments": 0,
+      "shares": 0,
+      "saves": 0
+    },
+    "votes": {
+      "a": 2,
+      "b": 0
+    },
+    "duration": 0,
+    "uploadedAt": "2026-06-10T18:22:19.514Z",
+    "isChallenge": true,
+    "qualities": [
+      {
+        "h": 360,
+        "url": "/uploads/b539d9a6e13345ad_360.mp4",
+        "bitrate": 600000
+      },
+      {
+        "h": 540,
+        "url": "/uploads/b539d9a6e13345ad_540.mp4",
+        "bitrate": 1200000
+      },
+      {
+        "h": 720,
+        "url": "/uploads/b539d9a6e13345ad_720.mp4",
+        "bitrate": 2500000
+      }
+    ]
+  },
+  {
     "id": "duet_3e27b89b54752e63",
     "type": "duet",
     "layout": "vertical",
@@ -76,8 +177,8 @@
       "saves": 0
     },
     "votes": {
-      "a": 4,
-      "b": 11
+      "a": 5,
+      "b": 13
     },
     "duration": 0,
     "uploadedAt": "2026-06-10T16:56:16.955Z",
@@ -443,7 +544,7 @@
     },
     "votes": {
       "a": 0,
-      "b": 0
+      "b": 2
     },
     "duration": 0,
     "uploadedAt": "2026-06-10T15:46:22.952Z"
