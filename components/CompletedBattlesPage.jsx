@@ -237,6 +237,7 @@ export default function CompletedBattlesPage({ open, onClose, onOpenActive, onOp
                     isAdjacent={isAdjacent}
                     muted={muted}
                     infoBottom
+                    hideChallenge
                     onRequestNext={() => swiperRef.current?.slideNext()}
                   />
                 ) : (
@@ -247,6 +248,7 @@ export default function CompletedBattlesPage({ open, onClose, onOpenActive, onOp
                     isAdjacent={isAdjacent}
                     muted={muted}
                     infoBottom
+                    hideChallenge
                     onRequestNext={() => swiperRef.current?.slideNext()}
                   />
                 )}

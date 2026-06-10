@@ -33,7 +33,7 @@ const hasWebm = (url) => typeof url === 'string' && url.startsWith('/videos/')
  *   - double tap  -> like (corazón flotante).
  * La UI (cabecera superior + columna social derecha) es idéntica a la del vídeo normal.
  */
-function DuetSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted, onRequestNext, onChallenge, infoBottom = false }) {
+function DuetSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted, onRequestNext, onChallenge, infoBottom = false, hideChallenge = false }) {
   const videoARef = useRef(null)
   const videoBRef = useRef(null)
   const overlayRef = useRef(null)
@@ -504,10 +504,12 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted, onR
           </span>
         </button>
         {/* Retar — abre un selector A/B para elegir explícitamente a qué opción retar. */}
-        <button aria-label="retar" onClick={(e) => { e.stopPropagation(); setChallengePickOpen(true) }} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
-          <Swords className="w-[25px] h-[25px] text-white" strokeWidth={1.25} />
-          <span className="text-[10px] font-semibold text-white leading-none">Retar</span>
-        </button>
+        {!hideChallenge && (
+          <button aria-label="retar" onClick={(e) => { e.stopPropagation(); setChallengePickOpen(true) }} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
+            <Swords className="w-[25px] h-[25px] text-white" strokeWidth={1.25} />
+            <span className="text-[10px] font-semibold text-white leading-none">Retar</span>
+          </button>
+        )}
         {/* Comentar */}
         <button aria-label="comments" onClick={(e) => e.stopPropagation()} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
           <MessageCircle className="w-[25px] h-[25px] text-white" strokeWidth={1.25} />

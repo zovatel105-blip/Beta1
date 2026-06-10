@@ -30,7 +30,7 @@ const hasWebm = (url) => typeof url === 'string' && url.startsWith('/videos/')
  * Se vota tocando directamente el vídeo (toca = vota la opción visible).
  * La UI (cabecera + columna social) es la misma que la de un vídeo normal.
  */
-function CarouselSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted, onRequestNext, onChallenge, infoBottom = false }) {
+function CarouselSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted, onRequestNext, onChallenge, infoBottom = false, hideChallenge = false }) {
   const overlayRef = useRef(null)
   const videoARef = useRef(null)
   const videoBRef = useRef(null)
@@ -458,10 +458,12 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted,
           </span>
           <span className="text-[11px] font-semibold text-white leading-none">{countLabel(totalVotes, 'Votar')}</span>
         </button>
-        <button aria-label="retar" onClick={(e) => { e.stopPropagation(); onChallenge?.({ videoUrl: current.videoUrl, author: headAuthor, description: current.description || post.description, music: current.music || post.music }) }} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
-          <Swords className="w-[25px] h-[25px] text-white" strokeWidth={1.25} />
-          <span className="text-[10px] font-semibold text-white leading-none">Retar</span>
-        </button>
+        {!hideChallenge && (
+          <button aria-label="retar" onClick={(e) => { e.stopPropagation(); onChallenge?.({ videoUrl: current.videoUrl, author: headAuthor, description: current.description || post.description, music: current.music || post.music }) }} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
+            <Swords className="w-[25px] h-[25px] text-white" strokeWidth={1.25} />
+            <span className="text-[10px] font-semibold text-white leading-none">Retar</span>
+          </button>
+        )}
         <button aria-label="comments" onClick={(e) => e.stopPropagation()} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
           <MessageCircle className="w-[25px] h-[25px] text-white" strokeWidth={1.25} />
           <span className="text-[10px] font-semibold text-white leading-none">{countLabel(post.stats?.comments, 'Comentar')}</span>
