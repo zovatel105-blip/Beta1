@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Swiper, SwiperSlide } from 'swiper/react'
 import { Mousewheel, Keyboard } from 'swiper/modules'
 import 'swiper/css'
-import { Swords, Plus, User, Trophy, X, Search, Loader2 } from 'lucide-react'
+import { Swords, Plus, User, Trophy, X, Search, Loader2, UserPlus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import BottomNav from './BottomNav'
 import CarouselSlide from './CarouselSlide'
@@ -149,23 +149,54 @@ export default function CompletedBattlesPage({ open, onClose, onOpenActive, onOp
 
   const isEmpty = !loading && posts.length === 0
 
+  // Compartir con amigos: usa el menú nativo si existe; si no, copia el enlace.
+  const handleShareFriends = async () => {
+    const url = typeof window !== 'undefined' ? window.location.href : ''
+    try {
+      if (typeof navigator !== 'undefined' && navigator.share) {
+        await navigator.share({ title: 'Twyk', text: '¡Únete a mis retos en Twyk! 🥊', url })
+      } else if (typeof navigator !== 'undefined' && navigator.clipboard) {
+        await navigator.clipboard.writeText(url)
+      }
+    } catch { /* el usuario canceló o no hay soporte */ }
+  }
+
   return (
     <div className="fixed inset-0 z-[55] bg-black overflow-hidden">
-      {/* Header minimalista — control segmentado */}
-      <div className="absolute top-0 left-0 right-0 z-40 px-6 pb-4 bg-gradient-to-b from-black/70 to-transparent"
+      {/* Header minimalista — botones laterales + control segmentado central */}
+      <div className="absolute top-0 left-0 right-0 z-40 px-4 pb-4 bg-gradient-to-b from-black/70 to-transparent"
            style={{ paddingTop: 'max(env(safe-area-inset-top), 14px)' }}>
-        <div className="flex items-center justify-center">
+        <div className="flex items-center justify-between gap-2">
+          {/* Izquierda: compartir con amigos */}
+          <button
+            onClick={handleShareFriends}
+            aria-label="Compartir con amigos"
+            className="shrink-0 w-9 h-9 rounded-full bg-white/[0.06] border border-white/10 backdrop-blur-md text-white flex items-center justify-center hover:bg-white/10 active:scale-95 transition"
+          >
+            <UserPlus className="w-[18px] h-[18px]" strokeWidth={1.75} />
+          </button>
+
+          {/* Centro: control segmentado */}
           <div className="inline-flex p-1 rounded-full bg-white/[0.06] border border-white/10 backdrop-blur-md">
-            <button className="px-5 py-1.5 rounded-full text-[13px] font-semibold bg-white text-black transition">
+            <button className="px-4 py-1.5 rounded-full text-[13px] font-semibold bg-white text-black transition">
               Completados
             </button>
             <button
               onClick={onOpenActive}
-              className="px-5 py-1.5 rounded-full text-[13px] font-medium text-zinc-300 hover:text-white transition"
+              className="px-4 py-1.5 rounded-full text-[13px] font-medium text-zinc-300 hover:text-white transition"
             >
               Activos
             </button>
           </div>
+
+          {/* Derecha: añadir reto */}
+          <button
+            onClick={onOpenUpload}
+            aria-label="Añadir reto"
+            className="shrink-0 w-9 h-9 rounded-full bg-white text-black flex items-center justify-center hover:bg-zinc-100 active:scale-95 transition"
+          >
+            <Plus className="w-[18px] h-[18px]" strokeWidth={2.5} />
+          </button>
         </div>
       </div>
 
