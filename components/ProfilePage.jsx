@@ -235,7 +235,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
             {/* Votos - superior izquierda */}
             <button className="flex items-center gap-2 text-left active:opacity-60 transition">
               <span className="shrink-0 flex items-center justify-center">
-                <VoteIcon className="w-7 h-7 text-sky-400" strokeWidth={220} filled={false} />
+                <VoteIcon className="w-7 h-7 text-white" strokeWidth={220} filled={false} />
               </span>
               <span className="min-w-0">
                 <p className="text-[17px] font-bold text-white leading-none tabular-nums">{formatNumber(stats.votos)}</p>
@@ -250,7 +250,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
                 <p className="text-[11px] text-zinc-400 mt-1 font-medium">Retos</p>
               </span>
               <span className="order-2 shrink-0 flex items-center justify-center">
-                <Swords className="w-7 h-7" strokeWidth={1.6} style={{ color: '#E4C79B' }} />
+                <Swords className="w-7 h-7 text-white" strokeWidth={1.6} />
               </span>
             </button>
 
@@ -273,8 +273,8 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
 
             {/* Followers - inferior izquierda */}
             <button className="flex items-center gap-2 text-left active:opacity-60 transition">
-              <span className="w-10 h-10 rounded-full bg-emerald-500/15 border border-emerald-400/20 flex items-center justify-center shrink-0">
-                <Users className="w-5 h-5 text-emerald-400" strokeWidth={1.75} />
+              <span className="shrink-0 flex items-center justify-center">
+                <Users className="w-7 h-7 text-white" strokeWidth={1.6} />
               </span>
               <span className="min-w-0">
                 <p className="text-[17px] font-bold text-white leading-none tabular-nums">0</p>
@@ -289,7 +289,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
                 <p className="text-[11px] text-zinc-400 mt-1 font-medium">Following</p>
               </span>
               <span className="order-2 shrink-0 flex items-center justify-center">
-                <UserPlus className="w-7 h-7 text-fuchsia-400" strokeWidth={1.6} />
+                <UserPlus className="w-7 h-7 text-white" strokeWidth={1.6} />
               </span>
             </button>
           </div>
