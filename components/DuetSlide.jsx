@@ -3,7 +3,6 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { MessageCircle, Bookmark, Play, Volume2, VolumeX, Swords, MoreVertical, Flag, EyeOff, Link2 } from 'lucide-react'
 import ShareIcon from './icons/ShareIcon'
-import { getVideoPool } from '@/lib/videoPool'
 import { cn } from '@/lib/utils'
 import VoteIcon from './icons/VoteIcon'
 import VSWinnerCard from './VSWinnerCard'
@@ -20,6 +19,10 @@ function countLabel(n, placeholder) {
   return (Number(n) || 0) === 0 ? placeholder : formatCount(n)
 }
 
+const webmFor = (url) => (typeof url === 'string' ? url.replace(/\.mp4$/, '.webm') : '')
+// Solo los vídeos integrados (/videos/) tienen .webm garantizado.
+const hasWebm = (url) => typeof url === 'string' && url.startsWith('/videos/')
+
 /**
  * DuetSlide — 1vs1 (dueto) slide.
  * Renders two videos side-by-side (horizontal = top/bottom, vertical = left/right),
@@ -30,10 +33,8 @@ function countLabel(n, placeholder) {
  * La UI (cabecera superior + columna social derecha) es idéntica a la del vídeo normal.
  */
 function DuetSlide({ post, isActive, isNear, muted: globalMuted, onRequestNext, onChallenge }) {
-  const mountARef = useRef(null)
-  const mountBRef = useRef(null)
-  const playerARef = useRef(null)
-  const playerBRef = useRef(null)
+  const videoARef = useRef(null)
+  const videoBRef = useRef(null)
   const overlayRef = useRef(null)
   const lastTapRef = useRef({ side: null, t: 0 })
   const tapTimerRef = useRef(null)
@@ -112,143 +113,51 @@ function DuetSlide({ post, isActive, isNear, muted: globalMuted, onRequestNext, 
   // Author principal mostrado en la cabecera (igual que en publicaciones normales)
   const headAuthor = sideA.author || post.author || {}
 
-  // Acquire / release both video players from the pool.
+  // Mantener sincronizados mute + play/pausa de los DOS vídeos planos.
+  // Mismo enfoque que las publicaciones versus (<video> directos, sin pool),
+  // para que AMBOS lados arranquen a la vez y con fluidez. También respeta los
+  // overlays (winner / content): si hay uno abierto, se pausan los dos.
   useEffect(() => {
     if (!isNear) return
-    const pool = getVideoPool()
-    if (!pool) return
-    const slideIdA = `${post.id}__a`
-    const slideIdB = `${post.id}__b`
-    const pa = pool.acquire(slideIdA, sideA.videoUrl, sideA.posterUrl)
-    const pb = pool.acquire(slideIdB, sideB.videoUrl, sideB.posterUrl)
-    playerARef.current = pa
-    playerBRef.current = pb
-    const va = pa.video
-    const vb = pb.video
-
-    // Mount A & B into their respective slots
-    try {
-      if (va.parentNode !== mountARef.current && mountARef.current) mountARef.current.appendChild(va)
-      if (vb.parentNode !== mountBRef.current && mountBRef.current) mountBRef.current.appendChild(vb)
-    } catch (e) { /* ignore */ }
-
-    // Sync mute state: A unmuted only if global not muted AND audibleSide === 'a'
+    const va = videoARef.current
+    const vb = videoBRef.current
+    if (!va || !vb) return
+    // A suena solo si el audio global está activo Y el lado audible es A.
     va.muted = globalMuted || audibleSide !== 'a'
     vb.muted = globalMuted || audibleSide !== 'b'
-
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setLoadedA(va.readyState >= 3)
-    setLoadedB(vb.readyState >= 3)
-    setPaused(va.paused && vb.paused)
-
-    const onCanPlayA = () => setLoadedA(true)
-    const onCanPlayB = () => setLoadedB(true)
-    const onWaitingA = () => setLoadedA(false)
-    const onWaitingB = () => setLoadedB(false)
-    const onPlayBoth = () => setPaused(false)
-    const onPauseBoth = () => setPaused(va.paused && vb.paused)
-
-    va.addEventListener('canplay', onCanPlayA)
-    va.addEventListener('loadeddata', onCanPlayA)
-    va.addEventListener('waiting', onWaitingA)
-    va.addEventListener('play', onPlayBoth)
-    va.addEventListener('pause', onPauseBoth)
-    vb.addEventListener('canplay', onCanPlayB)
-    vb.addEventListener('loadeddata', onCanPlayB)
-    vb.addEventListener('waiting', onWaitingB)
-    vb.addEventListener('play', onPlayBoth)
-    vb.addEventListener('pause', onPauseBoth)
-
-    return () => {
-      va.removeEventListener('canplay', onCanPlayA)
-      va.removeEventListener('loadeddata', onCanPlayA)
-      va.removeEventListener('waiting', onWaitingA)
-      va.removeEventListener('play', onPlayBoth)
-      va.removeEventListener('pause', onPauseBoth)
-      vb.removeEventListener('canplay', onCanPlayB)
-      vb.removeEventListener('loadeddata', onCanPlayB)
-      vb.removeEventListener('waiting', onWaitingB)
-      vb.removeEventListener('play', onPlayBoth)
-      vb.removeEventListener('pause', onPauseBoth)
-      try {
-        if (mountARef.current && mountARef.current.contains(va)) mountARef.current.removeChild(va)
-        if (mountBRef.current && mountBRef.current.contains(vb)) mountBRef.current.removeChild(vb)
-      } catch (e) { /* ignore */ }
-      pool.release(slideIdA)
-      pool.release(slideIdB)
-      playerARef.current = null
-      playerBRef.current = null
-    }
-  }, [isNear, post.id, sideA.videoUrl, sideB.videoUrl])
-
-  // Play / pause sync
-  useEffect(() => {
-    if (!isNear) return
-    const pa = playerARef.current
-    const pb = playerBRef.current
-    if (!pa || !pb) return
-    const va = pa.video
-    const vb = pb.video
-    // re-mount in case stolen
-    try {
-      if (va.parentNode !== mountARef.current && mountARef.current) mountARef.current.appendChild(va)
-      if (vb.parentNode !== mountBRef.current && mountBRef.current) mountBRef.current.appendChild(vb)
-    } catch (e) { /* ignore */ }
-    va.muted = globalMuted || audibleSide !== 'a'
-    vb.muted = globalMuted || audibleSide !== 'b'
-    if (isActive) {
-      const tryPlay = async () => {
-        // Play in parallel — if unmuted side fails autoplay, fallback to muted.
-        const playSafe = async (v) => {
-          try { await v.play() } catch {
-            try { v.muted = true; await v.play() } catch { /* ignore */ }
-          }
+    if (isActive && !showWinner && !showContent) {
+      const playSafe = async (v) => {
+        try { await v.play() } catch {
+          try { v.muted = true; await v.play() } catch { /* ignore */ }
         }
-        await Promise.all([playSafe(va), playSafe(vb)])
       }
-      tryPlay()
+      playSafe(va)
+      playSafe(vb)
     } else {
       try { va.pause() } catch { /* ignore */ }
       try { vb.pause() } catch { /* ignore */ }
     }
-  }, [isActive, isNear, globalMuted, audibleSide, post.id, sideA.videoUrl, sideB.videoUrl])
+  }, [isActive, isNear, globalMuted, audibleSide, showWinner, showContent])
 
-  // Progress bar follows whichever side is audible (or longest)
+  // Sincroniza el estado "paused" (overlay de play) mirando ambos vídeos.
+  const syncPaused = useCallback(() => {
+    const va = videoARef.current
+    const vb = videoBRef.current
+    if (!va || !vb) return
+    setPaused(va.paused && vb.paused)
+  }, [])
+
+  // Barra de progreso: sigue al lado con audio (A por defecto).
   useEffect(() => {
-    if (!isActive) {
-      cancelAnimationFrame(rafRef.current)
-      return
-    }
+    if (!isActive) { cancelAnimationFrame(rafRef.current); return }
     const tick = () => {
-      const pa = playerARef.current
-      const pb = playerBRef.current
-      if (pa && pb) {
-        const va = pa.video
-        const vb = pb.video
-        const ref = audibleSide === 'b' ? vb : va
-        if (ref.duration > 0) setProgress((ref.currentTime / ref.duration) * 100)
-      }
+      const ref = audibleSide === 'b' ? videoBRef.current : videoARef.current
+      if (ref && ref.duration > 0) setProgress((ref.currentTime / ref.duration) * 100)
       rafRef.current = requestAnimationFrame(tick)
     }
     rafRef.current = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(rafRef.current)
   }, [isActive, audibleSide])
-
-  // Pausar los vídeos de fondo mientras hay un overlay (winner / content) abierto.
-  useEffect(() => {
-    const pa = playerARef.current
-    const pb = playerBRef.current
-    if (!pa || !pb) return
-    const va = pa.video
-    const vb = pb.video
-    if (showWinner || showContent) {
-      try { va.pause() } catch { /* ignore */ }
-      try { vb.pause() } catch { /* ignore */ }
-    } else if (isActive && isNear) {
-      va.play().catch(() => {})
-      vb.play().catch(() => {})
-    }
-  }, [showWinner, showContent, isActive, isNear])
 
   const doLike = useCallback(() => {
     // Like eliminado: el doble toque ahora vota (ver handleTapSide).
@@ -299,14 +208,14 @@ function DuetSlide({ post, isActive, isNear, muted: globalMuted, onRequestNext, 
     }
     tapTimerRef.current = setTimeout(() => {
       // toque simple = play/pausa
-      const pa = playerARef.current; const pb = playerBRef.current
-      if (!pa || !pb) return
-      if (pa.video.paused || pb.video.paused) {
-        pa.video.play().catch(() => {})
-        pb.video.play().catch(() => {})
+      const va = videoARef.current; const vb = videoBRef.current
+      if (!va || !vb) return
+      if (va.paused || vb.paused) {
+        va.play().catch(() => {})
+        vb.play().catch(() => {})
       } else {
-        pa.video.pause()
-        pb.video.pause()
+        va.pause()
+        vb.pause()
       }
     }, 280)
   }, [userVote, submitVote])
@@ -342,7 +251,29 @@ function DuetSlide({ post, isActive, isNear, muted: globalMuted, onRequestNext, 
       {/* split videos */}
       <div className={splitWrapperClass}>
         <div className={cn(halfClass, userVote === 'a' && 'ring-2 ring-rose-500 ring-inset')}>
-          <div ref={mountARef} className="absolute inset-0" />
+          {/* Poster instantáneo (primer fotograma) */}
+          {sideA.posterUrl && (
+            <img src={sideA.posterUrl} alt="" aria-hidden draggable={false} className="absolute inset-0 w-full h-full object-cover" />
+          )}
+          {isNear && (
+            <video
+              ref={videoARef}
+              className="absolute inset-0 w-full h-full object-cover bg-transparent"
+              loop
+              muted
+              playsInline
+              preload="auto"
+              poster={sideA.posterUrl || undefined}
+              onCanPlay={() => setLoadedA(true)}
+              onLoadedData={() => setLoadedA(true)}
+              onWaiting={() => setLoadedA(false)}
+              onPlay={() => setPaused(false)}
+              onPause={syncPaused}
+            >
+              <source src={sideA.videoUrl} type="video/mp4" />
+              {hasWebm(sideA.videoUrl) && <source src={webmFor(sideA.videoUrl)} type="video/webm" />}
+            </video>
+          )}
           {/* tap layer A */}
           <div
             className="absolute inset-0 z-10"
@@ -353,11 +284,6 @@ function DuetSlide({ post, isActive, isNear, muted: globalMuted, onRequestNext, 
             onPointerLeave={cancelLongPress}
             onPointerCancel={cancelLongPress}
           />
-          {!loadedA && (
-            sideA.posterUrl
-              ? <img src={sideA.posterUrl} alt="" aria-hidden draggable={false} className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
-              : <div className="absolute inset-0 skeleton-shimmer" />
-          )}
           {/* Side A badge */}
           <div className="absolute top-2 left-2 z-20 flex items-center gap-1.5 bg-black/55 backdrop-blur px-2 py-1 rounded-full">
             <span className={`w-2 h-2 rounded-full ${audibleSide === 'a' ? 'bg-rose-500' : 'bg-white/40'}`} />
@@ -369,7 +295,29 @@ function DuetSlide({ post, isActive, isNear, muted: globalMuted, onRequestNext, 
         </div>
 
         <div className={cn(halfClass, userVote === 'b' && 'ring-2 ring-cyan-400 ring-inset')}>
-          <div ref={mountBRef} className="absolute inset-0" />
+          {/* Poster instantáneo (primer fotograma) */}
+          {sideB.posterUrl && (
+            <img src={sideB.posterUrl} alt="" aria-hidden draggable={false} className="absolute inset-0 w-full h-full object-cover" />
+          )}
+          {isNear && (
+            <video
+              ref={videoBRef}
+              className="absolute inset-0 w-full h-full object-cover bg-transparent"
+              loop
+              muted
+              playsInline
+              preload="auto"
+              poster={sideB.posterUrl || undefined}
+              onCanPlay={() => setLoadedB(true)}
+              onLoadedData={() => setLoadedB(true)}
+              onWaiting={() => setLoadedB(false)}
+              onPlay={() => setPaused(false)}
+              onPause={syncPaused}
+            >
+              <source src={sideB.videoUrl} type="video/mp4" />
+              {hasWebm(sideB.videoUrl) && <source src={webmFor(sideB.videoUrl)} type="video/webm" />}
+            </video>
+          )}
           <div
             className="absolute inset-0 z-10"
             onClick={handleTapSide('b')}
@@ -379,11 +327,6 @@ function DuetSlide({ post, isActive, isNear, muted: globalMuted, onRequestNext, 
             onPointerLeave={cancelLongPress}
             onPointerCancel={cancelLongPress}
           />
-          {!loadedB && (
-            sideB.posterUrl
-              ? <img src={sideB.posterUrl} alt="" aria-hidden draggable={false} className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
-              : <div className="absolute inset-0 skeleton-shimmer" />
-          )}
           {/* Side B badge */}
           <div className={`absolute z-20 flex items-center gap-1.5 bg-black/55 backdrop-blur px-2 py-1 rounded-full ${isHorizontal ? 'top-2 left-2' : 'top-2 right-2'}`}>
             <span className={`w-2 h-2 rounded-full ${audibleSide === 'b' ? 'bg-rose-500' : 'bg-white/40'}`} />
