@@ -207,7 +207,9 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted, onR
     // Burst del icono de voto sobre el vídeo (color del lado: A lila / B azul)
     const burstColor = side === 'a' ? '#A855F7' : '#3B82F6'
     const burstId = Math.random().toString(36).slice(2)
-    setVoteBursts((b) => [...b, { id: burstId, color: burstColor }])
+    // Guardamos el lado votado para dibujar la animación SOBRE ese vídeo
+    // (antes salía centrada sobre toda la publicación -> parecía votar A).
+    setVoteBursts((b) => [...b, { id: burstId, color: burstColor, side }])
     setTimeout(() => setVoteBursts((b) => b.filter((x) => x.id !== burstId)), 850)
     // Mostrar la tarjeta de ganador después de la animación del icono
     setTimeout(() => setShowWinner(true), 650)
@@ -393,14 +395,21 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted, onR
         </div>
       )}
 
-      {/* burst del icono de voto al votar (sobre el vídeo) */}
-      {voteBursts.map((vb) => (
-        <div key={vb.id} className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none">
-          <span className="like-pop" style={{ color: vb.color, filter: 'drop-shadow(0 6px 18px rgba(0,0,0,0.55))' }}>
-            <VoteIcon className="w-32 h-32" strokeWidth={320} filled />
-          </span>
-        </div>
-      ))}
+      {/* burst del icono de voto al votar — se dibuja SOLO sobre el vídeo del
+          lado votado (A = mitad izq/arriba, B = mitad der/abajo) y con su color
+          (A lila / B azul), para que quede claro qué opción recibió el voto. */}
+      {voteBursts.map((vb) => {
+        const half = isHorizontal
+          ? (vb.side === 'b' ? 'left-0 right-0 bottom-0 h-1/2' : 'left-0 right-0 top-0 h-1/2')
+          : (vb.side === 'b' ? 'right-0 top-0 bottom-0 w-1/2' : 'left-0 top-0 bottom-0 w-1/2')
+        return (
+          <div key={vb.id} className={`absolute ${half} z-30 flex items-center justify-center pointer-events-none`}>
+            <span className="like-pop" style={{ color: vb.color, filter: 'drop-shadow(0 6px 18px rgba(0,0,0,0.55))' }}>
+              <VoteIcon className="w-28 h-28" strokeWidth={320} filled />
+            </span>
+          </div>
+        )
+      })}
 
       {/* Top header — avatar + nombre (estilo Twyk, igual que el vídeo normal) */}
       <div
