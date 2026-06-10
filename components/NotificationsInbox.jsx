@@ -62,7 +62,7 @@ export default function NotificationsInbox({ open, onClose }) {
            style={{ background: 'radial-gradient(60% 100% at 50% 0%, rgba(214,178,122,0.07), transparent 70%)' }} />
 
       {/* Header */}
-      <div className="relative z-10 flex items-center justify-between px-3 pb-3"
+      <div className="relative z-10 flex items-center justify-between px-2 pb-3"
            style={{ paddingTop: 'max(env(safe-area-inset-top), 14px)' }}>
         <div className="flex items-center gap-1">
           <button onClick={onClose} aria-label="Volver" className="w-9 h-9 -ml-1.5 rounded-full flex items-center justify-center hover:bg-white/5 active:scale-90 transition text-white">
@@ -78,7 +78,7 @@ export default function NotificationsInbox({ open, onClose }) {
       </div>
 
       {/* Pestañas de filtro (tipo de notificación + toda la actividad) */}
-      <div className="relative z-10 px-3 pb-3">
+      <div className="relative z-10 px-2 pb-3">
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar -mx-1 px-1">
           {FILTERS.map((f) => {
             const active = filter === f.key
