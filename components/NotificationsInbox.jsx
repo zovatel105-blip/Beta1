@@ -13,10 +13,14 @@ import { MOCK_NOTIFICATIONS } from '@/lib/notifications'
  *   open    bool
  *   onClose () => void
  */
-const iconFor = (type) => {
-  switch (type) {
+// Colores de marca Twyk para las opciones de un reto.
+const TWYK_A = '#A855F7' // opción A (morado)
+const TWYK_B = '#3B82F6' // opción B (azul)
+
+const iconFor = (n) => {
+  switch (n.type) {
     case 'challenge': return { Icon: Swords, color: '#E4C79B' }
-    case 'vote': return { Icon: VoteIcon, color: '#F87186' }
+    case 'vote': return { Icon: VoteIcon, color: n.side === 'b' ? TWYK_B : TWYK_A }
     case 'accepted': return { Icon: Check, color: '#6EE7A8' }
     case 'follow': return { Icon: UserPlus, color: '#7DB7FF' }
     case 'comment': return { Icon: MessageCircle, color: '#E4C79B' }
@@ -128,7 +132,7 @@ export default function NotificationsInbox({ open, onClose }) {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-1.5 pt-1">
             {filtered.map((n) => {
-              const { Icon, color } = iconFor(n.type)
+              const { Icon, color } = iconFor(n)
               return (
                 <div
                   key={n.id}
