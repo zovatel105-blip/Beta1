@@ -185,9 +185,9 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
       <div className="relative z-10 flex-1 overflow-y-auto px-5 pt-2 pb-10">
         {/* STEP: mode — control segmentado (estilo referencia) */}
         {step === 'mode' && (
-          <div className="max-w-md mx-auto">
+          <div className="max-w-md mx-auto w-full min-h-full flex flex-col">
             {/* Control segmentado */}
-            <div className="flex justify-center mb-9">
+            <div className="flex justify-center mt-2 mb-2">
               <div className="inline-flex p-1 rounded-full bg-white/[0.06] border border-white/10">
                 <button
                   onClick={() => setSelected('versus')}
@@ -210,23 +210,23 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
               </div>
             </div>
 
-            {/* Preview del modo seleccionado */}
-            <div className="flex flex-col items-center text-center">
+            {/* Preview del modo seleccionado — centrado y ocupando el alto disponible */}
+            <div className="flex-1 flex flex-col items-center justify-center text-center py-4">
               <div
-                className="w-20 h-20 rounded-3xl bg-white/[0.04] border border-white/10 flex items-center justify-center mb-6"
-                style={{ boxShadow: '0 0 48px -14px rgba(214,178,122,0.42)' }}
+                className="w-24 h-24 rounded-[28px] bg-white/[0.04] border border-white/10 flex items-center justify-center mb-7"
+                style={{ boxShadow: '0 0 60px -14px rgba(214,178,122,0.45)' }}
               >
-                {selected === 'versus' && <Film className="w-9 h-9" strokeWidth={1.25} style={{ color: GOLD }} />}
-                {selected === 'duet' && <Users className="w-9 h-9" strokeWidth={1.25} style={{ color: GOLD }} />}
-                {selected === 'challenge' && <Swords className="w-9 h-9" strokeWidth={1.25} style={{ color: GOLD }} />}
+                {selected === 'versus' && <Film className="w-11 h-11" strokeWidth={1.25} style={{ color: GOLD }} />}
+                {selected === 'duet' && <Users className="w-11 h-11" strokeWidth={1.25} style={{ color: GOLD }} />}
+                {selected === 'challenge' && <Swords className="w-11 h-11" strokeWidth={1.25} style={{ color: GOLD }} />}
               </div>
 
-              <h2 className="text-white text-[22px] font-semibold tracking-tight">
+              <h2 className="text-white text-[24px] font-semibold tracking-tight">
                 {selected === 'versus' && 'Versus (carrusel)'}
                 {selected === 'duet' && '1 vs 1 (Dueto)'}
                 {selected === 'challenge' && 'Reto a un creador'}
               </h2>
-              <p className="text-zinc-400 text-[15px] mt-2 max-w-[18rem] leading-relaxed">
+              <p className="text-zinc-400 text-[15px] mt-3 max-w-[19rem] leading-relaxed">
                 {selected === 'versus' && 'Sube 2 vídeos (A y B) y deja que la gente vote deslizando entre ellos.'}
                 {selected === 'duet' && 'Sube 2 vídeos (A y B) con el formato que elijas y deja que la gente vote quién gana.'}
                 {selected === 'challenge' && 'Sube tu vídeo y reta a un creador. Aparecerá en sus retos activos para que lo acepte.'}
@@ -234,30 +234,31 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
 
               {/* Mini ilustración del formato */}
               {selected === 'challenge' ? (
-                <div className="mt-7 flex items-center gap-3">
-                  <div className="w-16 h-24 rounded-2xl border border-white/[0.08] bg-white/[0.06] flex items-center justify-center text-white/80 text-[11px] font-bold">TÚ</div>
-                  <span className="text-white/60 font-black text-sm">VS</span>
-                  <div className="w-16 h-24 rounded-2xl border border-white/[0.08] bg-white/[0.02] flex items-center justify-center text-white/40 text-[11px] font-bold">RIVAL</div>
+                <div className="mt-10 flex items-center gap-4">
+                  <div className="w-20 h-28 rounded-2xl border border-white/[0.08] bg-white/[0.06] flex items-center justify-center text-white/80 text-[12px] font-bold">TÚ</div>
+                  <span className="text-white/60 font-black text-base">VS</span>
+                  <div className="w-20 h-28 rounded-2xl border border-white/[0.08] bg-white/[0.02] flex items-center justify-center text-white/40 text-[12px] font-bold">RIVAL</div>
                 </div>
               ) : (
-                <div className="mt-7 w-40 h-28 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-2 flex gap-2">
-                  <div className="flex-1 rounded-xl bg-white/10 flex items-center justify-center text-white/70 text-sm font-bold">A</div>
-                  <div className="flex-1 rounded-xl bg-white/[0.06] flex items-center justify-center text-white/50 text-sm font-bold">B</div>
+                <div className="mt-10 w-48 h-32 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-2.5 flex gap-2.5">
+                  <div className="flex-1 rounded-xl bg-white/10 flex items-center justify-center text-white/70 text-base font-bold">A</div>
+                  <div className="flex-1 rounded-xl bg-white/[0.06] flex items-center justify-center text-white/50 text-base font-bold">B</div>
                 </div>
               )}
-
-              <button
-                onClick={() => {
-                  if (selected === 'versus') { setMode('versus'); setStep('file') }
-                  else if (selected === 'duet') { setMode('duet'); setStep('layout') }
-                  else { setMode('challenge'); setStep('file') }
-                }}
-                className="mt-8 w-full h-12 rounded-full bg-white text-black font-semibold text-[15px] flex items-center justify-center gap-1.5 hover:bg-zinc-100 active:scale-[0.99] transition"
-              >
-                Continuar
-                <ChevronRight size={18} strokeWidth={2.5} />
-              </button>
             </div>
+
+            {/* Botón fijado abajo */}
+            <button
+              onClick={() => {
+                if (selected === 'versus') { setMode('versus'); setStep('file') }
+                else if (selected === 'duet') { setMode('duet'); setStep('layout') }
+                else { setMode('challenge'); setStep('file') }
+              }}
+              className="mt-4 mb-2 w-full h-12 rounded-full bg-white text-black font-semibold text-[15px] flex items-center justify-center gap-1.5 hover:bg-zinc-100 active:scale-[0.99] transition"
+            >
+              Continuar
+              <ChevronRight size={18} strokeWidth={2.5} />
+            </button>
           </div>
         )}
 
