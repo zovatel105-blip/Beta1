@@ -472,7 +472,7 @@ function DuetSlide({ post, isActive, isNear, muted: globalMuted, onRequestNext, 
         </button>
         {/* Compartir */}
         <button aria-label="share" onClick={(e) => e.stopPropagation()} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
-          <ShareIcon className="w-[25px] h-[25px] text-white" strokeWidth={1.6} />
+          <ShareIcon className="w-[25px] h-[25px] text-white" strokeWidth={1.1} />
           <span className="text-[10px] font-semibold text-white leading-none">{countLabel(post.stats?.shares, 'Compartir')}</span>
         </button>
         {/* Guardar */}
@@ -482,7 +482,7 @@ function DuetSlide({ post, isActive, isNear, muted: globalMuted, onRequestNext, 
         </button>
         {/* Más opciones */}
         <button aria-label="mas-opciones" onClick={(e) => { e.stopPropagation(); setMenuOpen(true) }} className="flex flex-col items-center hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
-          <MoreVertical className="w-[25px] h-[25px] text-white" strokeWidth={2.25} />
+          <MoreVertical className="w-[25px] h-[25px] text-white" strokeWidth={1.5} />
         </button>
         {/* Disco de música giratorio */}
         <div className="mt-1 w-10 h-10 rounded-full overflow-hidden border border-white/30 bg-gradient-to-br from-zinc-700 to-black flex items-center justify-center" style={{ animation: 'spin 6s linear infinite' }}>
