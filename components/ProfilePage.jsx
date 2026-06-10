@@ -2,7 +2,7 @@
 /* eslint-disable react-hooks/set-state-in-effect -- setState dentro de fetch async en efecto de carga; falso positivo de la regla experimental. */
 
 import { useEffect, useMemo, useState } from 'react'
-import { Menu, Bookmark, Link as LinkIcon, Plus } from 'lucide-react'
+import { Menu, Bookmark, Link as LinkIcon } from 'lucide-react'
 import VoteIcon from './icons/VoteIcon'
 
 const ME = {
@@ -194,12 +194,6 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
                     )}
                   </div>
                 </div>
-                <button
-                  aria-label="cambiar foto"
-                  className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-gray-900 text-white flex items-center justify-center shadow-lg ring-[3px] ring-white active:scale-90 transition"
-                >
-                  <Plus strokeWidth={2.4} className="w-[18px] h-[18px]" />
-                </button>
               </div>
             </div>
             <div />
@@ -245,8 +239,8 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
                 aria-label={tab.key}
-                className={`rounded-xl py-3 text-sm font-medium flex items-center justify-center transition-all ${
-                  active ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400'
+                className={`rounded-xl py-3 text-sm font-medium flex items-center justify-center border transition-all ${
+                  active ? 'bg-white border-gray-900 text-gray-900' : 'border-transparent text-gray-400'
                 }`}
               >
                 {tab.icon(active)}
