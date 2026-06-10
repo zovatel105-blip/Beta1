@@ -44,7 +44,6 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted,
   const [progress, setProgress] = useState(0)
   const [saved, setSaved] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
-  const [following, setFollowing] = useState(false)
   const [voteBursts, setVoteBursts] = useState([])
   const [dragX, setDragX] = useState(0)
   const [dragging, setDragging] = useState(false)
@@ -60,6 +59,9 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted,
   const sideB = post.sideB || { videoUrl: post.videoUrl, author: post.author, description: '', music: '' }
   const current = sideIdx === 0 ? sideA : sideB
   const headAuthor = current.author || post.author || {}
+  // Reto 1vs1: cabecera con los DOS creadores (avatar + nombre de cada lado)
+  const authorA = sideA.author || post.author || {}
+  const authorB = sideB.author || post.author || {}
 
   // FASE 2: calidad adaptativa a la red (fallback al videoUrl si no hay renditions).
   const srcA = useMemo(() => pickQuality(sideA.qualities, sideA.videoUrl), [sideA.qualities, sideA.videoUrl])
@@ -388,21 +390,30 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted,
         )}
         style={infoBottom ? undefined : { paddingTop: 'max(1rem, env(safe-area-inset-top))' }}
       >
-        <div className="flex items-center gap-2.5 w-fit pointer-events-auto">
-          <button onClick={(e) => e.stopPropagation()} className="w-[38px] h-[38px] rounded-full overflow-hidden block shrink-0">
-            <img src={headAuthor.avatarUrl} alt={headAuthor.username} className="w-full h-full object-cover" draggable={false} />
-          </button>
-          <span className="text-white font-semibold text-[13px] leading-tight drop-shadow-md">{headAuthor.username || headAuthor.name}</span>
-          <button
-            onClick={(e) => { e.stopPropagation(); setFollowing((f) => !f) }}
-            aria-label="seguir"
-            className={cn(
-              'px-2.5 py-0.5 rounded-lg border text-[12px] font-medium transition-all duration-200 active:scale-95',
-              following ? 'border-white/40 bg-white/15 text-white' : 'border-white/90 text-white'
-            )}
-          >
-            {following ? 'Siguiendo' : 'Seguir'}
-          </button>
+        <div className="flex items-center gap-2 w-fit max-w-full pointer-events-auto">
+          {/* Reto 1vs1: dos avatares + nombre de los dos usuarios. El lado activo se resalta. */}
+          <div className={cn('flex items-center gap-1.5 min-w-0 transition-opacity', side === 'a' ? 'opacity-100' : 'opacity-55')}>
+            <button onClick={(e) => e.stopPropagation()} className="w-[34px] h-[34px] rounded-full overflow-hidden block shrink-0 ring-2 ring-white/70">
+              <img src={authorA.avatarUrl} alt={authorA.username} className="w-full h-full object-cover" draggable={false} />
+            </button>
+            <span className="text-white font-semibold text-[13px] leading-tight drop-shadow-md truncate max-w-[84px]">
+              {authorA.username || authorA.name}
+            </span>
+          </div>
+
+          <span className="shrink-0 flex items-center gap-0.5 text-[#E4C79B] font-extrabold text-[11px] tracking-wide drop-shadow-md">
+            <Swords size={13} strokeWidth={2} />
+            VS
+          </span>
+
+          <div className={cn('flex items-center gap-1.5 min-w-0 transition-opacity', side === 'b' ? 'opacity-100' : 'opacity-55')}>
+            <button onClick={(e) => e.stopPropagation()} className="w-[34px] h-[34px] rounded-full overflow-hidden block shrink-0 ring-2 ring-[#F87186]/70">
+              <img src={authorB.avatarUrl} alt={authorB.username} className="w-full h-full object-cover" draggable={false} />
+            </button>
+            <span className="text-white font-semibold text-[13px] leading-tight drop-shadow-md truncate max-w-[84px]">
+              {authorB.username || authorB.name}
+            </span>
+          </div>
         </div>
         <div className="mt-1 pointer-events-auto">
           <h2 className="text-white text-sm leading-tight line-clamp-2">{current.description || post.description}</h2>
