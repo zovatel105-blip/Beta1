@@ -166,19 +166,19 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
 
       {/* Cabecera del perfil: stats alrededor del avatar */}
       <div className="px-5 sm:px-6 pt-6 pb-5 max-w-md mx-auto w-full">
-        <div className="relative mx-auto w-full max-w-[300px]">
-          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-x-3 gap-y-5">
+        <div className="relative mx-auto w-full max-w-[340px]">
+          <div className="grid grid-cols-3 items-center gap-y-6">
 
             {/* Votos - superior izquierda */}
-            <button className="text-center active:opacity-60 transition">
-              <p className="text-[19px] font-bold text-gray-900 leading-none tabular-nums">{formatNumber(stats.votos)}</p>
-              <p className="text-[11.5px] text-gray-400 mt-1.5 font-medium tracking-wide">Votos</p>
+            <button className="text-left active:opacity-60 transition">
+              <p className="text-[20px] font-bold text-gray-900 leading-none tabular-nums">{formatNumber(stats.votos)}</p>
+              <p className="text-[12px] text-gray-400 mt-1 font-medium">Votos</p>
             </button>
-            <div className="w-[104px]" />
+            <div />
             {/* Retos - superior derecha */}
-            <button className="text-center active:opacity-60 transition">
-              <p className="text-[19px] font-bold text-gray-900 leading-none tabular-nums">{formatNumber(stats.retos)}</p>
-              <p className="text-[11.5px] text-gray-400 mt-1.5 font-medium tracking-wide">Retos</p>
+            <button className="text-right active:opacity-60 transition">
+              <p className="text-[20px] font-bold text-gray-900 leading-none tabular-nums">{formatNumber(stats.retos)}</p>
+              <p className="text-[12px] text-gray-400 mt-1 font-medium">Retos</p>
             </button>
 
             {/* Avatar - centro */}
@@ -199,15 +199,15 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
             <div />
 
             {/* Followers - inferior izquierda */}
-            <button className="text-center active:opacity-60 transition">
-              <p className="text-[19px] font-bold text-gray-900 leading-none tabular-nums">0</p>
-              <p className="text-[11.5px] text-gray-400 mt-1.5 font-medium tracking-wide">Followers</p>
+            <button className="text-left active:opacity-60 transition">
+              <p className="text-[20px] font-bold text-gray-900 leading-none tabular-nums">0</p>
+              <p className="text-[12px] text-gray-400 mt-1 font-medium">Followers</p>
             </button>
             <div />
             {/* Following - inferior derecha */}
-            <button className="text-center active:opacity-60 transition">
-              <p className="text-[19px] font-bold text-gray-900 leading-none tabular-nums">0</p>
-              <p className="text-[11.5px] text-gray-400 mt-1.5 font-medium tracking-wide">Following</p>
+            <button className="text-right active:opacity-60 transition">
+              <p className="text-[20px] font-bold text-gray-900 leading-none tabular-nums">0</p>
+              <p className="text-[12px] text-gray-400 mt-1 font-medium">Following</p>
             </button>
           </div>
         </div>
