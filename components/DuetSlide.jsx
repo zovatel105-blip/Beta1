@@ -1,7 +1,7 @@
 'use client'
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { MessageCircle, Bookmark, Play, Volume2, VolumeX, Swords, MoreVertical, Flag, EyeOff, Link2 } from 'lucide-react'
+import { MessageCircle, Bookmark, Play, Swords, MoreVertical, Flag, EyeOff, Link2 } from 'lucide-react'
 import ShareIcon from './icons/ShareIcon'
 import { cn } from '@/lib/utils'
 import VoteIcon from './icons/VoteIcon'
@@ -229,8 +229,9 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted, onR
   }, [post.id, userVote, voting])
 
   // Tap handler per side:
-  //   double-tap  -> like
-  //   single-tap  -> si aún no has votado, vota por ese lado; si ya votaste, play/pause
+  //   doble toque -> vota por ese lado
+  //   toque simple -> si el lado tocado NO tiene el audio, cambia el audio a ese
+  //                   lado; si ya lo tiene, alterna play/pausa.
   const handleTapSide = useCallback((side) => (e) => {
     if (lpFiredRef.current) { lpFiredRef.current = false; return }
     const now = Date.now()
@@ -247,9 +248,14 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted, onR
       return
     }
     tapTimerRef.current = setTimeout(() => {
-      // toque simple = play/pausa
       const va = videoARef.current; const vb = videoBRef.current
       if (!va || !vb) return
+      // Si el lado tocado no es el que suena -> pásale el audio.
+      if (audibleSide !== side) {
+        setAudibleSide(side)
+        return
+      }
+      // Mismo lado audible -> alterna play/pausa.
       if (va.paused || vb.paused) {
         va.play().catch(() => {})
         vb.play().catch(() => {})
@@ -258,7 +264,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted, onR
         vb.pause()
       }
     }, 280)
-  }, [userVote, submitVote])
+  }, [userVote, submitVote, audibleSide])
 
   const totalVotes = (votes.a || 0) + (votes.b || 0)
   const pctA = totalVotes > 0 ? Math.round(((votes.a || 0) / totalVotes) * 100) : 50
@@ -326,11 +332,6 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted, onR
             onPointerLeave={cancelLongPress}
             onPointerCancel={cancelLongPress}
           />
-          {/* Side A badge */}
-          <div className="absolute top-2 left-2 z-20 flex items-center gap-1.5 bg-black/55 backdrop-blur px-2 py-1 rounded-full">
-            <span className={`w-2 h-2 rounded-full ${audibleSide === 'a' ? 'bg-rose-500' : 'bg-white/40'}`} />
-            {audibleSide === 'a' ? <Volume2 size={12} className="text-white" /> : <VolumeX size={12} className="text-white" />}
-          </div>
         </div>
 
         <div className={cn(halfClass, userVote === 'b' && 'ring-2 ring-cyan-400 ring-inset')}>
@@ -366,11 +367,6 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted, onR
             onPointerLeave={cancelLongPress}
             onPointerCancel={cancelLongPress}
           />
-          {/* Side B badge */}
-          <div className={`absolute z-20 flex items-center gap-1.5 bg-black/55 backdrop-blur px-2 py-1 rounded-full ${isHorizontal ? 'top-2 left-2' : 'top-2 right-2'}`}>
-            <span className={`w-2 h-2 rounded-full ${audibleSide === 'b' ? 'bg-rose-500' : 'bg-white/40'}`} />
-            {audibleSide === 'b' ? <Volume2 size={12} className="text-white" /> : <VolumeX size={12} className="text-white" />}
-          </div>
         </div>
 
         <div className={dividerClass} />
