@@ -62,7 +62,7 @@ export default function NotificationsInbox({ open, onClose }) {
            style={{ background: 'radial-gradient(60% 100% at 50% 0%, rgba(214,178,122,0.07), transparent 70%)' }} />
 
       {/* Header */}
-      <div className="relative z-10 flex items-center justify-between px-4 pb-3"
+      <div className="relative z-10 flex items-center justify-between px-3 pb-3"
            style={{ paddingTop: 'max(env(safe-area-inset-top), 14px)' }}>
         <div className="flex items-center gap-1">
           <button onClick={onClose} aria-label="Volver" className="w-9 h-9 -ml-1.5 rounded-full flex items-center justify-center hover:bg-white/5 active:scale-90 transition text-white">
@@ -78,7 +78,7 @@ export default function NotificationsInbox({ open, onClose }) {
       </div>
 
       {/* Pestañas de filtro (tipo de notificación + toda la actividad) */}
-      <div className="relative z-10 px-4 pb-3">
+      <div className="relative z-10 px-3 pb-3">
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar -mx-1 px-1">
           {FILTERS.map((f) => {
             const active = filter === f.key
@@ -108,7 +108,7 @@ export default function NotificationsInbox({ open, onClose }) {
       </div>
 
       {/* Lista */}
-      <div className="relative z-10 flex-1 overflow-y-auto px-4 pb-10">
+      <div className="relative z-10 flex-1 overflow-y-auto px-2 pb-10">
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center text-center pt-28">
             <div className="w-20 h-20 rounded-full border border-white/10 bg-white/[0.03] flex items-center justify-center mb-6"
@@ -125,7 +125,7 @@ export default function NotificationsInbox({ open, onClose }) {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-1.5 pt-1">
             {filtered.map((n) => {
               const { Icon, color } = iconFor(n.type)
               return (
