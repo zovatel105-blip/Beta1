@@ -329,10 +329,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted, onR
           {/* Side A badge */}
           <div className="absolute top-2 left-2 z-20 flex items-center gap-1.5 bg-black/55 backdrop-blur px-2 py-1 rounded-full">
             <span className={`w-2 h-2 rounded-full ${audibleSide === 'a' ? 'bg-rose-500' : 'bg-white/40'}`} />
-            <span className="text-[11px] font-bold text-white">A · @{sideA.author?.username || 'tu_canal'}</span>
-            {userVote
-              ? <span className="text-[11px] font-bold text-rose-400">{pctA}%</span>
-              : (audibleSide === 'a' ? <Volume2 size={12} className="text-white" /> : <VolumeX size={12} className="text-white" />)}
+            {audibleSide === 'a' ? <Volume2 size={12} className="text-white" /> : <VolumeX size={12} className="text-white" />}
           </div>
         </div>
 
@@ -372,10 +369,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted, onR
           {/* Side B badge */}
           <div className={`absolute z-20 flex items-center gap-1.5 bg-black/55 backdrop-blur px-2 py-1 rounded-full ${isHorizontal ? 'top-2 left-2' : 'top-2 right-2'}`}>
             <span className={`w-2 h-2 rounded-full ${audibleSide === 'b' ? 'bg-rose-500' : 'bg-white/40'}`} />
-            <span className="text-[11px] font-bold text-white">B · @{sideB.author?.username || 'rival'}</span>
-            {userVote
-              ? <span className="text-[11px] font-bold text-cyan-300">{pctB}%</span>
-              : (audibleSide === 'b' ? <Volume2 size={12} className="text-white" /> : <VolumeX size={12} className="text-white" />)}
+            {audibleSide === 'b' ? <Volume2 size={12} className="text-white" /> : <VolumeX size={12} className="text-white" />}
           </div>
         </div>
 
