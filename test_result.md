@@ -105,17 +105,17 @@
 user_problem_statement: "Las publicaciones normales deben ser un carrusel de 2 vídeos (opción A / opción B) entre los que se desliza y se vota tocando el vídeo. Se suben 2 vídeos. Reemplaza el vídeo normal. AÑADIDO: votar = doble toque, quitar el corazón/Me gusta, y nueva función 'Retar' (solicitud de enfrentamiento con un vídeo subido que el retado acepta/cancela en la Bandeja)."
 
 backend:
-  - task: "GET /api/challenges/completed lista los retos completados (versus isChallenge) con votos en vivo"
+  - task: "GET /api/challenges/completed devuelve los posts versus reales (isChallenge) para render tipo feed"
     implemented: true
-    working: "NA"
+    working: true
     file: "app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
-        -working: "NA"
+        -working: true
         -agent: "main"
-        -comment: "NUEVO endpoint. Deriva de readUploadMeta() filtrando posts con isChallenge=true y type='versus'. Devuelve {battles:[...]} donde cada battle tiene: id, title, participants:[{username,displayName,avatar,votes,isWinner,videoUrl} x2], totalVotes (a+b), totalViews, completedAt, media:{type:'image',url}, category:'Reto'. isWinner: A gana empates (a>=b) garantizando exactamente 1 ganador. PROBAR: 1) GET /api/challenges/completed -> 200 {battles:[]} (lista, puede estar vacía si no hay retos aceptados). 2) Crear reto (POST /api/challenges multipart file + targetVideoUrl + targetAuthor), aceptarlo (POST /api/challenges/{id}/accept) y verificar que el versus resultante AHORA aparece en GET /api/challenges/completed con participants correctos y totalVotes=0 inicialmente. 3) Votar ese post (POST /api/vote {id, side}) y verificar que GET /api/challenges/completed refleja los votos actualizados y el isWinner correcto."
+        -comment: "Devuelve {posts:[...]} con los uploads filtrados por isChallenge=true (type versus/duet), shape idéntico al feed. Verificado manualmente: GET /api/challenges/completed 200 y la página Completados renderiza 6 retos con CarouselSlide (diseño feed). Usuario pidió NO usar agente de testing."
   - task: "GET /api/users devuelve la lista de creadores demo"
     implemented: true
     working: "NA"
