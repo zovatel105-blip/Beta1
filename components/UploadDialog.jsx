@@ -28,6 +28,7 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
   const [selected, setSelected] = useState('versus')
   const [previewA, setPreviewA] = useState(null)
   const [previewB, setPreviewB] = useState(null)
+  const [versusIdx, setVersusIdx] = useState(0) // slide activo en la vista previa carrusel (versus)
 
   // URLs de previsualización memorizadas (evita recrearlas en cada render,
   // lo que reiniciaría el vídeo al escribir la descripción).
@@ -47,7 +48,7 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
   const reset = () => {
     setStep('mode'); setMode(null); setLayout('horizontal'); setTarget(null); setUsers([])
     setFile(null); setFileB(null); setDescription(''); setProgress(0); setError(null)
-    setSelected('versus')
+    setSelected('versus'); setVersusIdx(0)
   }
 
   useEffect(() => {
@@ -334,13 +335,13 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
               const isAB = mode === 'versus' || mode === 'duet'
 
               // Una mitad del split (lado A o B): vídeo o estado para subir.
-              const renderSlot = (idx) => {
+              const renderSlot = (idx, rootClass = 'relative flex-1 min-h-0 min-w-0 overflow-hidden bg-black') => {
                 const url = idx === 0 ? previewA : previewB
                 const pick = idx === 0 ? pickFile : pickFileB
                 const label = idx === 0 ? 'A' : 'B'
                 const labelColor = idx === 0 ? GOLD : '#FFFFFF'
                 return (
-                  <div className="relative flex-1 min-h-0 min-w-0 overflow-hidden bg-black">
+                  <div className={rootClass}>
                     {url ? (
                       <video key={label + url} src={url} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" />
                     ) : (
@@ -364,8 +365,8 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
 
               return (
                 <>
-                  {/* Media: split (VS) reflejando el layout, o vídeo único (reto) */}
-                  {isAB ? (
+                  {/* Media: dueto = split con formato; versus = carrusel (1 vídeo a la vez); reto = vídeo único */}
+                  {mode === 'duet' ? (
                     <div
                       className={`absolute inset-0 flex bg-white/20 ${layout === 'vertical' ? 'flex-row' : 'flex-col'}`}
                       style={{ gap: '2px' }}
@@ -373,6 +374,8 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
                       {renderSlot(0)}
                       {renderSlot(1)}
                     </div>
+                  ) : mode === 'versus' ? (
+                    renderSlot(versusIdx, 'absolute inset-0 overflow-hidden bg-black')
                   ) : (
                     <div className="absolute inset-0">
                       {previewA ? (
@@ -407,8 +410,8 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
                     </button>
                   </div>
 
-                  {/* Conmutador de formato Horizontal / Vertical (VS) */}
-                  {isAB && (
+                  {/* Dueto: conmutador de formato Horizontal / Vertical */}
+                  {mode === 'duet' && (
                     <div className="relative z-20 px-3 flex items-center justify-center">
                       <div className="inline-flex p-1 rounded-full bg-black/45 backdrop-blur border border-white/10">
                         <button
@@ -427,9 +430,42 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
                     </div>
                   )}
 
+                  {/* Versus: conmutador A / B (vista previa tipo carrusel) */}
+                  {mode === 'versus' && (
+                    <div className="relative z-20 px-3 flex items-center justify-center">
+                      <div className="inline-flex p-1 rounded-full bg-black/45 backdrop-blur border border-white/10">
+                        <button
+                          onClick={() => setVersusIdx(0)}
+                          className={`inline-flex items-center gap-1.5 px-5 py-2 rounded-full text-[13px] font-semibold transition ${versusIdx === 0 ? 'bg-white text-black' : 'text-white/85'}`}
+                        >
+                          Vídeo A
+                        </button>
+                        <button
+                          onClick={() => setVersusIdx(1)}
+                          className={`inline-flex items-center gap-1.5 px-5 py-2 rounded-full text-[13px] font-semibold transition ${versusIdx === 1 ? 'bg-white text-black' : 'text-white/85'}`}
+                        >
+                          Vídeo B
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Panel inferior: descripción + publicar */}
                   <div className="relative z-20 mt-auto px-4 space-y-3"
                        style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 18px)' }}>
+                    {/* Versus: puntitos del carrusel */}
+                    {mode === 'versus' && (
+                      <div className="flex items-center justify-center gap-1.5">
+                        {[0, 1].map((i) => (
+                          <button
+                            key={i}
+                            aria-label={`vídeo ${i === 0 ? 'A' : 'B'}`}
+                            onClick={() => setVersusIdx(i)}
+                            className={`rounded-full transition-all duration-200 ${versusIdx === i ? 'w-5 h-1.5 bg-white' : 'w-1.5 h-1.5 bg-white/40'}`}
+                          />
+                        ))}
+                      </div>
+                    )}
                     {error && <div className="text-xs text-rose-300">{error}</div>}
                     <div className="rounded-2xl bg-black/45 backdrop-blur-xl border border-white/10 px-4 py-3">
                       {isAB && (
