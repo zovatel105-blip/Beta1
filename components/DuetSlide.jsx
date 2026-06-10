@@ -453,7 +453,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted, onR
           </div>
           <div className="flex flex-col min-w-0 max-w-[160px] leading-tight">
             <span className="text-white font-semibold text-[14px] drop-shadow-md truncate">
-              {authorA.username || authorA.name} <span className="font-light">VS</span>
+              {authorA.username || authorA.name} <span className="font-light">vs</span>
             </span>
             <span className="text-white font-semibold text-[14px] drop-shadow-md truncate">
               {authorB.username || authorB.name}
