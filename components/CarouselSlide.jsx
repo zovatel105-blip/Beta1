@@ -44,6 +44,7 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted,
   const [progress, setProgress] = useState(0)
   const [saved, setSaved] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [following, setFollowing] = useState(false)
   const [voteBursts, setVoteBursts] = useState([])
   const [dragX, setDragX] = useState(0)
   const [dragging, setDragging] = useState(false)
@@ -390,30 +391,29 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted,
         )}
         style={infoBottom ? undefined : { paddingTop: 'max(1rem, env(safe-area-inset-top))' }}
       >
-        <div className="flex items-center gap-2 w-fit max-w-full pointer-events-auto">
-          {/* Reto 1vs1: dos avatares + nombre de los dos usuarios. El lado activo se resalta. */}
-          <div className={cn('flex items-center gap-1.5 min-w-0 transition-opacity', side === 'a' ? 'opacity-100' : 'opacity-55')}>
-            <button onClick={(e) => e.stopPropagation()} className="w-[34px] h-[34px] rounded-full overflow-hidden block shrink-0 ring-2 ring-white/70">
-              <img src={authorA.avatarUrl} alt={authorA.username} className="w-full h-full object-cover" draggable={false} />
-            </button>
-            <span className="text-white font-semibold text-[13px] leading-tight drop-shadow-md truncate max-w-[84px]">
-              {authorA.username || authorA.name}
-            </span>
-          </div>
-
-          <span className="shrink-0 flex items-center gap-0.5 text-[#E4C79B] font-extrabold text-[11px] tracking-wide drop-shadow-md">
-            <Swords size={13} strokeWidth={2} />
-            VS
-          </span>
-
-          <div className={cn('flex items-center gap-1.5 min-w-0 transition-opacity', side === 'b' ? 'opacity-100' : 'opacity-55')}>
-            <button onClick={(e) => e.stopPropagation()} className="w-[34px] h-[34px] rounded-full overflow-hidden block shrink-0 ring-2 ring-[#F87186]/70">
+        <div className="flex items-center gap-2.5 w-fit max-w-[calc(100%-4rem)] pointer-events-auto">
+          {/* Reto 1vs1 (estilo colaboración): dos avatares solapados + "userA y userB" + Seguir */}
+          <div className="relative w-[42px] h-[46px] shrink-0">
+            <button onClick={(e) => e.stopPropagation()} className="absolute top-0 right-0 w-[28px] h-[28px] rounded-full overflow-hidden block ring-2 ring-black/50">
               <img src={authorB.avatarUrl} alt={authorB.username} className="w-full h-full object-cover" draggable={false} />
             </button>
-            <span className="text-white font-semibold text-[13px] leading-tight drop-shadow-md truncate max-w-[84px]">
-              {authorB.username || authorB.name}
-            </span>
+            <button onClick={(e) => e.stopPropagation()} className="absolute bottom-0 left-0 w-[28px] h-[28px] rounded-full overflow-hidden block ring-2 ring-black/50">
+              <img src={authorA.avatarUrl} alt={authorA.username} className="w-full h-full object-cover" draggable={false} />
+            </button>
           </div>
+          <span className="min-w-0 max-w-[150px] text-white font-semibold text-[14px] leading-tight drop-shadow-md line-clamp-2">
+            {authorA.username || authorA.name} y {authorB.username || authorB.name}
+          </span>
+          <button
+            onClick={(e) => { e.stopPropagation(); setFollowing((f) => !f) }}
+            aria-label="seguir"
+            className={cn(
+              'shrink-0 px-3 py-1 rounded-lg border text-[13px] font-medium transition-all duration-200 active:scale-95',
+              following ? 'border-white/40 bg-white/15 text-white' : 'border-white/90 text-white'
+            )}
+          >
+            {following ? 'Siguiendo' : 'Seguir'}
+          </button>
         </div>
         <div className="mt-1 pointer-events-auto">
           <h2 className="text-white text-sm leading-tight line-clamp-2">{current.description || post.description}</h2>
