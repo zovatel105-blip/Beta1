@@ -1,5 +1,30 @@
 [
   {
+    "id": "challenge_e1ff12517183dd5d",
+    "status": "pending",
+    "from": {
+      "username": "tu_canal",
+      "name": "Tú",
+      "avatarUrl": "https://i.pravatar.cc/120?img=68"
+    },
+    "to": {
+      "username": "wanderlust",
+      "name": "Sofía Vela",
+      "avatarUrl": "https://i.pravatar.cc/120?img=47"
+    },
+    "challengerVideoUrl": "/uploads/fd5d3869f89414a6.mp4",
+    "targetVideoUrl": null,
+    "targetAuthor": {
+      "username": "wanderlust",
+      "name": "Sofía Vela",
+      "avatarUrl": "https://i.pravatar.cc/120?img=47"
+    },
+    "targetDescription": "",
+    "targetMusic": "",
+    "message": "",
+    "createdAt": "2026-06-10T13:16:20.742Z"
+  },
+  {
     "id": "challenge_9bc92f11e0a1885f",
     "status": "pending",
     "from": {

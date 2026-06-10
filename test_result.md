@@ -184,6 +184,17 @@ backend:
         -comment: "vote increments side a/b. Already validated previously."
 
 frontend:
+  - task: "UploadDialog: vista previa a pantalla completa (Versus/1vs1/Reto); 1vs1 = 2 vídeos propios; Reto elige usuario tras subir"
+    implemented: true
+    working: "NA"
+    file: "components/UploadDialog.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "Rediseño del paso 'file' a PANTALLA COMPLETA (vídeo object-cover ocupa todo, selector A/B arriba-centro con check al subir, 'Cambiar' arriba-derecha, descripción + botón publicar abajo). 1vs1 (duet) ahora sube fileA+fileB+layout (igual que versus, sin elegir rival): flujo mode->layout->file. Reto (challenge): flujo mode->file->target; sube tu vídeo y luego eliges usuario de /api/users (envía file+targetAuthor a /api/challenges). Validado visualmente en navegador (versus full screen OK). Pendiente confirmación del usuario para test frontend automatizado."
   - task: "Votar = doble toque; quitar corazón/Me gusta; botón Retar en columna social"
     implemented: true
     working: "NA"

@@ -1,5 +1,103 @@
 [
   {
+    "id": "duet_6afe33e197a89166",
+    "type": "duet",
+    "layout": "horizontal",
+    "sideA": {
+      "videoUrl": "/uploads/55c60f4c02abb6cc.mp4",
+      "posterUrl": "/uploads/55c60f4c02abb6cc.jpg",
+      "author": {
+        "username": "tu_canal",
+        "name": "Tú",
+        "avatarUrl": "https://i.pravatar.cc/120?img=68"
+      },
+      "description": "¿Quién gana? 🥊 #1vs1",
+      "music": "Opción A"
+    },
+    "sideB": {
+      "videoUrl": "/uploads/e616c5e44be41720.mp4",
+      "posterUrl": "/uploads/e616c5e44be41720.jpg",
+      "author": {
+        "username": "tu_canal",
+        "name": "Tú",
+        "avatarUrl": "https://i.pravatar.cc/120?img=68"
+      },
+      "description": "¿Quién gana? 🥊 #1vs1",
+      "music": "Opción B"
+    },
+    "author": {
+      "username": "tu_canal",
+      "name": "Tú",
+      "avatarUrl": "https://i.pravatar.cc/120?img=68"
+    },
+    "description": "¿Quién gana? 🥊 #1vs1",
+    "music": "Tu 1vs1 original",
+    "videoUrl": "/uploads/55c60f4c02abb6cc.mp4",
+    "posterUrl": "/uploads/55c60f4c02abb6cc.jpg",
+    "thumbnailUrl": "/uploads/55c60f4c02abb6cc.jpg",
+    "stats": {
+      "likes": 0,
+      "comments": 0,
+      "shares": 0,
+      "saves": 0
+    },
+    "votes": {
+      "a": 0,
+      "b": 0
+    },
+    "duration": 0,
+    "uploadedAt": "2026-06-10T13:19:03.149Z"
+  },
+  {
+    "id": "versus_up_11abcd0151befa59",
+    "type": "versus",
+    "layout": "carousel",
+    "sideA": {
+      "videoUrl": "/uploads/aa16c2b13f78a096.mp4",
+      "posterUrl": "/uploads/aa16c2b13f78a096.jpg",
+      "author": {
+        "username": "tu_canal",
+        "name": "Tú",
+        "avatarUrl": "https://i.pravatar.cc/120?img=68"
+      },
+      "description": "Hey",
+      "music": "Opción A"
+    },
+    "sideB": {
+      "videoUrl": "/uploads/b8e668ab54f05a5c.mp4",
+      "posterUrl": "/uploads/b8e668ab54f05a5c.jpg",
+      "author": {
+        "username": "tu_canal",
+        "name": "Tú",
+        "avatarUrl": "https://i.pravatar.cc/120?img=68"
+      },
+      "description": "Hey",
+      "music": "Opción B"
+    },
+    "author": {
+      "username": "tu_canal",
+      "name": "Tú",
+      "avatarUrl": "https://i.pravatar.cc/120?img=68"
+    },
+    "description": "Hey",
+    "music": "Tu versus original",
+    "videoUrl": "/uploads/aa16c2b13f78a096.mp4",
+    "posterUrl": "/uploads/aa16c2b13f78a096.jpg",
+    "thumbnailUrl": "/uploads/aa16c2b13f78a096.jpg",
+    "stats": {
+      "likes": 0,
+      "comments": 0,
+      "shares": 0,
+      "saves": 0
+    },
+    "votes": {
+      "a": 0,
+      "b": 0
+    },
+    "duration": 0,
+    "uploadedAt": "2026-06-10T13:14:03.564Z"
+  },
+  {
     "id": "versus_ch_9dba68926b695923",
     "type": "versus",
     "layout": "carousel",

@@ -3,54 +3,23 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { ChevronRight, Loader2, Film, Swords, Users, Rows3, Columns3, ArrowLeft, X } from 'lucide-react'
-import { Swiper, SwiperSlide } from 'swiper/react'
-import 'swiper/css'
 
 /**
  * UploadDialog — flujo multi-paso para crear publicaciones de votación: Versus
- * (carrusel de 2 vídeos A/B) o 1vs1 (dueto). Diseño premium minimalista (móvil).
- *
- * Pasos para Versus:  mode -> file -> upload
- * Pasos para 1vs1:    mode -> layout -> pair -> file -> upload
+ * (2 vídeos A/B), 1vs1 (2 vídeos A/B con formato) o Reto (tu vídeo + elegir a quién retar).
+ * Diseño premium minimalista (móvil) con vista previa a pantalla completa.
  */
 const GOLD = '#E4C79B'
-
-/**
- * PreviewSlot — un "slot" de vídeo a pantalla completa con el mismo estilo que
- * los Retos activos: vídeo en object-cover, degradado oscuro, etiqueta del lado
- * y botón "Cambiar". Si no hay vídeo, muestra el estado para subir.
- */
-const PreviewSlot = ({ url, badge, badgeColor, onPick }) => (
-  <div className="relative w-full h-full bg-black">
-    {url ? (
-      <>
-        <video src={url} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/25 to-black/40" />
-        <span className="absolute top-3 left-3 z-10 text-[11px] font-bold bg-black/45 backdrop-blur rounded-full px-2.5 py-1" style={{ color: badgeColor }}>{badge}</span>
-        <button onClick={onPick} className="absolute top-3 right-3 z-10 text-[11px] font-semibold text-white bg-black/55 hover:bg-black/80 active:scale-95 rounded-full px-3 py-1 transition">Cambiar</button>
-      </>
-    ) : (
-      <button onClick={onPick} className="absolute inset-0 w-full h-full flex flex-col items-center justify-center gap-2.5 bg-white/[0.02] hover:bg-white/[0.05] transition">
-        <span className="absolute top-3 left-3 z-10 text-[11px] font-bold bg-black/45 rounded-full px-2.5 py-1" style={{ color: badgeColor }}>{badge}</span>
-        <div className="w-14 h-14 rounded-2xl border border-white/10 bg-white/[0.04] flex items-center justify-center">
-          <Film size={26} strokeWidth={1.5} className="text-zinc-400" />
-        </div>
-        <span className="text-sm font-medium text-zinc-300">Toca para subir el vídeo</span>
-        <span className="text-[10px] text-zinc-500">MP4 / WebM · max 80MB</span>
-      </button>
-    )}
-  </div>
-)
 
 export default function UploadDialog({ open, onClose, onUploaded, onChallengeCreated }) {
   const inputRef = useRef(null)
   const inputBRef = useRef(null)
-  const [step, setStep] = useState('mode') // mode | layout | pair | file | uploading
-  const [mode, setMode] = useState(null) // 'versus' | 'duet'
+  const [step, setStep] = useState('mode') // mode | layout | target | file | uploading
+  const [mode, setMode] = useState(null) // 'versus' | 'duet' | 'challenge'
   const [layout, setLayout] = useState('horizontal') // 'horizontal' | 'vertical'
-  const [pair, setPair] = useState(null)
-  const [options, setOptions] = useState([])
-  const [optionsLoading, setOptionsLoading] = useState(false)
+  const [users, setUsers] = useState([])
+  const [usersLoading, setUsersLoading] = useState(false)
+  const [target, setTarget] = useState(null) // usuario al que retar
   const [file, setFile] = useState(null)
   const [fileB, setFileB] = useState(null)
   const [description, setDescription] = useState('')
@@ -59,7 +28,6 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
   const [selected, setSelected] = useState('versus')
   const [previewA, setPreviewA] = useState(null)
   const [previewB, setPreviewB] = useState(null)
-  const [pvSide, setPvSide] = useState(0)
 
   // URLs de previsualización memorizadas (evita recrearlas en cada render,
   // lo que reiniciaría el vídeo al escribir la descripción).
@@ -77,7 +45,7 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
   }, [fileB])
 
   const reset = () => {
-    setStep('mode'); setMode(null); setLayout('horizontal'); setPair(null)
+    setStep('mode'); setMode(null); setLayout('horizontal'); setTarget(null); setUsers([])
     setFile(null); setFileB(null); setDescription(''); setProgress(0); setError(null)
     setSelected('versus')
   }
@@ -86,15 +54,15 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
     if (!open) reset()
   }, [open])
 
-  // Fetch pair options when entering 'pair' step
+  // Carga la lista de creadores al entrar en el paso 'target' (a quién retar).
   useEffect(() => {
-    if (step !== 'pair') return
-    setOptionsLoading(true)
-    fetch('/api/feed-options')
+    if (step !== 'target') return
+    setUsersLoading(true)
+    fetch('/api/users')
       .then((r) => r.json())
-      .then((d) => setOptions(d.options || []))
-      .catch(() => setOptions([]))
-      .finally(() => setOptionsLoading(false))
+      .then((d) => setUsers(d.users || []))
+      .catch(() => setUsers([]))
+      .finally(() => setUsersLoading(false))
   }, [step])
 
   const pickFile = () => inputRef.current?.click()
@@ -110,11 +78,19 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
     else setFile(f)
   }
 
-  const doUpload = async () => {
-    if (mode === 'versus') {
+  const goToTarget = () => {
+    if (!file) { setError('Sube tu vídeo del reto'); return }
+    setError(null)
+    setStep('target')
+  }
+
+  const doUpload = async (targetUser) => {
+    const tgt = targetUser || target
+    if (mode === 'versus' || mode === 'duet') {
       if (!file || !fileB) { setError('Sube los 2 vídeos (A y B)'); return }
     } else if (mode === 'challenge') {
-      if (!file || !pair) { setError('Elige un rival y sube tu vídeo'); return }
+      if (!file) { setError('Sube tu vídeo'); return }
+      if (!tgt) { setError('Elige a quién retar'); return }
     } else if (!file) {
       return
     }
@@ -136,20 +112,14 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
       const fd = new FormData()
       if (mode === 'duet') {
         xhr.open('POST', '/api/duet')
-        fd.append('file', file)
+        fd.append('fileA', file)
+        fd.append('fileB', fileB)
         fd.append('layout', layout)
-        fd.append('pairVideoUrl', pair.videoUrl)
-        fd.append('pairAuthor', JSON.stringify(pair.author))
-        fd.append('pairMusic', pair.music || '')
-        fd.append('pairDescription', pair.description || '')
         fd.append('description', description || '¿Quién gana? 🥊 #1vs1')
       } else if (mode === 'challenge') {
         xhr.open('POST', '/api/challenges')
         fd.append('file', file)
-        fd.append('targetVideoUrl', pair.videoUrl)
-        fd.append('targetAuthor', JSON.stringify(pair.author))
-        fd.append('targetDescription', pair.description || '')
-        fd.append('targetMusic', pair.music || '')
+        fd.append('targetAuthor', JSON.stringify(tgt))
         fd.append('message', description || '')
       } else {
         xhr.open('POST', '/api/versus')
@@ -168,7 +138,7 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
     } catch (err) {
       console.error(err)
       setError('Error al subir')
-      setStep('file')
+      setStep(mode === 'challenge' ? 'target' : 'file')
     }
   }
 
@@ -176,8 +146,8 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
 
   const goBack = () => {
     if (step === 'layout') setStep('mode')
-    else if (step === 'pair') setStep(mode === 'duet' ? 'layout' : 'mode')
-    else if (step === 'file') setStep(mode === 'versus' ? 'mode' : 'pair')
+    else if (step === 'target') setStep('file')
+    else if (step === 'file') setStep(mode === 'duet' ? 'layout' : 'mode')
   }
 
   return (
@@ -200,8 +170,8 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
           <h1 className="text-[17px] font-semibold tracking-tight">
             {step === 'mode' && 'Crear contenido'}
             {step === 'layout' && 'Elige el formato'}
-            {step === 'pair' && 'Elige el rival'}
-            {step === 'file' && (mode === 'versus' ? 'Tus 2 vídeos' : mode === 'challenge' ? 'Tu vídeo del reto' : 'Tu lado del duelo')}
+            {step === 'target' && 'Elige a quién retar'}
+            {step === 'file' && (mode === 'versus' ? 'Tus 2 vídeos' : mode === 'challenge' ? 'Tu vídeo del reto' : 'Tu 1vs1')}
             {step === 'uploading' && (mode === 'challenge' ? 'Enviando reto' : 'Subiendo')}
           </h1>
         </div>
@@ -257,7 +227,7 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
               </h2>
               <p className="text-zinc-400 text-[15px] mt-2 max-w-[18rem] leading-relaxed">
                 {selected === 'versus' && 'Sube 2 vídeos (A y B) y deja que la gente vote deslizando entre ellos.'}
-                {selected === 'duet' && 'Empareja tu vídeo con el de otro creador y que la gente decida quién gana.'}
+                {selected === 'duet' && 'Sube 2 vídeos (A y B) con el formato que elijas y deja que la gente vote quién gana.'}
                 {selected === 'challenge' && 'Sube tu vídeo y reta a un creador. Aparecerá en sus retos activos para que lo acepte.'}
               </p>
 
@@ -279,7 +249,7 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
                 onClick={() => {
                   if (selected === 'versus') { setMode('versus'); setStep('file') }
                   else if (selected === 'duet') { setMode('duet'); setStep('layout') }
-                  else { setMode('challenge'); setStep('pair') }
+                  else { setMode('challenge'); setStep('file') }
                 }}
                 className="mt-8 w-full h-12 rounded-full bg-white text-black font-semibold text-[15px] flex items-center justify-center gap-1.5 hover:bg-zinc-100 active:scale-[0.99] transition"
               >
@@ -294,7 +264,7 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
         {step === 'layout' && (
           <div className="max-w-md mx-auto grid grid-cols-2 gap-3">
             <button
-              onClick={() => { setLayout('horizontal'); setStep('pair') }}
+              onClick={() => { setLayout('horizontal'); setStep('file') }}
               className={`p-4 rounded-2xl border bg-white/[0.03] hover:bg-white/[0.06] active:scale-[0.98] transition flex flex-col items-center gap-3 ${layout === 'horizontal' ? 'border-white/70' : 'border-white/[0.08]'}`}
             >
               <div className="w-20 h-32 rounded-xl bg-zinc-900 overflow-hidden flex flex-col gap-[2px] p-[2px]">
@@ -307,7 +277,7 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
               <div className="text-[11px] text-zinc-500 -mt-2">Arriba / Abajo</div>
             </button>
             <button
-              onClick={() => { setLayout('vertical'); setStep('pair') }}
+              onClick={() => { setLayout('vertical'); setStep('file') }}
               className={`p-4 rounded-2xl border bg-white/[0.03] hover:bg-white/[0.06] active:scale-[0.98] transition flex flex-col items-center gap-3 ${layout === 'vertical' ? 'border-white/70' : 'border-white/[0.08]'}`}
             >
               <div className="w-20 h-32 rounded-xl bg-zinc-900 overflow-hidden flex gap-[2px] p-[2px]">
@@ -322,144 +292,172 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
           </div>
         )}
 
-        {/* STEP: pair */}
-        {step === 'pair' && (
+        {/* STEP: target — elegir a quién retar (después de subir tu vídeo) */}
+        {step === 'target' && (
           <div className="max-w-md mx-auto">
-            <p className="text-[13px] text-zinc-500 mb-4">Elige el vídeo contra el que vas a competir.</p>
-            {optionsLoading ? (
+            <p className="text-[13px] text-zinc-500 mb-4">Elige a quién retar. Le aparecerá en sus retos activos para aceptar.</p>
+            {usersLoading ? (
               <div className="flex justify-center py-16">
                 <Loader2 className="animate-spin text-zinc-400" />
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-2.5">
-                {options.map((opt) => (
+              <div className="space-y-2">
+                {users.map((u) => (
                   <button
-                    key={opt.id}
-                    onClick={() => { setPair(opt); setStep('file') }}
-                    className="relative aspect-[9/16] rounded-2xl overflow-hidden bg-zinc-900 border border-white/[0.08] hover:border-white/60 active:scale-95 transition"
+                    key={u.username}
+                    onClick={() => { setTarget(u); doUpload(u) }}
+                    className="w-full flex items-center gap-3 p-3 rounded-2xl bg-white/[0.03] border border-white/[0.08] hover:border-white/40 active:scale-[0.99] transition text-left"
                   >
-                    <video
-                      src={opt.videoUrl + '#t=0.2'}
-                      muted
-                      playsInline
-                      preload="metadata"
-                      className="absolute inset-0 w-full h-full object-cover"
-                    />
-                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent p-2">
-                      <div className="flex items-center gap-1.5">
-                        <img src={opt.author?.avatarUrl} className="w-5 h-5 rounded-full" alt="" />
-                        <span className="text-[10px] font-medium truncate">@{opt.author?.username}</span>
-                      </div>
+                    <img src={u.avatarUrl} className="w-11 h-11 rounded-full object-cover ring-1 ring-white/10 shrink-0" alt="" />
+                    <div className="min-w-0">
+                      <div className="text-[14px] font-semibold truncate">{u.name || u.username}</div>
+                      <div className="text-[12px] text-zinc-500 truncate">@{u.username}</div>
                     </div>
-                    {opt.source === 'upload' && (
-                      <span className="absolute top-1.5 left-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full text-black" style={{ background: GOLD }}>TUYO</span>
-                    )}
+                    <span className="ml-auto inline-flex items-center gap-1.5 text-[12px] font-semibold px-3 py-1.5 rounded-full text-black shrink-0" style={{ background: GOLD }}>
+                      <Swords size={13} strokeWidth={2.2} /> Retar
+                    </span>
                   </button>
                 ))}
               </div>
             )}
+            {error && <div className="text-xs text-rose-400 mt-4">{error}</div>}
           </div>
         )}
 
-        {/* STEP: file */}
+        {/* STEP: file — vista previa a PANTALLA COMPLETA */}
         {step === 'file' && (
-          <div className="max-w-md mx-auto space-y-4">
-            {(mode === 'duet' || mode === 'challenge') && pair && (
-              <div className="flex items-center gap-2 p-2.5 bg-white/[0.03] rounded-xl border border-white/[0.08]">
-                <span className="text-[11px] text-zinc-500">vs</span>
-                <img src={pair.author?.avatarUrl} className="w-7 h-7 rounded-full" alt="" />
-                <div className="text-[13px] font-medium">@{pair.author?.username}</div>
-                <div className="ml-auto text-[11px] text-zinc-500">{layout === 'horizontal' ? 'Arriba/Abajo' : 'Izq/Der'}</div>
-              </div>
-            )}
-
+          <div className="fixed inset-0 z-30 bg-black flex flex-col">
             <input ref={inputRef} type="file" accept="video/*" className="hidden" onChange={handleFileChange('a')} />
             <input ref={inputBRef} type="file" accept="video/*" className="hidden" onChange={handleFileChange('b')} />
 
-            {mode === 'versus' ? (
-              <div className="relative w-full aspect-[9/16] max-h-[70vh] mx-auto rounded-3xl overflow-hidden border border-white/10 bg-black">
-                <Swiper
-                  direction="horizontal"
-                  slidesPerView={1}
-                  spaceBetween={0}
-                  onSlideChange={(s) => setPvSide(s.activeIndex)}
-                  className="w-full h-full"
-                >
-                  <SwiperSlide>
-                    <PreviewSlot url={previewA} badge="A · @tu_canal" badgeColor={GOLD} onPick={pickFile} />
-                  </SwiperSlide>
-                  <SwiperSlide>
-                    <PreviewSlot url={previewB} badge="B · @tu_canal" badgeColor="#FFFFFF" onPick={pickFileB} />
-                  </SwiperSlide>
-                </Swiper>
+            {(() => {
+              const isAB = mode === 'versus' || mode === 'duet'
 
-                {/* Pista para deslizar */}
-                <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 pointer-events-none bg-black/45 backdrop-blur text-white/90 text-[10px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap">
-                  Desliza para ver A / B
-                </div>
-
-                {/* Panel inferior premium (estilo retos activos) */}
-                <div className="absolute inset-x-0 bottom-0 z-20 px-3 pb-3 pointer-events-none">
-                  <div className="flex items-center justify-center gap-1.5 mb-2.5">
-                    {[0, 1].map((i) => (
-                      <span key={i} className={`rounded-full transition-all duration-200 ${pvSide === i ? 'w-5 h-1.5 bg-white' : 'w-1.5 h-1.5 bg-white/40'}`} />
-                    ))}
+              // Una mitad del split (lado A o B): vídeo o estado para subir.
+              const renderSlot = (idx) => {
+                const url = idx === 0 ? previewA : previewB
+                const pick = idx === 0 ? pickFile : pickFileB
+                const label = idx === 0 ? 'A' : 'B'
+                const labelColor = idx === 0 ? GOLD : '#FFFFFF'
+                return (
+                  <div className="relative flex-1 min-h-0 min-w-0 overflow-hidden bg-black">
+                    {url ? (
+                      <video key={label + url} src={url} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" />
+                    ) : (
+                      <button onClick={pick} className="absolute inset-0 w-full h-full flex flex-col items-center justify-center gap-2 bg-white/[0.02] active:bg-white/[0.06] transition">
+                        <div className="w-12 h-12 rounded-xl border border-white/10 bg-white/[0.05] flex items-center justify-center">
+                          <Film size={22} strokeWidth={1.5} className="text-zinc-300" />
+                        </div>
+                        <span className="text-[13px] font-medium text-zinc-200">Subir vídeo {label}</span>
+                        <span className="text-[10px] text-zinc-500">MP4 / WebM · max 80MB</span>
+                      </button>
+                    )}
+                    <span className="absolute top-2 left-2 z-10 text-[11px] font-bold bg-black/55 backdrop-blur rounded-full px-2.5 py-1" style={{ color: labelColor }}>{label}</span>
+                    {url && (
+                      <button onClick={pick} className="absolute top-2 right-2 z-10 text-[11px] font-semibold text-white bg-black/55 hover:bg-black/80 active:scale-95 rounded-full px-2.5 py-1 transition">
+                        Cambiar
+                      </button>
+                    )}
                   </div>
-                  <div className="rounded-3xl border border-white/10 bg-black/40 backdrop-blur-xl p-3.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[12px] font-bold" style={{ color: GOLD }}>Opción A</span>
-                      <span className="text-white/90 font-black text-sm">VS</span>
-                      <span className="text-[12px] font-bold text-white">Opción B</span>
+                )
+              }
+
+              return (
+                <>
+                  {/* Media: split (VS) reflejando el layout, o vídeo único (reto) */}
+                  {isAB ? (
+                    <div
+                      className={`absolute inset-0 flex bg-white/20 ${layout === 'vertical' ? 'flex-row' : 'flex-col'}`}
+                      style={{ gap: '2px' }}
+                    >
+                      {renderSlot(0)}
+                      {renderSlot(1)}
                     </div>
-                    <p className="text-[13px] text-zinc-200 mt-2 line-clamp-2">{description || '¿Cuál prefieres? 🅰️🆚🅱️'}</p>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="relative w-full aspect-[9/16] max-h-[70vh] mx-auto rounded-3xl overflow-hidden border border-white/10 bg-black">
-                <PreviewSlot url={previewA} badge={mode === 'challenge' ? 'TÚ · @tu_canal' : 'A · @tu_canal'} badgeColor={GOLD} onPick={pickFile} />
-
-                {/* Panel inferior premium (estilo retos activos) */}
-                {file && (
-                  <div className="absolute inset-x-0 bottom-0 z-20 px-3 pb-3 pointer-events-none">
-                    <div className="rounded-3xl border border-white/10 bg-black/40 backdrop-blur-xl p-3.5">
-                      {(mode === 'duet' || mode === 'challenge') && pair && (
-                        <div className="flex items-center justify-between gap-3 mb-2.5">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <img src={pair.author?.avatarUrl} className="w-7 h-7 rounded-full shrink-0" alt="" />
-                            <span className="text-[13px] font-semibold text-white truncate">
-                              {mode === 'challenge' ? 'Reto a' : 'vs'} @{pair.author?.username}
-                            </span>
+                  ) : (
+                    <div className="absolute inset-0">
+                      {previewA ? (
+                        <video src={previewA} autoPlay loop muted playsInline className="w-full h-full object-cover" />
+                      ) : (
+                        <button onClick={pickFile} className="w-full h-full flex flex-col items-center justify-center gap-3 bg-white/[0.02] active:bg-white/[0.05] transition">
+                          <div className="w-16 h-16 rounded-2xl border border-white/10 bg-white/[0.05] flex items-center justify-center">
+                            <Film size={28} strokeWidth={1.5} className="text-zinc-300" />
                           </div>
-                          <span className="text-white/90 font-black text-sm shrink-0">VS</span>
+                          <span className="text-[15px] font-medium text-zinc-200">Toca para subir el vídeo</span>
+                          <span className="text-[11px] text-zinc-500">MP4 / WebM · max 80MB</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Degradados para legibilidad */}
+                  <div className="absolute inset-x-0 top-0 h-44 bg-gradient-to-b from-black/85 via-black/30 to-transparent pointer-events-none" />
+                  <div className="absolute inset-x-0 bottom-0 h-80 bg-gradient-to-t from-black via-black/65 to-transparent pointer-events-none" />
+
+                  {/* Header propio */}
+                  <div className="relative z-20 flex items-center justify-between px-3"
+                       style={{ paddingTop: 'max(env(safe-area-inset-top), 14px)', paddingBottom: '10px' }}>
+                    <button onClick={goBack} aria-label="Atrás" className="w-9 h-9 rounded-full flex items-center justify-center bg-black/35 backdrop-blur hover:bg-black/55 active:scale-90 transition">
+                      <ArrowLeft size={20} strokeWidth={1.75} />
+                    </button>
+                    <h1 className="text-[16px] font-semibold tracking-tight">
+                      {mode === 'versus' ? 'Tus 2 vídeos' : mode === 'duet' ? 'Tu 1vs1' : 'Tu vídeo del reto'}
+                    </h1>
+                    <button onClick={onClose} aria-label="Cerrar" className="w-9 h-9 rounded-full flex items-center justify-center bg-black/35 backdrop-blur hover:bg-black/55 active:scale-90 transition text-zinc-200">
+                      <X size={20} strokeWidth={1.75} />
+                    </button>
+                  </div>
+
+                  {/* Conmutador de formato Horizontal / Vertical (VS) */}
+                  {isAB && (
+                    <div className="relative z-20 px-3 flex items-center justify-center">
+                      <div className="inline-flex p-1 rounded-full bg-black/45 backdrop-blur border border-white/10">
+                        <button
+                          onClick={() => setLayout('horizontal')}
+                          className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] font-semibold transition ${layout === 'horizontal' ? 'bg-white text-black' : 'text-white/85'}`}
+                        >
+                          <Rows3 size={14} /> Horizontal
+                        </button>
+                        <button
+                          onClick={() => setLayout('vertical')}
+                          className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] font-semibold transition ${layout === 'vertical' ? 'bg-white text-black' : 'text-white/85'}`}
+                        >
+                          <Columns3 size={14} /> Vertical
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Panel inferior: descripción + publicar */}
+                  <div className="relative z-20 mt-auto px-4 space-y-3"
+                       style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 18px)' }}>
+                    {error && <div className="text-xs text-rose-300">{error}</div>}
+                    <div className="rounded-2xl bg-black/45 backdrop-blur-xl border border-white/10 px-4 py-3">
+                      {isAB && (
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-[12px] font-bold" style={{ color: GOLD }}>Opción A</span>
+                          <span className="text-white/90 font-black text-xs">VS</span>
+                          <span className="text-[12px] font-bold text-white">Opción B</span>
                         </div>
                       )}
-                      <p className="text-[13px] text-zinc-200 line-clamp-2">
-                        {description || (mode === 'duet' ? '¿Quién gana? 🥊 #1vs1' : mode === 'challenge' ? 'Reto 🔥 ¿Aceptas?' : '¿Cuál prefieres? 🅰️🆚🅱️')}
-                      </p>
+                      <textarea
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        placeholder={mode === 'duet' ? '¿Quién gana? 🥊 #1vs1' : mode === 'challenge' ? 'Reto 🔥 ¿Aceptas?' : '¿Cuál prefieres? 🅰️🆚🅱️'}
+                        rows={1}
+                        className="w-full bg-transparent text-[15px] text-zinc-100 placeholder:text-zinc-400 focus:outline-none resize-none"
+                      />
                     </div>
+                    <button
+                      onClick={() => (mode === 'challenge' ? goToTarget() : doUpload())}
+                      disabled={isAB ? (!file || !fileB) : !file}
+                      className="w-full py-3.5 rounded-full bg-white text-black font-bold text-[16px] disabled:bg-white/20 disabled:text-white/40 active:scale-[0.99] transition"
+                    >
+                      {mode === 'duet' ? 'Publicar 1vs1' : mode === 'challenge' ? 'Elegir a quién retar' : 'Publicar versus'}
+                    </button>
                   </div>
-                )}
-              </div>
-            )}
-
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder={mode === 'duet' ? '¿Quién gana? 🥊 #1vs1' : '¿Cuál prefieres? 🅰️🆚🅱️'}
-              rows={2}
-              className="w-full bg-white/[0.03] border border-white/[0.08] rounded-2xl px-4 py-3 text-sm placeholder:text-zinc-600 focus:outline-none focus:border-white/30 transition resize-none"
-            />
-
-            {error && <div className="text-xs text-rose-400">{error}</div>}
-
-            <button
-              onClick={doUpload}
-              disabled={mode === 'versus' ? (!file || !fileB) : !file}
-              className="w-full h-12 rounded-full bg-white text-black font-semibold text-[15px] disabled:bg-white/10 disabled:text-white/40 hover:bg-zinc-100 active:scale-[0.99] transition"
-            >
-              {mode === 'duet' ? 'Publicar 1vs1' : mode === 'challenge' ? 'Enviar reto' : 'Publicar versus'}
-            </button>
+                </>
+              )
+            })()}
           </div>
         )}
 
