@@ -2,7 +2,7 @@
 /* eslint-disable react-hooks/set-state-in-effect -- setState dentro de fetch async en efecto de carga; falso positivo de la regla experimental. */
 
 import { useEffect, useMemo, useState } from 'react'
-import { Menu, Bookmark, Link as LinkIcon } from 'lucide-react'
+import { Menu, Bookmark, Link as LinkIcon, Swords, Users, UserPlus } from 'lucide-react'
 import VoteIcon from './icons/VoteIcon'
 
 const ME = {
@@ -75,7 +75,7 @@ const GridItem = ({ post }) => {
   const isRow = post?.layout === 'vertical'
 
   return (
-    <div className="group relative aspect-[9/16] overflow-hidden rounded-lg bg-gray-100">
+    <div className="group relative aspect-[9/16] overflow-hidden rounded-lg bg-white/[0.04] border border-white/5">
       {hasTwo ? (
         <div className={`absolute inset-0 flex bg-white/30 ${isRow ? 'flex-row' : 'flex-col'}`} style={{ gap: '1.5px' }}>
           <div className="relative flex-1 min-w-0 min-h-0 overflow-hidden bg-gray-200">
@@ -169,19 +169,19 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
       if (loading) {
         return (
           <div className="flex justify-center items-center py-20">
-            <div className="w-8 h-8 rounded-full border-2 border-gray-200 border-t-fuchsia-500 animate-spin" />
+            <div className="w-8 h-8 rounded-full border-2 border-white/10 border-t-[#E4C79B] animate-spin" />
           </div>
         )
       }
       if (posts.length === 0) {
         return (
           <div className="text-center py-16 space-y-4 px-4">
-            <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto shadow-sm">
-              <ColumnsIcon className="w-7 h-7 text-gray-400" />
+            <div className="w-16 h-16 bg-white/[0.04] border border-white/10 rounded-full flex items-center justify-center mx-auto">
+              <ColumnsIcon className="w-7 h-7 text-zinc-500" />
             </div>
             <div className="space-y-1">
-              <h3 className="text-base font-semibold text-gray-900">No posts yet</h3>
-              <p className="text-gray-400 text-sm">Start creating content</p>
+              <h3 className="text-base font-semibold text-white">Aún no hay publicaciones</h3>
+              <p className="text-zinc-500 text-sm">Empieza a crear contenido</p>
             </div>
           </div>
         )
@@ -194,58 +194,72 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
     }
 
     const emptyMap = {
-      saved: { Icon: Bookmark, title: 'No saved posts', desc: 'Save videos to watch later' },
-      links: { Icon: LinkIcon, title: 'No links yet', desc: 'Add your social links here' },
+      saved: { Icon: Bookmark, title: 'No hay guardados', desc: 'Guarda vídeos para verlos luego' },
+      links: { Icon: LinkIcon, title: 'No hay enlaces', desc: 'Añade tus enlaces aquí' },
     }
     const e = emptyMap[activeTab]
     return (
       <div className="text-center py-16 space-y-4 px-4">
-        <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto shadow-sm text-gray-400">
+        <div className="w-16 h-16 bg-white/[0.04] border border-white/10 rounded-full flex items-center justify-center mx-auto text-zinc-500">
           <e.Icon className="w-7 h-7" strokeWidth={1.5} />
         </div>
         <div className="space-y-1">
-          <h3 className="text-base font-semibold text-gray-900">{e.title}</h3>
-          <p className="text-gray-400 text-sm">{e.desc}</p>
+          <h3 className="text-base font-semibold text-white">{e.title}</h3>
+          <p className="text-zinc-500 text-sm">{e.desc}</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="fixed inset-0 z-40 bg-white overflow-y-auto overscroll-contain">
+    <div className="fixed inset-0 z-40 bg-[#0a0a0b] overflow-y-auto overscroll-contain">
+      {/* Glow superior cálido (mismo tono dorado que la página de retos) */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-80 z-0"
+           style={{ background: 'radial-gradient(60% 100% at 50% 0%, rgba(214,178,122,0.10), transparent 70%)' }} />
+
       {/* Header minimalista: solo menú */}
-      <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-xl border-b border-gray-100/80"
+      <div className="sticky top-0 z-20 bg-[#0a0a0b]/70 backdrop-blur-xl border-b border-white/[0.06]"
            style={{ paddingTop: 'max(env(safe-area-inset-top), 8px)' }}>
         <div className="flex items-center justify-end px-4 sm:px-6 h-14 max-w-md mx-auto w-full">
-          <button aria-label="menú" className="p-2 -mr-1 text-gray-700 active:scale-90 transition">
+          <button aria-label="menú" className="p-2 -mr-1 text-zinc-300 active:scale-90 transition">
             <Menu strokeWidth={1.9} className="w-[24px] h-[24px]" />
           </button>
         </div>
       </div>
 
-      {/* Cabecera del perfil: stats alrededor del avatar */}
-      <div className="px-5 sm:px-6 pt-6 pb-5 max-w-md mx-auto w-full">
-        <div className="relative mx-auto w-full max-w-[340px]">
-          <div className="grid grid-cols-3 items-center gap-y-6">
+      {/* Cabecera del perfil: stats con iconos alrededor del avatar */}
+      <div className="relative z-10 px-5 sm:px-6 pt-6 pb-5 max-w-md mx-auto w-full">
+        <div className="relative mx-auto w-full max-w-[360px]">
+          <div className="grid grid-cols-3 items-center gap-y-7">
 
             {/* Votos - superior izquierda */}
-            <button className="text-left active:opacity-60 transition">
-              <p className="text-[17px] font-bold text-gray-900 leading-none tabular-nums">{formatNumber(stats.votos)}</p>
-              <p className="text-[11px] text-gray-400 mt-1 font-medium">Votos</p>
+            <button className="flex items-center gap-2 text-left active:opacity-60 transition">
+              <span className="w-10 h-10 rounded-full bg-sky-500/15 border border-sky-400/20 flex items-center justify-center shrink-0">
+                <VoteIcon className="w-5 h-5 text-sky-400" strokeWidth={260} filled />
+              </span>
+              <span className="min-w-0">
+                <p className="text-[17px] font-bold text-white leading-none tabular-nums">{formatNumber(stats.votos)}</p>
+                <p className="text-[11px] text-zinc-400 mt-1 font-medium">Votos</p>
+              </span>
             </button>
             <div />
             {/* Retos - superior derecha */}
-            <button className="text-right active:opacity-60 transition">
-              <p className="text-[17px] font-bold text-gray-900 leading-none tabular-nums">{formatNumber(stats.retos)}</p>
-              <p className="text-[11px] text-gray-400 mt-1 font-medium">Retos</p>
+            <button className="flex items-center gap-2 justify-end text-right active:opacity-60 transition">
+              <span className="min-w-0 order-1">
+                <p className="text-[17px] font-bold text-white leading-none tabular-nums">{formatNumber(stats.retos)}</p>
+                <p className="text-[11px] text-zinc-400 mt-1 font-medium">Retos</p>
+              </span>
+              <span className="order-2 w-10 h-10 rounded-full bg-[#E4C79B]/15 border border-[#E4C79B]/25 flex items-center justify-center shrink-0">
+                <Swords className="w-5 h-5" strokeWidth={1.75} style={{ color: '#E4C79B' }} />
+              </span>
             </button>
 
             {/* Avatar - centro */}
             <div />
             <div className="flex justify-center">
               <div className="relative">
-                <div className="w-[104px] h-[104px] rounded-full p-[3px] bg-gradient-to-br from-gray-100 to-gray-200 shadow-[0_8px_24px_-8px_rgba(0,0,0,0.18)]">
-                  <div className="w-full h-full rounded-full overflow-hidden bg-white ring-[3px] ring-white">
+                <div className="w-[104px] h-[104px] rounded-full p-[3px] bg-gradient-to-br from-white/15 to-white/[0.03] shadow-[0_8px_30px_-8px_rgba(0,0,0,0.6)]">
+                  <div className="w-full h-full rounded-full overflow-hidden bg-zinc-900 ring-2 ring-white/10">
                     {ME.avatarUrl ? (
                       <img src={ME.avatarUrl} alt={ME.username} className="w-full h-full rounded-full object-cover" draggable={false} />
                     ) : (
@@ -258,39 +272,49 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
             <div />
 
             {/* Followers - inferior izquierda */}
-            <button className="text-left active:opacity-60 transition">
-              <p className="text-[17px] font-bold text-gray-900 leading-none tabular-nums">0</p>
-              <p className="text-[11px] text-gray-400 mt-1 font-medium">Followers</p>
+            <button className="flex items-center gap-2 text-left active:opacity-60 transition">
+              <span className="w-10 h-10 rounded-full bg-emerald-500/15 border border-emerald-400/20 flex items-center justify-center shrink-0">
+                <Users className="w-5 h-5 text-emerald-400" strokeWidth={1.75} />
+              </span>
+              <span className="min-w-0">
+                <p className="text-[17px] font-bold text-white leading-none tabular-nums">0</p>
+                <p className="text-[11px] text-zinc-400 mt-1 font-medium">Followers</p>
+              </span>
             </button>
             <div />
             {/* Following - inferior derecha */}
-            <button className="text-right active:opacity-60 transition">
-              <p className="text-[17px] font-bold text-gray-900 leading-none tabular-nums">0</p>
-              <p className="text-[11px] text-gray-400 mt-1 font-medium">Following</p>
+            <button className="flex items-center gap-2 justify-end text-right active:opacity-60 transition">
+              <span className="min-w-0 order-1">
+                <p className="text-[17px] font-bold text-white leading-none tabular-nums">0</p>
+                <p className="text-[11px] text-zinc-400 mt-1 font-medium">Following</p>
+              </span>
+              <span className="order-2 w-10 h-10 rounded-full bg-fuchsia-500/15 border border-fuchsia-400/20 flex items-center justify-center shrink-0">
+                <UserPlus className="w-5 h-5 text-fuchsia-400" strokeWidth={1.75} />
+              </span>
             </button>
           </div>
         </div>
 
         {/* Nombre + handle */}
         <div className="text-center mt-6 space-y-0.5">
-          <h2 className="text-[20px] font-bold tracking-tight text-gray-900 leading-tight">{ME.name}</h2>
-          <p className="text-[13px] text-gray-400 font-medium">{ME.handle}</p>
+          <h2 className="text-[20px] font-bold tracking-tight text-white leading-tight">{ME.name}</h2>
+          <p className="text-[13px] text-zinc-400 font-medium">{ME.handle}</p>
         </div>
 
         {/* Botones de acción - compactos y limpios */}
         <div className="mt-5 flex items-center justify-center gap-2">
-          <button className="h-9 px-6 rounded-full bg-gray-900 hover:bg-black text-white font-semibold text-[13px] tracking-tight active:scale-[0.97] transition-all">
-            Edit profile
+          <button className="h-9 px-6 rounded-full bg-white hover:bg-zinc-100 text-black font-semibold text-[13px] tracking-tight active:scale-[0.97] transition-all">
+            Editar perfil
           </button>
-          <button className="h-9 px-6 rounded-full border border-gray-200 hover:border-gray-300 bg-white text-gray-900 font-semibold text-[13px] tracking-tight active:scale-[0.97] transition-all">
-            Share
+          <button className="h-9 px-6 rounded-full border border-white/15 hover:bg-white/[0.06] text-white font-semibold text-[13px] tracking-tight active:scale-[0.97] transition-all">
+            Compartir
           </button>
         </div>
       </div>
 
-      {/* Tabs - diseño píldora */}
-      <div className="px-1 sm:px-2 max-w-md mx-auto w-full">
-        <div className="grid grid-cols-3 w-full bg-gray-50 rounded-2xl p-1">
+      {/* Tabs - diseño píldora (tema oscuro) */}
+      <div className="relative z-10 px-3 sm:px-4 max-w-md mx-auto w-full">
+        <div className="grid grid-cols-3 w-full bg-white/[0.06] border border-white/10 rounded-2xl p-1">
           {TABS.map((tab) => {
             const active = activeTab === tab.key
             return (
@@ -298,8 +322,8 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
                 aria-label={tab.key}
-                className={`rounded-xl py-3 text-sm font-medium flex items-center justify-center border transition-all ${
-                  active ? 'bg-white border-gray-900 text-gray-900' : 'border-transparent text-gray-400'
+                className={`rounded-xl py-3 text-sm font-medium flex items-center justify-center transition-all ${
+                  active ? 'bg-white text-black' : 'text-zinc-400 hover:text-white'
                 }`}
               >
                 {tab.icon(active)}
@@ -310,7 +334,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
       </div>
 
       {/* Contenido */}
-      <div className="mt-4 px-0.5 pb-28 max-w-md mx-auto w-full">
+      <div className="relative z-10 mt-4 px-2 pb-28 max-w-md mx-auto w-full">
         {renderTabContent()}
       </div>
     </div>
