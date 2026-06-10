@@ -98,12 +98,12 @@ export default function ChallengeDialog({ open, onClose, target, onCreated }) {
 
         {/* Header minimalista */}
         <div className="relative z-10 flex items-center gap-3 px-5 pt-4 pb-4">
-          <div className="w-11 h-11 rounded-full p-[2px] bg-gradient-to-br from-white/15 to-white/[0.03] shrink-0">
+          <div className="w-8 h-8 rounded-full p-[1.5px] bg-gradient-to-br from-white/15 to-white/[0.03] shrink-0">
             <div className="w-full h-full rounded-full overflow-hidden bg-zinc-900 ring-1 ring-white/10 flex items-center justify-center">
               {target?.author?.avatarUrl ? (
                 <img src={target.author.avatarUrl} alt={username} className="w-full h-full object-cover" draggable={false} />
               ) : (
-                <Swords className="w-5 h-5 text-white/70" />
+                <Swords className="w-4 h-4 text-white/70" />
               )}
             </div>
           </div>
@@ -191,7 +191,7 @@ export default function ChallengeDialog({ open, onClose, target, onCreated }) {
               />
 
               <p className="text-[12px] text-zinc-500 leading-relaxed">
-                Se enviará una solicitud de reto a <span className="text-zinc-300">@{username}</span>. Cuando la acepte, se publicará como un versus (tú&nbsp;🆚&nbsp;{target?.author?.name || 'rival'}).
+                Se enviará una solicitud de reto a <span className="text-zinc-300">@{username}</span>. Cuando la acepte, se publicará como un versus (tú vs {target?.author?.name || 'rival'}).
               </p>
 
               {error && <div className="text-[12px] text-rose-400">{error}</div>}
