@@ -61,6 +61,10 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted,
   const current = sideIdx === 0 ? sideA : sideB
   const headAuthor = current.author || post.author || {}
 
+  // FASE 2: calidad adaptativa a la red (fallback al videoUrl si no hay renditions).
+  const srcA = useMemo(() => pickQuality(sideA.qualities, sideA.videoUrl), [sideA.qualities, sideA.videoUrl])
+  const srcB = useMemo(() => pickQuality(sideB.qualities, sideB.videoUrl), [sideB.qualities, sideB.videoUrl])
+
   // Restaurar voto previo
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -268,9 +272,6 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted,
   const chosenName = chosenSide.author?.name || (chosenSide.author?.username ? `@${chosenSide.author.username}` : '')
   const otherName = otherSide.author?.name || (otherSide.author?.username ? `@${otherSide.author.username}` : '')
   const chosenSrc = chosenKey === 'b' ? srcB : srcA
-
-  const srcA = useMemo(() => pickQuality(sideA.qualities, sideA.videoUrl), [sideA.qualities, sideA.videoUrl])
-  const srcB = useMemo(() => pickQuality(sideB.qualities, sideB.videoUrl), [sideB.qualities, sideB.videoUrl])
 
   const renderVideo = (s, ref, mountVideo, src) => (
     <div className="relative w-1/2 h-full overflow-hidden bg-black">
