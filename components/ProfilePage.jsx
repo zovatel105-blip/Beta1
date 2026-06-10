@@ -68,11 +68,11 @@ const GridItem = ({ post }) => {
   const totalVotes = (post?.votes?.a || 0) + (post?.votes?.b || 0)
   const showImg = thumb && !imgFailed
 
-  // Posts con dos lados (Versus / 1vs1) -> miniatura dividida según el layout.
-  const hasTwo = !!(post?.sideA?.videoUrl && post?.sideB?.videoUrl)
-  // Vertical (1vs1 izq/der) y carousel (versus) -> split izquierda/derecha.
-  // Horizontal (1vs1 arriba/abajo) -> split arriba/abajo.
-  const isRow = post?.layout === 'vertical' || post?.layout === 'carousel'
+  // Solo los 1vs1 (dueto) muestran split. Los Versus (carrusel) se muestran como
+  // un único post, sin línea divisoria.
+  const hasTwo = post?.type === 'duet' && !!(post?.sideA?.videoUrl && post?.sideB?.videoUrl)
+  // Vertical (1vs1 izq/der) -> split izquierda/derecha. Horizontal -> arriba/abajo.
+  const isRow = post?.layout === 'vertical'
 
   return (
     <div className="group relative aspect-[9/16] overflow-hidden rounded-lg bg-gray-100">
