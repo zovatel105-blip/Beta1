@@ -2,7 +2,7 @@
 /* eslint-disable react-hooks/set-state-in-effect -- setState dentro de fetch async en efecto de carga; falso positivo de la regla experimental. */
 
 import { useEffect, useMemo, useState } from 'react'
-import { Menu, Heart, Bookmark, Link as LinkIcon, Plus } from 'lucide-react'
+import { Menu, Bookmark, Link as LinkIcon, Plus } from 'lucide-react'
 import VoteIcon from './icons/VoteIcon'
 
 const ME = {
@@ -70,7 +70,6 @@ const GridItem = ({ post }) => {
 
 const TABS = [
   { key: 'polls', icon: () => <ColumnsIcon className="w-4 h-4" /> },
-  { key: 'liked', icon: () => <Heart className="w-4 h-4" strokeWidth={1.5} /> },
   { key: 'saved', icon: () => <Bookmark className="w-4 h-4" strokeWidth={1.5} /> },
   { key: 'links', icon: () => <LinkIcon className="w-4 h-4" strokeWidth={1.5} /> },
 ]
@@ -136,7 +135,6 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
     }
 
     const emptyMap = {
-      liked: { Icon: Heart, title: 'No likes yet', desc: 'Videos you like will appear here' },
       saved: { Icon: Bookmark, title: 'No saved posts', desc: 'Save videos to watch later' },
       links: { Icon: LinkIcon, title: 'No links yet', desc: 'Add your social links here' },
     }
@@ -237,9 +235,9 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
         </div>
       </div>
 
-      {/* Tabs minimalistas con subrayado */}
-      <div className="sticky top-14 z-10 bg-white/90 backdrop-blur-xl border-b border-gray-100 max-w-md mx-auto w-full">
-        <div className="flex items-center justify-around px-2">
+      {/* Tabs - diseño píldora */}
+      <div className="px-1 sm:px-2 max-w-md mx-auto w-full">
+        <div className="grid grid-cols-3 w-full bg-gray-50 rounded-2xl p-1">
           {TABS.map((tab) => {
             const active = activeTab === tab.key
             return (
@@ -247,16 +245,11 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
                 aria-label={tab.key}
-                className="relative flex-1 flex items-center justify-center py-3.5 group"
+                className={`rounded-xl py-3 text-sm font-medium flex items-center justify-center transition-all ${
+                  active ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400'
+                }`}
               >
-                <span className={`transition-colors ${active ? 'text-gray-900' : 'text-gray-300 group-hover:text-gray-400'}`}>
-                  {tab.icon(active)}
-                </span>
-                <span
-                  className={`absolute bottom-0 left-1/2 -translate-x-1/2 h-[2.5px] rounded-full bg-gray-900 transition-all duration-300 ${
-                    active ? 'w-7 opacity-100' : 'w-0 opacity-0'
-                  }`}
-                />
+                {tab.icon(active)}
               </button>
             )
           })}
@@ -264,7 +257,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
       </div>
 
       {/* Contenido */}
-      <div className="mt-1.5 px-0.5 pb-28 max-w-md mx-auto w-full">
+      <div className="mt-4 px-0.5 pb-28 max-w-md mx-auto w-full">
         {renderTabContent()}
       </div>
     </div>
