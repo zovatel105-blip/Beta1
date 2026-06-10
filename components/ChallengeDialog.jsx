@@ -108,8 +108,8 @@ export default function ChallengeDialog({ open, onClose, target, onCreated }) {
             </div>
           </div>
           <div className="min-w-0">
-            <p className="text-[11px] uppercase tracking-[0.16em] font-medium" style={{ color: GOLD }}>Reto</p>
-            <h2 className="text-white text-[17px] font-semibold tracking-tight leading-tight truncate">@{username}</h2>
+            <p className="text-[10px] uppercase tracking-[0.16em] font-medium" style={{ color: GOLD }}>Reto</p>
+            <h2 className="text-white text-[13px] font-semibold tracking-tight leading-tight truncate">@{username}</h2>
           </div>
           <button
             onClick={onClose}
