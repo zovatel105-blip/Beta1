@@ -523,16 +523,21 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted, onR
       {/* Selector de reto — elige explícitamente la opción A o B a la que retar */}
       {challengePickOpen && (
         <div className="absolute inset-0 z-40 flex items-end pointer-events-auto" onClick={(e) => { e.stopPropagation(); setChallengePickOpen(false) }}>
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-[1px]" />
-          <div className="relative w-full bg-zinc-900 rounded-t-2xl pt-2 pb-7 px-4" onClick={(e) => e.stopPropagation()}>
-            <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-white/25" />
-            <h3 className="text-white text-[15px] font-semibold text-center">¿A quién quieres retar?</h3>
-            <p className="text-white/50 text-[12px] text-center mb-4">Elige la opción de este 1vs1</p>
-            <div className="grid grid-cols-2 gap-3">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+          <div className="relative w-full bg-[#0a0a0b] border-t border-white/10 rounded-t-3xl pt-2 pb-7 px-5 overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            {/* Glow superior cálido dorado */}
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-40 z-0"
+                 style={{ background: 'radial-gradient(60% 100% at 50% 0%, rgba(214,178,122,0.10), transparent 70%)' }} />
+
+            <div className="relative z-10 mx-auto mb-3 h-1 w-10 rounded-full bg-white/15" />
+            <h3 className="relative z-10 text-white text-[16px] font-semibold tracking-tight text-center">¿A quién quieres retar?</h3>
+            <p className="relative z-10 text-zinc-500 text-[12px] text-center mb-4">Elige la opción de este 1vs1</p>
+
+            <div className="relative z-10 grid grid-cols-2 gap-3">
               {[
-                { key: 'a', sd: sideA, ring: 'ring-purple-500', label: 'Opción A' },
-                { key: 'b', sd: sideB, ring: 'ring-blue-500', label: 'Opción B' },
-              ].map(({ key, sd, ring, label }) => (
+                { key: 'a', sd: sideA, ring: 'ring-purple-500', dot: '#A855F7', label: 'Opción A' },
+                { key: 'b', sd: sideB, ring: 'ring-blue-500', dot: '#3B82F6', label: 'Opción B' },
+              ].map(({ key, sd, ring, dot, label }) => (
                 <button
                   key={key}
                   onClick={() => {
@@ -544,19 +549,26 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted, onR
                       music: sd.music,
                     })
                   }}
-                  className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-white/5 hover:bg-white/10 active:scale-95 transition-all border border-white/10"
+                  className="group flex flex-col items-center gap-2.5 active:scale-[0.98] transition-all"
                 >
-                  <div className={cn('w-16 h-16 rounded-full overflow-hidden ring-2', ring)}>
-                    <img src={sd.posterUrl || sd.author?.avatarUrl} alt="" className="w-full h-full object-cover" draggable={false} />
+                  <div className={cn('relative w-full aspect-[9/16] rounded-2xl overflow-hidden bg-zinc-900 border border-white/10 ring-2 ring-offset-2 ring-offset-[#0a0a0b]', ring)}>
+                    {sd.posterUrl && (
+                      <img src={sd.posterUrl} alt="" aria-hidden className="absolute inset-0 w-full h-full object-cover" draggable={false} />
+                    )}
+                    {sd.videoUrl && (
+                      <video src={sd.videoUrl + '#t=0.3'} muted autoPlay loop playsInline preload="metadata" poster={sd.posterUrl || undefined} className="absolute inset-0 w-full h-full object-cover" />
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent" />
+                    <span className="absolute top-2 left-2 z-10 text-[10px] font-bold rounded-full px-2 py-0.5 bg-black/55 backdrop-blur" style={{ color: dot }}>{label}</span>
                   </div>
                   <span className="text-white text-[13px] font-semibold leading-tight text-center line-clamp-1">
                     {sd.author?.name || (sd.author?.username ? `@${sd.author.username}` : label)}
                   </span>
-                  <span className="text-white/40 text-[11px]">{label}</span>
                 </button>
               ))}
             </div>
-            <button onClick={() => setChallengePickOpen(false)} className="mt-3 w-full px-3 py-3 rounded-xl text-white/70 font-medium hover:bg-white/10 transition-colors">
+
+            <button onClick={() => setChallengePickOpen(false)} className="relative z-10 mt-4 w-full h-11 rounded-full border border-white/15 text-white/80 font-medium text-[14px] hover:bg-white/[0.06] active:scale-[0.99] transition">
               Cancelar
             </button>
           </div>
