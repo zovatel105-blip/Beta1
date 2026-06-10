@@ -235,7 +235,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
             {/* Votos - superior izquierda */}
             <button className="flex items-center gap-2 text-left active:opacity-60 transition">
               <span className="shrink-0 flex items-center justify-center">
-                <VoteIcon className="w-7 h-7 text-white" strokeWidth={220} filled={false} />
+                <VoteIcon className="w-9 h-9 text-white" strokeWidth={220} filled={false} />
               </span>
               <span className="min-w-0">
                 <p className="text-[17px] font-bold text-white leading-none tabular-nums">{formatNumber(stats.votos)}</p>
@@ -250,7 +250,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
                 <p className="text-[11px] text-zinc-400 mt-1 font-medium">Retos</p>
               </span>
               <span className="order-2 shrink-0 flex items-center justify-center">
-                <Swords className="w-7 h-7 text-white" strokeWidth={1.6} />
+                <Swords className="w-7 h-7 text-white" strokeWidth={1.2} />
               </span>
             </button>
 
@@ -274,7 +274,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
             {/* Followers - inferior izquierda */}
             <button className="flex items-center gap-2 text-left active:opacity-60 transition">
               <span className="shrink-0 flex items-center justify-center">
-                <Users className="w-7 h-7 text-white" strokeWidth={1.6} />
+                <Users className="w-7 h-7 text-white" strokeWidth={1.2} />
               </span>
               <span className="min-w-0">
                 <p className="text-[17px] font-bold text-white leading-none tabular-nums">0</p>
@@ -289,7 +289,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
                 <p className="text-[11px] text-zinc-400 mt-1 font-medium">Following</p>
               </span>
               <span className="order-2 shrink-0 flex items-center justify-center">
-                <UserPlus className="w-7 h-7 text-white" strokeWidth={1.6} />
+                <UserPlus className="w-7 h-7 text-white" strokeWidth={1.2} />
               </span>
             </button>
           </div>
