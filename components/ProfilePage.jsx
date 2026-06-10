@@ -112,7 +112,7 @@ const GridItem = ({ post }) => {
       {/* Contador de votos - píldora abajo-izquierda */}
       {totalVotes > 0 && (
         <div className="absolute bottom-1 left-1 flex items-center gap-1 bg-black/55 backdrop-blur-sm px-1.5 py-[2px] rounded-full text-white text-[11px] font-normal pointer-events-none z-30">
-          <VoteIcon className="w-3 h-3" strokeWidth={150} filled={false} />
+          <VoteIcon className="w-3.5 h-3.5" strokeWidth={150} filled={false} />
           <span>{formatNumber(totalVotes)}</span>
         </div>
       )}
