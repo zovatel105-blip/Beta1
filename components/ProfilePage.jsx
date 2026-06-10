@@ -2,12 +2,13 @@
 /* eslint-disable react-hooks/set-state-in-effect -- setState dentro de fetch async en efecto de carga; falso positivo de la regla experimental. */
 
 import { useEffect, useMemo, useState } from 'react'
-import { Menu, Heart, Users, UserPlus, Bookmark, UserCircle, Link as LinkIcon } from 'lucide-react'
+import { Menu, Heart, Bookmark, UserCircle, Link as LinkIcon, Share2, Plus, BarChart3 } from 'lucide-react'
 import VoteIcon from './icons/VoteIcon'
 
 const ME = {
   username: 'nexus',
   name: 'nexus',
+  handle: '@nexus',
   avatarUrl: '',
 }
 
@@ -155,126 +156,101 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
     )
   }
 
+  const statItems = [
+    { key: 'following', label: 'Following', value: formatNumber(0) },
+    { key: 'followers', label: 'Followers', value: formatNumber(0) },
+    { key: 'votes', label: 'Votes', value: formatNumber(stats.votos) },
+    { key: 'likes', label: 'Likes', value: formatNumber(stats.likes) },
+  ]
+
   return (
     <div className="fixed inset-0 z-40 bg-white overflow-y-auto overscroll-contain">
-      {/* Header: título centrado + menú hamburguesa */}
-      <div className="relative flex items-center justify-center px-3 sm:px-6 py-3"
-           style={{ paddingTop: 'max(env(safe-area-inset-top), 12px)' }}>
-        <h1 className="text-lg font-semibold text-gray-900">{ME.username}</h1>
-        <button aria-label="menú" className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 p-1 text-gray-700 active:scale-90 transition">
-          <Menu strokeWidth={2} style={{ width: '26px', height: '26px' }} />
-        </button>
+      {/* Header minimalista: handle a la izquierda, acciones a la derecha */}
+      <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-xl border-b border-gray-100/80"
+           style={{ paddingTop: 'max(env(safe-area-inset-top), 8px)' }}>
+        <div className="flex items-center justify-between px-4 sm:px-6 h-14 max-w-md mx-auto w-full">
+          <span className="text-[15px] font-semibold tracking-tight text-gray-900">{ME.handle}</span>
+          <div className="flex items-center gap-1">
+            <button aria-label="compartir perfil" className="p-2 -mr-1 text-gray-700 active:scale-90 transition">
+              <Share2 strokeWidth={1.9} className="w-[22px] h-[22px]" />
+            </button>
+            <button aria-label="menú" className="p-2 text-gray-700 active:scale-90 transition">
+              <Menu strokeWidth={1.9} className="w-[24px] h-[24px]" />
+            </button>
+          </div>
+        </div>
       </div>
 
-      {/* Bloque de cabecera del perfil: stats + nombre + botones con espaciado uniforme */}
-      <div className="px-3 sm:px-6 py-6 sm:py-8 space-y-6 sm:space-y-8">
-        {/* Avatar con métricas alrededor en diseño 3x3 (estructura exacta del diseño de referencia) */}
-        <div className="relative max-w-sm mx-auto w-full">
-          <div className="grid grid-cols-3 gap-1 sm:gap-2 items-center">
-
-            {/* Votos - Esquina superior izquierda */}
-            <div className="text-left">
-              <div className="flex items-center gap-2">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0">
-                  <VoteIcon className="w-7 h-7 sm:w-8 sm:h-8 text-blue-600" strokeWidth={260} filled={false} />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xl sm:text-2xl font-bold text-gray-900 leading-none">{formatNumber(stats.votos)}</p>
-                  <p className="text-xs sm:text-sm text-gray-600">Votes</p>
-                </div>
+      {/* Cabecera del perfil */}
+      <div className="px-5 sm:px-6 pt-8 pb-5 max-w-md mx-auto w-full">
+        {/* Avatar centrado con anillo sutil + badge de edición */}
+        <div className="flex justify-center">
+          <div className="relative">
+            <div className="w-[104px] h-[104px] rounded-full p-[3px] bg-gradient-to-br from-gray-100 to-gray-200 shadow-[0_8px_24px_-8px_rgba(0,0,0,0.18)]">
+              <div className="w-full h-full rounded-full overflow-hidden bg-white ring-[3px] ring-white">
+                {ME.avatarUrl ? (
+                  <img src={ME.avatarUrl} alt={ME.username} className="w-full h-full rounded-full object-cover" draggable={false} />
+                ) : (
+                  <DefaultAvatar className="w-full h-full" />
+                )}
               </div>
             </div>
-
-            {/* Espacio vacío superior centro */}
-            <div></div>
-
-            {/* Me gusta - Esquina superior derecha */}
-            <div className="text-right">
-              <div className="flex items-center gap-2 justify-end">
-                <div className="min-w-0 text-right order-1">
-                  <p className="text-xl sm:text-2xl font-bold text-gray-900 leading-none">{formatNumber(stats.likes)}</p>
-                  <p className="text-xs sm:text-sm text-gray-600">Likes</p>
-                </div>
-                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-pink-50 flex items-center justify-center flex-shrink-0 order-2">
-                  <Heart className="w-5 h-5 sm:w-6 sm:h-6 text-pink-500 fill-pink-500" strokeWidth={1.5} />
-                </div>
-              </div>
-            </div>
-
-            {/* Espacio vacío centro izquierda */}
-            <div></div>
-
-            {/* Avatar - Centro */}
-            <div className="flex justify-center">
-              <div className="relative w-20 h-20 sm:w-24 sm:h-24">
-                <div className="w-full h-full bg-white rounded-full overflow-hidden">
-                  {ME.avatarUrl ? (
-                    <img
-                      src={ME.avatarUrl}
-                      alt={ME.username}
-                      className="w-full h-full rounded-full object-cover"
-                      draggable={false}
-                    />
-                  ) : (
-                    <DefaultAvatar className="w-full h-full" />
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Espacio vacío centro derecha */}
-            <div></div>
-
-            {/* Seguidores - Esquina inferior izquierda */}
-            <button className="text-left hover:bg-gray-50 rounded-xl p-1 sm:p-2 transition-colors">
-              <div className="flex items-center gap-2">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-green-50 flex items-center justify-center flex-shrink-0">
-                  <Users className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" strokeWidth={1.5} />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xl sm:text-2xl font-bold text-gray-900 leading-none">0</p>
-                  <p className="text-xs sm:text-sm text-gray-600">Followers</p>
-                </div>
-              </div>
-            </button>
-
-            {/* Espacio vacío inferior centro */}
-            <div></div>
-
-            {/* Seguidos - Esquina inferior derecha */}
-            <button className="text-right hover:bg-gray-50 rounded-xl p-1 sm:p-2 transition-colors">
-              <div className="flex items-center gap-2 justify-end">
-                <div className="min-w-0 text-right order-1">
-                  <p className="text-xl sm:text-2xl font-bold text-gray-900 leading-none">0</p>
-                  <p className="text-xs sm:text-sm text-gray-600">Following</p>
-                </div>
-                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-purple-50 flex items-center justify-center flex-shrink-0 order-2">
-                  <UserPlus className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" strokeWidth={1.5} />
-                </div>
-              </div>
+            <button
+              aria-label="cambiar foto"
+              className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-gray-900 text-white flex items-center justify-center shadow-lg ring-[3px] ring-white active:scale-90 transition"
+            >
+              <Plus strokeWidth={2.4} className="w-[18px] h-[18px]" />
             </button>
           </div>
         </div>
 
-        {/* Nombre */}
-        <div className="text-center space-y-2 max-w-sm mx-auto">
-          <h2 className="text-lg sm:text-xl font-bold text-gray-900">{ME.username}</h2>
+        {/* Nombre + handle */}
+        <div className="text-center mt-4 space-y-0.5">
+          <h2 className="text-[22px] font-bold tracking-tight text-gray-900 leading-tight">{ME.name}</h2>
+          <p className="text-sm text-gray-400 font-medium">{ME.handle}</p>
         </div>
 
-        {/* Botones de acción - Edit profile / Statistics */}
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 max-w-sm mx-auto">
-          <button className="h-11 sm:h-12 rounded-2xl bg-gray-50 hover:bg-gray-100 font-medium text-sm text-gray-900 transition-colors">
+        {/* Fila de stats horizontal con divisores */}
+        <div className="mt-6 flex items-center justify-center">
+          {statItems.map((s, i) => (
+            <div key={s.key} className="flex items-stretch">
+              {i > 0 && <span className="w-px self-center h-7 bg-gray-200/80" />}
+              <button className="px-4 sm:px-5 py-1 text-center active:opacity-60 transition">
+                <p className="text-[19px] font-bold text-gray-900 leading-none tabular-nums">{s.value}</p>
+                <p className="text-[12px] text-gray-400 mt-1 font-medium">{s.label}</p>
+              </button>
+            </div>
+          ))}
+        </div>
+
+        {/* Bio / placeholder minimalista */}
+        <div className="mt-5 flex justify-center">
+          <button className="inline-flex items-center gap-1.5 text-[13px] font-medium text-gray-500 hover:text-gray-700 active:scale-95 transition">
+            <Plus strokeWidth={2} className="w-4 h-4" />
+            Add bio
+          </button>
+        </div>
+
+        {/* Botones de acción */}
+        <div className="mt-5 flex items-center gap-2.5">
+          <button className="flex-1 h-10 rounded-full bg-gray-900 hover:bg-black text-white font-semibold text-[14px] active:scale-[0.98] transition-all">
             Edit profile
           </button>
-          <button className="h-11 sm:h-12 rounded-2xl bg-gray-50 hover:bg-gray-100 font-medium text-sm text-gray-900 transition-colors">
-            Statistics
+          <button className="flex-1 h-10 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-900 font-semibold text-[14px] active:scale-[0.98] transition-all">
+            Share profile
+          </button>
+          <button
+            aria-label="estadísticas"
+            className="w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-900 flex items-center justify-center active:scale-95 transition-all"
+          >
+            <BarChart3 strokeWidth={2} className="w-[18px] h-[18px]" />
           </button>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="px-1 sm:px-2">
-        <div className="grid grid-cols-5 w-full bg-gray-50 rounded-2xl p-1">
+      {/* Tabs minimalistas con subrayado */}
+      <div className="sticky top-14 z-10 bg-white/90 backdrop-blur-xl border-b border-gray-100 max-w-md mx-auto w-full">
+        <div className="flex items-center justify-around px-2">
           {TABS.map((tab) => {
             const active = activeTab === tab.key
             return (
@@ -282,11 +258,16 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
                 aria-label={tab.key}
-                className={`rounded-xl py-3 text-sm font-medium flex items-center justify-center transition-all ${
-                  active ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400'
-                }`}
+                className="relative flex-1 flex items-center justify-center py-3.5 group"
               >
-                {tab.icon(active)}
+                <span className={`transition-colors ${active ? 'text-gray-900' : 'text-gray-300 group-hover:text-gray-400'}`}>
+                  {tab.icon(active)}
+                </span>
+                <span
+                  className={`absolute bottom-0 left-1/2 -translate-x-1/2 h-[2.5px] rounded-full bg-gray-900 transition-all duration-300 ${
+                    active ? 'w-7 opacity-100' : 'w-0 opacity-0'
+                  }`}
+                />
               </button>
             )
           })}
@@ -294,7 +275,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
       </div>
 
       {/* Contenido */}
-      <div className="mt-4 pb-28">
+      <div className="mt-1.5 px-0.5 pb-28 max-w-md mx-auto w-full">
         {renderTabContent()}
       </div>
     </div>
