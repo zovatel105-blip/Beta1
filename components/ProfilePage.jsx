@@ -109,17 +109,10 @@ const GridItem = ({ post }) => {
       {/* Overlay oscuro */}
       <div className="absolute inset-0 bg-black/20 pointer-events-none z-10" />
 
-      {/* Chip VS para posts de dos lados */}
-      {hasTwo && (
-        <div className="absolute top-2 right-2 z-20 text-[10px] font-black tracking-wide text-white bg-black/55 backdrop-blur-sm px-1.5 py-0.5 rounded-md pointer-events-none">
-          VS
-        </div>
-      )}
-
       {/* Contador de votos - píldora abajo-izquierda */}
       {totalVotes > 0 && (
-        <div className="absolute bottom-2 left-2 flex items-center gap-1 bg-black/60 backdrop-blur-sm px-2 py-1 rounded-full text-white text-xs font-medium pointer-events-none z-30">
-          <VoteIcon className="w-3 h-3" strokeWidth={260} filled />
+        <div className="absolute bottom-2 left-2 flex items-center gap-1 bg-black/60 backdrop-blur-sm px-2 py-1 rounded-full text-white text-xs font-normal pointer-events-none z-30">
+          <VoteIcon className="w-3 h-3" strokeWidth={150} filled={false} />
           <span>{formatNumber(totalVotes)}</span>
         </div>
       )}
