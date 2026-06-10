@@ -2,7 +2,7 @@
 /* eslint-disable react-hooks/set-state-in-effect -- setState dentro de fetch async en efecto de carga; falso positivo de la regla experimental. */
 
 import { useEffect, useMemo, useState } from 'react'
-import { Menu, Heart, Bookmark, UserCircle, Link as LinkIcon, Share2, Plus, BarChart3 } from 'lucide-react'
+import { Menu, Heart, Bookmark, Link as LinkIcon, Plus } from 'lucide-react'
 import VoteIcon from './icons/VoteIcon'
 
 const ME = {
@@ -71,7 +71,6 @@ const GridItem = ({ post }) => {
 const TABS = [
   { key: 'polls', icon: () => <ColumnsIcon className="w-4 h-4" /> },
   { key: 'liked', icon: () => <Heart className="w-4 h-4" strokeWidth={1.5} /> },
-  { key: 'mentions', icon: () => <UserCircle className="w-4 h-4" strokeWidth={1.5} /> },
   { key: 'saved', icon: () => <Bookmark className="w-4 h-4" strokeWidth={1.5} /> },
   { key: 'links', icon: () => <LinkIcon className="w-4 h-4" strokeWidth={1.5} /> },
 ]
@@ -101,8 +100,8 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
 
   const stats = useMemo(() => {
     const votos = posts.reduce((acc, p) => acc + (p?.votes?.a || 0) + (p?.votes?.b || 0), 0)
-    const likes = posts.reduce((acc, p) => acc + (p?.stats?.likes || 0), 0)
-    return { votos, likes }
+    const retos = posts.filter((p) => p?.type === 'versus').length
+    return { votos, retos }
   }, [posts])
 
   if (!open) return null
@@ -138,7 +137,6 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
 
     const emptyMap = {
       liked: { Icon: Heart, title: 'No likes yet', desc: 'Videos you like will appear here' },
-      mentions: { Icon: UserCircle, title: 'No mentions yet', desc: 'Polls that mention you appear here' },
       saved: { Icon: Bookmark, title: 'No saved posts', desc: 'Save videos to watch later' },
       links: { Icon: LinkIcon, title: 'No links yet', desc: 'Add your social links here' },
     }
@@ -156,79 +154,76 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
     )
   }
 
-  const statItems = [
-    { key: 'following', label: 'Following', value: formatNumber(0) },
-    { key: 'followers', label: 'Followers', value: formatNumber(0) },
-    { key: 'votes', label: 'Votes', value: formatNumber(stats.votos) },
-    { key: 'likes', label: 'Likes', value: formatNumber(stats.likes) },
-  ]
-
   return (
     <div className="fixed inset-0 z-40 bg-white overflow-y-auto overscroll-contain">
-      {/* Header minimalista: handle a la izquierda, acciones a la derecha */}
+      {/* Header minimalista: solo menú */}
       <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-xl border-b border-gray-100/80"
            style={{ paddingTop: 'max(env(safe-area-inset-top), 8px)' }}>
-        <div className="flex items-center justify-between px-4 sm:px-6 h-14 max-w-md mx-auto w-full">
-          <span className="text-[15px] font-semibold tracking-tight text-gray-900">{ME.handle}</span>
-          <div className="flex items-center gap-1">
-            <button aria-label="compartir perfil" className="p-2 -mr-1 text-gray-700 active:scale-90 transition">
-              <Share2 strokeWidth={1.9} className="w-[22px] h-[22px]" />
-            </button>
-            <button aria-label="menú" className="p-2 text-gray-700 active:scale-90 transition">
-              <Menu strokeWidth={1.9} className="w-[24px] h-[24px]" />
-            </button>
-          </div>
+        <div className="flex items-center justify-end px-4 sm:px-6 h-14 max-w-md mx-auto w-full">
+          <button aria-label="menú" className="p-2 -mr-1 text-gray-700 active:scale-90 transition">
+            <Menu strokeWidth={1.9} className="w-[24px] h-[24px]" />
+          </button>
         </div>
       </div>
 
-      {/* Cabecera del perfil */}
-      <div className="px-5 sm:px-6 pt-8 pb-5 max-w-md mx-auto w-full">
-        {/* Avatar centrado con anillo sutil + badge de edición */}
-        <div className="flex justify-center">
-          <div className="relative">
-            <div className="w-[104px] h-[104px] rounded-full p-[3px] bg-gradient-to-br from-gray-100 to-gray-200 shadow-[0_8px_24px_-8px_rgba(0,0,0,0.18)]">
-              <div className="w-full h-full rounded-full overflow-hidden bg-white ring-[3px] ring-white">
-                {ME.avatarUrl ? (
-                  <img src={ME.avatarUrl} alt={ME.username} className="w-full h-full rounded-full object-cover" draggable={false} />
-                ) : (
-                  <DefaultAvatar className="w-full h-full" />
-                )}
+      {/* Cabecera del perfil: stats alrededor del avatar */}
+      <div className="px-5 sm:px-6 pt-6 pb-5 max-w-md mx-auto w-full">
+        <div className="relative mx-auto w-full max-w-[340px]">
+          <div className="grid grid-cols-3 items-center gap-y-6">
+
+            {/* Votos - superior izquierda */}
+            <button className="text-left active:opacity-60 transition">
+              <p className="text-[20px] font-bold text-gray-900 leading-none tabular-nums">{formatNumber(stats.votos)}</p>
+              <p className="text-[12px] text-gray-400 mt-1 font-medium">Votos</p>
+            </button>
+            <div />
+            {/* Retos - superior derecha */}
+            <button className="text-right active:opacity-60 transition">
+              <p className="text-[20px] font-bold text-gray-900 leading-none tabular-nums">{formatNumber(stats.retos)}</p>
+              <p className="text-[12px] text-gray-400 mt-1 font-medium">Retos</p>
+            </button>
+
+            {/* Avatar - centro */}
+            <div />
+            <div className="flex justify-center">
+              <div className="relative">
+                <div className="w-[104px] h-[104px] rounded-full p-[3px] bg-gradient-to-br from-gray-100 to-gray-200 shadow-[0_8px_24px_-8px_rgba(0,0,0,0.18)]">
+                  <div className="w-full h-full rounded-full overflow-hidden bg-white ring-[3px] ring-white">
+                    {ME.avatarUrl ? (
+                      <img src={ME.avatarUrl} alt={ME.username} className="w-full h-full rounded-full object-cover" draggable={false} />
+                    ) : (
+                      <DefaultAvatar className="w-full h-full" />
+                    )}
+                  </div>
+                </div>
+                <button
+                  aria-label="cambiar foto"
+                  className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-gray-900 text-white flex items-center justify-center shadow-lg ring-[3px] ring-white active:scale-90 transition"
+                >
+                  <Plus strokeWidth={2.4} className="w-[18px] h-[18px]" />
+                </button>
               </div>
             </div>
-            <button
-              aria-label="cambiar foto"
-              className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-gray-900 text-white flex items-center justify-center shadow-lg ring-[3px] ring-white active:scale-90 transition"
-            >
-              <Plus strokeWidth={2.4} className="w-[18px] h-[18px]" />
+            <div />
+
+            {/* Followers - inferior izquierda */}
+            <button className="text-left active:opacity-60 transition">
+              <p className="text-[20px] font-bold text-gray-900 leading-none tabular-nums">0</p>
+              <p className="text-[12px] text-gray-400 mt-1 font-medium">Followers</p>
+            </button>
+            <div />
+            {/* Following - inferior derecha */}
+            <button className="text-right active:opacity-60 transition">
+              <p className="text-[20px] font-bold text-gray-900 leading-none tabular-nums">0</p>
+              <p className="text-[12px] text-gray-400 mt-1 font-medium">Following</p>
             </button>
           </div>
         </div>
 
         {/* Nombre + handle */}
-        <div className="text-center mt-4 space-y-0.5">
+        <div className="text-center mt-6 space-y-0.5">
           <h2 className="text-[22px] font-bold tracking-tight text-gray-900 leading-tight">{ME.name}</h2>
           <p className="text-sm text-gray-400 font-medium">{ME.handle}</p>
-        </div>
-
-        {/* Fila de stats horizontal con divisores */}
-        <div className="mt-6 flex items-center justify-center">
-          {statItems.map((s, i) => (
-            <div key={s.key} className="flex items-stretch">
-              {i > 0 && <span className="w-px self-center h-7 bg-gray-200/80" />}
-              <button className="px-4 sm:px-5 py-1 text-center active:opacity-60 transition">
-                <p className="text-[19px] font-bold text-gray-900 leading-none tabular-nums">{s.value}</p>
-                <p className="text-[12px] text-gray-400 mt-1 font-medium">{s.label}</p>
-              </button>
-            </div>
-          ))}
-        </div>
-
-        {/* Bio / placeholder minimalista */}
-        <div className="mt-5 flex justify-center">
-          <button className="inline-flex items-center gap-1.5 text-[13px] font-medium text-gray-500 hover:text-gray-700 active:scale-95 transition">
-            <Plus strokeWidth={2} className="w-4 h-4" />
-            Add bio
-          </button>
         </div>
 
         {/* Botones de acción */}
@@ -238,12 +233,6 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
           </button>
           <button className="flex-1 h-10 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-900 font-semibold text-[14px] active:scale-[0.98] transition-all">
             Share profile
-          </button>
-          <button
-            aria-label="estadísticas"
-            className="w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-900 flex items-center justify-center active:scale-95 transition-all"
-          >
-            <BarChart3 strokeWidth={2} className="w-[18px] h-[18px]" />
           </button>
         </div>
       </div>
