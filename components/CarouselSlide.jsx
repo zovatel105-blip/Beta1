@@ -447,7 +447,7 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted,
       {menuOpen && (
         <div className="absolute inset-0 z-40 flex items-end pointer-events-auto" onClick={(e) => { e.stopPropagation(); setMenuOpen(false) }}>
           <div className="absolute inset-0 bg-black/50 backdrop-blur-[1px]" />
-          <div className="relative w-full bg-zinc-900 rounded-t-2xl pt-2 pb-7 px-3" onClick={(e) => e.stopPropagation()}>
+          <div className="relative w-full bg-[#0a0a0b] border-t border-white/10 rounded-t-2xl pt-2 pb-7 px-3" onClick={(e) => e.stopPropagation()}>
             <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-white/25" />
             <button onClick={() => setMenuOpen(false)} className="w-full flex items-center gap-3 px-3 py-3.5 rounded-xl text-white hover:bg-white/10 transition-colors">
               <EyeOff className="w-5 h-5 text-white/80" strokeWidth={1.5} />
