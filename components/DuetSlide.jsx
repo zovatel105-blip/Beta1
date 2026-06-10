@@ -1,12 +1,13 @@
 'use client'
 
-import { memo, useCallback, useEffect, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { MessageCircle, Bookmark, Play, Volume2, VolumeX, Swords, MoreVertical, Flag, EyeOff, Link2 } from 'lucide-react'
 import ShareIcon from './icons/ShareIcon'
 import { cn } from '@/lib/utils'
 import VoteIcon from './icons/VoteIcon'
 import VSWinnerCard from './VSWinnerCard'
 import VSContentCard from './VSContentCard'
+import { pickQuality, reportStall } from '@/lib/networkQuality'
 
 function formatCount(n) {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M'
@@ -32,7 +33,7 @@ const hasWebm = (url) => typeof url === 'string' && url.startsWith('/videos/')
  *   - double tap  -> like (corazón flotante).
  * La UI (cabecera superior + columna social derecha) es idéntica a la del vídeo normal.
  */
-function DuetSlide({ post, isActive, isNear, muted: globalMuted, onRequestNext, onChallenge }) {
+function DuetSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted, onRequestNext, onChallenge }) {
   const videoARef = useRef(null)
   const videoBRef = useRef(null)
   const overlayRef = useRef(null)
@@ -113,6 +114,10 @@ function DuetSlide({ post, isActive, isNear, muted: globalMuted, onRequestNext, 
   // Author principal mostrado en la cabecera (igual que en publicaciones normales)
   const headAuthor = sideA.author || post.author || {}
 
+  // FASE 2: calidad adaptativa a la red (fallback al videoUrl si no hay renditions).
+  const srcA = useMemo(() => pickQuality(sideA.qualities, sideA.videoUrl), [sideA.qualities, sideA.videoUrl])
+  const srcB = useMemo(() => pickQuality(sideB.qualities, sideB.videoUrl), [sideB.qualities, sideB.videoUrl])
+
   // Mantener sincronizados mute + play/pausa de los DOS vídeos planos.
   // Mismo enfoque que las publicaciones versus (<video> directos, sin pool),
   // para que AMBOS lados arranquen a la vez y con fluidez. También respeta los
@@ -158,6 +163,35 @@ function DuetSlide({ post, isActive, isNear, muted: globalMuted, onRequestNext, 
     rafRef.current = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(rafRef.current)
   }, [isActive, audibleSide])
+
+  // FASE 1 — Decoder priming: en los duetos adyacentes (±1) no activos calentamos
+  // el decodificador de AMBOS vídeos con un play muteado que pausamos enseguida,
+  // para que al activarse arranquen los dos al instante. Nunca pausa si ya pasó a
+  // activo (evita el bug de "un lado parado").
+  const isActiveRef = useRef(isActive)
+  useEffect(() => { isActiveRef.current = isActive }, [isActive])
+  useEffect(() => {
+    if (!isAdjacent || isActive) return
+    let cancelled = false
+    const prime = (v) => {
+      if (!v || v.__primed) return
+      const go = () => {
+        if (cancelled || v.__primed) return
+        v.__primed = true
+        try {
+          v.muted = true
+          const pr = v.play()
+          if (pr && pr.then) pr.then(() => { if (!isActiveRef.current) { try { v.pause() } catch { /* ignore */ } } }).catch(() => {})
+          else if (!isActiveRef.current) { try { v.pause() } catch { /* ignore */ } }
+        } catch { /* ignore */ }
+      }
+      if (v.readyState >= 2) go()
+      else v.addEventListener('canplay', go, { once: true })
+    }
+    prime(videoARef.current)
+    prime(videoBRef.current)
+    return () => { cancelled = true }
+  }, [isAdjacent, isActive])
 
   const doLike = useCallback(() => {
     // Like eliminado: el doble toque ahora vota (ver handleTapSide).
@@ -266,12 +300,12 @@ function DuetSlide({ post, isActive, isNear, muted: globalMuted, onRequestNext, 
               poster={sideA.posterUrl || undefined}
               onCanPlay={() => setLoadedA(true)}
               onLoadedData={() => setLoadedA(true)}
-              onWaiting={() => setLoadedA(false)}
+              onWaiting={() => { setLoadedA(false); reportStall() }}
               onPlay={() => setPaused(false)}
               onPause={syncPaused}
             >
-              <source src={sideA.videoUrl} type="video/mp4" />
-              {hasWebm(sideA.videoUrl) && <source src={webmFor(sideA.videoUrl)} type="video/webm" />}
+              <source src={srcA} type="video/mp4" />
+              {hasWebm(srcA) && <source src={webmFor(srcA)} type="video/webm" />}
             </video>
           )}
           {/* tap layer A */}
@@ -310,12 +344,12 @@ function DuetSlide({ post, isActive, isNear, muted: globalMuted, onRequestNext, 
               poster={sideB.posterUrl || undefined}
               onCanPlay={() => setLoadedB(true)}
               onLoadedData={() => setLoadedB(true)}
-              onWaiting={() => setLoadedB(false)}
+              onWaiting={() => { setLoadedB(false); reportStall() }}
               onPlay={() => setPaused(false)}
               onPause={syncPaused}
             >
-              <source src={sideB.videoUrl} type="video/mp4" />
-              {hasWebm(sideB.videoUrl) && <source src={webmFor(sideB.videoUrl)} type="video/webm" />}
+              <source src={srcB} type="video/mp4" />
+              {hasWebm(srcB) && <source src={webmFor(srcB)} type="video/webm" />}
             </video>
           )}
           <div

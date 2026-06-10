@@ -25,6 +25,85 @@ function transcodeToWebm(inPath, outPath) {
   })
 }
 
+function runFfmpeg(args) {
+  return new Promise((resolve) => {
+    const p = spawn('ffmpeg', args)
+    p.on('error', () => resolve(false))
+    p.on('exit', (code) => resolve(code === 0))
+  })
+}
+
+// FASE 1 — Fast start: remux con el átomo `moov` al inicio del MP4 para que la
+// reproducción arranque con los primeros bytes (instantáneo). Lossless y rápido
+// (sin recodificar). Solo aplica a .mp4. Se hace en segundo plano; en Linux,
+// renombrar sobre un fichero abierto es seguro (poster/webm siguen leyendo el
+// inodo anterior), así que no hay carrera.
+async function faststartInPlace(absPath) {
+  if (!/\.mp4$/i.test(absPath)) return false
+  const dir = nodePath.dirname(absPath)
+  const tmp = nodePath.join(dir, `._fs_${nodePath.basename(absPath)}`)
+  const ok = await runFfmpeg(['-y', '-i', absPath, '-c', 'copy', '-movflags', '+faststart', tmp])
+  if (ok) { try { await fs.rename(tmp, absPath) } catch { return false } }
+  else { try { await fs.unlink(tmp) } catch { /* ignore */ } }
+  return ok
+}
+
+// FASE 2 — Renditions adaptativas (H.264, +faststart, GOP corto ~2s) en 3 niveles.
+const RENDITIONS = [
+  { h: 360, vb: '600k',  maxrate: '700k',  bufsize: '1200k', bitrate: 600000 },
+  { h: 540, vb: '1200k', maxrate: '1500k', bufsize: '3000k', bitrate: 1200000 },
+  { h: 720, vb: '2500k', maxrate: '3000k', bufsize: '6000k', bitrate: 2500000 },
+]
+function transcodeRendition(inAbs, outAbs, r) {
+  return runFfmpeg([
+    '-y', '-i', inAbs,
+    '-vf', `scale=-2:${r.h}`,
+    '-c:v', 'libx264', '-profile:v', 'main', '-preset', 'veryfast',
+    '-b:v', r.vb, '-maxrate', r.maxrate, '-bufsize', r.bufsize,
+    '-g', '48', '-keyint_min', '48', '-sc_threshold', '0',
+    '-pix_fmt', 'yuv420p',
+    '-c:a', 'aac', '-b:a', '96k', '-ac', '2',
+    '-movflags', '+faststart',
+    outAbs,
+  ])
+}
+
+// Genera renditions SOLO para vídeos recién subidos (/uploads/...). Los vídeos
+// integrados (/videos/...) y cualquier URL externa se omiten -> NO se
+// re-transcodifican los vídeos ya existentes.
+async function generateRenditions(url) {
+  if (typeof url !== 'string' || !url.startsWith('/uploads/')) return null
+  const filename = url.split('/').pop()
+  const dot = filename.lastIndexOf('.')
+  if (dot === -1) return null
+  const id = filename.slice(0, dot)
+  const inAbs = nodePath.join(UPLOAD_DIR, filename)
+  const out = []
+  for (const r of RENDITIONS) {
+    const outName = `${id}_${r.h}.mp4`
+    const ok = await transcodeRendition(inAbs, nodePath.join(UPLOAD_DIR, outName), r)
+    if (ok) out.push({ h: r.h, url: `/uploads/${outName}`, bitrate: r.bitrate })
+  }
+  return out.length ? out : null
+}
+
+// Procesa un post recién publicado: genera renditions de A y B y parchea
+// sideA.qualities / sideB.qualities en _meta.json cuando terminan (así el
+// frontend nunca apunta a una URL que aún no existe -> sin 404).
+async function processPostRenditions(postId, sideAUrl, sideBUrl) {
+  try {
+    const [qa, qb] = await Promise.all([generateRenditions(sideAUrl), generateRenditions(sideBUrl)])
+    if (!qa && !qb) return
+    const meta = await readUploadMeta()
+    const p = meta.find((x) => x.id === postId)
+    if (!p) return
+    if (qa && p.sideA) p.sideA.qualities = qa
+    if (qb && p.sideB) p.sideB.qualities = qb
+    if (qa) p.qualities = qa
+    await writeUploadMeta(meta)
+  } catch (e) { console.warn('renditions failed', postId, String(e?.message || e)) }
+}
+
 async function ensureUploadDir() {
   await fs.mkdir(UPLOAD_DIR, { recursive: true })
 }
@@ -268,25 +347,7 @@ async function handleVersusUpload(request) {
       return NextResponse.json({ error: 'need_two_files' }, { status: 400 })
     }
 
-    const saveOne = async (file) => {
-      const arrayBuffer = await file.arrayBuffer()
-      const bytes = Buffer.from(arrayBuffer)
-      const id = crypto.randomBytes(8).toString('hex')
-      const name = file.name || 'video.mp4'
-      const ext = name.includes('.') ? name.split('.').pop().toLowerCase() : 'mp4'
-      const safeExt = ['mp4', 'webm', 'mov', 'm4v'].includes(ext) ? ext : 'mp4'
-      const filename = `${id}.${safeExt}`
-      await ensureUploadDir()
-      const filePath = nodePath.join(UPLOAD_DIR, filename)
-      await fs.writeFile(filePath, bytes)
-      const webmPath = nodePath.join(UPLOAD_DIR, `${id}.webm`)
-      transcodeToWebm(filePath, webmPath).then((ok) => {
-        if (!ok) console.warn('webm transcode failed for versus', filename)
-      })
-      // Poster del primer fotograma para carga instantánea.
-      makePoster(filePath, nodePath.join(UPLOAD_DIR, `${id}.jpg`))
-      return `/uploads/${filename}`
-    }
+    const saveOne = async (file) => saveUploadedVideo(file)
 
     await ensureUploadDir()
     const urlA = await saveOne(fileA)
@@ -319,6 +380,8 @@ async function handleVersusUpload(request) {
     const meta = await readUploadMeta()
     meta.unshift(post)
     await writeUploadMeta(meta)
+    // FASE 2: genera renditions adaptativas en segundo plano y parchea qualities.
+    processPostRenditions(post.id, urlA, urlB)
     return NextResponse.json({ ok: true, post })
   } catch (err) {
     console.error('versus upload error', err)
@@ -372,6 +435,8 @@ async function handleDuetUpload(request) {
     const meta = await readUploadMeta()
     meta.unshift(post)
     await writeUploadMeta(meta)
+    // FASE 2: renditions adaptativas en segundo plano.
+    processPostRenditions(post.id, urlA, urlB)
     return NextResponse.json({ ok: true, post })
   } catch (err) {
     console.error('duet upload error', err)
@@ -429,10 +494,9 @@ async function saveUploadedVideo(file) {
   await ensureUploadDir()
   const filePath = nodePath.join(UPLOAD_DIR, filename)
   await fs.writeFile(filePath, bytes)
-  const webmPath = nodePath.join(UPLOAD_DIR, `${id}.webm`)
-  transcodeToWebm(filePath, webmPath).then((ok) => {
-    if (!ok) console.warn('webm transcode failed for challenge', filename)
-  })
+  // FASE 1: fast start del original (fallback) -> arranque instantáneo.
+  faststartInPlace(filePath)
+  // Poster del primer fotograma para carga instantánea.
   makePoster(filePath, nodePath.join(UPLOAD_DIR, `${id}.jpg`))
   return `/uploads/${filename}`
 }
@@ -446,7 +510,7 @@ async function handleCreateChallenge(request) {
     const file = formData.get('file')
     const targetVideoUrl = (formData.get('targetVideoUrl') || '').toString()
     let targetAuthor = null
-    try { targetAuthor = JSON.parse((formData.get('targetAuthor') || 'null').toString()) } catch {}
+    try { targetAuthor = JSON.parse((formData.get('targetAuthor') || 'null').toString()) } catch { /* ignore */ }
     const targetDescription = (formData.get('targetDescription') || '').toString()
     const targetMusic = (formData.get('targetMusic') || '').toString()
     const message = (formData.get('message') || '').toString()
@@ -531,6 +595,8 @@ async function handleAcceptChallenge(cid, request) {
     await writeUploadMeta(meta)
     list.splice(idx, 1)
     await writeChallenges(list)
+    // FASE 2: renditions adaptativas (solo lados que sean uploads /uploads/...).
+    processPostRenditions(post.id, c.challengerVideoUrl, responseVideoUrl)
     return NextResponse.json({ ok: true, post })
   } catch (err) {
     console.error('accept challenge error', err)

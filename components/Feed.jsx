@@ -16,6 +16,7 @@ import ProfilePage from './ProfilePage'
 import CompletedBattlesPage from './CompletedBattlesPage'
 import ActiveChallengesPage from './ActiveChallengesPage'
 import { notificationsUnreadCount } from '@/lib/notifications'
+import { startNetworkMonitor, pickQuality } from '@/lib/networkQuality'
 
 async function fetchPage(cursor) {
   const res = await fetch(`/api/feed?cursor=${cursor}&limit=8`, { cache: 'no-store' })
@@ -59,6 +60,16 @@ export default function Feed() {
 
   useEffect(() => { refreshChallenges() }, [refreshChallenges])
 
+  // FASE 2: arrancar el medidor de red (estimación de ancho de banda real).
+  useEffect(() => { startNetworkMonitor() }, [])
+
+  // FASE 3: registrar el Service Worker (caché de pósters/imágenes).
+  useEffect(() => {
+    if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => { /* ignore */ })
+    }
+  }, [])
+
   const openChallenge = useCallback((target) => {
     setChallengeTarget(target)
     setChallengeOpen(true)
@@ -97,32 +108,31 @@ export default function Feed() {
     setActiveIdx(swiper.activeIndex)
   }, [])
 
-  // Prefetch de bytes JUSTO MÁS ALLÁ de la ventana de montaje (slides +3 y +4):
-  // sus <video> aún no están montados, así que pre-calentamos la caché HTTP del
-  // navegador (posters + vídeos) para que al entrar en la ventana de precarga ya
-  // estén listos. Usa <link rel="prefetch"> (prioridad baja, no bloquea el activo).
+  // FASE 1 — Pre-calentar el ARRANQUE de los slides justo fuera de la ventana de
+  // montaje (+3/+4): primeros ~512 KB del vídeo (en la calidad que se elegirá
+  // según la red) vía petición Range, + el poster. Así, al entrar en la ventana,
+  // el arranque ya está en caché. Range = solo el inicio, sin malgastar datos.
   useEffect(() => {
-    if (typeof document === 'undefined' || posts.length === 0) return
-    const urls = []
+    if (typeof window === 'undefined' || posts.length === 0) return
+    const controllers = []
+    const warmVideo = (url) => {
+      if (!url) return
+      const ctrl = new AbortController()
+      controllers.push(ctrl)
+      fetch(url, { headers: { Range: 'bytes=0-524287' }, signal: ctrl.signal }).catch(() => {})
+    }
+    const warmImg = (url) => { if (url) { const i = new Image(); i.src = url } }
     for (let k = 3; k <= 4; k++) {
       const p = posts[activeIdx + k]
       if (!p) continue
       const sides = [p.sideA, p.sideB].filter(Boolean)
-      for (const s of sides) {
-        if (s.posterUrl) urls.push({ href: s.posterUrl, as: 'image' })
-        if (s.videoUrl) urls.push({ href: s.videoUrl, as: 'video' })
+      if (sides.length) {
+        for (const s of sides) { warmImg(s.posterUrl); warmVideo(pickQuality(s.qualities, s.videoUrl)) }
+      } else if (p.videoUrl) {
+        warmImg(p.posterUrl); warmVideo(p.videoUrl)
       }
-      if (!sides.length && p.videoUrl) urls.push({ href: p.videoUrl, as: 'video' })
     }
-    const links = urls.map(({ href, as }) => {
-      const l = document.createElement('link')
-      l.rel = 'prefetch'
-      l.as = as
-      l.href = href
-      document.head.appendChild(l)
-      return l
-    })
-    return () => { links.forEach((l) => { try { document.head.removeChild(l) } catch { /* ignore */ } }) }
+    return () => controllers.forEach((c) => { try { c.abort() } catch { /* ignore */ } })
   }, [activeIdx, posts])
 
   const onFirstInteraction = useCallback(() => setMuted(false), [])
@@ -173,6 +183,9 @@ export default function Feed() {
             // en PAUSA. (Las versus solo montan su 2º vídeo al activarse, así no
             // se agota el presupuesto de decodificadores del navegador.)
             const isNear = i >= activeIdx - 2 && i <= activeIdx + 2
+            // Adyacente inmediato (±1): se "calienta" el decodificador (priming)
+            // para que el arranque al activarse sea instantáneo.
+            const isAdjacent = Math.abs(i - activeIdx) <= 1
             return (
               <SwiperSlide key={post.id} virtualIndex={i}>
                 {post.type === 'duet' ? (
@@ -180,6 +193,7 @@ export default function Feed() {
                     post={post}
                     isActive={isActive}
                     isNear={isNear}
+                    isAdjacent={isAdjacent}
                     muted={muted}
                     onRequestNext={() => swiperRef.current?.slideNext()}
                     onChallenge={openChallenge}
@@ -189,6 +203,7 @@ export default function Feed() {
                     post={post}
                     isActive={isActive}
                     isNear={isNear}
+                    isAdjacent={isAdjacent}
                     muted={muted}
                     onRequestNext={() => swiperRef.current?.slideNext()}
                     onChallenge={openChallenge}

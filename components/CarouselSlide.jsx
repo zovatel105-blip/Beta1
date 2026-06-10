@@ -1,11 +1,12 @@
 'use client'
 
-import { memo, useCallback, useEffect, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { MessageCircle, Bookmark, Play, Swords, MoreVertical, Flag, EyeOff, Link2 } from 'lucide-react'
 import ShareIcon from './icons/ShareIcon'
 import { cn } from '@/lib/utils'
 import VoteIcon from './icons/VoteIcon'
 import VSWinnerCard from './VSWinnerCard'
+import { pickQuality, reportStall } from '@/lib/networkQuality'
 
 function formatCount(n) {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M'
@@ -29,7 +30,7 @@ const hasWebm = (url) => typeof url === 'string' && url.startsWith('/videos/')
  * Se vota tocando directamente el vídeo (toca = vota la opción visible).
  * La UI (cabecera + columna social) es la misma que la de un vídeo normal.
  */
-function CarouselSlide({ post, isActive, isNear, muted: globalMuted, onRequestNext, onChallenge }) {
+function CarouselSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted, onRequestNext, onChallenge }) {
   const overlayRef = useRef(null)
   const videoARef = useRef(null)
   const videoBRef = useRef(null)
@@ -115,6 +116,35 @@ function CarouselSlide({ post, isActive, isNear, muted: globalMuted, onRequestNe
       vis.play().catch(() => {})
     }
   }, [showWinner, isActive, isNear, getVisible])
+
+  // FASE 1 — Decoder priming: para los slides adyacentes (±1) que aún no están
+  // activos, "calentamos" el decodificador con un play muteado instantáneo que
+  // pausamos enseguida. Así, al activarse, el primer frame ya está decodificado
+  // y arranca al instante. NUNCA pausa un vídeo que ya pasó a activo.
+  const isActiveRef = useRef(isActive)
+  useEffect(() => { isActiveRef.current = isActive }, [isActive])
+  useEffect(() => {
+    if (!isAdjacent || isActive) return
+    let cancelled = false
+    const prime = (v) => {
+      if (!v || v.__primed) return
+      const go = () => {
+        if (cancelled || v.__primed) return
+        v.__primed = true
+        try {
+          v.muted = true
+          const pr = v.play()
+          if (pr && pr.then) pr.then(() => { if (!isActiveRef.current) { try { v.pause() } catch { /* ignore */ } } }).catch(() => {})
+          else if (!isActiveRef.current) { try { v.pause() } catch { /* ignore */ } }
+        } catch { /* ignore */ }
+      }
+      if (v.readyState >= 2) go()
+      else v.addEventListener('canplay', go, { once: true })
+    }
+    prime(videoARef.current)
+    prime(videoBRef.current)
+    return () => { cancelled = true }
+  }, [isAdjacent, isActive, sideIdx])
 
   const onVideoPlay = useCallback(() => setPaused(false), [])
   const onVideoPause = useCallback(() => {
@@ -239,7 +269,10 @@ function CarouselSlide({ post, isActive, isNear, muted: globalMuted, onRequestNe
   // Vídeo a mostrar en la winner card = la opción que ELIGIÓ el usuario (su voto).
   const chosenSide = userVote === 'b' ? sideB : sideA
 
-  const renderVideo = (s, ref, mountVideo) => (
+  const srcA = useMemo(() => pickQuality(sideA.qualities, sideA.videoUrl), [sideA.qualities, sideA.videoUrl])
+  const srcB = useMemo(() => pickQuality(sideB.qualities, sideB.videoUrl), [sideB.qualities, sideB.videoUrl])
+
+  const renderVideo = (s, ref, mountVideo, src) => (
     <div className="relative w-1/2 h-full overflow-hidden bg-black">
       {/* Poster: primer fotograma -> la publicación se ve al instante. */}
       {s.posterUrl && (
@@ -262,9 +295,10 @@ function CarouselSlide({ post, isActive, isNear, muted: globalMuted, onRequestNe
           poster={s.posterUrl || undefined}
           onPlay={onVideoPlay}
           onPause={onVideoPause}
+          onWaiting={reportStall}
         >
-          <source src={s.videoUrl} type="video/mp4" />
-          {hasWebm(s.videoUrl) && <source src={webmFor(s.videoUrl)} type="video/webm" />}
+          <source src={src} type="video/mp4" />
+          {hasWebm(src) && <source src={webmFor(src)} type="video/webm" />}
         </video>
       )}
     </div>
@@ -283,8 +317,8 @@ function CarouselSlide({ post, isActive, isNear, muted: globalMuted, onRequestNe
         {/* Lado A: se monta/bufferiza en toda la ventana de precarga (es el que se
             ve primero). Lado B: solo cuando el slide está activo (o ya estabas en
             B), para no agotar el presupuesto de decodificadores del navegador. */}
-        {renderVideo(sideA, videoARef, isNear)}
-        {renderVideo(sideB, videoBRef, isNear && (isActive || sideIdx === 1))}
+        {renderVideo(sideA, videoARef, isNear, srcA)}
+        {renderVideo(sideB, videoBRef, isNear && (isActive || sideIdx === 1), srcB)}
       </div>
 
       {/* Capa de gestos (swipe + tap) */}
