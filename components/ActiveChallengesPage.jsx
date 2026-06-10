@@ -17,13 +17,13 @@ import { Swords, Check, X, Loader2, User } from 'lucide-react'
  */
 const GOLD = '#E4C79B'
 
-const RingAvatar = ({ src, ring }) => (
-  <div className="w-11 h-11 rounded-full p-[2px] shrink-0" style={{ background: ring }}>
+const RingAvatar = ({ src, ring, size = 'w-11 h-11' }) => (
+  <div className={`${size} rounded-full p-[2px] shrink-0`} style={{ background: ring }}>
     <div className="w-full h-full rounded-full overflow-hidden bg-zinc-800 flex items-center justify-center">
       {src ? (
         <img src={src} alt="" className="w-full h-full object-cover" draggable={false} />
       ) : (
-        <User className="w-5 h-5 text-white/70" />
+        <User className="w-1/2 h-1/2 text-white/70" />
       )}
     </div>
   </div>
@@ -82,12 +82,12 @@ const ChallengeSlide = ({ c, busy, onAccept, onReject }) => {
         </div>
       )}
 
-      {/* Panel inferior premium (fijo, no se mueve con el carrusel) */}
-      <div className="absolute inset-x-0 bottom-0 z-20 px-4 pt-10"
-           style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 24px)' }}>
+      {/* Panel inferior compacto (fijo, no se mueve con el carrusel) */}
+      <div className="absolute inset-x-0 bottom-0 z-20 px-4 pt-8"
+           style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 14px)' }}>
         {/* Puntitos del carrusel */}
         {videos.length > 1 && (
-          <div className="flex items-center justify-center gap-1.5 mb-3">
+          <div className="flex items-center justify-center gap-1.5 mb-2.5">
             {videos.map((_, i) => (
               <button
                 key={i}
@@ -99,57 +99,37 @@ const ChallengeSlide = ({ c, busy, onAccept, onReject }) => {
           </div>
         )}
 
-        <div className="rounded-3xl border border-white/10 bg-black/40 backdrop-blur-xl p-4">
-          {/* Participantes */}
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <RingAvatar src={c.from?.avatarUrl} ring={GOLD} />
-              <div className="min-w-0">
-                <p className="text-white font-semibold text-[14px] truncate">@{c.from?.username}</p>
-                <p className="text-[12px] font-medium" style={{ color: GOLD }}>Listo</p>
-              </div>
+        <div className="rounded-2xl border border-white/10 bg-black/40 backdrop-blur-xl px-3 py-2.5">
+          {/* Participantes en una sola línea compacta */}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <RingAvatar src={c.from?.avatarUrl} ring={GOLD} size="w-8 h-8" />
+              <span className="text-white font-semibold text-[13px] truncate">@{c.from?.username}</span>
             </div>
-
-            <span className="text-white/90 font-black text-base shrink-0">VS</span>
-
-            <div className="flex items-center gap-2.5 min-w-0 justify-end">
-              <div className="min-w-0 text-right">
-                <p className="text-white font-semibold text-[14px] truncate">@{c.to?.username}</p>
-                <p className="text-[12px] font-medium text-zinc-400">Invitado</p>
-              </div>
-              <RingAvatar src={c.to?.avatarUrl} ring="rgba(255,255,255,0.25)" />
+            <span className="shrink-0 text-white/80 font-bold text-[12px] tracking-wide">VS</span>
+            <div className="flex items-center gap-2 min-w-0 flex-1 justify-end">
+              <span className="text-white font-semibold text-[13px] truncate">@{c.to?.username}</span>
+              <RingAvatar src={c.to?.avatarUrl} ring="rgba(255,255,255,0.25)" size="w-8 h-8" />
             </div>
           </div>
 
-          {(c.message || c.targetDescription) && (
-            <p className="text-[13.5px] text-zinc-200 mt-3 line-clamp-2">{c.message || c.targetDescription}</p>
-          )}
-
-          {/* Estado */}
-          <div className="mt-3">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.06] border border-white/10 text-[12px] text-zinc-300">
-              <span className="w-1.5 h-1.5 rounded-full" style={{ background: GOLD }} />
-              Esperando · 1/2 listos
-            </span>
-          </div>
-
-          {/* Acciones */}
-          <div className="flex gap-2 mt-4">
+          {/* Acciones compactas */}
+          <div className="flex gap-2 mt-2.5">
             <button
               onClick={() => onAccept(c)}
               disabled={busy}
-              className="flex-1 h-12 rounded-full bg-white text-black font-semibold text-[15px] flex items-center justify-center gap-2 hover:bg-zinc-100 active:scale-[0.99] transition disabled:opacity-50"
+              className="flex-1 h-10 rounded-full bg-white text-black font-semibold text-[14px] flex items-center justify-center gap-1.5 hover:bg-zinc-100 active:scale-[0.99] transition disabled:opacity-50"
             >
-              {busy ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} strokeWidth={2.5} />}
+              {busy ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} strokeWidth={2.5} />}
               Aceptar
             </button>
             <button
               onClick={() => onReject(c)}
               disabled={busy}
-              className="flex-1 h-12 rounded-full border border-white/20 text-white font-medium text-[15px] flex items-center justify-center gap-2 hover:bg-white/[0.06] active:scale-[0.99] transition disabled:opacity-50"
+              className="shrink-0 w-12 h-10 rounded-full border border-white/20 text-white flex items-center justify-center hover:bg-white/[0.06] active:scale-[0.99] transition disabled:opacity-50"
+              aria-label="Rechazar"
             >
               <X size={18} />
-              Rechazar
             </button>
           </div>
         </div>
