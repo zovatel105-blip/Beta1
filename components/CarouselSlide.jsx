@@ -18,12 +18,6 @@ function countLabel(n, placeholder) {
   return (Number(n) || 0) === 0 ? placeholder : formatCount(n)
 }
 
-const webmFor = (url) => (typeof url === 'string' ? url.replace(/\.mp4$/, '.webm') : '')
-// Solo los vídeos integrados (/videos/) tienen .webm garantizado. Los uploads
-// pueden no tenerlo aún -> no añadimos un <source> webm que dé 404 (en dev
-// cada 404 dispara un render de página completo y ralentiza la carga del feed).
-const hasWebm = (url) => typeof url === 'string' && url.startsWith('/videos/')
-
 /**
  * CarouselSlide — publicación "versus": carrusel horizontal de 2 vídeos (A / B).
  * Se ve un vídeo a la vez y se desliza horizontalmente entre A y B (con puntitos).
@@ -81,25 +75,58 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted,
   const getVisible = useCallback(() => (sideIdx === 0 ? videoARef.current : videoBRef.current), [sideIdx])
   const getHidden = useCallback(() => (sideIdx === 0 ? videoBRef.current : videoARef.current), [sideIdx])
 
-  // Play / pause según slide activo + lado visible
+  // 🚨 REGLA #2 — LIBERACIÓN AGRESIVA DEL DECODER.
+  // El src NUNCA se declara en JSX: se asigna imperativamente SOLO en el vídeo
+  // VISIBLE de la tarjeta ACTIVA. acquire() lo asigna; release() ejecuta
+  // pause() + removeAttribute('src') + load(): load() tras quitar el src es lo
+  // que fuerza al navegador a abortar la descarga y devolver el decoder de
+  // hardware + la RAM al sistema. Sin esto, mantener varios <video> con src
+  // agota el presupuesto de decodificadores en móvil (pantallas negras / jank).
+  const acquire = useCallback((v, src) => {
+    if (!v || !src) return
+    if (v.getAttribute('src') !== src) {
+      v.setAttribute('src', src)
+      try { v.load() } catch { /* ignore */ }
+    }
+  }, [])
+  const release = useCallback((v) => {
+    if (!v) return
+    try { v.pause() } catch { /* ignore */ }
+    if (v.getAttribute('src') !== null) {
+      v.removeAttribute('src')
+      try { v.load() } catch { /* ignore */ }
+    }
+  }, [])
+
+  // Play/pausa + adquisición/liberación del decoder según slide activo + lado
+  // visible. El lado OCULTO y los slides NO activos nunca retienen un decoder.
   useEffect(() => {
-    if (!isNear) return
-    const vis = getVisible()
-    const hid = getHidden()
-    if (hid) { try { hid.pause() } catch { /* ignore */ } }
-    if (!vis) return
-    vis.muted = globalMuted
+    const vis = sideIdx === 0 ? videoARef.current : videoBRef.current
+    const hid = sideIdx === 0 ? videoBRef.current : videoARef.current
+    const visSrc = sideIdx === 0 ? srcA : srcB
+    release(hid)
     if (isActive) {
-      const tryPlay = async () => {
-        try { await vis.play() } catch {
-          try { vis.muted = true; await vis.play() } catch { /* ignore */ }
+      acquire(vis, visSrc)
+      if (vis) {
+        vis.muted = globalMuted
+        if (showWinner) {
+          try { vis.pause() } catch { /* ignore */ }
+        } else {
+          const p = vis.play()
+          if (p && p.catch) p.catch(() => { try { vis.muted = true; vis.play().catch(() => {}) } catch { /* ignore */ } })
         }
       }
-      tryPlay()
     } else {
-      try { vis.pause() } catch { /* ignore */ }
+      release(vis)
     }
-  }, [isActive, isNear, globalMuted, sideIdx, getVisible, getHidden])
+  }, [isActive, sideIdx, globalMuted, srcA, srcB, showWinner, acquire, release])
+
+  // Cleanup de DESMONTAJE (la tarjeta sale de la ventana de 3) -> liberación
+  // garantizada de AMBOS vídeos (Regla #2, "cuando la tarjeta salga del viewport").
+  useEffect(() => () => {
+    release(videoARef.current)
+    release(videoBRef.current)
+  }, [release])
 
   // Barra de progreso del vídeo visible
   useEffect(() => {
@@ -112,46 +139,6 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted,
     rafRef.current = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(rafRef.current)
   }, [isActive, getVisible])
-
-  // Pausar el vídeo visible mientras la winner card está abierta.
-  useEffect(() => {
-    const vis = getVisible()
-    if (!vis) return
-    if (showWinner) {
-      try { vis.pause() } catch { /* ignore */ }
-    } else if (isActive && isNear) {
-      vis.play().catch(() => {})
-    }
-  }, [showWinner, isActive, isNear, getVisible])
-
-  // FASE 1 — Decoder priming: para los slides adyacentes (±1) que aún no están
-  // activos, "calentamos" el decodificador con un play muteado instantáneo que
-  // pausamos enseguida. Así, al activarse, el primer frame ya está decodificado
-  // y arranca al instante. NUNCA pausa un vídeo que ya pasó a activo.
-  const isActiveRef = useRef(isActive)
-  useEffect(() => { isActiveRef.current = isActive }, [isActive])
-  useEffect(() => {
-    if (!isAdjacent || isActive) return
-    let cancelled = false
-    const prime = (v) => {
-      if (!v || v.__primed) return
-      const go = () => {
-        if (cancelled || v.__primed) return
-        v.__primed = true
-        try {
-          v.muted = true
-          const pr = v.play()
-          if (pr && pr.then) pr.then(() => { if (!isActiveRef.current) { try { v.pause() } catch { /* ignore */ } } }).catch(() => {})
-          else if (!isActiveRef.current) { try { v.pause() } catch { /* ignore */ } }
-        } catch { /* ignore */ }
-      }
-      if (v.readyState >= 2) go()
-      else v.addEventListener('canplay', go, { once: true })
-    }
-    prime(videoARef.current)
-    prime(videoBRef.current)
-    return () => { cancelled = true }
-  }, [isAdjacent, isActive, sideIdx])
 
   const onVideoPlay = useCallback(() => setPaused(false), [])
   const onVideoPause = useCallback(() => {
@@ -284,7 +271,10 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted,
   const otherName = otherSide.author?.name || (otherSide.author?.username ? `@${otherSide.author.username}` : '')
   const chosenSrc = chosenKey === 'b' ? srcB : srcA
 
-  const renderVideo = (s, ref, mountVideo, src) => (
+  // El <video> se monta sin src en JSX (preload="none"): el src lo gestiona
+  // imperativamente el efecto de acquire/release (Regla #2). El poster se ve
+  // al instante y las tarjetas adyacentes solo muestran poster -> 0 decoders.
+  const renderVideo = (s, ref, mountVideo) => (
     <div className="relative w-1/2 h-full overflow-hidden bg-black">
       {/* Poster: primer fotograma -> la publicación se ve al instante. */}
       {s.posterUrl && (
@@ -303,15 +293,12 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted,
           loop
           muted
           playsInline
-          preload="auto"
+          preload="none"
           poster={s.posterUrl || undefined}
           onPlay={onVideoPlay}
           onPause={onVideoPause}
           onWaiting={reportStall}
-        >
-          <source src={src} type="video/mp4" />
-          {hasWebm(src) && <source src={webmFor(src)} type="video/webm" />}
-        </video>
+        />
       )}
     </div>
   )
@@ -326,11 +313,11 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted,
           transition: dragging ? 'none' : 'transform 280ms ease-out',
         }}
       >
-        {/* Lado A: se monta/bufferiza en toda la ventana de precarga (es el que se
-            ve primero). Lado B: solo cuando el slide está activo (o ya estabas en
-            B), para no agotar el presupuesto de decodificadores del navegador. */}
-        {renderVideo(sideA, videoARef, isNear, srcA)}
-        {renderVideo(sideB, videoBRef, isNear && (isActive || sideIdx === 1), srcB)}
+        {/* Ambos lados montan el <video> (sin src) cuando la tarjeta está en la
+            ventana: el src se adquiere solo en el lado visible de la activa, así
+            deslizar a B es instantáneo sin agotar decodificadores. */}
+        {renderVideo(sideA, videoARef, isNear)}
+        {renderVideo(sideB, videoBRef, isNear)}
       </div>
 
       {/* Capa de gestos (swipe + tap) */}

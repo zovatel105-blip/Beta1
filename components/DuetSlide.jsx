@@ -20,10 +20,6 @@ function countLabel(n, placeholder) {
   return (Number(n) || 0) === 0 ? placeholder : formatCount(n)
 }
 
-const webmFor = (url) => (typeof url === 'string' ? url.replace(/\.mp4$/, '.webm') : '')
-// Solo los vídeos integrados (/videos/) tienen .webm garantizado.
-const hasWebm = (url) => typeof url === 'string' && url.startsWith('/videos/')
-
 /**
  * DuetSlide — 1vs1 (dueto) slide.
  * Renders two videos side-by-side (horizontal = top/bottom, vertical = left/right),
@@ -122,31 +118,62 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted, onR
   const srcA = useMemo(() => pickQuality(sideA.qualities, sideA.videoUrl), [sideA.qualities, sideA.videoUrl])
   const srcB = useMemo(() => pickQuality(sideB.qualities, sideB.videoUrl), [sideB.qualities, sideB.videoUrl])
 
-  // Mantener sincronizados mute + play/pausa de los DOS vídeos planos.
-  // Mismo enfoque que las publicaciones versus (<video> directos, sin pool),
-  // para que AMBOS lados arranquen a la vez y con fluidez. También respeta los
-  // overlays (winner / content): si hay uno abierto, se pausan los dos.
+  // 🚨 REGLA #2 — LIBERACIÓN AGRESIVA DEL DECODER.
+  // El src NUNCA se declara en JSX: se asigna imperativamente SOLO cuando la
+  // tarjeta está activa. release() ejecuta pause()+removeAttribute('src')+load()
+  // para devolver los DOS decoders (el dueto usa 2) y la RAM al sistema en cuanto
+  // deja de estar activa o se desmonta (sale de la ventana de 3).
+  const acquire = useCallback((v, src) => {
+    if (!v || !src) return
+    if (v.getAttribute('src') !== src) {
+      v.setAttribute('src', src)
+      try { v.load() } catch { /* ignore */ }
+    }
+  }, [])
+  const release = useCallback((v) => {
+    if (!v) return
+    try { v.pause() } catch { /* ignore */ }
+    if (v.getAttribute('src') !== null) {
+      v.removeAttribute('src')
+      try { v.load() } catch { /* ignore */ }
+    }
+  }, [])
+
+  // Mantener sincronizados mute + play/pausa de los DOS vídeos. Solo la tarjeta
+  // ACTIVA adquiere src y reproduce ambos lados a la vez; cualquier otra los
+  // libera. Respeta overlays (winner / content): si hay uno abierto, pausa.
   useEffect(() => {
-    if (!isNear) return
     const va = videoARef.current
     const vb = videoBRef.current
-    if (!va || !vb) return
-    // A suena solo si el audio global está activo Y el lado audible es A.
-    va.muted = globalMuted || audibleSide !== 'a'
-    vb.muted = globalMuted || audibleSide !== 'b'
-    if (isActive && !showWinner && !showContent) {
-      const playSafe = async (v) => {
-        try { await v.play() } catch {
-          try { v.muted = true; await v.play() } catch { /* ignore */ }
+    if (isActive) {
+      acquire(va, srcA)
+      acquire(vb, srcB)
+      // A suena solo si el audio global está activo Y el lado audible es A.
+      if (va) va.muted = globalMuted || audibleSide !== 'a'
+      if (vb) vb.muted = globalMuted || audibleSide !== 'b'
+      if (!showWinner && !showContent) {
+        const playSafe = (v) => {
+          if (!v) return
+          const p = v.play()
+          if (p && p.catch) p.catch(() => { try { v.muted = true; v.play().catch(() => {}) } catch { /* ignore */ } })
         }
+        playSafe(va)
+        playSafe(vb)
+      } else {
+        try { if (va) va.pause() } catch { /* ignore */ }
+        try { if (vb) vb.pause() } catch { /* ignore */ }
       }
-      playSafe(va)
-      playSafe(vb)
     } else {
-      try { va.pause() } catch { /* ignore */ }
-      try { vb.pause() } catch { /* ignore */ }
+      release(va)
+      release(vb)
     }
-  }, [isActive, isNear, globalMuted, audibleSide, showWinner, showContent])
+  }, [isActive, globalMuted, audibleSide, showWinner, showContent, srcA, srcB, acquire, release])
+
+  // Cleanup de DESMONTAJE (sale de la ventana de 3) -> liberación garantizada.
+  useEffect(() => () => {
+    release(videoARef.current)
+    release(videoBRef.current)
+  }, [release])
 
   // Sincroniza el estado "paused" (overlay de play) mirando ambos vídeos.
   const syncPaused = useCallback(() => {
@@ -167,35 +194,6 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted, onR
     rafRef.current = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(rafRef.current)
   }, [isActive, audibleSide])
-
-  // FASE 1 — Decoder priming: en los duetos adyacentes (±1) no activos calentamos
-  // el decodificador de AMBOS vídeos con un play muteado que pausamos enseguida,
-  // para que al activarse arranquen los dos al instante. Nunca pausa si ya pasó a
-  // activo (evita el bug de "un lado parado").
-  const isActiveRef = useRef(isActive)
-  useEffect(() => { isActiveRef.current = isActive }, [isActive])
-  useEffect(() => {
-    if (!isAdjacent || isActive) return
-    let cancelled = false
-    const prime = (v) => {
-      if (!v || v.__primed) return
-      const go = () => {
-        if (cancelled || v.__primed) return
-        v.__primed = true
-        try {
-          v.muted = true
-          const pr = v.play()
-          if (pr && pr.then) pr.then(() => { if (!isActiveRef.current) { try { v.pause() } catch { /* ignore */ } } }).catch(() => {})
-          else if (!isActiveRef.current) { try { v.pause() } catch { /* ignore */ } }
-        } catch { /* ignore */ }
-      }
-      if (v.readyState >= 2) go()
-      else v.addEventListener('canplay', go, { once: true })
-    }
-    prime(videoARef.current)
-    prime(videoBRef.current)
-    return () => { cancelled = true }
-  }, [isAdjacent, isActive])
 
   const doLike = useCallback(() => {
     // Like eliminado: el doble toque ahora vota (ver handleTapSide).
@@ -314,17 +312,14 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted, onR
               loop
               muted
               playsInline
-              preload="auto"
+              preload="none"
               poster={sideA.posterUrl || undefined}
               onCanPlay={() => setLoadedA(true)}
               onLoadedData={() => setLoadedA(true)}
               onWaiting={() => { setLoadedA(false); reportStall() }}
               onPlay={() => setPaused(false)}
               onPause={syncPaused}
-            >
-              <source src={srcA} type="video/mp4" />
-              {hasWebm(srcA) && <source src={webmFor(srcA)} type="video/webm" />}
-            </video>
+            />
           )}
           {/* tap layer A */}
           <div
@@ -350,17 +345,14 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted, onR
               loop
               muted
               playsInline
-              preload="auto"
+              preload="none"
               poster={sideB.posterUrl || undefined}
               onCanPlay={() => setLoadedB(true)}
               onLoadedData={() => setLoadedB(true)}
               onWaiting={() => { setLoadedB(false); reportStall() }}
               onPlay={() => setPaused(false)}
               onPause={syncPaused}
-            >
-              <source src={srcB} type="video/mp4" />
-              {hasWebm(srcB) && <source src={webmFor(srcB)} type="video/webm" />}
-            </video>
+            />
           )}
           <div
             className="absolute inset-0 z-10"

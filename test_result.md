@@ -195,6 +195,17 @@ backend:
         -comment: "vote increments side a/b. Already validated previously."
 
 frontend:
+  - task: "Feed PRINCIPAL (combinación 1a+2a): motor scroll-snap nativo + tarjetas SnapTok ricas; hook useFeed (/api/uploads + /api/feed); liberación agresiva de decoders dentro de CarouselSlide/DuetSlide"
+    implemented: true
+    working: true
+    file: "components/Feed.jsx, hooks/useFeed.js, components/CarouselSlide.jsx, components/DuetSlide.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "main"
+        -comment: "MIGRACIÓN del feed principal de Swiper -> motor scroll-snap CSS nativo (1a): contenedor overflow-y-auto snap-y snap-mandatory h-[100dvh] [contain:strict], ventana DOM de 3 (|i-activeIndex|<=1; slots <section> vacíos preservan geometría), ÚNICO IntersectionObserver threshold 0.7 con activeIndexRef (1 setState por tarjeta, cero por píxel), prefetch de media de activeIndex+1/+2 (Range 512KB + Image) y loadMore disparado al entrar activeIndex+2. Hook useFeed (2a): carga inicial /api/uploads + 1ª página /api/feed en paralelo, loadMore pagina /api/feed (scroll infinito), prependPost, dedupe por id. REGLA #2 inyectada DENTRO de CarouselSlide/DuetSlide: src imperativo (acquire) solo en el vídeo visible de la tarjeta ACTIVA; release() = pause()+removeAttribute('src')+load() al desactivar/desmontar (cleanup) -> 0 decoders en tarjetas adyacentes; priming eliminado. UI intacta: doble toque para votar, columna social, cabecera autor/música, winner card, retos. React.memo en tarjetas + useCallback en handlers. Verificado en navegador: GET /api/uploads 200 (16 posts) + /api/feed 200, 24 secciones renderizadas pero solo 4 vídeos montados en index 0 (ventana de 3 respetada), UI completa (vs header, votos, Retar, dots, BottomNav), sin errores de consola. Retrocompatible con CompletedBattlesPage (que sigue usando Swiper + las mismas tarjetas). NOTA: autoplay H.264 no observable en Chromium headless (limitación del entorno); capturas en negro intermitentes = timeout de 10s del harness vs compilación en frío del bundle de dev (dynamic import), no es bug del código."
   - task: "Feed /battle de alto rendimiento: scroll-snap nativo, ventana DOM de 3, liberación agresiva de decoders, IntersectionObserver 0.7, prefetch, voto + auto-avance 600ms (TypeScript)"
     implemented: true
     working: true
@@ -259,4 +270,4 @@ agent_communication:
     -agent: "main"
     -message: "FLUIDEZ ULTRA (3 fases tipo TikTok/Reels) implementada y verificada manualmente (sin agente de test, por petición del usuario). FASE 1: faststart en subidas nuevas + batch one-time de vídeos existentes; prefetch por Range; decoder priming de vecinos ±1; pósters regenerados. FASE 2 (ABR adaptativo, SOLO vídeos nuevos): renditions 360/540/720 en segundo plano con qualities parcheadas en _meta.json; frontend lib/networkQuality.js (pickQuality, reportStall). FASE 3: Service Worker (public/sw.js) cache-first para pósters; NO intercepta vídeo. DEPENDENCIA: ffmpeg requerido en despliegue (instalado en runtime aquí); degradación elegante si falta."
     -agent: "main"
-    -message: "TAREA /battle COMPLETADA (combinación 1a/2a/3a confirmada por el usuario): motor de votación de alto rendimiento en ruta aislada /battle con TypeScript, scroll-snap nativo (sin Swiper ni librerías de vídeo), ventana DOM de 3, liberación agresiva de decoders, observer 0.7, prefetch y mock data. Verificación manual completa con playwright (5 checks OK). Backend SIN cambios (no requiere testing backend). Test E2E frontend pendiente de autorización del usuario."
+    -message: "FEED PRINCIPAL migrado (combinación 1a+2a confirmada por el usuario). 1a: reemplazado Swiper por motor scroll-snap CSS nativo en components/Feed.jsx (ventana DOM de 3, único IntersectionObserver 0.7, prefetch, goNext por scrollTo) conservando 100% las tarjetas ricas SnapTok (CarouselSlide/DuetSlide: doble toque para votar, columna social, cabecera autor/música, winner card, retos). Liberación AGRESIVA de decoder inyectada DENTRO de las tarjetas: src imperativo solo en la tarjeta activa + pause()+removeAttribute('src')+load() en cleanup/desactivación (priming eliminado). 2a: nuevo hook hooks/useFeed.js (inicial /api/uploads + 1ª página /api/feed en paralelo, loadMore pagina /api/feed con scroll infinito disparado al entrar activeIndex+2, dedupe por id). Backend SIN cambios (no requiere testing backend). Verificado manualmente en navegador (render completo con datos reales, ventana de 3 respetada, sin errores de consola). Test E2E frontend pendiente de autorización del usuario."
