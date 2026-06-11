@@ -105,6 +105,30 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
     }
   }, [])
 
+  // Prime de WARM: reproduce muteado para FORZAR buffer REAL (~1.5s) y luego
+  // pausa + reset a 0. Pausar de inmediato solo bufferiza ~0.1s -> al activarse
+  // se quedaba esperando datos (el 1-2s). Con 1.5s en buffer, reanuda sin stalls.
+  const primeWarm = useCallback((v, token) => {
+    if (!v) return
+    v.muted = true
+    let done = false
+    function finish() {
+      if (done) return
+      done = true
+      v.removeEventListener('canplaythrough', finish)
+      v.removeEventListener('timeupdate', onTime)
+      if (warmRef.current === token) {
+        try { v.pause() } catch { /* ignore */ }
+        try { v.currentTime = 0 } catch { /* ignore */ }
+      }
+    }
+    function onTime() { if (v.currentTime >= 1.5) finish() }
+    v.addEventListener('canplaythrough', finish, { once: true })
+    v.addEventListener('timeupdate', onTime)
+    try { const p = v.play(); if (p && p.catch) p.catch(() => {}) } catch { /* ignore */ }
+    setTimeout(finish, 5000)
+  }, [])
+
   // Play/pausa + adquisición/liberación del decoder según slide activo + lado
   // visible. El lado OCULTO y los slides NO activos nunca retienen un decoder.
   // WARM: si esta tarjeta es la SIGUIENTE (warm), precargamos el lado A (el
@@ -131,16 +155,12 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
       warmRef.current = token
       const va = videoARef.current
       acquire(va, srcA)
-      if (va) {
-        va.muted = true
-        const p = va.play()
-        if (p && p.then) p.then(() => { if (warmRef.current === token) { try { va.pause() } catch { /* ignore */ } } }).catch(() => {})
-      }
+      primeWarm(va, token)
     } else {
       warmRef.current = null
       release(vis)
     }
-  }, [isActive, playbackEnabled, warm, sideIdx, globalMuted, srcA, srcB, showWinner, acquire, release])
+  }, [isActive, playbackEnabled, warm, sideIdx, globalMuted, srcA, srcB, showWinner, acquire, release, primeWarm])
 
   // Cleanup de DESMONTAJE (la tarjeta sale de la ventana de 3) -> liberación
   // garantizada de AMBOS vídeos (Regla #2, "cuando la tarjeta salga del viewport").

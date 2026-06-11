@@ -145,6 +145,30 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
     }
   }, [])
 
+  // Prime de WARM: reproduce muteado para FORZAR buffer REAL (~1.5s) y luego
+  // pausa + reset a 0. Pausar de inmediato solo bufferiza ~0.1s -> al activarse
+  // se quedaba esperando datos (el 1-2s). Con 1.5s en buffer, reanuda sin stalls.
+  const primeWarm = useCallback((v, token) => {
+    if (!v) return
+    v.muted = true
+    let done = false
+    function finish() {
+      if (done) return
+      done = true
+      v.removeEventListener('canplaythrough', finish)
+      v.removeEventListener('timeupdate', onTime)
+      if (warmRef.current === token) {
+        try { v.pause() } catch { /* ignore */ }
+        try { v.currentTime = 0 } catch { /* ignore */ }
+      }
+    }
+    function onTime() { if (v.currentTime >= 1.5) finish() }
+    v.addEventListener('canplaythrough', finish, { once: true })
+    v.addEventListener('timeupdate', onTime)
+    try { const p = v.play(); if (p && p.catch) p.catch(() => {}) } catch { /* ignore */ }
+    setTimeout(finish, 5000)
+  }, [])
+
   // Ref para cancelar arranques atómicos pendientes.
   const atomicRef = useRef(null)
 
@@ -205,28 +229,22 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
         try { if (vb) vb.pause() } catch { /* ignore */ }
       }
     } else if (warm && playbackEnabled) {
-      // WARM 1vs1: precarga REAL de AMBOS lados. Un play() muteado FUERZA el
-      // buffer de verdad (los vídeos en pausa fuera de pantalla no se bufferizan
-      // solos); al arrancar los pausamos -> ambos quedan listos para el arranque
+      // WARM 1vs1: precarga REAL de AMBOS lados (buffer ~1.5s) -> arranque
       // atómico instantáneo al activarse.
       if (atomicRef.current) atomicRef.current.cancelled = true
       const token = {}
       warmRef.current = token
       acquire(va, srcA)
       acquire(vb, srcB)
-      for (const v of [va, vb]) {
-        if (!v) continue
-        v.muted = true
-        const p = v.play()
-        if (p && p.then) p.then(() => { if (warmRef.current === token) { try { v.pause() } catch { /* ignore */ } } }).catch(() => {})
-      }
+      primeWarm(va, token)
+      primeWarm(vb, token)
     } else {
       warmRef.current = null
       if (atomicRef.current) atomicRef.current.cancelled = true
       release(va)
       release(vb)
     }
-  }, [isActive, playbackEnabled, warm, globalMuted, audibleSide, showWinner, showContent, srcA, srcB, acquire, release, startBothAtomically])
+  }, [isActive, playbackEnabled, warm, globalMuted, audibleSide, showWinner, showContent, srcA, srcB, acquire, release, primeWarm, startBothAtomically])
 
   // Cleanup de DESMONTAJE (sale de la ventana de 3) -> liberación garantizada.
   useEffect(() => () => {
