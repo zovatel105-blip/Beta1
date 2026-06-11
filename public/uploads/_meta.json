@@ -12,24 +12,7 @@
         "avatarUrl": "https://i.pravatar.cc/120?img=68"
       },
       "description": "Mi reto",
-      "music": "Reto",
-      "qualities": [
-        {
-          "h": 360,
-          "url": "/uploads/b539d9a6e13345ad_360.mp4",
-          "bitrate": 600000
-        },
-        {
-          "h": 540,
-          "url": "/uploads/b539d9a6e13345ad_540.mp4",
-          "bitrate": 1200000
-        },
-        {
-          "h": 720,
-          "url": "/uploads/b539d9a6e13345ad_720.mp4",
-          "bitrate": 2500000
-        }
-      ]
+      "music": "Reto"
     },
     "sideB": {
       "videoUrl": "/uploads/9e4f2b1cc0c79c27.mp4",
@@ -40,24 +23,7 @@
         "avatarUrl": "https://i.pravatar.cc/120?img=68"
       },
       "description": "Mi reto",
-      "music": "Reto",
-      "qualities": [
-        {
-          "h": 360,
-          "url": "/uploads/9e4f2b1cc0c79c27_360.mp4",
-          "bitrate": 600000
-        },
-        {
-          "h": 540,
-          "url": "/uploads/9e4f2b1cc0c79c27_540.mp4",
-          "bitrate": 1200000
-        },
-        {
-          "h": 720,
-          "url": "/uploads/9e4f2b1cc0c79c27_720.mp4",
-          "bitrate": 2500000
-        }
-      ]
+      "music": "Reto"
     },
     "author": {
       "username": "tu_canal",
@@ -81,24 +47,7 @@
     },
     "duration": 0,
     "uploadedAt": "2026-06-10T18:22:19.514Z",
-    "isChallenge": true,
-    "qualities": [
-      {
-        "h": 360,
-        "url": "/uploads/b539d9a6e13345ad_360.mp4",
-        "bitrate": 600000
-      },
-      {
-        "h": 540,
-        "url": "/uploads/b539d9a6e13345ad_540.mp4",
-        "bitrate": 1200000
-      },
-      {
-        "h": 720,
-        "url": "/uploads/b539d9a6e13345ad_720.mp4",
-        "bitrate": 2500000
-      }
-    ]
+    "isChallenge": true
   },
   {
     "id": "duet_3e27b89b54752e63",
@@ -113,24 +62,7 @@
         "avatarUrl": "https://i.pravatar.cc/120?img=68"
       },
       "description": "¿Quién gana? 🥊 #1vs1",
-      "music": "Opción A",
-      "qualities": [
-        {
-          "h": 360,
-          "url": "/uploads/a6ffe7704783c862_360.mp4",
-          "bitrate": 600000
-        },
-        {
-          "h": 540,
-          "url": "/uploads/a6ffe7704783c862_540.mp4",
-          "bitrate": 1200000
-        },
-        {
-          "h": 720,
-          "url": "/uploads/a6ffe7704783c862_720.mp4",
-          "bitrate": 2500000
-        }
-      ]
+      "music": "Opción A"
     },
     "sideB": {
       "videoUrl": "/uploads/4eec32102398be83.mp4",
@@ -141,24 +73,7 @@
         "avatarUrl": "https://i.pravatar.cc/120?img=68"
       },
       "description": "¿Quién gana? 🥊 #1vs1",
-      "music": "Opción B",
-      "qualities": [
-        {
-          "h": 360,
-          "url": "/uploads/4eec32102398be83_360.mp4",
-          "bitrate": 600000
-        },
-        {
-          "h": 540,
-          "url": "/uploads/4eec32102398be83_540.mp4",
-          "bitrate": 1200000
-        },
-        {
-          "h": 720,
-          "url": "/uploads/4eec32102398be83_720.mp4",
-          "bitrate": 2500000
-        }
-      ]
+      "music": "Opción B"
     },
     "author": {
       "username": "tu_canal",
@@ -181,24 +96,7 @@
       "b": 13
     },
     "duration": 0,
-    "uploadedAt": "2026-06-10T16:56:16.955Z",
-    "qualities": [
-      {
-        "h": 360,
-        "url": "/uploads/a6ffe7704783c862_360.mp4",
-        "bitrate": 600000
-      },
-      {
-        "h": 540,
-        "url": "/uploads/a6ffe7704783c862_540.mp4",
-        "bitrate": 1200000
-      },
-      {
-        "h": 720,
-        "url": "/uploads/a6ffe7704783c862_720.mp4",
-        "bitrate": 2500000
-      }
-    ]
+    "uploadedAt": "2026-06-10T16:56:16.955Z"
   },
   {
     "id": "duet_6b4b8e8854505004",
@@ -213,24 +111,7 @@
         "avatarUrl": "https://i.pravatar.cc/120?img=68"
       },
       "description": "¿Quién gana? 🥊 #1vs1",
-      "music": "Opción A",
-      "qualities": [
-        {
-          "h": 360,
-          "url": "/uploads/fb435fa701cb8719_360.mp4",
-          "bitrate": 600000
-        },
-        {
-          "h": 540,
-          "url": "/uploads/fb435fa701cb8719_540.mp4",
-          "bitrate": 1200000
-        },
-        {
-          "h": 720,
-          "url": "/uploads/fb435fa701cb8719_720.mp4",
-          "bitrate": 2500000
-        }
-      ]
+      "music": "Opción A"
     },
     "sideB": {
       "videoUrl": "/uploads/291a50daec1a014c.mp4",
@@ -241,24 +122,7 @@
         "avatarUrl": "https://i.pravatar.cc/120?img=68"
       },
       "description": "¿Quién gana? 🥊 #1vs1",
-      "music": "Opción B",
-      "qualities": [
-        {
-          "h": 360,
-          "url": "/uploads/291a50daec1a014c_360.mp4",
-          "bitrate": 600000
-        },
-        {
-          "h": 540,
-          "url": "/uploads/291a50daec1a014c_540.mp4",
-          "bitrate": 1200000
-        },
-        {
-          "h": 720,
-          "url": "/uploads/291a50daec1a014c_720.mp4",
-          "bitrate": 2500000
-        }
-      ]
+      "music": "Opción B"
     },
     "author": {
       "username": "tu_canal",
@@ -281,24 +145,7 @@
       "b": 2
     },
     "duration": 0,
-    "uploadedAt": "2026-06-10T16:45:58.243Z",
-    "qualities": [
-      {
-        "h": 360,
-        "url": "/uploads/fb435fa701cb8719_360.mp4",
-        "bitrate": 600000
-      },
-      {
-        "h": 540,
-        "url": "/uploads/fb435fa701cb8719_540.mp4",
-        "bitrate": 1200000
-      },
-      {
-        "h": 720,
-        "url": "/uploads/fb435fa701cb8719_720.mp4",
-        "bitrate": 2500000
-      }
-    ]
+    "uploadedAt": "2026-06-10T16:45:58.243Z"
   },
   {
     "id": "duet_6e463a5b8de9153c",
@@ -313,24 +160,7 @@
         "avatarUrl": "https://i.pravatar.cc/120?img=68"
       },
       "description": "¿Quién gana? 🥊 #1vs1",
-      "music": "Opción A",
-      "qualities": [
-        {
-          "h": 360,
-          "url": "/uploads/a8868e2335c310bf_360.mp4",
-          "bitrate": 600000
-        },
-        {
-          "h": 540,
-          "url": "/uploads/a8868e2335c310bf_540.mp4",
-          "bitrate": 1200000
-        },
-        {
-          "h": 720,
-          "url": "/uploads/a8868e2335c310bf_720.mp4",
-          "bitrate": 2500000
-        }
-      ]
+      "music": "Opción A"
     },
     "sideB": {
       "videoUrl": "/uploads/1100b3696278fff1.mp4",
@@ -341,24 +171,7 @@
         "avatarUrl": "https://i.pravatar.cc/120?img=68"
       },
       "description": "¿Quién gana? 🥊 #1vs1",
-      "music": "Opción B",
-      "qualities": [
-        {
-          "h": 360,
-          "url": "/uploads/1100b3696278fff1_360.mp4",
-          "bitrate": 600000
-        },
-        {
-          "h": 540,
-          "url": "/uploads/1100b3696278fff1_540.mp4",
-          "bitrate": 1200000
-        },
-        {
-          "h": 720,
-          "url": "/uploads/1100b3696278fff1_720.mp4",
-          "bitrate": 2500000
-        }
-      ]
+      "music": "Opción B"
     },
     "author": {
       "username": "tu_canal",
@@ -381,24 +194,7 @@
       "b": 4
     },
     "duration": 0,
-    "uploadedAt": "2026-06-10T16:44:09.275Z",
-    "qualities": [
-      {
-        "h": 360,
-        "url": "/uploads/a8868e2335c310bf_360.mp4",
-        "bitrate": 600000
-      },
-      {
-        "h": 540,
-        "url": "/uploads/a8868e2335c310bf_540.mp4",
-        "bitrate": 1200000
-      },
-      {
-        "h": 720,
-        "url": "/uploads/a8868e2335c310bf_720.mp4",
-        "bitrate": 2500000
-      }
-    ]
+    "uploadedAt": "2026-06-10T16:44:09.275Z"
   },
   {
     "id": "versus_up_36503ac089b6d125",
@@ -413,24 +209,7 @@
         "avatarUrl": "https://i.pravatar.cc/120?img=68"
       },
       "description": "¿Cuál prefieres? 🅰️🆚🅱️",
-      "music": "Opción A",
-      "qualities": [
-        {
-          "h": 360,
-          "url": "/uploads/7f0d5bd31d7f9716_360.mp4",
-          "bitrate": 600000
-        },
-        {
-          "h": 540,
-          "url": "/uploads/7f0d5bd31d7f9716_540.mp4",
-          "bitrate": 1200000
-        },
-        {
-          "h": 720,
-          "url": "/uploads/7f0d5bd31d7f9716_720.mp4",
-          "bitrate": 2500000
-        }
-      ]
+      "music": "Opción A"
     },
     "sideB": {
       "videoUrl": "/uploads/1733157a5a5368ab.mp4",
@@ -441,24 +220,7 @@
         "avatarUrl": "https://i.pravatar.cc/120?img=68"
       },
       "description": "¿Cuál prefieres? 🅰️🆚🅱️",
-      "music": "Opción B",
-      "qualities": [
-        {
-          "h": 360,
-          "url": "/uploads/1733157a5a5368ab_360.mp4",
-          "bitrate": 600000
-        },
-        {
-          "h": 540,
-          "url": "/uploads/1733157a5a5368ab_540.mp4",
-          "bitrate": 1200000
-        },
-        {
-          "h": 720,
-          "url": "/uploads/1733157a5a5368ab_720.mp4",
-          "bitrate": 2500000
-        }
-      ]
+      "music": "Opción B"
     },
     "author": {
       "username": "tu_canal",
@@ -481,24 +243,7 @@
       "b": 2
     },
     "duration": 0,
-    "uploadedAt": "2026-06-10T16:42:14.461Z",
-    "qualities": [
-      {
-        "h": 360,
-        "url": "/uploads/7f0d5bd31d7f9716_360.mp4",
-        "bitrate": 600000
-      },
-      {
-        "h": 540,
-        "url": "/uploads/7f0d5bd31d7f9716_540.mp4",
-        "bitrate": 1200000
-      },
-      {
-        "h": 720,
-        "url": "/uploads/7f0d5bd31d7f9716_720.mp4",
-        "bitrate": 2500000
-      }
-    ]
+    "uploadedAt": "2026-06-10T16:42:14.461Z"
   },
   {
     "id": "duet_dd465b2ee9ee2fdd",
