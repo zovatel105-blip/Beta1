@@ -177,21 +177,21 @@ export default function Feed() {
     return () => io.disconnect()
   }, [posts.length, loadMore])
 
-  // Prefetch silencioso del media de las PRÓXIMAS 2 tarjetas (activeIndex+1/+2),
-  // justo por delante de la ventana de montaje -> arranque instantáneo al llegar.
+  // Prefetch silencioso del media de las PRÓXIMAS tarjetas, por delante de la
+  // ventana de montaje -> arranque instantáneo al llegar (aunque deslices rápido).
   useEffect(() => {
     if (typeof window === 'undefined' || posts.length === 0) return
     const controllers = []
     // G4 — Modo ahorro (Data Saver / batería baja): profundidad 1 y SOLO pósters
     // (sin warm de bytes de vídeo) para conservar datos y energía.
     const conserve = shouldConserve()
-    const depth = conserve ? 1 : 2
+    const depth = conserve ? 1 : 3
     for (let k = 1; k <= depth; k++) {
       const p = posts[activeIndex + k]
       if (!p) continue
-      // La tarjeta INMEDIATA (k=1) recibe un GET completo (cacheable) para
-      // arranque sin espera; la k=2 solo el init para no malgastar datos.
-      const full = k === 1
+      // Las 2 tarjetas más cercanas: GET COMPLETO (cacheable) -> el <video> sirve
+      // todo desde caché y arranca sin tocar la red. La 3ª: solo el init.
+      const full = k <= 2
       const sides = [p.sideA, p.sideB].filter(Boolean)
       if (sides.length) {
         for (const s of sides) {
