@@ -371,6 +371,7 @@ Si next no está WARM al llegar (scroll veloz):
   3) crossfade 120ms al estar listo.
 NUNCA spinner ni pantalla en blanco. Este es el caso que el póster=frame1 está diseñado para cubrir.
 ```
+> **Implementación web (Twyk):** se **desacopla la ventana de PÓSTERS (±3) de la ventana de VÍDEO/decoders (±1)**. Las tarjetas dentro de ±3 que NO están montadas renderizan solo su `<img>` póster (0 decoders); además se precargan los pósters de la ventana simétrica ±3. Así, un fling que salta varias tarjetas siempre aterriza sobre un póster ya cacheado y, al estabilizarse el scroll-snap, monta la tarjeta real (vídeo) encima. Cero decoders extra, cero spinner.
 
 ---
 

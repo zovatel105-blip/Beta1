@@ -38,6 +38,13 @@ function warmVideo(url, controllers) {
   fetch(url, { headers: { Range: 'bytes=0-524287' }, signal: ctrl.signal }).catch(() => {})
 }
 
+// G10 — Ventana de PÓSTERS (más amplia que la de vídeo/decoders): las tarjetas
+// dentro de ±POSTER_WINDOW muestran su póster (imagen, 0 decoders) aunque no
+// estén montadas como tarjeta -> un scroll rápido siempre aterriza sobre un
+// póster ya cacheado, nunca en negro ni con spinner.
+const POSTER_WINDOW = 3
+const slotPoster = (p) => p && (p.posterUrl || p.sideA?.posterUrl || p.thumbnailUrl || null)
+
 /**
  * Feed — motor de scroll vertical de alto rendimiento (nivel TikTok Web) con
  * las tarjetas ricas de SnapTok (CarouselSlide / DuetSlide).
@@ -182,6 +189,15 @@ export default function Feed() {
         if (!conserve) warmVideo(p.videoUrl, controllers)
       }
     }
+    // G10 — pósters de una ventana SIMÉTRICA más amplia (±POSTER_WINDOW), solo
+    // imágenes (baratas, deduplicadas): garantiza que un scroll rápido en
+    // cualquier dirección aterrice sobre un póster ya cacheado.
+    for (let k = -POSTER_WINDOW; k <= POSTER_WINDOW; k++) {
+      const p = posts[activeIndex + k]
+      if (!p) continue
+      prefetchImg(slotPoster(p))
+      if (p.sideB?.posterUrl) prefetchImg(p.sideB.posterUrl)
+    }
     return () => controllers.forEach((c) => { try { c.abort() } catch { /* ignore */ } })
   }, [activeIndex, posts])
 
@@ -213,7 +229,9 @@ export default function Feed() {
           {posts.map((post, i) => {
             // Regla #1: máximo 3 tarjetas montadas (anterior, activa, siguiente).
             const inWindow = Math.abs(i - activeIndex) <= 1
+            const inPosterWindow = Math.abs(i - activeIndex) <= POSTER_WINDOW
             const isActive = i === activeIndex
+            const poster = slotPoster(post)
             return (
               <section
                 key={post.id}
@@ -245,7 +263,18 @@ export default function Feed() {
                       onChallenge={openChallenge}
                     />
                   )
-                ) : null /* fuera de la ventana: slot vacío -> 0 media, 0 decoders */}
+                ) : inPosterWindow && poster ? (
+                  // G10: tarjeta NO montada pero dentro de la ventana de pósters ->
+                  // mostramos su póster (0 decoders). Un scroll rápido nunca cae en
+                  // negro ni muestra spinner; al estabilizarse, monta la tarjeta real.
+                  <img
+                    src={poster}
+                    alt=""
+                    aria-hidden
+                    draggable={false}
+                    className="absolute inset-0 w-full h-full object-cover"
+                  />
+                ) : null /* muy lejos: slot vacío -> 0 media, 0 decoders */}
               </section>
             )
           })}
