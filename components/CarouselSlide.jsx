@@ -6,6 +6,8 @@ import ShareIcon from './icons/ShareIcon'
 import { cn } from '@/lib/utils'
 import VoteIcon from './icons/VoteIcon'
 import VSWinnerCard from './VSWinnerCard'
+import CommentsModal from './CommentsModal'
+import ShareModal from './ShareModal'
 import { pickQuality, reportStall } from '@/lib/networkQuality'
 
 function formatCount(n) {
@@ -45,6 +47,29 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
   const [voteBursts, setVoteBursts] = useState([])
   const [dragX, setDragX] = useState(0)
   const [dragging, setDragging] = useState(false)
+
+  // Modales de comentarios y compartir
+  const [commentsOpen, setCommentsOpen] = useState(false)
+  const [shareOpen, setShareOpen] = useState(false)
+
+  // Manejar guardar/favorito con API
+  const handleSaveToggle = useCallback(async (e) => {
+    e.stopPropagation()
+    const newSaved = !saved
+    setSaved(newSaved)
+    
+    try {
+      await fetch('/api/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ postId: post.id }),
+      })
+    } catch (err) {
+      console.error('Error saving post:', err)
+      // Revertir en caso de error
+      setSaved(!newSaved)
+    }
+  }, [post.id, saved])
 
   const [votes, setVotes] = useState({ a: post.votes?.a || 0, b: post.votes?.b || 0 })
   const [userVote, setUserVote] = useState(null)
@@ -492,15 +517,15 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
             <span className="text-[10px] font-semibold text-white leading-none">Retar</span>
           </button>
         )}
-        <button aria-label="comments" onClick={(e) => e.stopPropagation()} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
+        <button aria-label="comments" onClick={(e) => { e.stopPropagation(); setCommentsOpen(true) }} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
           <MessageCircle className="w-[25px] h-[25px] text-white" strokeWidth={1.25} />
           <span className="text-[10px] font-semibold text-white leading-none">{countLabel(post.stats?.comments, 'Comentar')}</span>
         </button>
-        <button aria-label="share" onClick={(e) => e.stopPropagation()} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
+        <button aria-label="share" onClick={(e) => { e.stopPropagation(); setShareOpen(true) }} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
           <ShareIcon className="w-[25px] h-[25px] text-white" strokeWidth={1.1} />
           <span className="text-[10px] font-semibold text-white leading-none">{countLabel(post.stats?.shares, 'Compartir')}</span>
         </button>
-        <button aria-label="bookmark" onClick={(e) => { e.stopPropagation(); setSaved((s) => !s) }} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
+        <button aria-label="bookmark" onClick={handleSaveToggle} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
           <Bookmark className={cn('w-[25px] h-[25px] transition-all duration-200', saved ? 'fill-current text-yellow-400' : 'text-white')} strokeWidth={1.25} />
           <span className="text-[10px] font-semibold text-white leading-none">{countLabel(post.stats?.saves, 'Guardar')}</span>
         </button>
@@ -567,6 +592,18 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
         totalVotes={totalVotes}
         onClose={() => setShowWinner(false)}
         onNext={() => { setShowWinner(false); onRequestNext?.() }}
+      />
+
+      {/* Modales de comentarios y compartir */}
+      <CommentsModal
+        open={commentsOpen}
+        postId={post.id}
+        onClose={() => setCommentsOpen(false)}
+      />
+      <ShareModal
+        open={shareOpen}
+        postId={post.id}
+        onClose={() => setShareOpen(false)}
       />
     </div>
   )

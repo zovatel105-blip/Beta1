@@ -150,6 +150,28 @@ const ME_AUTHOR = {
   avatarUrl: 'https://i.pravatar.cc/120?img=68',
 }
 
+// ────────────────────────────────────────────────────────────────────────────
+// COMENTARIOS Y GUARDADOS (SAVES)
+// ────────────────────────────────────────────────────────────────────────────
+
+const COMMENTS_STORE = nodePath.join(UPLOAD_DIR, '_comments.json')
+async function readComments() {
+  try { return JSON.parse(await fs.readFile(COMMENTS_STORE, 'utf-8')) } catch { return {} }
+}
+async function writeComments(obj) {
+  await ensureUploadDir()
+  await fs.writeFile(COMMENTS_STORE, JSON.stringify(obj, null, 2))
+}
+
+const SAVES_STORE = nodePath.join(UPLOAD_DIR, '_saves.json')
+async function readSaves() {
+  try { return JSON.parse(await fs.readFile(SAVES_STORE, 'utf-8')) } catch { return {} }
+}
+async function writeSaves(obj) {
+  await ensureUploadDir()
+  await fs.writeFile(SAVES_STORE, JSON.stringify(obj, null, 2))
+}
+
 // Local videos served from /public/videos/*.mp4 (no Content-Disposition issues, no CORS)
 const v = (id) => `/videos/${id}.mp4`
 
@@ -306,6 +328,25 @@ export async function GET(request, { params }) {
     return NextResponse.json({ users })
   }
 
+  // GET /api/comments?postId=xxx - Obtener comentarios de un post
+  if (path === '/comments') {
+    const { searchParams } = new URL(request.url)
+    const postId = searchParams.get('postId')
+    if (!postId) {
+      return NextResponse.json({ error: 'missing_postId' }, { status: 400 })
+    }
+    const store = await readComments()
+    const comments = store[postId] || []
+    return NextResponse.json({ comments })
+  }
+
+  // GET /api/saves - Obtener posts guardados del usuario
+  if (path === '/saves') {
+    const store = await readSaves()
+    const savedPosts = Object.keys(store).filter((postId) => store[postId] === true)
+    return NextResponse.json({ saves: savedPosts })
+  }
+
   if (path === '/' || path === '') {
     return NextResponse.json({ ok: true, service: 'snaptok-api' })
   }
@@ -326,6 +367,21 @@ export async function POST(request, { params }) {
 
   if (path === '/vote') {
     return handleVote(request)
+  }
+
+  // POST /api/comments - Crear un nuevo comentario
+  if (path === '/comments') {
+    return handleCreateComment(request)
+  }
+
+  // POST /api/comments/like - Dar like a un comentario
+  if (path === '/comments/like') {
+    return handleLikeComment(request)
+  }
+
+  // POST /api/save - Guardar/quitar de guardados un post
+  if (path === '/save') {
+    return handleSavePost(request)
   }
 
   // Crear un reto (solicitud de enfrentamiento) con un vídeo subido.
@@ -628,4 +684,158 @@ async function handleRejectChallenge(cid) {
   } catch (err) {
     return NextResponse.json({ error: 'reject_failed', detail: String(err?.message || err) }, { status: 500 })
   }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// HANDLERS DE COMENTARIOS Y GUARDADOS
+// ────────────────────────────────────────────────────────────────────────────
+
+// POST /api/comments - Crear un comentario
+async function handleCreateComment(request) {
+  try {
+    const body = await request.json()
+    const { postId, text } = body
+
+    if (!postId || !text || typeof text !== 'string' || text.trim().length === 0) {
+      return NextResponse.json({ error: 'invalid_data' }, { status: 400 })
+    }
+
+    const store = await readComments()
+    if (!store[postId]) store[postId] = []
+
+    const comment = {
+      id: crypto.randomUUID(),
+      postId,
+      text: text.trim(),
+      author: ME_AUTHOR,
+      timestamp: new Date().toISOString(),
+      likes: 0,
+      userLiked: false,
+      isOwn: true,
+    }
+
+    store[postId].unshift(comment)
+    await writeComments(store)
+
+    return NextResponse.json({ ok: true, comment })
+  } catch (err) {
+    console.error('create comment error', err)
+    return NextResponse.json({ error: 'create_failed' }, { status: 500 })
+  }
+}
+
+// POST /api/comments/like - Dar like a un comentario
+async function handleLikeComment(request) {
+  try {
+    const body = await request.json()
+    const { commentId } = body
+
+    if (!commentId) {
+      return NextResponse.json({ error: 'missing_commentId' }, { status: 400 })
+    }
+
+    const store = await readComments()
+    let found = null
+    let foundPostId = null
+
+    // Buscar el comentario en todos los posts
+    for (const postId in store) {
+      const comment = store[postId].find((c) => c.id === commentId)
+      if (comment) {
+        found = comment
+        foundPostId = postId
+        break
+      }
+    }
+
+    if (!found) {
+      return NextResponse.json({ error: 'comment_not_found' }, { status: 404 })
+    }
+
+    // Toggle like
+    if (found.userLiked) {
+      found.likes = Math.max(0, (found.likes || 0) - 1)
+      found.userLiked = false
+    } else {
+      found.likes = (found.likes || 0) + 1
+      found.userLiked = true
+    }
+
+    await writeComments(store)
+
+    return NextResponse.json({ ok: true, likes: found.likes, userLiked: found.userLiked })
+  } catch (err) {
+    console.error('like comment error', err)
+    return NextResponse.json({ error: 'like_failed' }, { status: 500 })
+  }
+}
+
+// POST /api/save - Guardar/quitar de guardados
+async function handleSavePost(request) {
+  try {
+    const body = await request.json()
+    const { postId } = body
+
+    if (!postId) {
+      return NextResponse.json({ error: 'missing_postId' }, { status: 400 })
+    }
+
+    const store = await readSaves()
+    const isSaved = store[postId] === true
+
+    // Toggle save
+    store[postId] = !isSaved
+
+    await writeSaves(store)
+
+    return NextResponse.json({ ok: true, saved: store[postId] })
+  } catch (err) {
+    console.error('save post error', err)
+    return NextResponse.json({ error: 'save_failed' }, { status: 500 })
+  }
+}
+
+// DELETE /api/comments/{id} - Eliminar un comentario
+async function handleDeleteComment(commentId) {
+  try {
+    if (!commentId) {
+      return NextResponse.json({ error: 'missing_commentId' }, { status: 400 })
+    }
+
+    const store = await readComments()
+    let deleted = false
+
+    // Buscar y eliminar el comentario
+    for (const postId in store) {
+      const index = store[postId].findIndex((c) => c.id === commentId)
+      if (index !== -1) {
+        store[postId].splice(index, 1)
+        deleted = true
+        break
+      }
+    }
+
+    if (!deleted) {
+      return NextResponse.json({ error: 'comment_not_found' }, { status: 404 })
+    }
+
+    await writeComments(store)
+
+    return NextResponse.json({ ok: true })
+  } catch (err) {
+    console.error('delete comment error', err)
+    return NextResponse.json({ error: 'delete_failed' }, { status: 500 })
+  }
+}
+
+// Exportar método DELETE
+export async function DELETE(request, { params }) {
+  const segs = (params?.path) || []
+  
+  // DELETE /api/comments/{id}
+  if (segs[0] === 'comments' && segs[1]) {
+    return handleDeleteComment(segs[1])
+  }
+
+  return NextResponse.json({ error: 'not_found' }, { status: 404 })
 }
