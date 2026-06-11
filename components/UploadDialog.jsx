@@ -311,7 +311,6 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
                 const url = idx === 0 ? previewA : previewB
                 const pick = idx === 0 ? pickFile : pickFileB
                 const label = idx === 0 ? 'A' : 'B'
-                const labelColor = idx === 0 ? GOLD : '#FFFFFF'
                 return (
                   <div className={rootClass}>
                     {url ? (
@@ -321,11 +320,10 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
                         <div className="w-12 h-12 rounded-xl border border-white/10 bg-white/[0.05] flex items-center justify-center">
                           <Film size={22} strokeWidth={1.5} className="text-zinc-300" />
                         </div>
-                        <span className="text-[13px] font-medium text-zinc-200">Subir vídeo {label}</span>
+                        <span className="text-[13px] font-medium text-zinc-200">Subir vídeo</span>
                         <span className="text-[10px] text-zinc-500">MP4 / WebM · max 80MB</span>
                       </button>
                     )}
-                    <span className="absolute top-2 left-2 z-10 text-[11px] font-bold bg-black/55 backdrop-blur rounded-full px-2.5 py-1" style={{ color: labelColor }}>{label}</span>
                     {url && (
                       <button onClick={pick} className="absolute top-2 right-2 z-10 text-[11px] font-semibold text-white bg-black/55 hover:bg-black/80 active:scale-95 rounded-full px-2.5 py-1 transition">
                         Cambiar
