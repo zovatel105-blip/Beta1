@@ -1,483 +1,372 @@
-# Twyk — Performance Blueprint
+# Twyk — Performance Blueprint (v2)
 
 **Especificación Técnica de Rendimiento y Fluidez para un feed de duelos de vídeo dual (nivel TikTok)**
 
 > Documento de arquitectura "esto es lo que hay que construir". Audiencia: ingeniería senior (web + iOS + Android + backend/streaming). Objetivo no negociable: que dos vídeos por tarjeta arranquen a la vez, sin spinner ni frame congelado, con la percepción de que "el contenido ya estaba ahí".
 
----
+## Changelog v1 → v2 (correcciones tras revisión técnica)
 
-## 0. Principios rectores (los 5 mandamientos de Twyk)
-
-1. **El usuario nunca espera.** Todo lo que se va a ver en los próximos ~6 s ya está decodificado y pausado en el frame 1.
-2. **El póster cubre el gap.** Mientras un decoder no esté listo, se ve una imagen estática idéntica al frame 1; el cambio imagen→vídeo es invisible.
-3. **Presupuesto de decoders sagrado.** Móvil tiene 4–6 decoders de hardware. Nunca se mantienen más de 3 pares (6 vídeos) "vivos"; el resto libera el decoder agresivamente.
-4. **Cero trabajo de JS/CPU durante el gesto de scroll.** El scroll y las transiciones corren en el compositor/GPU. React/JS solo reacciona a cambios de tarjeta, jamás por píxel.
-5. **Los dos vídeos viven y mueren juntos.** Si uno bufferiza, ambos pausan; si uno arranca, ambos arrancan. Nunca uno corriendo y el otro congelado.
-
-**KPIs que gobiernan el diseño** (detallados en §7):
-- TTFF (Time-To-First-Frame) p95 < **200 ms** por vídeo.
-- Latencia voto → siguiente duelo (el "wow moment") p95 < **300 ms**.
-- Rebuffering ratio < **0.5 %**.
-- Desincronización entre los dos vídeos < **1 frame (≈33 ms @30fps)**.
+| # | Corrección | Sección |
+|---|---|---|
+| C1 | **Decoders en feed DUAL**: pool de 6 nodos pero solo 2–4 con `src` activo (no 6). El caso dual reescribe la matemática de decoders. | §0, §1.1, §1.6, §5.1 |
+| C2 | **MP4 progresivo es el DEFAULT** para clips <30 s; LL-HLS/DASH solo para >30 s o live. | §2.1 |
+| C3 | **WebCodecs con feature-detect + fallback `<video>`** (Safari iOS no lo soporta). | §1.6, §3.1 |
+| C4 | **Feed NO usa WebSocket**: HTTP/2 + caché + SSE; WS solo para mensajería en vivo. | §6.2 |
+| C5 | **Watchdog de drift con timeout** (evita congelamiento indefinido). | §3.2 |
+| C6 | **Votos: Redis `INCR` + sync eventual** como default; CQRS/Event Sourcing solo a gran escala. | §6.4 |
+| G1–G10 | **10 gaps de robustez/UX** añadidos (errores de red, offline, background, ahorro, cold start, deep link, a11y, analytics, moderación, scroll rápido). | §9 |
 
 ---
 
-## 1. Arquitectura de precarga agresiva en cliente (Web y Móvil)
+## 0. Principios rectores (los 5 mandamientos)
 
-### 1.1 Modelo mental: la "ventana de vida" de un duelo
+1. **El usuario nunca espera.** Todo lo visible en los próximos ~6 s ya está descargado; lo inmediato, decodificado y pausado en frame 1.
+2. **El póster cubre el gap.** Mientras un decoder no esté listo, se ve una imagen idéntica al frame 1; el cambio imagen→vídeo es invisible.
+3. **Presupuesto de decoders sagrado (DUAL).** iOS ≈4 decoders HW, Android 3–6 según SoC. Como **cada tarjeta tiene 2 vídeos**, mantener "±1 decodificados" significaría **6 decoders** → riesgo de crash. **Regla v2: solo la tarjeta ACTIVA mantiene sus 2 vídeos con decoder (2 decoders); las adyacentes muestran póster + bytes en caché (0 decoders), o como mucho la siguiente con 2 decoders en gama alta (máx 4).**
+4. **Cero JS/CPU durante el gesto de scroll.** Scroll y transiciones en el compositor/GPU; React solo reacciona a cambios de tarjeta, jamás por píxel.
+5. **Los dos vídeos viven y mueren juntos.** Si uno bufferiza, ambos pausan; si uno arranca, ambos arrancan.
 
-Cada duelo `D[i]` transita por 5 estados:
+**KPIs:** TTFF p95 < **200 ms**/vídeo · voto→siguiente p95 < **300 ms** · rebuffering < **0.5 %** · desync A/B < **1 frame (≈33 ms)**.
+
+---
+
+## 1. Precarga agresiva en cliente (Web y Móvil)
+
+### 1.1 "Ventana de vida" de un duelo (ajustada al caso DUAL)
+
+Estados: `NONE → METADATA → PREFETCH(init+1s) → WARM(frame1, pausado) → LIVE`, con `RELEASED` al salir.
 
 ```
-NONE → METADATA → PREFETCH(chunk init+1s) → WARM(decodificado, frame 1, pausado) → LIVE(reproduciendo)
-                                                          ↓
-                                              RELEASED (decoder devuelto)
+Índices:   ... i-2     i-1        i        i+1        i+2     i+3 ...
+Estado:    RELEASED  PREFETCH   LIVE   PREFETCH/WARM* PREFETCH PREFETCH
+Decoders:    0         0       2(A,B)    0 ó 2*        0        0
+Bytes:     evict     cache    cache     cache        cache   cache(parcial)
+Póster:    cargado   listo    listo     listo        listo   cargado
 ```
+`*` **Política adaptativa de decoders (C1)**:
+- **Gama baja / iOS (≤4 decoders):** solo la **activa** tiene 2 decoders; `i±1` = **póster + bytes** (0 decoders). El arranque de `i+1` usa el póster como cobertura mientras se decodifica on-demand (sub-200 ms gracias al init+1s ya en caché).
+- **Gama alta (≥6 decoders):** además se puede WARM la **siguiente** (`i+1` con 2 decoders = 4 totales) para arranque de 0 frames hacia abajo. Nunca se superan 4.
 
-La regla de oro: **solo `D[activo]` está en LIVE**; `D[activo±1]` están en WARM (decoder ocupado, pausados en frame 1); `D[activo+2..+N]` están en PREFETCH (bytes en caché, sin decoder); el resto en METADATA o RELEASED.
+> **Justificación (C1)**: el cuello de botella real en móvil son los decoders HW. En un feed *dual* hay que dividir por dos la "ventana de decoders" frente a un feed de un solo vídeo. La fluidez se preserva con el póster=frame1 + bytes pre-descargados, no con más decoders.
 
-```
-Índices:   ... i-2     i-1      i       i+1     i+2     i+3 ...
-Estado:    RELEASED  WARM    LIVE    WARM   PREFETCH PREFETCH
-Decoder:     no       sí      sí      sí      no       no
-Bytes:     evict     cache   cache   cache   cache    cache(parcial)
-Póster:    cargado   listo   listo   listo   listo    cargado
-```
-
-> **Justificación**: mantener WARM en `±1` da arranque de 0 frames al deslizar en ambas direcciones. Mantener solo PREFETCH (bytes, sin decoder) en `+2..+N` respeta el presupuesto de decoders de hardware (el verdadero cuello de botella en móvil), mientras la red ya trabajó por adelantado.
-
-### 1.2 Algoritmo de pre-fetch predictivo
-
-Cuántos duelos se precargan **no es fijo**: se adapta a (a) ancho de banda estimado, (b) velocidad de scroll, (c) probabilidad de voto rápido (cuanto más rápido vota el usuario, más lejos hay que precargar porque consume duelos más rápido).
+### 1.2 Pre-fetch predictivo (adaptativo)
 
 ```text
 PREFETCH_DEPTH = clamp(
-    base = 2,
-    + (bandwidthMbps > 8  ? 2 : 0)          // red holgada -> más profundidad
-    + (avgScrollVelocity > FAST ? 2 : 0)    // scroll rápido -> consume rápido
-    + (avgVoteIntervalMs < 2500 ? 1 : 0),   // votante compulsivo -> +1
-    min = 2, max = 6
-)
+  base=2
+  + (bandwidthMbps>8 ? 2:0)
+  + (avgScrollVelocity>FAST ? 2:0)
+  + (avgVoteIntervalMs<2500 ? 1:0),  min=2, max=6)
 
-WARM_WINDOW = 1           // siempre ±1 decodificados (decoders fijos)
-PREFETCH_WINDOW = PREFETCH_DEPTH   // bytes+init segment en caché
+DECODER_WARM = deviceDecoderBudget>=6 ? "active+next" : "active-only"   # C1
 ```
-
-Pseudocódigo del orquestador (corre en `onActiveIndexChange`, NO en scroll):
-
+Orquestador (corre en `onActiveIndexChange`, NO en scroll):
 ```text
 function onActiveIndexChange(i):
-    # 1) decoders: solo i-1, i, i+1 vivos
-    for j in mountedDecoders:
-        if abs(j - i) > WARM_WINDOW: releaseDecoder(j)   # pause + detach surface
-    for j in [i-1, i, i+1]:
-        if not hasDecoder(j): acquireDecoder(j)          # attach surface, decode frame 1, pause
-    play(i); pauseAtFrame1(i-1); pauseAtFrame1(i+1)
+    # decoders (C1): activa siempre; siguiente solo en gama alta
+    for j in mountedDecoders: if not inDecoderWindow(j,i): releaseDecoder(j)
+    acquireDecoder(i)                          # 2 decoders (A,B)
+    if DECODER_WARM=="active+next": acquireDecoder(i+1)
+    play(i); pauseAtFrame1(decoderNeighbors)
 
-    # 2) red: prefetch init segment + 1-2s de i+2 .. i+PREFETCH_DEPTH
-    for j in [i+2 .. i+PREFETCH_DEPTH]:
-        prefetchInitAndFirstSeconds(j.videoA)
-        prefetchInitAndFirstSeconds(j.videoB)
+    # red: bytes init+1s + póster de i+1 .. i+PREFETCH_DEPTH (sin decoder)
+    for j in [i+1 .. i+PREFETCH_DEPTH]:
+        prefetchInitAndFirstSeconds(j.A); prefetchInitAndFirstSeconds(j.B)
         warmPoster(j.posterA); warmPoster(j.posterB)
-
-    # 3) expulsión: libera bytes de duelos lejanos hacia atrás
-    evictBeyond(i - 2)
+    evictBeyond(i-2)
 ```
 
-**Probabilidad de voto / dirección**: como el feed es 1-D (solo se baja), la predicción es trivial hacia abajo; pero registramos `voteLatency` para subir `PREFETCH_DEPTH` en usuarios rápidos. Si una sesión muestra "scroll-back" frecuente, mantenemos `i-2` en PREFETCH también.
+### 1.3 Caché multinivel
+| Nivel | Web | Móvil | Límite | Expulsión |
+|---|---|---|---|---|
+| L0 Decoder/GPU | `<video>`/WebCodecs `VideoFrame` | `MediaCodec`/`TextureView` | **2–4 vídeos** (C1) | la más lejana al activo |
+| L1 RAM | MSE `SourceBuffer` / blobs | ExoPlayer buffers | ~80–120 MB | LRU |
+| L2 Disco | **IndexedDB / Cache API** (SW) | **`SimpleCache` LRU** | 200–400 MB | LRU + TTL |
+| L3 CDN | HTTP/3 | HTTP/3 | — | TTL por viralidad |
 
-### 1.3 Caché multinivel y política de expulsión
+Bajo presión (`deviceMemory`, `onTrimMemory`, `didReceiveMemoryWarning`): `PREFETCH_DEPTH→2`, `DECODER_WARM→active-only`, L2 purgada a `[i-1, i+3]`.
 
-| Nivel | Web | Móvil | Contenido | Límite | Expulsión |
-|---|---|---|---|---|---|
-| L0 GPU/Decoder | textura de `<video>`/WebCodecs `VideoFrame` | `MediaCodec`/`TextureView` | frames decodificados | 3 pares (6) | la más lejana al activo |
-| L1 RAM | `MediaSource`/`SourceBuffer`, blobs | `ExoPlayer` buffers | segmentos demuxados | ~80–120 MB | LRU |
-| L2 Disco | **IndexedDB** (vía Service Worker / Cache API) | **disk LRU cache de ExoPlayer (`SimpleCache`)** | fMP4 init+media | 200–400 MB | LRU + TTL |
-| L3 CDN edge | HTTP/3 | HTTP/3 | todo | — | TTL por viralidad |
+### 1.4 Chunk inicial
+Solo init segment + primer media segment (≈150–400 KB @240–360p) → basta para `HAVE_CURRENT_DATA` y pausar en frame 1. Web: `fetch(url,{headers:{Range:'bytes=0-N'}})`.
 
-> **Política adaptativa**: el tamaño de L1/L2 se reduce dinámicamente bajo presión de memoria (`navigator.deviceMemory`, `onTrimMemory` en Android, `didReceiveMemoryWarning` en iOS). Bajo presión, `PREFETCH_DEPTH` cae a 2 y L2 se purga a duelos `[i-1, i+3]`.
-
-### 1.4 Pre-descarga del chunk inicial (arranque inmediato)
-
-Se descarga **solo lo necesario para mostrar el primer 1–2 s**: el *init segment* (`moov`/`ftyp`+`moof` inicial) + el primer *media segment* (CMAF). En web, vía `fetch(url, {headers:{Range:'bytes=0-N'}})` o pidiendo el primer segmento del manifiesto LL-HLS. Esto basta para `readyState >= HAVE_CURRENT_DATA` y poder pausar en frame 1.
-
-```text
-prefetchInitAndFirstSeconds(track):
-    bytes = fetchRange(track.url, 0, INIT_PLUS_1S_BYTES)   // ~150-400 KB @240-360p
-    cache.put(track.url + '#init1s', bytes)                // L2 IndexedDB / SimpleCache
+### 1.5 Doble búfer
+```
+[ Capa A: D[i]   LIVE   z=2, opacity=1 ]
+[ Capa B: D[i+1] WARM*  z=1, opacity=0 ]   (* WARM solo en gama alta; si no, póster)
+avanzar -> A.opacity:0 (crossfade 120ms), B.play(), B.z=2
 ```
 
-### 1.5 Doble búfer (double buffering)
-
-Mientras `D[i]` está LIVE, `D[i+1]` ya está **completamente preparado**: ambos vídeos decodificados, pausados en frame 1, con la superficie/`<video>` ya adjuntada al DOM/árbol (oculto o detrás por z-index). La "transición" es solo `play(i+1)` + cambio de z-index/opacity — sin crear nodos, sin adjuntar superficies, sin decodificar de cero.
-
-```
-[ Capa A: D[i]   LIVE   z=2, opacity=1 ]   <- reproduciendo
-[ Capa B: D[i+1] WARM   z=1, opacity=0 ]   <- listo, pausado frame 1
-   al avanzar -> A.opacity:0 (crossfade 120ms), B.play(), B.z=2  (sin recrear nada)
-```
-
-### 1.6 Implementación web
-
-- `<video preload="auto" muted playsinline>` para los WARM; **`src` asignado imperativamente y liberado** al salir de la ventana (`pause()` → `removeAttribute('src')` → `load()`) para devolver el decoder.
-- `fetchpriority="high"` en el init segment del par activo y `±1`; `low` para `+2..+N`.
-- `<link rel="preload" as="fetch" href="...init" crossorigin>` para el siguiente duelo.
-- **Service Worker** intercepta peticiones de segmentos → cache-first sobre IndexedDB/Cache API; **no** bloquea, sirve rangos. La descarga predictiva se ordena desde un **Web Worker** (off main thread) que habla con el SW por `postMessage`, dejando el hilo de UI 100 % libre para el compositor.
-- Decodificación acelerada: `<video>`+MSE por defecto; **WebCodecs** (`VideoDecoder`) para control fino de frame 1 en dispositivos compatibles (ver §3).
-
+### 1.6 Implementación web (C1, C3)
+- Pool de **6 elementos `<video>`** en el DOM, pero **solo 2–4 con `src` activo** (los decoders reales). El resto son **slots vacíos** (sin `src`) que se reutilizan. **Liberación agresiva**: `pause()` → `removeAttribute('src')` → `load()` devuelve el decoder + RAM.
+- `fetchpriority="high"` en el init del par activo; `low` en el resto. `<link rel="preload" as="fetch">` del siguiente.
+- **Service Worker** cache-first sobre IndexedDB/Cache API (no bloquea, sirve rangos); **Web Worker** ordena el prefetch off-main-thread vía `postMessage`.
+- **Decodificación (C3):** `<video>`+MSE por defecto. **WebCodecs solo con feature-detect** (`'VideoDecoder' in window`, Chromium/Android); **fallback transparente** a `<video>` nativo + póster=frame1 en Safari iOS (~mitad del mercado móvil). El póster cubre el gap en ambos caminos.
 ```js
-// Pool de 6 <video> reutilizados (3 pares). Nunca se crean/destruyen en runtime.
-acquire(slotIndex, src) {
-  const v = pool[slotIndex];
-  if (v.getAttribute('src') !== src) { v.src = src; v.load(); } // init+1s ya en SW cache
-}
-release(slotIndex) {
-  const v = pool[slotIndex];
-  v.pause(); v.removeAttribute('src'); v.load(); // devuelve decoder + RAM
-}
+const USE_WEBCODECS = ('VideoDecoder' in window);  // C3: Safari iOS -> false -> <video> nativo
+acquire(slot, src){ const v=pool[slot]; if(v.getAttribute('src')!==src){v.src=src; v.load();} }
+release(slot){ const v=pool[slot]; v.pause(); v.removeAttribute('src'); v.load(); } // máx 2–4 con src (C1)
 ```
 
-### 1.7 Implementación móvil
-
-- **Android (ExoPlayer/Media3)**: pool de N `ExoPlayer` (3 pares = 6), cada uno con su `TextureView`/`Surface` ya adjuntada. WARM = `setPlayWhenReady(false)` + `prepare()` con la `Surface` adjunta → ExoPlayer decodifica el primer frame y lo deja pintado. Caché de disco con `SimpleCache` (LRU). Prefetch en background con `WorkManager`/coroutines a `CacheWriter` (solo init+1s).
-- **iOS (AVPlayer)**: pool de `AVPlayer` + `AVPlayerLayer` ya en la jerarquía de capas. **Pre-warming**: crear `AVPlayerItem`, observar `status == .readyToPlay` y `isPlaybackLikelyToKeepUp`, hacer `preroll(atRate:)` para decodificar el primer frame, mantener `rate = 0`. `AVAssetResourceLoaderDelegate` para servir desde caché de disco propia (LRU).
-- **Pool de decodificadores compartido**: en ambos casos el número de instancias vivas = `2 * (WARM_WINDOW*2 + 1)` acotado a 6. Al reciclar, se **reusa** la instancia/`Surface` (no se libera el `MediaCodec`), solo se cambia la fuente.
+### 1.7 Móvil
+**Android (ExoPlayer/Media3):** pool de instancias con `Surface` adjunta; **activa = 2 decoders** (gama alta hasta 4); `SimpleCache` LRU; prefetch con `WorkManager`/`CacheWriter` (solo init+1s). **iOS (AVPlayer):** pool con `AVPlayerLayer` ya en jerarquía; **pre-warming** = `AVPlayerItem` + `preroll(atRate:)`, `rate=0`; `AVAssetResourceLoaderDelegate` para caché de disco. Instancias con media activa acotadas por `deviceDecoderBudget` (C1); se **reusan** (no se destruye el `MediaCodec`).
 
 ---
 
-## 2. Pipeline de streaming y entrega de latencia ultrabaja
+## 2. Streaming de latencia ultrabaja
 
-### 2.1 Protocolo
+### 2.1 Protocolo — DEFAULT: MP4 progresivo (C2)
+> **CORRECCIÓN v2:** LL-HLS es para *directo*. Para clips pre-grabados de 5–15 s es overkill y no mejora el TTFF frente a un MP4 bien empaquetado (ByteDance sirve la mayoría de TikToks como MP4 progresivo).
 
-- **LL-HLS** (preferido por interoperabilidad iOS nativa) con `PART-TARGET ≈ 0.2–0.5 s`, `EXT-X-PART` (partial segments), `Blocking Playlist Reload` y `_HLS_msn/_HLS_part` para tirar de partes apenas existen.
-- Alternativa/segundo flujo: **MPEG-DASH** con segmentos cortos (1–2 s), `availabilityTimeOffset`, `$Number$` templating y `SegmentTimeline` para arranque rápido.
-- **CMAF** como contenedor común (fragmentos fMP4) → un solo encode sirve a LL-HLS y DASH. Reduce almacenamiento en CDN y unifica caché.
+- **Clips cortos (<30 s) → MP4 progresivo con faststart + Range (DEFAULT de Twyk):** `moov` al inicio, `Range: bytes=0-N` para init+1s. TTFF idéntico a HLS, mínimo overhead, máxima compatibilidad con CDN/SW. El "ABR" se reduce a elegir variante (240p/540p/720p) por URL.
+- **Clips largos (>30 s) o live → LL-HLS / MPEG-DASH con CMAF:** LL-HLS (`PART-TARGET 0.2–0.5 s`) solo para live; DASH (segmentos 1–2 s) alternativa; **CMAF** como contenedor común.
 
-> **Justificación**: los vídeos de Twyk son bucles cortos (5–12 s). Para clips pre-grabados, lo crítico no es "directo" sino **fast-start**: por eso priorizamos fMP4 con `moov` al inicio (faststart) y segmentos cortos, y reservamos LL-HLS real para contenido en vivo/eventos.
-
-### 2.2 Empaquetado y faststart
-
-- fMP4 con `ftyp`+`moov` al **inicio** del archivo (`-movflags +faststart` en ffmpeg) → el reproductor obtiene metadatos en el primer rango de bytes.
-- Init segment separado y cacheable indefinidamente; media segments de 1–2 s.
-- GOP corto (keyframe cada ≤1 s) → cualquier segmento arranca sin esperar al siguiente IDR. Esto es **imprescindible** para arranque instantáneo.
-
+### 2.2 Empaquetado faststart
+`ftyp`+`moov` al inicio, **GOP corto (keyframe ≤1 s)** para arranque sin esperar IDR.
 ```bash
-# Ejemplo de empaquetado CMAF/fMP4 con faststart y GOP corto
-ffmpeg -i in.mp4 \
-  -c:v libx264 -profile:v main -g 30 -keyint_min 30 -sc_threshold 0 \
-  -movflags +faststart+frag_keyframe+empty_moov \
-  -f dash -seg_duration 1 -use_template 1 -use_timeline 1 out.mpd
+# MP4 progresivo corto (DEFAULT)
+ffmpeg -i in.mp4 -c:v libx264 -profile:v main -g 30 -keyint_min 30 -sc_threshold 0 \
+  -movflags +faststart out_540p.mp4
+# CMAF/DASH solo para clips largos / live
+ffmpeg -i in.mp4 ... -f dash -seg_duration 1 -use_template 1 -use_timeline 1 out.mpd
 ```
 
-### 2.3 Códecs y decodificación
+### 2.3 Códecs
+**Móvil:** H.265/HEVC + fallback H.264. **Web:** AV1 > VP9 > H.264 según `MediaCapabilities.decodingInfo()` (no por suposición).
 
-- **Móvil**: H.265/HEVC (mejor calidad/bitrate, decodificación HW casi universal) con **fallback H.264** para hardware viejo.
-- **Web**: **AV1** (donde haya decode HW) > **VP9** > **H.264**, negociados vía MSE/`MediaCapabilities.decodingInfo()`. `WebCodecs` para decode acelerado y control de frame.
-- Selección por capacidad real, no por suposición:
+### 2.4 ABR "empezar feo, escalar"
+Primera reproducción a **240p ~120 kbps** (TTFF<200 ms aun con BW incierto), sube a 540p/720p en 1–2 s. Ladder 9:16: `240p@120k → 360p@300k → 540p@700k → 720p@1.2M → 1080p@2.5M`.
 
-```js
-const support = await navigator.mediaCapabilities.decodingInfo({
-  type: 'media-source',
-  video: { contentType: 'video/mp4; codecs="av01.0.05M.08"', width:720, height:1280, bitrate:1_200_000, framerate:30 }
-});
-const codec = support.smooth && support.powerEfficient ? 'av1' : 'h264';
-```
-
-### 2.4 ABR: empezar feo, escalar en 1–2 s
-
-El primer fragmento se sirve a **calidad mínima (≈240p, ~120 kbps)** para garantizar TTFF < 200 ms incluso con ancho de banda incierto; el ABR sube a 540p/720p en los siguientes 1–2 s.
-
-```text
-chooseInitialRendition(estBandwidth):
-    if firstFragmentOfSession or estBandwidth == UNKNOWN: return LADDER.min   # 240p
-    return ladderForBandwidth(estBandwidth * SAFETY_FACTOR=0.7)
-
-onSegmentDownloaded(stats):
-    update EWMA(bandwidth)
-    if buffer > 3s and bandwidth allows: stepUpRendition()   # 240->540->720
-    if rebufferRisk(): stepDownRendition()
-```
-
-Ladder sugerido (vertical 9:16): `240p@120k → 360p@300k → 540p@700k → 720p@1.2M → 1080p@2.5M`.
-
-### 2.5 CDN, HTTP/3 y multiplexación
-
-- Todo el contenido tras **CDN multi-PoP**, entrega por **HTTP/3 (QUIC)**: handshake 0/1-RTT y **multiplexación** de los dos streams (A y B) del mismo duelo sobre una conexión → ambos llegan en paralelo sin head-of-line blocking.
-- **TTL**: largo para virales (cache hit ≈100 %), corto para contenido fresco. **Pre-warming de CDN** para duelos con alto potencial (predicción de exposición) empujando el init+1s a los edges antes de que el feed los sirva.
-- `Cache-Control: immutable` para init segments e identificadores con hash de contenido.
-
-### 2.6 Diagrama de secuencia — arranque de un duelo
-
-```
-Cliente            SW/WebWorker        CDN(HTTP/3)        Backend
-  | scroll a i         |                   |                 |
-  |---onActive(i)------>|                   |                 |
-  |                     |--GET init+1s A--->|  (cache hit)    |
-  |                     |--GET init+1s B--->|  (mux QUIC)     |
-  |                     |<==bytes A,B=======|                 |
-  |<--cache ready-------|                   |                 |
-  | acquireDecoder(A,B) |                   |                 |
-  | decode frame1 (A,B) |                   |                 |
-  | rAF: play(A)+play(B)|  <-- 0 frames de espera, póster ya visible
-```
+### 2.5 CDN + HTTP/3
+Multi-PoP, **QUIC** (0/1-RTT + multiplexación de A y B en paralelo, sin head-of-line). TTL largo para virales, corto para fresco; **pre-warming de edges** (init+1s) para duelos de alto potencial. `Cache-Control: immutable` en init con hash de contenido.
 
 ---
 
-## 3. Sincronización exacta del inicio de los dos vídeos
+## 3. Sincronización exacta de los dos vídeos
 
-### 3.1 Arranque atómico
-
-Ambos reproductores se llevan a `readyState >= HAVE_CURRENT_DATA` (frame 1 decodificado) **en pausa**. Solo cuando **ambos** están listos se disparan juntos dentro del **mismo callback de `requestAnimationFrame`** (un "mutex" lógico en el hilo de UI):
-
+### 3.1 Arranque atómico (C3)
+Ambos a `HAVE_CURRENT_DATA` en pausa; se disparan en el **mismo `requestAnimationFrame`**:
 ```js
-async function startDuel(a, b) {
-  await Promise.all([untilReady(a), untilReady(b)]); // ambos HAVE_CURRENT_DATA
-  requestAnimationFrame(() => {                       // mismo tick -> arranque común
-    a.currentTime = 0; b.currentTime = 0;
-    Promise.allSettled([a.play(), b.play()]);
-  });
+async function startDuel(a,b){
+  await Promise.all([untilReady(a), untilReady(b)]);
+  requestAnimationFrame(()=>{ a.currentTime=0; b.currentTime=0; Promise.allSettled([a.play(),b.play()]); });
 }
-function untilReady(v){ return v.readyState>=2 ? Promise.resolve()
-  : new Promise(r=>v.addEventListener('loadeddata', r, {once:true})); }
+const untilReady = v => v.readyState>=2 ? Promise.resolve()
+  : new Promise(r=>v.addEventListener('loadeddata', r, {once:true}));
 ```
+> **C3:** el control sub-frame con **WebCodecs** (`VideoDecoder` → pintar primer `VideoFrame` en `<canvas>` antes de avanzar) es **opt-in solo en Chromium/Android**. En Safari iOS el camino es `<video>` nativo + póster=frame1, que ya garantiza arranque sin salto.
 
-> En **WebCodecs**, se decodifica explícitamente el primer `VideoFrame` de cada track y se pinta en `<canvas>` antes de arrancar el avance temporal → control sub-frame del instante exacto mostrado.
-
-### 3.2 Manejo de drift (los dos juntos, siempre)
-
-Un *watchdog* compara `currentTime` de A y B cada `rAF`. Si la deriva supera 1 frame o uno entra en `waiting`/buffering: **pausa ambos**, muestra el póster del que falta, y reanuda los dos juntos cuando ambos vuelven a `canplaythrough`/`HAVE_FUTURE_DATA`.
-
+### 3.2 Watchdog de drift con timeout (C5)
+> **CORRECCIÓN v2:** la v1 esperaba "hasta que el lento alcance" → si el lento bufferiza, ambos se congelan **indefinidamente**. Se añade timeout y resync forzado al tiempo del más lento.
 ```text
 onRAF():
-    if abs(a.currentTime - b.currentTime) > 1/FPS:
-        slower = a.currentTime < b.currentTime ? a : b
-        faster.pause(); waitUntil(slower catches up); resyncStartBoth()
-    if a.stalled or b.stalled:
-        pauseBoth(); showPoster(stalledSide); resumeBothWhenReady()
+  drift = abs(a.currentTime - b.currentTime)
+  if drift > 1/FPS:
+      faster = (a.currentTime > b.currentTime) ? a : b
+      slower = (faster===a) ? b : a
+      faster.pause()
+      ready = waitFor(slower, timeout=500ms)        # NO indefinido
+      if ready: resyncStartBoth()
+      else:                                          # el lento no alcanza -> reset duro
+          faster.currentTime = slower.currentTime    # alinear al más lento
+          resyncStartBoth()
+  if a.stalled or b.stalled:
+      pauseBoth(); showPoster(stalledSide); resumeBothWhenReady(timeout=500ms)
 ```
+> **Regla UX**: nunca uno corriendo y el otro congelado; antes se congelan ambos sobre póster (=frame1, imperceptible) y como mucho 500 ms.
 
-> **Regla UX**: nunca se ve un vídeo corriendo y el otro congelado. Antes de eso, congelamos ambos sobre su póster (que es idéntico al frame 1 → imperceptible).
-
-### 3.3 "Primer frame común" (técnica póster→vídeo)
-
-El backend genera, por cada vídeo, un **póster del frame 1** (JPEG/WebP ligero, mismas dimensiones). El cliente lo pinta **instantáneamente** debajo del `<video>`. Cuando el vídeo alcanza frame 1 y arranca, el póster se **disuelve** (crossfade 80–120 ms) o simplemente queda tapado: como son el mismo fotograma, no hay salto.
-
-```
-[ <img poster frame1> ]  <- visible en 0 ms
-[ <video> (decodificando) ] opacity 0 -> 1 al estar listo
-```
-
+### 3.3 "Primer frame común" (póster→vídeo)
+Backend genera póster = frame 1 (WebP). Se pinta en 0 ms bajo el `<video>`; al estar listo, crossfade 80–120 ms (mismo fotograma → sin salto).
 ```bash
-ffmpeg -i in.mp4 -vf "select=eq(n\,0)" -q:v 3 frame1.webp   # póster = frame exacto 1
+ffmpeg -i in.mp4 -vf "select=eq(n\,0)" -q:v 3 frame1.webp
 ```
 
 ---
 
-## 4. Gestión del sonido para fluidez y adicción
-
-### 4.1 Modelo por defecto: silencio inteligente
-
-- Los dos vídeos arrancan **muteados** (requisito de autoplay en navegadores y para evitar cacofonía).
-- El audio de un lado se activa **solo bajo intención explícita y ligera**:
-  - **Web**: `hover` sostenido (o `pointerdown` mantenido) sobre un lado.
-  - **Móvil**: *press & hold* (presión táctil mantenida) sobre un lado.
-- Al soltar → vuelve a mute con **crossfade** corto.
-
+## 4. Sonido para fluidez y adicción
+- **Por defecto muteado** (autoplay + anti-cacofonía). Audio de un lado solo con **intención ligera**: `hover`/`pointerdown` sostenido (web) o *press & hold* (móvil); al soltar → mute con crossfade.
 ```text
-onHoverStart(side):  audioFadeIn(side, 80ms);  audioFadeOut(otherSide, 80ms)
-onHoverEnd(side):    audioFadeOut(side, 120ms)
+onHoverStart(side): audioFadeIn(side,80ms); audioFadeOut(other,80ms)
+onHoverEnd(side):   audioFadeOut(side,120ms)
 ```
-
-### 4.2 Voto, micro-sonido y "ganador temporal"
-
-Al tocar para votar: se reproduce un **micro-SFX de voto** (sample pregargado, <50 ms) y el audio del **siguiente** duelo se prepara según una regla de **"ganador temporal"** (predicción del lado que el usuario tiende a votar / el que va ganando) para que, al avanzar, el audio ya esté listo sin un clic extra del usuario.
-
-### 4.3 Implementación de bajo nivel
-
-- **Web Audio API**: cada track de audio enrutado por un `GainNode`; crossfade = automatización de `gain` con `setTargetAtTime` (sin latencia perceptible, off main thread en el audio render thread). El SFX de voto se reproduce desde un `AudioBuffer` pre-decodificado.
-- **Móvil**: `AVAudioEngine`/`AudioTrack` con mezcla por ganancia; el SFX desde un buffer en memoria. Categoría de audio configurada para "ambient/mixable" para no cortar música del sistema hasta que haya intención.
+- **Voto:** micro-SFX pregargado (<50 ms) + preparación del audio del siguiente duelo según "ganador temporal" (predicción) → sin clic extra.
+- **Bajo nivel:** Web Audio API (`GainNode` + `setTargetAtTime`, off-main-thread); móvil `AVAudioEngine`/`AudioTrack`, categoría "ambient/mixable".
 
 ---
 
-## 5. Renderizado ultrarrápido (sin jank)
+## 5. Renderizado sin jank
 
-### 5.1 Web
-
-- Cada vídeo en su **propia capa compositora**: `transform: translateZ(0)` + `will-change: transform` → la GPU compone; el main thread no pinta durante la reproducción.
-- **`contain: strict`** en el contenedor de la tarjeta → aísla layout/paint/size; el navegador nunca recalcula nada fuera del subárbol durante el scroll.
-- **Cero layout en runtime**: tamaños fijos (`h-[100dvh]`, mitades 50/50 fijas). Nada que dependa del contenido del vídeo.
-- **Scroll-snap nativo** (`scroll-snap-type: y mandatory`) → el gesto y el snap corren en el compositor; el JS solo recibe el cambio de tarjeta vía **un único `IntersectionObserver` (threshold ~0.7)**, jamás un listener de `scroll`.
-- **Pool de 6 `<video>`** reutilizados (3 pares): se reciclan; nunca se crean/destruyen en runtime (evita coste de DOM + decoder churn).
-
+### 5.1 Web (C1)
+Cada vídeo en su capa compositora (`transform:translateZ(0)`, `will-change:transform`); **`contain:strict`** en la tarjeta; **cero layout en runtime** (50/50 fijo, `h-[100dvh]`); **scroll-snap nativo** + **un único `IntersectionObserver` (≈0.7)**, jamás listener de `scroll`; **pool de 6 `<video>` reutilizados pero solo 2–4 con `src` activo (C1)**.
 ```css
-.duel-layer{ position:absolute; inset:0; transform:translateZ(0); will-change:transform; backface-visibility:hidden; }
-.duel-card{ contain: strict; height:100dvh; }
-.feed{ overflow-y:auto; scroll-snap-type:y mandatory; overscroll-behavior:contain; }
-.feed > section{ scroll-snap-align:start; scroll-snap-stop:always; height:100dvh; }
+.duel-layer{position:absolute;inset:0;transform:translateZ(0);will-change:transform;backface-visibility:hidden;}
+.duel-card{contain:strict;height:100dvh;}
+.feed{overflow-y:auto;scroll-snap-type:y mandatory;overscroll-behavior:contain;}
+.feed>section{scroll-snap-align:start;scroll-snap-stop:always;height:100dvh;}
 ```
 
-### 5.2 Transición entre duelos (crossfade sin parar nada)
-
-No se detiene el duelo anterior para arrancar el siguiente. El siguiente ya está WARM/LIVE detrás; se **cambia z-index y opacidad** en una capa compositora:
-
+### 5.2 Transición (crossfade sin parar nada)
 ```text
-advance():
-    next.play()                    # ya estaba WARM (frame1) -> 0 espera
-    animate(curr.opacity: 1->0, 120ms, GPU)   # crossfade
-    animate(next.z: below->above)
-    after 120ms: releaseDecoder(curr-1)        # libera el que quedó lejos
+advance(): next.play() (póster o WARM); animate(curr.opacity 1->0,120ms,GPU); next.z=above;
+           after 120ms: releaseDecoder(out-of-window)
 ```
 
 ### 5.3 Móvil
-
-- **Android**: `TextureView` (compositable) o `SurfaceView` por reproductor; reutilización de `MediaCodec`/`Surface`; precarga del primer frame en textura **OpenGL/`SurfaceTexture`** para crossfades GPU. `RecyclerView` con `setItemViewCacheSize` alto + pool de holders.
-- **iOS**: `AVPlayerLayer` ya en la jerarquía; transiciones por `CALayer.opacity`/`zPosition` animadas en el render server (Core Animation) — fuera del hilo principal. Reutilización de `AVPlayer` del pool.
+Android: `TextureView`/`SurfaceView`, reuse de `MediaCodec`/`Surface`, frame1 en textura OpenGL/`SurfaceTexture`; `RecyclerView` con cache alto. iOS: transiciones por `CALayer.opacity`/`zPosition` en Core Animation (fuera del hilo principal), reuse de `AVPlayer`.
 
 ---
 
-## 6. Backend y API para latencia cero en voto y metadatos
+## 6. Backend/API para latencia cero
 
-### 6.1 Co-entrega de metadatos (eliminar el round-trip)
+### 6.1 Co-entrega de metadatos (sin round-trip)
+La respuesta al voto del duelo `i` **incluye** metadatos de `i+K` (init/URL, póster, duración). Va sobre la **respuesta HTTP del voto** (no requiere WS).
 
-La respuesta al **voto** del duelo `i` **incluye** los metadatos del duelo `i+K` (IDs, URLs init/manifiesto, pósters, duraciones). Así el cliente nunca pide "el siguiente" por separado.
+### 6.2 Transporte del feed (C4): HTTP/2 + caché + SSE, NO WebSocket
+> **CORRECCIÓN v2:** TikTok **no usa WebSockets para el feed** (los usa para mensajería/comentarios en vivo). El feed se sirve con HTTP eficiente + caché; las novedades llegan por push notifications o SSE.
 
-- Transporte: **WebSocket persistente** (recomendado) con mensajes combinados, o HTTP/2 *server push*/*preload hints*.
-
+- **Feed**: peticiones **HTTP/2** con caché agresiva + **co-entrega** del siguiente lote en la respuesta del voto. Para "novedades en tiempo real", **SSE (Server-Sent Events)** o long-polling — más escalable, menor overhead de conexión, mejor encaje con CDN.
+- **WebSocket**: reservado a mensajería en vivo, comentarios en tiempo real, presencia.
 ```jsonc
-// WS server -> client, tras recibir un voto
-{ "type":"vote_ack", "duelId":"d_1042", "tallied":true,
-  "next":[ { "duelId":"d_1043",
-             "a":{"manifest":"https://cdn/.../1043a.mpd","poster":"https://cdn/.../1043a.webp","dur":7.2},
-             "b":{"manifest":"https://cdn/.../1043b.mpd","poster":"https://cdn/.../1043b.webp","dur":6.8} },
-           { "duelId":"d_1044", "a":{...}, "b":{...} } ] }   // empuja 2 por delante
+// Respuesta HTTP del voto (co-entrega; sin WS)
+{ "duelId":"d_1042","tallied":true,
+  "next":[ {"duelId":"d_1043","a":{"url":".../1043a.mp4","poster":".../1043a.webp","dur":7.2},
+                                "b":{"url":".../1043b.mp4","poster":".../1043b.webp","dur":6.8}},
+           {"duelId":"d_1044", "a":{...}, "b":{...}} ] }
 ```
-
-### 6.2 Feed empujado por adelantado (push, no pull)
-
-El servidor mantiene una **cola personalizada por usuario** (cohortes + embeddings) y **empuja** paquetes de duelos con antelación por el WS, de modo que el cliente siempre tiene metadatos por delante mientras ve el duelo actual.
 
 ### 6.3 Voto fire-and-forget
-
-El voto se envía como mensaje **"UDP-like" sobre WebSocket** (envío inmediato, sin esperar respuesta para avanzar). La confirmación (`vote_ack`) llega de forma asíncrona; **la transición al siguiente duelo no se bloquea por la red**.
-
 ```text
-onUserVote(side):
-    playSfx(); animateConfirm(side); advanceToNext()   # UI no espera nada
-    ws.send({type:'vote', duelId, side, ts})           # fire-and-forget
-    # vote_ack llega después; si falla, reintento idempotente en background
+onUserVote(side): playSfx(); animateConfirm(side); advanceToNext()  # UI no espera
+                  POST /vote {duelId, side, clientVoteId, ts}        # async, idempotente
 ```
 
-> Idempotencia: cada voto lleva `duelId + clientVoteId`; el backend deduplica. Reintentos no inflan el conteo.
-
-### 6.4 Almacén precalentado
-
-- **Redis** con listas precalculadas por cohorte/embedding → "siguiente duelo" disponible en **<5 ms**.
-- **CQRS + Event Sourcing**: los votos son eventos append-only; un proyector actualiza conteos/rankings en tiempo real sin tocar la ruta de lectura del feed (lecturas servidas desde proyecciones en Redis).
-
+### 6.4 Almacén de votos (C6): Redis INCR + sync eventual (CQRS opcional)
+> **CORRECCIÓN v2:** CQRS + Event Sourcing completo con Kafka es válido pero **overkill** para conteo de votos. Default más simple:
+- **Contadores en Redis con `INCR` atómico (O(1))**; lectura del feed desde Redis (<5 ms).
+- **Sync eventual** a la base de datos principal por lotes (cada 1–5 s).
+- **Kafka/CQRS solo** si necesitas analytics en tiempo real, auditoría completa o ratios lectura/escritura extremos (p.ej. 1000:1).
 ```
-[Voto evento] -> Kafka/Log -> [Proyector tallies] -> Redis(counts)  (lectura O(1))
-                              [Proyector ranking]  -> Redis(zset rankings)
-Feed read  -> Redis(cola usuario) -> respuesta <5ms  (jamás toca el log de escritura)
+POST /vote -> Redis INCR duel:{id}:{side}    (O(1))
+            -> flush por lotes cada 1-5s -> DB principal
+Feed read  -> Redis (cola usuario + counts) -> <5ms
 ```
 
-### 6.5 Diagrama de secuencia — voto → siguiente (wow moment < 300 ms)
-
+### 6.5 Secuencia — voto→siguiente (<300 ms)
 ```
-Usuario     Cliente(UI)        WS/Backend        Redis/CQRS
-  | tap A       |                  |                 |
-  |------------>| playSfx+confirm  |                 |
-  |             | advance()  (next ya WARM) --------> 0 espera de vídeo
-  |             |---vote(d,A)----->|                 |
-  |             |                  |--append event-->|
-  |             |<---vote_ack + next[i+2]------------|  (async, no bloquea)
-  |             | cache next metadata                |
+Usuario  Cliente(UI)            Backend(HTTP/2)   Redis
+ |tap A->| playSfx+confirm; advance()(póster/WARM -> 0 espera de vídeo)
+ |       |---POST /vote(d,A)------>|--INCR-------->|
+ |       |<--200 {next:[i+1,i+2]}--|              |  (co-entrega, no bloquea avance)
 ```
 
 ---
 
-## 7. Métricas y monitoreo en producción
+## 7. Métricas y monitoreo
 
-### 7.1 KPIs (presupuesto de error explícito)
-
-| KPI | Objetivo | Umbral de alerta |
+| KPI | Objetivo | Alerta |
 |---|---|---|
-| TTFF por vídeo (p95) | < 200 ms | > 350 ms |
-| Voto → siguiente duelo (p95) | < 300 ms | > 500 ms |
-| Rebuffering ratio | < 0.5 % | > 1 % |
-| Desync A/B (p99) | < 33 ms (1 frame) | > 66 ms |
-| Decoder exhaustion events | 0 | > 0 |
-| CDN cache-hit (init+1s) | > 98 % | < 95 % |
+| TTFF/vídeo (p95) | < 200 ms | > 350 ms |
+| Voto→siguiente (p95) | < 300 ms | > 500 ms |
+| Rebuffering | < 0.5 % | > 1 % |
+| Desync A/B (p99) | < 33 ms | > 66 ms |
+| Decoder exhaustion | 0 | > 0 |
+| CDN cache-hit init+1s | > 98 % | < 95 % |
 
-### 7.2 RUM — instrumentar cada paso de la pipeline (para AMBOS vídeos)
-
-Eventos con timestamps de alta resolución (`performance.now()` / `CACurrentMediaTime` / `SystemClock.elapsedRealtimeNanos`):
-
-```
-duel_view_start  → manifest_loaded(A,B) → init_seg_ready(A,B) →
-first_frame_decoded(A,B) → play_called(A,B) → first_frame_painted(A,B) →
-[rebuffer_start/stop]* → vote(ts) → next_duel_visible(ts)
-```
-
-Se derivan: `TTFF = first_frame_painted - duel_view_start`; `wow = next_duel_visible - vote`; `desync = |first_frame_painted_A - first_frame_painted_B|`. Agregación por **CDN PoP, región, tipo de dispositivo, tipo de red (effectiveType), códec**.
-
-### 7.3 Alertas y dashboards
-
-- Alertas automáticas si cualquier percentil cruza umbral, segmentadas por dimensión (p.ej., "TTFF p95 > 350 ms solo en Android gama baja / 4G en LATAM").
-- Dashboards en tiempo casi-real (RUM → pipeline de stream → almacén columnar tipo ClickHouse/BigQuery).
-- Traza de **decoder exhaustion** como señal crítica (indica fuga de decoders → revisar liberación agresiva del §1/§5).
+**RUM** por ambos vídeos: `duel_view_start → manifest/headers_loaded(A,B) → init_seg_ready(A,B) → first_frame_decoded(A,B) → play_called(A,B) → first_frame_painted(A,B) → [rebuffer]* → vote → next_duel_visible`. Derivar TTFF/wow/desync; agregar por CDN PoP, región, dispositivo, `effectiveType`, códec. Tratar **decoder exhaustion** como señal crítica (fuga de liberación, ver C1).
 
 ---
 
-## 8. Plan de pruebas de rendimiento
-
-### 8.1 Matriz de red (emulación)
-
-| Perfil | Bandwidth | RTT | Pérdida | Herramienta |
-|---|---|---|---|---|
-| 3G lento | 400 kbps | 400 ms | 1 % | Chrome DevTools throttling / `tc netem` |
-| 4G medio | 4 Mbps | 80 ms | 0.5 % | WebPageTest, Lighthouse Mobile |
-| 4G con pérdida | 4 Mbps | 120 ms | 3 % | `tc netem` / Network Link Conditioner (iOS) |
-| WiFi alta latencia | 20 Mbps | 200 ms | 0 % | Android emulator network profiles |
-
-Criterio de aprobación: TTFF p95 < 200 ms en 4G medio; sin spinner visible y sin frame congelado en **ningún** perfil (el póster cubre el peor caso).
-
-### 8.2 Pruebas de carga / estrés backend
-
-- **10 000 usuarios concurrentes** votando cada ~2 s (ritmo TikTok) → verificar que voto + co-entrega de metadatos + proyecciones CQRS mantienen `vote_ack` p99 < 100 ms y la cola de feed nunca se vacía (siempre ≥ `PREFETCH_DEPTH` por delante).
-- Herramientas: `k6`/`Gatling` para WS, `wrk2` para HTTP/3, inyección de eventos en Kafka para validar proyectores.
-- Verificar idempotencia bajo reintentos masivos (no inflar conteos).
-
-### 8.3 A/B testing de estrategias de precarga
-
-Variables a experimentar (con TTFF, rebuffer ratio, retención y datos consumidos como métricas):
-- `PREFETCH_DEPTH` (2 vs 3 vs 4 vs adaptativo).
-- Calidad inicial (240p vs 360p como primer fragmento).
-- `seg_duration` (1 s vs 2 s) y longitud del chunk inicial pre-descargado (1 s vs 2 s).
-- Tamaño del pool de decoders (3 pares vs 4 pares) frente a eventos de decoder exhaustion en gama baja.
-
-Objetivo del experimento: maximizar fluidez/retención **minimizando** consumo de datos y eventos de exhaustion.
+## 8. Plan de pruebas
+- **Red:** 3G lento (400 kbps/400 ms/1 %), 4G medio (4 Mbps/80 ms/0.5 %), 4G con pérdida (3 %), WiFi alta latencia (200 ms) — DevTools throttling, `tc netem`, Network Link Conditioner, WebPageTest/Lighthouse. Aprobación: TTFF p95 < 200 ms en 4G medio y **sin spinner/frame congelado** en ningún perfil.
+- **Carga:** 10 000 usuarios votando cada ~2 s → `POST /vote` p99 < 100 ms, cola siempre ≥ `PREFETCH_DEPTH` por delante; idempotencia bajo reintentos. `k6`/`Gatling`, `wrk2` (HTTP/3).
+- **Decoders (C1):** prueba específica en gama baja (iOS 4 decoders, Android Go) verificando 0 eventos de exhaustion con `DECODER_WARM=active-only`.
+- **A/B:** `PREFETCH_DEPTH` (2/3/4/adaptativo), calidad inicial (240p vs 360p), `DECODER_WARM` (active-only vs active+next), tamaño del chunk inicial. Objetivo: maximizar fluidez/retención minimizando datos y exhaustion.
 
 ---
 
-## Apéndice A — Checklist de implementación (orden recomendado)
+## 9. Robustez, ciclo de vida y casos límite (gaps v2)
 
-1. **Empaquetado**: fMP4/CMAF faststart + GOP corto + pósters frame-1 en backend. CDN HTTP/3 + TTL.
-2. **Pool de reproductores** (6) y **liberación agresiva del decoder** (web: `removeAttribute('src')`+`load()`; móvil: reuse de `Surface`/`AVPlayer`).
-3. **Motor de scroll** nativo (scroll-snap + 1 IntersectionObserver) y **ventana de vida** (LIVE/WARM/PREFETCH/RELEASED).
-4. **Arranque atómico A/B** + watchdog de drift + póster→vídeo.
-5. **Prefetch predictivo** (Web Worker + Service Worker / WorkManager) con caché multinivel y expulsión adaptativa.
-6. **WS persistente**: co-entrega de metadatos + voto fire-and-forget + Redis/CQRS.
-7. **ABR** "empezar feo, escalar".
-8. **Audio** hover/hold + SFX de voto + crossfade.
-9. **RUM** completo + dashboards + alertas.
-10. **Suite de pruebas** de red/carga/AB.
+### G1 — Errores de red y reintentos
+```text
+Retry: exponential backoff 1s,2s,4s,8s (máx 3).
+Circuit breaker: 5 fallos consecutivos -> pausa prefetch 30s.
+Fallback de vídeo: mostrar póster + botón "Reintentar"; NUNCA spinner infinito.
+```
 
-## Apéndice B — Por qué cada decisión (resumen de justificaciones)
+### G2 — Modo offline
+```text
+Service Worker cachea los últimos 10 duelos vistos (init+1s + póster + metadatos).
+Sin red: banner "Modo offline" + contenido cacheado navegable.
+Votos: cola local (IndexedDB) -> sync idempotente al reconectar.
+```
 
-- **Ventana de 3 pares y liberación agresiva** → el límite real en móvil son los decoders HW (4–6), no la red ni la CPU.
-- **Póster = frame 1** → convierte cualquier latencia residual en "invisible"; es el truco central de TikTok.
-- **Arranque atómico + watchdog** → garantiza la promesa "los dos juntos o ninguno".
-- **Empezar a 240p** → desacopla TTFF del ancho de banda incierto; la calidad sube cuando ya estás viendo.
-- **HTTP/3 multiplex** → los dos vídeos del par llegan en paralelo sin head-of-line blocking.
-- **Voto fire-and-forget + metadatos co-entregados** → elimina los dos round-trips que matarían el "wow moment".
-- **Scroll nativo + compositor** → cero jank porque el JS no participa en el gesto.
+### G3 — Background / Foreground
+```text
+onVisibilityChange(hidden): pauseAll(); releaseAllDecoders(); limpiar L0/L1.
+onVisibilityChange(visible): re-acquire decoder del activo; reanudar desde frame actual.
+(iOS/Android: liberar decoders en background evita crashes y ahorra batería.)
+```
+
+### G4 — Ahorro de datos / batería
+```text
+Detectar navigator.connection.saveData o battery<20%:
+  PREFETCH_DEPTH=1; calidad inicial 240p sin escalar; DECODER_WARM=active-only;
+  deshabilitar prefetch de audio.
+```
+
+### G5 — Cold start (primer duelo)
+```text
+SSR/SSG: metadatos + póster del primer duelo embebidos en el HTML inicial.
+SW: prefetch init+1s del primer duelo.
+UI: skeleton + póster instantáneo. Objetivo TTFF primer duelo < 500 ms (incl. render).
+```
+
+### G6 — Deep linking
+```text
+Ruta /battle/{duelId}: fetch metadatos del duelo + init+1s; renderizar como activo,
+prefetch de ±1; permitir scroll desde ese punto (sembrar la cola del feed alrededor).
+```
+
+### G7 — Accesibilidad
+```text
+aria-label en botones de voto ("Votar por opción A"); soporte VoiceOver/TalkBack;
+subtítulos opcionales si el vídeo los trae; respetar prefers-reduced-motion
+(desactivar crossfades/auto-avance animado).
+```
+
+### G8 — Analytics de retención
+```text
+Correlacionar TTFF p95 con duración de sesión.
+"Wow rate": % de usuarios que ven >5 duelos seguidos sin abandono.
+A/B optimizado vs sin prefetch agresivo. Objetivo: +5% retención D1.
+```
+
+### G9 — Moderación de contenido
+```text
+Backend filtra reportado/baneado antes de encolarlo en el feed.
+Cliente reporta (fire-and-forget). Si un duelo en caché se banea, el backend lo marca
+"removed" en la próxima respuesta de voto -> cliente lo salta sin glitch.
+```
+
+### G10 — Fallback de scroll rápido (siguiente no WARM)
+```text
+Si next no está WARM al llegar (scroll veloz):
+  1) mostrar póster de next inmediatamente (0 ms);
+  2) cargar next con fetchpriority=high (init+1s ya suele estar en caché);
+  3) crossfade 120ms al estar listo.
+NUNCA spinner ni pantalla en blanco. Este es el caso que el póster=frame1 está diseñado para cubrir.
+```
+
+---
+
+## Apéndice A — Orden de implementación
+1) Empaquetado **MP4 faststart** (+CMAF solo para largos) + pósters frame-1 + CDN HTTP/3 → 2) Pool con **liberación agresiva y 2–4 decoders activos (C1)** → 3) Scroll nativo + ventana de vida adaptativa → 4) Arranque atómico + **watchdog con timeout (C5)** + póster→vídeo → 5) Prefetch predictivo + caché multinivel + **modos ahorro/offline/background (G2–G4)** → 6) **HTTP/2 + SSE + co-entrega + voto fire-and-forget + Redis INCR (C4,C6)** → 7) ABR → 8) Audio → 9) RUM + analytics retención (G8) → 10) Cold start/deep link/a11y/moderación (G5,G6,G7,G9) → 11) Suite de pruebas (incl. test de decoders en gama baja).
+
+## Apéndice B — Justificaciones clave (v2)
+- **Decoders (C1):** feed *dual* ⇒ la ventana de decoders se divide por dos; póster=frame1 + bytes pre-descargados sustituyen al decoder en las adyacentes.
+- **MP4 progresivo (C2):** mismo TTFF que HLS sin su complejidad, para clips cortos.
+- **WebCodecs opt-in (C3):** Safari iOS no lo soporta; el fallback `<video>`+póster es transparente.
+- **HTTP/SSE para feed (C4):** más escalable y CDN-friendly que WS; WS solo para chat en vivo.
+- **Watchdog con timeout (C5):** evita el congelamiento indefinido si el lado lento bufferiza.
+- **Redis INCR (C6):** simple, O(1), suficiente; CQRS/Kafka solo a gran escala.
+- **Póster=frame1:** convierte cualquier latencia residual (incl. scroll rápido, G10) en invisible — es el truco central de TikTok.
+- **Scroll nativo + compositor:** cero jank porque el JS no participa en el gesto.
