@@ -390,8 +390,10 @@ async function handleVersusUpload(request) {
     const meta = await readUploadMeta()
     meta.unshift(post)
     await writeUploadMeta(meta)
-    // FASE 2: genera renditions adaptativas en segundo plano y parchea qualities.
-    processPostRenditions(post.id, urlA, urlB)
+    // Renditions ABR DESACTIVADAS: degradaban la calidad (reescalado) y las
+    // versiones 540/720 pesaban más que el original -> menos fluidez. Servimos
+    // el original (con faststart) que da mejor calidad Y arranque rápido.
+    // processPostRenditions(post.id, urlA, urlB)
     return NextResponse.json({ ok: true, post })
   } catch (err) {
     console.error('versus upload error', err)
@@ -445,8 +447,9 @@ async function handleDuetUpload(request) {
     const meta = await readUploadMeta()
     meta.unshift(post)
     await writeUploadMeta(meta)
-    // FASE 2: renditions adaptativas en segundo plano.
-    processPostRenditions(post.id, urlA, urlB)
+    // Renditions ABR DESACTIVADAS (ver nota en el flujo versus): servimos el
+    // original con faststart -> mejor calidad y fluidez.
+    // processPostRenditions(post.id, urlA, urlB)
     return NextResponse.json({ ok: true, post })
   } catch (err) {
     console.error('duet upload error', err)
@@ -605,8 +608,9 @@ async function handleAcceptChallenge(cid, request) {
     await writeUploadMeta(meta)
     list.splice(idx, 1)
     await writeChallenges(list)
-    // FASE 2: renditions adaptativas (solo lados que sean uploads /uploads/...).
-    processPostRenditions(post.id, c.challengerVideoUrl, responseVideoUrl)
+    // Renditions ABR DESACTIVADAS (ver nota en el flujo versus): servimos el
+    // original con faststart -> mejor calidad y fluidez.
+    // processPostRenditions(post.id, c.challengerVideoUrl, responseVideoUrl)
     return NextResponse.json({ ok: true, post })
   } catch (err) {
     console.error('accept challenge error', err)
