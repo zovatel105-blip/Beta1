@@ -36,6 +36,9 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
   const lastTapRef = useRef({ side: null, t: 0 })
   const tapTimerRef = useRef(null)
   const rafRef = useRef(0)
+  // Token del estado WARM: invalida el pause() diferido del prime si la tarjeta
+  // pasa a activa antes de que resuelva (evita pausar vídeos ya en reproducción).
+  const warmRef = useRef(null)
 
   const [paused, setPaused] = useState(false)
   const [loadedA, setLoadedA] = useState(false)
@@ -188,6 +191,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
     const va = videoARef.current
     const vb = videoBRef.current
     if (isActive && playbackEnabled) {
+      warmRef.current = null
       acquire(va, srcA)
       acquire(vb, srcB)
       // A suena solo si el audio global está activo Y el lado audible es A.
@@ -201,14 +205,23 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
         try { if (vb) vb.pause() } catch { /* ignore */ }
       }
     } else if (warm && playbackEnabled) {
-      // WARM 1vs1: precargamos AMBOS lados (frame 1) en PAUSA. Al activarse, el
-      // arranque atómico encuentra readyState>=2 en los dos -> 0 espera.
+      // WARM 1vs1: precarga REAL de AMBOS lados. Un play() muteado FUERZA el
+      // buffer de verdad (los vídeos en pausa fuera de pantalla no se bufferizan
+      // solos); al arrancar los pausamos -> ambos quedan listos para el arranque
+      // atómico instantáneo al activarse.
       if (atomicRef.current) atomicRef.current.cancelled = true
+      const token = {}
+      warmRef.current = token
       acquire(va, srcA)
       acquire(vb, srcB)
-      try { if (va) va.pause() } catch { /* ignore */ }
-      try { if (vb) vb.pause() } catch { /* ignore */ }
+      for (const v of [va, vb]) {
+        if (!v) continue
+        v.muted = true
+        const p = v.play()
+        if (p && p.then) p.then(() => { if (warmRef.current === token) { try { v.pause() } catch { /* ignore */ } } }).catch(() => {})
+      }
     } else {
+      warmRef.current = null
       if (atomicRef.current) atomicRef.current.cancelled = true
       release(va)
       release(vb)

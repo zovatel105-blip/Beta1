@@ -32,6 +32,9 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
   const downRef = useRef({ x: 0, y: 0, t: 0 })
   const lastTapRef = useRef(0)
   const swipedRef = useRef(false)
+  // Token del estado WARM: invalida el pause() diferido del prime si la tarjeta
+  // pasa a activa antes de que resuelva (evita pausar el vídeo ya en reproducción).
+  const warmRef = useRef(null)
 
   const [sideIdx, setSideIdx] = useState(0) // 0 = A, 1 = B
   const [paused, setPaused] = useState(false)
@@ -112,6 +115,7 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
     const visSrc = sideIdx === 0 ? srcA : srcB
     release(hid)
     if (isActive && playbackEnabled) {
+      warmRef.current = null
       acquire(vis, visSrc)
       if (vis) {
         vis.muted = globalMuted
@@ -123,10 +127,17 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
         }
       }
     } else if (warm && playbackEnabled) {
+      const token = {}
+      warmRef.current = token
       const va = videoARef.current
       acquire(va, srcA)
-      try { if (va) va.pause() } catch { /* ignore */ }
+      if (va) {
+        va.muted = true
+        const p = va.play()
+        if (p && p.then) p.then(() => { if (warmRef.current === token) { try { va.pause() } catch { /* ignore */ } } }).catch(() => {})
+      }
     } else {
+      warmRef.current = null
       release(vis)
     }
   }, [isActive, playbackEnabled, warm, sideIdx, globalMuted, srcA, srcB, showWinner, acquire, release])
