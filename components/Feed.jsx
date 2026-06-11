@@ -30,12 +30,24 @@ function prefetchImg(url) {
   i.decoding = 'async'
   i.src = url
 }
-function warmVideo(url, controllers) {
+function warmVideo(url, controllers, bytes = 524287) {
   if (!url || prefetched.has(url)) return
   prefetched.add(url)
   const ctrl = new AbortController()
   controllers.push(ctrl)
-  fetch(url, { headers: { Range: 'bytes=0-524287' }, signal: ctrl.signal }).catch(() => {})
+  // init + primeros segundos en caché HTTP -> el <video> arranca al instante
+  // cuando la tarjeta se monta/activa (con faststart el `moov` ya va delante).
+  fetch(url, { headers: { Range: `bytes=0-${bytes}` }, signal: ctrl.signal }).catch(() => {})
+}
+
+// ¿Puede el dispositivo permitirse calentar (WARM) la tarjeta siguiente con
+// decoders extra? (gama alta). En gama baja / ahorro nos quedamos en active-only
+// para no agotar el presupuesto de decodificadores (pantallas en negro / jank).
+function deviceCanWarm() {
+  if (typeof navigator === 'undefined') return false
+  const cores = navigator.hardwareConcurrency || 2
+  const mem = navigator.deviceMemory || 2
+  return cores >= 4 && mem >= 4
 }
 
 // G10 — Ventana de PÓSTERS (más amplia que la de vídeo/decoders): las tarjetas
@@ -94,6 +106,9 @@ export default function Feed() {
   useEffect(() => { refreshChallenges() }, [refreshChallenges])
   // Medidor de red (estimación de ancho de banda real para la calidad adaptativa).
   useEffect(() => { startNetworkMonitor() }, [])
+  // ¿Gama alta? -> habilitamos WARM de la tarjeta siguiente (decoders extra).
+  const [canWarm, setCanWarm] = useState(false)
+  useEffect(() => { setCanWarm(deviceCanWarm()) }, [])
   // Service Worker (caché de pósters/imágenes; NO intercepta vídeo).
   useEffect(() => {
     if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
@@ -178,15 +193,18 @@ export default function Feed() {
     for (let k = 1; k <= depth; k++) {
       const p = posts[activeIndex + k]
       if (!p) continue
+      // La tarjeta INMEDIATA (k=1) recibe un chunk mayor (init + ~1.5 MB) para
+      // arranque sin espera; la k=2 solo el init (~512 KB) para no malgastar datos.
+      const bytes = k === 1 ? 1572863 : 524287
       const sides = [p.sideA, p.sideB].filter(Boolean)
       if (sides.length) {
         for (const s of sides) {
           prefetchImg(s.posterUrl)
-          if (!conserve) warmVideo(pickQuality(s.qualities, s.videoUrl), controllers)
+          if (!conserve) warmVideo(pickQuality(s.qualities, s.videoUrl), controllers, bytes)
         }
       } else if (p.videoUrl) {
         prefetchImg(p.posterUrl)
-        if (!conserve) warmVideo(p.videoUrl, controllers)
+        if (!conserve) warmVideo(p.videoUrl, controllers, bytes)
       }
     }
     // G10 — pósters de una ventana SIMÉTRICA más amplia (±POSTER_WINDOW), solo
@@ -231,6 +249,10 @@ export default function Feed() {
             const inWindow = Math.abs(i - activeIndex) <= 1
             const inPosterWindow = Math.abs(i - activeIndex) <= POSTER_WINDOW
             const isActive = i === activeIndex
+            // WARM: la tarjeta SIGUIENTE (i+1) se precarga (frame 1 + buffer, en
+            // pausa) para arrancar con 0 espera al deslizar. Solo gama alta y sin
+            // modo ahorro; en 1vs1 caliente los DOS lados.
+            const warm = i === activeIndex + 1 && canWarm && !shouldConserve()
             const poster = slotPoster(post)
             return (
               <section
@@ -246,6 +268,7 @@ export default function Feed() {
                       isActive={isActive}
                       isNear={inWindow}
                       isAdjacent={inWindow}
+                      warm={warm}
                       muted={muted}
                       playbackEnabled={playbackEnabled}
                       onRequestNext={goNext}
@@ -257,6 +280,7 @@ export default function Feed() {
                       isActive={isActive}
                       isNear={inWindow}
                       isAdjacent={inWindow}
+                      warm={warm}
                       muted={muted}
                       playbackEnabled={playbackEnabled}
                       onRequestNext={goNext}

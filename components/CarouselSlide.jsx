@@ -24,7 +24,7 @@ function countLabel(n, placeholder) {
  * Se vota tocando directamente el vídeo (toca = vota la opción visible).
  * La UI (cabecera + columna social) es la misma que la de un vídeo normal.
  */
-function CarouselSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted, playbackEnabled = true, onRequestNext, onChallenge, infoBottom = false, hideChallenge = false }) {
+function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: globalMuted, playbackEnabled = true, onRequestNext, onChallenge, infoBottom = false, hideChallenge = false }) {
   const overlayRef = useRef(null)
   const videoARef = useRef(null)
   const videoBRef = useRef(null)
@@ -84,6 +84,9 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted,
   // agota el presupuesto de decodificadores en móvil (pantallas negras / jank).
   const acquire = useCallback((v, src) => {
     if (!v || !src) return
+    // preload='auto' permite bufferizar el frame 1 aunque el vídeo esté en pausa
+    // (WARM). Con preload='none' el navegador no descargaría hasta el play().
+    if (v.preload !== 'auto') v.preload = 'auto'
     if (v.getAttribute('src') !== src) {
       v.setAttribute('src', src)
       try { v.load() } catch { /* ignore */ }
@@ -94,12 +97,15 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted,
     try { v.pause() } catch { /* ignore */ }
     if (v.getAttribute('src') !== null) {
       v.removeAttribute('src')
+      try { v.preload = 'none' } catch { /* ignore */ }
       try { v.load() } catch { /* ignore */ }
     }
   }, [])
 
   // Play/pausa + adquisición/liberación del decoder según slide activo + lado
   // visible. El lado OCULTO y los slides NO activos nunca retienen un decoder.
+  // WARM: si esta tarjeta es la SIGUIENTE (warm), precargamos el lado A (el
+  // primero que se ve) en PAUSA -> al activarse, play() arranca sin espera.
   useEffect(() => {
     const vis = sideIdx === 0 ? videoARef.current : videoBRef.current
     const hid = sideIdx === 0 ? videoBRef.current : videoARef.current
@@ -116,10 +122,14 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted,
           if (p && p.catch) p.catch(() => { try { vis.muted = true; vis.play().catch(() => {}) } catch { /* ignore */ } })
         }
       }
+    } else if (warm && playbackEnabled) {
+      const va = videoARef.current
+      acquire(va, srcA)
+      try { if (va) va.pause() } catch { /* ignore */ }
     } else {
       release(vis)
     }
-  }, [isActive, playbackEnabled, sideIdx, globalMuted, srcA, srcB, showWinner, acquire, release])
+  }, [isActive, playbackEnabled, warm, sideIdx, globalMuted, srcA, srcB, showWinner, acquire, release])
 
   // Cleanup de DESMONTAJE (la tarjeta sale de la ventana de 3) -> liberación
   // garantizada de AMBOS vídeos (Regla #2, "cuando la tarjeta salga del viewport").

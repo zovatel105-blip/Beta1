@@ -29,7 +29,7 @@ function countLabel(n, placeholder) {
  *   - double tap  -> like (corazón flotante).
  * La UI (cabecera superior + columna social derecha) es idéntica a la del vídeo normal.
  */
-function DuetSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted, playbackEnabled = true, onRequestNext, onChallenge, infoBottom = false, hideChallenge = false }) {
+function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: globalMuted, playbackEnabled = true, onRequestNext, onChallenge, infoBottom = false, hideChallenge = false }) {
   const videoARef = useRef(null)
   const videoBRef = useRef(null)
   const overlayRef = useRef(null)
@@ -125,6 +125,8 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted, pla
   // deja de estar activa o se desmonta (sale de la ventana de 3).
   const acquire = useCallback((v, src) => {
     if (!v || !src) return
+    // preload='auto' permite bufferizar el frame 1 en pausa (WARM 1vs1).
+    if (v.preload !== 'auto') v.preload = 'auto'
     if (v.getAttribute('src') !== src) {
       v.setAttribute('src', src)
       try { v.load() } catch { /* ignore */ }
@@ -135,6 +137,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted, pla
     try { v.pause() } catch { /* ignore */ }
     if (v.getAttribute('src') !== null) {
       v.removeAttribute('src')
+      try { v.preload = 'none' } catch { /* ignore */ }
       try { v.load() } catch { /* ignore */ }
     }
   }, [])
@@ -197,12 +200,20 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted, pla
         try { if (va) va.pause() } catch { /* ignore */ }
         try { if (vb) vb.pause() } catch { /* ignore */ }
       }
+    } else if (warm && playbackEnabled) {
+      // WARM 1vs1: precargamos AMBOS lados (frame 1) en PAUSA. Al activarse, el
+      // arranque atómico encuentra readyState>=2 en los dos -> 0 espera.
+      if (atomicRef.current) atomicRef.current.cancelled = true
+      acquire(va, srcA)
+      acquire(vb, srcB)
+      try { if (va) va.pause() } catch { /* ignore */ }
+      try { if (vb) vb.pause() } catch { /* ignore */ }
     } else {
       if (atomicRef.current) atomicRef.current.cancelled = true
       release(va)
       release(vb)
     }
-  }, [isActive, playbackEnabled, globalMuted, audibleSide, showWinner, showContent, srcA, srcB, acquire, release, startBothAtomically])
+  }, [isActive, playbackEnabled, warm, globalMuted, audibleSide, showWinner, showContent, srcA, srcB, acquire, release, startBothAtomically])
 
   // Cleanup de DESMONTAJE (sale de la ventana de 3) -> liberación garantizada.
   useEffect(() => () => {
