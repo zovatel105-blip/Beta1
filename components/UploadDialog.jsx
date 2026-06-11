@@ -372,36 +372,34 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
                   <div className="absolute inset-x-0 top-0 h-44 bg-gradient-to-b from-black/85 via-black/30 to-transparent pointer-events-none" />
                   <div className="absolute inset-x-0 bottom-0 h-80 bg-gradient-to-t from-black via-black/65 to-transparent pointer-events-none" />
 
-                  {/* Header propio */}
-                  <div className="relative z-20 flex items-center justify-between px-3"
+                  {/* Header propio (con el conmutador de formato centrado en 1vs1) */}
+                  <div className="relative z-20 flex items-center justify-between gap-2 px-3"
                        style={{ paddingTop: 'max(env(safe-area-inset-top), 14px)', paddingBottom: '10px' }}>
-                    <button onClick={goBack} aria-label="Atrás" className="w-9 h-9 rounded-full flex items-center justify-center bg-black/35 backdrop-blur hover:bg-black/55 active:scale-90 transition">
+                    <button onClick={goBack} aria-label="Atrás" className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center bg-black/35 backdrop-blur hover:bg-black/55 active:scale-90 transition">
                       <ArrowLeft size={20} strokeWidth={1.75} />
                     </button>
-                    <button onClick={onClose} aria-label="Cerrar" className="w-9 h-9 rounded-full flex items-center justify-center bg-black/35 backdrop-blur hover:bg-black/55 active:scale-90 transition text-zinc-200">
-                      <X size={20} strokeWidth={1.75} />
-                    </button>
-                  </div>
-
-                  {/* Dueto: conmutador de formato Horizontal / Vertical */}
-                  {mode === 'duet' && (
-                    <div className="relative z-20 px-3 flex items-center justify-center">
+                    {mode === 'duet' ? (
                       <div className="inline-flex p-1 rounded-full bg-black/45 backdrop-blur border border-white/10">
                         <button
                           onClick={() => setLayout('horizontal')}
-                          className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] font-semibold transition ${layout === 'horizontal' ? 'bg-white text-black' : 'text-white/85'}`}
+                          className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[13px] font-semibold transition ${layout === 'horizontal' ? 'bg-white text-black' : 'text-white/85'}`}
                         >
                           <Rows3 size={14} /> Horizontal
                         </button>
                         <button
                           onClick={() => setLayout('vertical')}
-                          className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] font-semibold transition ${layout === 'vertical' ? 'bg-white text-black' : 'text-white/85'}`}
+                          className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[13px] font-semibold transition ${layout === 'vertical' ? 'bg-white text-black' : 'text-white/85'}`}
                         >
                           <Columns3 size={14} /> Vertical
                         </button>
                       </div>
-                    </div>
-                  )}
+                    ) : (
+                      <span className="w-9" />
+                    )}
+                    <button onClick={onClose} aria-label="Cerrar" className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center bg-black/35 backdrop-blur hover:bg-black/55 active:scale-90 transition text-zinc-200">
+                      <X size={20} strokeWidth={1.75} />
+                    </button>
+                  </div>
 
                   {/* Versus: la vista previa es un carrusel; se cambia de vídeo con swipe (ver puntitos abajo) */}
 
