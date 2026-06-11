@@ -35,10 +35,10 @@ function warmVideo(url, controllers, full = false) {
   prefetched.add(url)
   const ctrl = new AbortController()
   controllers.push(ctrl)
-  // `full`: GET completo (respuesta 200 cacheable) para la tarjeta INMEDIATA ->
-  // el <video> sirve TODO desde caché HTTP y arranca sin esperar a la red. Para
-  // tarjetas más lejanas, solo el init (~512 KB) para no malgastar datos.
-  const opts = { signal: ctrl.signal, cache: 'force-cache' }
+  // `full`: GET completo (200 cacheable) SOLO para la tarjeta inmediata; el resto
+  // solo el init (~512 KB). fetchpriority='low' es CLAVE: la precarga nunca debe
+  // robarle conexión/ancho de banda al vídeo ACTIVO (si no, el activo no carga).
+  const opts = { signal: ctrl.signal, cache: 'force-cache', priority: 'low' }
   if (!full) opts.headers = { Range: 'bytes=0-524287' }
   fetch(url, opts).catch(() => {})
 }
@@ -185,13 +185,14 @@ export default function Feed() {
     // G4 — Modo ahorro (Data Saver / batería baja): profundidad 1 y SOLO pósters
     // (sin warm de bytes de vídeo) para conservar datos y energía.
     const conserve = shouldConserve()
-    const depth = conserve ? 1 : 3
+    // Profundidad 2 (no 3): descargar demasiado por delante satura las ~6
+    // conexiones del navegador y el vídeo ACTIVO se queda sin cargar.
+    const depth = conserve ? 1 : 2
     for (let k = 1; k <= depth; k++) {
       const p = posts[activeIndex + k]
       if (!p) continue
-      // Las 2 tarjetas más cercanas: GET COMPLETO (cacheable) -> el <video> sirve
-      // todo desde caché y arranca sin tocar la red. La 3ª: solo el init.
-      const full = k <= 2
+      // Solo la tarjeta INMEDIATA (k=1) se descarga completa; la k=2 solo el init.
+      const full = k === 1
       const sides = [p.sideA, p.sideB].filter(Boolean)
       if (sides.length) {
         for (const s of sides) {
