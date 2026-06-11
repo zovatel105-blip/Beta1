@@ -8,7 +8,6 @@ import VoteIcon from './icons/VoteIcon'
 import VSWinnerCard from './VSWinnerCard'
 import VSContentCard from './VSContentCard'
 import { pickQuality, reportStall } from '@/lib/networkQuality'
-import { reportWatchdog } from '@/lib/perfMetrics'
 
 function formatCount(n) {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M'
@@ -140,31 +139,38 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted, pla
     }
   }, [])
 
-  // Refs para arranque atómico + watchdog de drift (C5).
+  // Ref para cancelar arranques atómicos pendientes.
   const atomicRef = useRef(null)
-  const driftFixRef = useRef(false)
 
   // Arranca AMBOS vídeos de forma ATÓMICA: espera a que los dos tengan el frame 1
   // (readyState>=2) y los reproduce en el MISMO requestAnimationFrame -> desync < 1
   // frame. Cancela cualquier arranque pendiente anterior (token).
+  // Arranca AMBOS vídeos juntos: espera a que los dos tengan el frame 1
+  // (readyState>=2) y los reproduce en el MISMO requestAnimationFrame. Con
+  // TIMEOUT de seguridad (1200ms): si un lado tarda demasiado, arranca igualmente
+  // (nunca deja ambos congelados). NO impone sincronía continua: en Twyk los dos
+  // clips son independientes y de distinta duración (por eso no hay watchdog de drift).
   const startBothAtomically = useCallback((a, b) => {
     if (!a || !b) return
     if (atomicRef.current) atomicRef.current.cancelled = true
     const token = { cancelled: false }
     atomicRef.current = token
-    const bothReady = () => a.readyState >= 2 && b.readyState >= 2
+    const t0 = (typeof performance !== 'undefined' ? performance.now() : 0)
+    const playBoth = () => {
+      if (token.cancelled) return
+      Promise.allSettled([a.play(), b.play()]).then((res) => {
+        if (!token.cancelled && res.some((r) => r.status === 'rejected')) {
+          // autoplay bloqueado -> mutea ambos y reintenta
+          try { a.muted = true; b.muted = true; a.play().catch(() => {}); b.play().catch(() => {}) } catch { /* ignore */ }
+        }
+      })
+    }
     const run = () => {
       if (token.cancelled) return
-      if (bothReady()) {
-        requestAnimationFrame(() => {
-          if (token.cancelled) return
-          Promise.allSettled([a.play(), b.play()]).then((res) => {
-            if (!token.cancelled && res.some((r) => r.status === 'rejected')) {
-              // autoplay bloqueado -> mutea ambos y reintenta (sigue siendo atómico)
-              try { a.muted = true; b.muted = true; a.play().catch(() => {}); b.play().catch(() => {}) } catch { /* ignore */ }
-            }
-          })
-        })
+      const bothReady = a.readyState >= 2 && b.readyState >= 2
+      const timedOut = (typeof performance !== 'undefined' ? performance.now() : 0) - t0 > 1200
+      if (bothReady || timedOut) {
+        requestAnimationFrame(playBoth)
       } else {
         requestAnimationFrame(run)
       }
@@ -212,40 +218,14 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted, pla
     setPaused(va.paused && vb.paused)
   }, [])
 
-  // Barra de progreso (lado audible) + 🚨 WATCHDOG DE DRIFT (C5):
-  // si A y B se desincronizan > 1 frame, pausa el rápido y espera al lento con
-  // TIMEOUT de 500ms; si no alcanza, reset duro (faster.currentTime=slower) y
-  // re-arranque conjunto. Nunca uno corriendo y el otro congelado > 500ms.
+  // Barra de progreso: sigue al lado con audio (A por defecto). SIN watchdog de
+  // drift: los dos clips de un 1vs1 son independientes (distinta duración) y
+  // forzar su sincronía provocaba seeks en bucle ("disco rallado").
   useEffect(() => {
     if (!isActive) { cancelAnimationFrame(rafRef.current); return }
-    const FRAME = 1 / 30
     const tick = () => {
-      const va = videoARef.current
-      const vb = videoBRef.current
-      const ref = audibleSide === 'b' ? vb : va
+      const ref = audibleSide === 'b' ? videoBRef.current : videoARef.current
       if (ref && ref.duration > 0) setProgress((ref.currentTime / ref.duration) * 100)
-      if (va && vb && !va.paused && !vb.paused && va.readyState >= 2 && vb.readyState >= 2 && !driftFixRef.current) {
-        if (Math.abs(va.currentTime - vb.currentTime) > FRAME) {
-          driftFixRef.current = true
-          const faster = va.currentTime > vb.currentTime ? va : vb
-          const slower = faster === va ? vb : va
-          try { faster.pause() } catch { /* ignore */ }
-          const t0 = (typeof performance !== 'undefined' ? performance.now() : 0)
-          const waitResync = () => {
-            const now = (typeof performance !== 'undefined' ? performance.now() : 0)
-            const timedOut = now - t0 > 500
-            if (slower.readyState >= 3 || timedOut) {
-              try { faster.currentTime = slower.currentTime } catch { /* ignore */ }
-              try { const p = faster.play(); if (p && p.catch) p.catch(() => {}) } catch { /* ignore */ }
-              reportWatchdog(timedOut)
-              driftFixRef.current = false
-            } else {
-              requestAnimationFrame(waitResync)
-            }
-          }
-          requestAnimationFrame(waitResync)
-        }
-      }
       rafRef.current = requestAnimationFrame(tick)
     }
     rafRef.current = requestAnimationFrame(tick)

@@ -156,6 +156,8 @@ const untilReady = v => v.readyState>=2 ? Promise.resolve()
 > **C3:** el control sub-frame con **WebCodecs** (`VideoDecoder` → pintar primer `VideoFrame` en `<canvas>` antes de avanzar) es **opt-in solo en Chromium/Android**. En Safari iOS el camino es `<video>` nativo + póster=frame1, que ya garantiza arranque sin salto.
 
 ### 3.2 Watchdog de drift con timeout (C5)
+> **⚠️ ÁMBITO (corrección de campo):** este watchdog de sincronía frame-a-frame **SOLO aplica cuando los dos vídeos comparten línea temporal** (p. ej. dos ángulos del MISMO evento/clip). Si el duelo son **dos clips independientes de distinta duración** (el caso de Twyk/SnapTok 1vs1), **NO debe usarse**: forzar `faster.currentTime = slower.currentTime` provoca seeks en bucle ("disco rallado"). En ese caso solo se aplica el **arranque atómico** (§3.1) y cada clip corre y hace loop a su ritmo.
+
 > **CORRECCIÓN v2:** la v1 esperaba "hasta que el lento alcance" → si el lento bufferiza, ambos se congelan **indefinidamente**. Se añade timeout y resync forzado al tiempo del más lento.
 ```text
 onRAF():
