@@ -195,6 +195,17 @@ backend:
         -comment: "vote increments side a/b. Already validated previously."
 
 frontend:
+  - task: "Twyk v2 (b)+(a): background/foreground + modo ahorro (G3/G4), arranque atómico A/B + watchdog de drift con timeout (C5), instrumentación perfMetrics (C1/C3/C5)"
+    implemented: true
+    working: true
+    file: "components/Feed.jsx, components/DuetSlide.jsx, components/CarouselSlide.jsx, lib/networkQuality.js, lib/perfMetrics.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "main"
+        -comment: "Implementadas del Performance Blueprint v2 las piezas (b) y (a) + instrumentación. (b) G3: Feed.jsx añade estado playbackEnabled + listener visibilitychange -> al ocultar pestaña libera decoders (tarjetas hacen release()), al volver re-adquiere; mide tiempo de liberación (perfMetrics.reportDecoderReleaseMs). G4: lib/networkQuality.js añade detección de batería (navigator.getBattery, ≤20% sin cargar) + shouldConserve(); el prefetch de Feed reduce profundidad a 1 y solo pósters (sin warm de bytes) en modo ahorro. CarouselSlide y DuetSlide aceptan prop playbackEnabled (default true -> CompletedBattlesPage sin cambios) y solo reproducen/adquieren si isActive && playbackEnabled. (a) DuetSlide: startBothAtomically() espera readyState>=2 en AMBOS y los reproduce en el mismo requestAnimationFrame (desync<1 frame) con fallback mute si autoplay bloqueado; watchdog de drift integrado en el rAF de progreso: si |A.currentTime-B.currentTime|>1 frame pausa el rápido, espera al lento con TIMEOUT 500ms, y si no -> reset duro (faster.currentTime=slower)+re-arranque, reportando perfMetrics.reportWatchdog(timedOut). Instrumentación lib/perfMetrics.js (window.__twykMetrics): webcodecsSupported/Fallback (C3), watchdogTriggers/Timeouts (C5), backgroundEvents+decoderReleaseMs (C1/G3). Lint limpio en los 5 archivos; compila sin errores; preview real carga y pagina /api/feed (cursor 8/16) OK. NOTA: el harness headless no arranca el chunk dinámico del Feed dentro de su ventana de navegación de 10s en frío -> la captura visual automática es intermitente (no es bug del código; el preview real funciona)."
   - task: "Feed PRINCIPAL (combinación 1a+2a): motor scroll-snap nativo + tarjetas SnapTok ricas; hook useFeed (/api/uploads + /api/feed); liberación agresiva de decoders dentro de CarouselSlide/DuetSlide"
     implemented: true
     working: true

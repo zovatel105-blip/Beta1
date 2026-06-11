@@ -24,7 +24,7 @@ function countLabel(n, placeholder) {
  * Se vota tocando directamente el vídeo (toca = vota la opción visible).
  * La UI (cabecera + columna social) es la misma que la de un vídeo normal.
  */
-function CarouselSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted, onRequestNext, onChallenge, infoBottom = false, hideChallenge = false }) {
+function CarouselSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted, playbackEnabled = true, onRequestNext, onChallenge, infoBottom = false, hideChallenge = false }) {
   const overlayRef = useRef(null)
   const videoARef = useRef(null)
   const videoBRef = useRef(null)
@@ -105,7 +105,7 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted,
     const hid = sideIdx === 0 ? videoBRef.current : videoARef.current
     const visSrc = sideIdx === 0 ? srcA : srcB
     release(hid)
-    if (isActive) {
+    if (isActive && playbackEnabled) {
       acquire(vis, visSrc)
       if (vis) {
         vis.muted = globalMuted
@@ -119,7 +119,7 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted,
     } else {
       release(vis)
     }
-  }, [isActive, sideIdx, globalMuted, srcA, srcB, showWinner, acquire, release])
+  }, [isActive, playbackEnabled, sideIdx, globalMuted, srcA, srcB, showWinner, acquire, release])
 
   // Cleanup de DESMONTAJE (la tarjeta sale de la ventana de 3) -> liberación
   // garantizada de AMBOS vídeos (Regla #2, "cuando la tarjeta salga del viewport").

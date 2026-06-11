@@ -12,8 +12,9 @@ import ProfilePage from './ProfilePage'
 import CompletedBattlesPage from './CompletedBattlesPage'
 import ActiveChallengesPage from './ActiveChallengesPage'
 import { notificationsUnreadCount } from '@/lib/notifications'
-import { startNetworkMonitor, pickQuality } from '@/lib/networkQuality'
+import { startNetworkMonitor, pickQuality, shouldConserve } from '@/lib/networkQuality'
 import { useFeed } from '@/hooks/useFeed'
+import { reportBackground, reportDecoderReleaseMs } from '@/lib/perfMetrics'
 
 // ──────────────────────────────────────────────────────────────────────────
 // SMART PREFETCH (dedupe a nivel de módulo): cada URL se precarga UNA vez.
@@ -54,6 +55,9 @@ export default function Feed() {
 
   const [activeIndex, setActiveIndex] = useState(0)
   const [muted, setMuted] = useState(true)
+  // G3: cuando la pestaña se oculta, deshabilitamos la reproducción para que las
+  // tarjetas LIBEREN los decoders (no consumir batería/CPU en background).
+  const [playbackEnabled, setPlaybackEnabled] = useState(true)
   const [uploadOpen, setUploadOpen] = useState(false)
   const [challengeOpen, setChallengeOpen] = useState(false)
   const [challengeTarget, setChallengeTarget] = useState(null)
@@ -88,6 +92,28 @@ export default function Feed() {
     if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js').catch(() => { /* ignore */ })
     }
+  }, [])
+
+  // G3 — Ciclo background/foreground: al ocultar la pestaña liberamos decoders
+  // (playbackEnabled=false -> las tarjetas hacen release()); al volver, se
+  // re-adquieren limpiamente. Instrumentamos el tiempo de liberación (C1/G3).
+  useEffect(() => {
+    if (typeof document === 'undefined') return
+    const onVis = () => {
+      if (document.hidden) {
+        reportBackground()
+        const t0 = (typeof performance !== 'undefined' ? performance.now() : 0)
+        setPlaybackEnabled(false)
+        // medir cuándo el árbol ha liberado (2º frame tras el commit de React)
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          reportDecoderReleaseMs((typeof performance !== 'undefined' ? performance.now() : 0) - t0)
+        }))
+      } else {
+        setPlaybackEnabled(true)
+      }
+    }
+    document.addEventListener('visibilitychange', onVis)
+    return () => document.removeEventListener('visibilitychange', onVis)
   }, [])
 
   const openChallenge = useCallback((target) => {
@@ -138,14 +164,22 @@ export default function Feed() {
   useEffect(() => {
     if (typeof window === 'undefined' || posts.length === 0) return
     const controllers = []
-    for (let k = 1; k <= 2; k++) {
+    // G4 — Modo ahorro (Data Saver / batería baja): profundidad 1 y SOLO pósters
+    // (sin warm de bytes de vídeo) para conservar datos y energía.
+    const conserve = shouldConserve()
+    const depth = conserve ? 1 : 2
+    for (let k = 1; k <= depth; k++) {
       const p = posts[activeIndex + k]
       if (!p) continue
       const sides = [p.sideA, p.sideB].filter(Boolean)
       if (sides.length) {
-        for (const s of sides) { prefetchImg(s.posterUrl); warmVideo(pickQuality(s.qualities, s.videoUrl), controllers) }
+        for (const s of sides) {
+          prefetchImg(s.posterUrl)
+          if (!conserve) warmVideo(pickQuality(s.qualities, s.videoUrl), controllers)
+        }
       } else if (p.videoUrl) {
-        prefetchImg(p.posterUrl); warmVideo(p.videoUrl, controllers)
+        prefetchImg(p.posterUrl)
+        if (!conserve) warmVideo(p.videoUrl, controllers)
       }
     }
     return () => controllers.forEach((c) => { try { c.abort() } catch { /* ignore */ } })
@@ -195,6 +229,7 @@ export default function Feed() {
                       isNear={inWindow}
                       isAdjacent={inWindow}
                       muted={muted}
+                      playbackEnabled={playbackEnabled}
                       onRequestNext={goNext}
                       onChallenge={openChallenge}
                     />
@@ -205,6 +240,7 @@ export default function Feed() {
                       isNear={inWindow}
                       isAdjacent={inWindow}
                       muted={muted}
+                      playbackEnabled={playbackEnabled}
                       onRequestNext={goNext}
                       onChallenge={openChallenge}
                     />

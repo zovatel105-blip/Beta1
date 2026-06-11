@@ -273,6 +273,22 @@ Usuario  Cliente(UI)            Backend(HTTP/2)   Redis
 
 **RUM** por ambos vídeos: `duel_view_start → manifest/headers_loaded(A,B) → init_seg_ready(A,B) → first_frame_decoded(A,B) → play_called(A,B) → first_frame_painted(A,B) → [rebuffer]* → vote → next_duel_visible`. Derivar TTFF/wow/desync; agregar por CDN PoP, región, dispositivo, `effectiveType`, códec. Tratar **decoder exhaustion** como señal crítica (fuga de liberación, ver C1).
 
+### 7.4 Instrumentación mínima de validación (gaps de observabilidad)
+Tres señales **imprescindibles** para validar en producción C1/C3/C5/G3 (implementadas en el cliente vía `lib/perfMetrics.js`, expuestas en `window.__twykMetrics` y enviables a un endpoint RUM):
+
+| Métrica | Qué mide | Por qué |
+|---|---|---|
+| `webcodecsSupported` + `webcodecsFallback` (C3) | si el dispositivo soporta WebCodecs y nº de veces que caemos al camino `<video>` nativo | valida que el fallback de Safari iOS no degrada el TTFF |
+| `decoderReleaseMs` (avg) + `backgroundEvents` (C1/G3) | tiempo desde `visibilitychange(hidden)` hasta que el árbol libera los decoders | detecta fugas de decoder al ir a background (causa nº1 de crash en gama baja) |
+| `watchdogTriggers` + `watchdogTimeouts` (C5) | cuántas veces entra el watchdog de drift A/B y cuántas acaban en reset por timeout | un ratio alto de `timeouts/triggers` señala red/decoder insuficientes para el caso dual |
+
+```text
+# pseudocódigo de envío (muestreo 1/10 sesiones para no saturar el RUM)
+on session_end / page_hide:
+    if sampled(): beacon('/rum', getMetrics())   # navigator.sendBeacon, no bloquea
+```
+> Sin estas tres señales, G3 (background), G1 (reintentos) y la eficacia de C1 son **imposibles de validar** en producción: se vuela a ciegas.
+
 ---
 
 ## 8. Plan de pruebas

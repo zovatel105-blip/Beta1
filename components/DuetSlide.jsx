@@ -8,6 +8,7 @@ import VoteIcon from './icons/VoteIcon'
 import VSWinnerCard from './VSWinnerCard'
 import VSContentCard from './VSContentCard'
 import { pickQuality, reportStall } from '@/lib/networkQuality'
+import { reportWatchdog } from '@/lib/perfMetrics'
 
 function formatCount(n) {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M'
@@ -29,7 +30,7 @@ function countLabel(n, placeholder) {
  *   - double tap  -> like (corazón flotante).
  * La UI (cabecera superior + columna social derecha) es idéntica a la del vídeo normal.
  */
-function DuetSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted, onRequestNext, onChallenge, infoBottom = false, hideChallenge = false }) {
+function DuetSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted, playbackEnabled = true, onRequestNext, onChallenge, infoBottom = false, hideChallenge = false }) {
   const videoARef = useRef(null)
   const videoBRef = useRef(null)
   const overlayRef = useRef(null)
@@ -139,35 +140,63 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted, onR
     }
   }, [])
 
-  // Mantener sincronizados mute + play/pausa de los DOS vídeos. Solo la tarjeta
-  // ACTIVA adquiere src y reproduce ambos lados a la vez; cualquier otra los
-  // libera. Respeta overlays (winner / content): si hay uno abierto, pausa.
+  // Refs para arranque atómico + watchdog de drift (C5).
+  const atomicRef = useRef(null)
+  const driftFixRef = useRef(false)
+
+  // Arranca AMBOS vídeos de forma ATÓMICA: espera a que los dos tengan el frame 1
+  // (readyState>=2) y los reproduce en el MISMO requestAnimationFrame -> desync < 1
+  // frame. Cancela cualquier arranque pendiente anterior (token).
+  const startBothAtomically = useCallback((a, b) => {
+    if (!a || !b) return
+    if (atomicRef.current) atomicRef.current.cancelled = true
+    const token = { cancelled: false }
+    atomicRef.current = token
+    const bothReady = () => a.readyState >= 2 && b.readyState >= 2
+    const run = () => {
+      if (token.cancelled) return
+      if (bothReady()) {
+        requestAnimationFrame(() => {
+          if (token.cancelled) return
+          Promise.allSettled([a.play(), b.play()]).then((res) => {
+            if (!token.cancelled && res.some((r) => r.status === 'rejected')) {
+              // autoplay bloqueado -> mutea ambos y reintenta (sigue siendo atómico)
+              try { a.muted = true; b.muted = true; a.play().catch(() => {}); b.play().catch(() => {}) } catch { /* ignore */ }
+            }
+          })
+        })
+      } else {
+        requestAnimationFrame(run)
+      }
+    }
+    run()
+  }, [])
+
+  // Solo la tarjeta ACTIVA (y con reproducción habilitada, G3) adquiere src y
+  // arranca AMBOS lados a la vez (atómico); cualquier otra los libera. Respeta
+  // overlays (winner / content): si hay uno abierto, pausa sin soltar el decoder.
   useEffect(() => {
     const va = videoARef.current
     const vb = videoBRef.current
-    if (isActive) {
+    if (isActive && playbackEnabled) {
       acquire(va, srcA)
       acquire(vb, srcB)
       // A suena solo si el audio global está activo Y el lado audible es A.
       if (va) va.muted = globalMuted || audibleSide !== 'a'
       if (vb) vb.muted = globalMuted || audibleSide !== 'b'
       if (!showWinner && !showContent) {
-        const playSafe = (v) => {
-          if (!v) return
-          const p = v.play()
-          if (p && p.catch) p.catch(() => { try { v.muted = true; v.play().catch(() => {}) } catch { /* ignore */ } })
-        }
-        playSafe(va)
-        playSafe(vb)
+        startBothAtomically(va, vb)
       } else {
+        if (atomicRef.current) atomicRef.current.cancelled = true
         try { if (va) va.pause() } catch { /* ignore */ }
         try { if (vb) vb.pause() } catch { /* ignore */ }
       }
     } else {
+      if (atomicRef.current) atomicRef.current.cancelled = true
       release(va)
       release(vb)
     }
-  }, [isActive, globalMuted, audibleSide, showWinner, showContent, srcA, srcB, acquire, release])
+  }, [isActive, playbackEnabled, globalMuted, audibleSide, showWinner, showContent, srcA, srcB, acquire, release, startBothAtomically])
 
   // Cleanup de DESMONTAJE (sale de la ventana de 3) -> liberación garantizada.
   useEffect(() => () => {
@@ -183,12 +212,40 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, muted: globalMuted, onR
     setPaused(va.paused && vb.paused)
   }, [])
 
-  // Barra de progreso: sigue al lado con audio (A por defecto).
+  // Barra de progreso (lado audible) + 🚨 WATCHDOG DE DRIFT (C5):
+  // si A y B se desincronizan > 1 frame, pausa el rápido y espera al lento con
+  // TIMEOUT de 500ms; si no alcanza, reset duro (faster.currentTime=slower) y
+  // re-arranque conjunto. Nunca uno corriendo y el otro congelado > 500ms.
   useEffect(() => {
     if (!isActive) { cancelAnimationFrame(rafRef.current); return }
+    const FRAME = 1 / 30
     const tick = () => {
-      const ref = audibleSide === 'b' ? videoBRef.current : videoARef.current
+      const va = videoARef.current
+      const vb = videoBRef.current
+      const ref = audibleSide === 'b' ? vb : va
       if (ref && ref.duration > 0) setProgress((ref.currentTime / ref.duration) * 100)
+      if (va && vb && !va.paused && !vb.paused && va.readyState >= 2 && vb.readyState >= 2 && !driftFixRef.current) {
+        if (Math.abs(va.currentTime - vb.currentTime) > FRAME) {
+          driftFixRef.current = true
+          const faster = va.currentTime > vb.currentTime ? va : vb
+          const slower = faster === va ? vb : va
+          try { faster.pause() } catch { /* ignore */ }
+          const t0 = (typeof performance !== 'undefined' ? performance.now() : 0)
+          const waitResync = () => {
+            const now = (typeof performance !== 'undefined' ? performance.now() : 0)
+            const timedOut = now - t0 > 500
+            if (slower.readyState >= 3 || timedOut) {
+              try { faster.currentTime = slower.currentTime } catch { /* ignore */ }
+              try { const p = faster.play(); if (p && p.catch) p.catch(() => {}) } catch { /* ignore */ }
+              reportWatchdog(timedOut)
+              driftFixRef.current = false
+            } else {
+              requestAnimationFrame(waitResync)
+            }
+          }
+          requestAnimationFrame(waitResync)
+        }
+      }
       rafRef.current = requestAnimationFrame(tick)
     }
     rafRef.current = requestAnimationFrame(tick)
