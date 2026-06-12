@@ -4,13 +4,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Menu, Bookmark, Link as LinkIcon, Swords, Users, UserPlus } from 'lucide-react'
 import VoteIcon from './icons/VoteIcon'
+import { useAuth } from '@/contexts/AuthContext'
 
-const ME = {
-  username: 'nexus',
-  name: 'nexus',
-  handle: '@nexus',
-  avatarUrl: '',
-}
+// El perfil se deriva del usuario autenticado (useAuth) dentro del componente.
+// Avatares generados (dicebear/pravatar) se tratan como "sin foto" -> silueta.
+const isGeneratedAvatar = (url) => !url || url.includes('dicebear') || url.includes('pravatar')
 
 // Avatar por defecto: círculo gris claro con silueta de persona (gris medio),
 // idéntico al de la imagen de referencia (cabeza + busto que rellenan el círculo).
@@ -136,9 +134,20 @@ const TABS = [
 ]
 
 export default function ProfilePage({ open, onClose, onOpenUpload }) {
+  const { user } = useAuth()
   const [posts, setPosts] = useState([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('polls')
+
+  // Perfil real derivado del usuario autenticado.
+  const me = {
+    username: user?.username || 'invitado',
+    name: user?.name || user?.username || 'Invitado',
+    handle: user?.username ? `@${user.username}` : '@invitado',
+    avatarUrl: isGeneratedAvatar(user?.avatarUrl) ? '' : user.avatarUrl,
+    followers: user?.followers || 0,
+    following: user?.following || 0,
+  }
 
   useEffect(() => {
     if (!open) return
@@ -158,11 +167,20 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
     return () => { cancelled = true }
   }, [open])
 
+  // Solo MIS publicaciones (autor === usuario autenticado).
+  const myPosts = useMemo(() => {
+    if (!user) return []
+    return posts.filter((p) => {
+      const a = p?.author || p?.sideA?.author
+      return a && (a.id === user.id || a.username === user.username)
+    })
+  }, [posts, user])
+
   const stats = useMemo(() => {
-    const votos = posts.reduce((acc, p) => acc + (p?.votes?.a || 0) + (p?.votes?.b || 0), 0)
-    const retos = posts.filter((p) => p?.type === 'versus').length
+    const votos = myPosts.reduce((acc, p) => acc + (p?.votes?.a || 0) + (p?.votes?.b || 0), 0)
+    const retos = myPosts.filter((p) => p?.type === 'versus').length
     return { votos, retos }
-  }, [posts])
+  }, [myPosts])
 
   if (!open) return null
 
@@ -175,7 +193,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
           </div>
         )
       }
-      if (posts.length === 0) {
+      if (myPosts.length === 0) {
         return (
           <div className="text-center py-16 space-y-4 px-4">
             <div className="w-16 h-16 bg-white/[0.04] border border-white/10 rounded-full flex items-center justify-center mx-auto">
@@ -190,7 +208,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
       }
       return (
         <div className="grid grid-cols-3 gap-1">
-          {posts.map((p) => <GridItem key={p.id} post={p} />)}
+          {myPosts.map((p) => <GridItem key={p.id} post={p} />)}
         </div>
       )
     }
@@ -262,8 +280,8 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
               <div className="relative">
                 <div className="w-[104px] h-[104px] rounded-full p-[3px] bg-gradient-to-br from-white/15 to-white/[0.03] shadow-[0_8px_30px_-8px_rgba(0,0,0,0.6)]">
                   <div className="w-full h-full rounded-full overflow-hidden bg-zinc-900 ring-2 ring-white/10">
-                    {ME.avatarUrl ? (
-                      <img src={ME.avatarUrl} alt={ME.username} className="w-full h-full rounded-full object-cover" draggable={false} />
+                    {me.avatarUrl ? (
+                      <img src={me.avatarUrl} alt={me.username} className="w-full h-full rounded-full object-cover" draggable={false} />
                     ) : (
                       <DefaultAvatar className="w-full h-full" />
                     )}
@@ -279,7 +297,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
                 <Users className="w-7 h-7 text-white" strokeWidth={1.2} />
               </span>
               <span className="min-w-0">
-                <p className="text-[17px] font-bold text-white leading-none tabular-nums">0</p>
+                <p className="text-[17px] font-bold text-white leading-none tabular-nums">{formatNumber(me.followers)}</p>
                 <p className="text-[11px] text-zinc-400 mt-1 font-medium">Followers</p>
               </span>
             </button>
@@ -287,7 +305,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
             {/* Following - inferior derecha */}
             <button className="flex items-center gap-2 justify-end text-right active:opacity-60 transition">
               <span className="min-w-0 order-1">
-                <p className="text-[17px] font-bold text-white leading-none tabular-nums">0</p>
+                <p className="text-[17px] font-bold text-white leading-none tabular-nums">{formatNumber(me.following)}</p>
                 <p className="text-[11px] text-zinc-400 mt-1 font-medium">Following</p>
               </span>
               <span className="order-2 shrink-0 flex items-center justify-center">
@@ -299,8 +317,8 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
 
         {/* Nombre + handle */}
         <div className="text-center mt-6 space-y-0.5">
-          <h2 className="text-[20px] font-bold tracking-tight text-white leading-tight">{ME.name}</h2>
-          <p className="text-[13px] text-zinc-400 font-medium">{ME.handle}</p>
+          <h2 className="text-[20px] font-bold tracking-tight text-white leading-tight">{me.name}</h2>
+          <p className="text-[13px] text-zinc-400 font-medium">{me.handle}</p>
         </div>
 
         {/* Botones de acción - compactos y limpios */}
