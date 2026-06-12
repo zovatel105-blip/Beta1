@@ -1,235 +1,133 @@
 package com.twyk.app
 
-import android.annotation.SuppressLint
-import android.app.Activity
-import android.content.Intent
-import android.graphics.Color
-import android.net.Uri
+import android.graphics.Color as AndroidColor
 import android.os.Bundle
-import android.view.View
-import android.view.ViewGroup
 import android.view.WindowManager
-import android.webkit.PermissionRequest
-import android.webkit.ValueCallback
-import android.webkit.WebChromeClient
-import android.webkit.WebResourceRequest
-import android.webkit.WebSettings
-import android.webkit.WebView
-import android.webkit.WebViewClient
-import android.widget.FrameLayout
 import androidx.activity.ComponentActivity
-import androidx.activity.OnBackPressedCallback
-import androidx.activity.result.ActivityResultLauncher
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.view.ViewCompat
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AddBox
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Inbox
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Whatshot
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
-import androidx.core.view.updatePadding
+import com.twyk.app.feed.VersusFeed
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Twyk Android — contenedor WebView de la app web Twyk.
-//
-// Carga la web (Config.BASE_URL) dentro de un WebView a pantalla completa, de modo
-// que la app muestra EXACTAMENTE la misma interfaz que la web (feed de batallas,
-// votar, retar, comentar, compartir, guardar, perfil, subir, notificaciones…).
-//
-// Barra de estado: se deja INTACTA y visible (edge-to-edge). El vídeo del feed se
-// dibuja por DETRÁS de ella; la interfaz superior respeta la safe-area (la web ya
-// usa env(safe-area-inset-top)). La barra de navegación inferior del sistema no
-// tapa la barra inferior de la web gracias al padding por insets.
-// ─────────────────────────────────────────────────────────────────────────────
+// Twyk Android — app NATIVA (Jetpack Compose + Media3/ExoPlayer).
+// El feed se adapta al formato de cada publicación; la barra inferior navega
+// entre secciones. La barra de estado queda intacta y el vídeo se ve por detrás.
 class MainActivity : ComponentActivity() {
-
-    private lateinit var webView: WebView
-    private lateinit var rootContainer: FrameLayout
-
-    private var filePathCallback: ValueCallback<Array<Uri>>? = null
-    private var customView: View? = null
-    private var customViewCallback: WebChromeClient.CustomViewCallback? = null
-
-    // Selector de archivos para los <input type="file"> (subir vídeos/imágenes).
-    private val fileChooserLauncher: ActivityResultLauncher<Intent> =
-        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            val cb = filePathCallback
-            filePathCallback = null
-            if (cb == null) return@registerForActivityResult
-            val uris: Array<Uri>? = if (result.resultCode == Activity.RESULT_OK) {
-                WebChromeClient.FileChooserParams.parseResult(result.resultCode, result.data)
-            } else {
-                null
-            }
-            cb.onReceiveValue(uris ?: emptyArray())
-        }
-
-    @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        // Mantener la pantalla encendida mientras se ve el feed.
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
-        // Edge-to-edge: el contenido se dibuja DETRÁS de las barras del sistema.
+        // Edge-to-edge: el contenido se dibuja detrás de las barras del sistema.
         WindowCompat.setDecorFitsSystemWindows(window, false)
-        window.statusBarColor = Color.TRANSPARENT
-        window.navigationBarColor = Color.BLACK
+        window.statusBarColor = AndroidColor.TRANSPARENT
+        window.navigationBarColor = AndroidColor.TRANSPARENT
         WindowInsetsControllerCompat(window, window.decorView).apply {
-            // App oscura -> iconos claros (visibles sobre el vídeo).
             isAppearanceLightStatusBars = false
             isAppearanceLightNavigationBars = false
         }
 
-        rootContainer = FrameLayout(this).apply {
-            setBackgroundColor(Color.BLACK)
-            layoutParams = ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT,
-            )
-        }
-
-        webView = WebView(this).apply {
-            setBackgroundColor(Color.BLACK)
-            layoutParams = ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT,
-            )
-        }
-        rootContainer.addView(webView)
-        setContentView(rootContainer)
-
-        // Solo se respeta el inset INFERIOR (barra de navegación del sistema) para que
-        // la barra inferior de la web no quede tapada. El inset SUPERIOR se deja a 0:
-        // el vídeo se ve bajo la barra de estado; la UI superior ya respeta la safe-area.
-        ViewCompat.setOnApplyWindowInsetsListener(rootContainer) { v, insets ->
-            val bottom = insets.getInsets(WindowInsetsCompat.Type.systemBars()).bottom
-            v.updatePadding(top = 0, bottom = bottom)
-            insets
-        }
-
-        configureWebView()
-        webView.loadUrl(Config.BASE_URL)
-
-        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
-            override fun handleOnBackPressed() {
-                when {
-                    customView != null -> hideCustomView()
-                    webView.canGoBack() -> webView.goBack()
-                    else -> {
-                        isEnabled = false
-                        onBackPressedDispatcher.onBackPressed()
-                    }
-                }
-            }
-        })
-    }
-
-    @SuppressLint("SetJavaScriptEnabled")
-    private fun configureWebView() {
-        webView.settings.apply {
-            javaScriptEnabled = true
-            domStorageEnabled = true
-            databaseEnabled = true
-            mediaPlaybackRequiresUserGesture = false // autoplay de vídeos
-            loadWithOverviewMode = true
-            useWideViewPort = true
-            allowFileAccess = true
-            allowContentAccess = true
-            javaScriptCanOpenWindowsAutomatically = true
-            cacheMode = WebSettings.LOAD_DEFAULT
-            mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
-            userAgentString = "$userAgentString TwykAndroid"
-        }
-
-        webView.webViewClient = object : WebViewClient() {
-            override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
-                val url = request.url.toString()
-                // http/https -> dentro del WebView; otros esquemas (mailto, tel, intent…)
-                // se delegan al sistema.
-                return if (url.startsWith("http://") || url.startsWith("https://")) {
-                    false
-                } else {
-                    try {
-                        startActivity(Intent(Intent.ACTION_VIEW, request.url))
-                    } catch (_: Exception) {
-                        // sin app que maneje el esquema -> ignorar
-                    }
-                    true
-                }
-            }
-        }
-
-        webView.webChromeClient = object : WebChromeClient() {
-            override fun onShowFileChooser(
-                view: WebView?,
-                callback: ValueCallback<Array<Uri>>?,
-                params: FileChooserParams?,
-            ): Boolean {
-                filePathCallback?.onReceiveValue(null)
-                filePathCallback = callback
-                return try {
-                    val intent = params?.createIntent()
-                    if (intent != null) {
-                        fileChooserLauncher.launch(intent)
-                        true
-                    } else {
-                        filePathCallback = null
-                        false
-                    }
-                } catch (_: Exception) {
-                    filePathCallback = null
-                    false
-                }
-            }
-
-            override fun onPermissionRequest(request: PermissionRequest?) {
-                // Conceder permisos solicitados por la web (cámara/micrófono).
-                request?.grant(request.resources)
-            }
-
-            override fun onShowCustomView(view: View?, callback: CustomViewCallback?) {
-                if (customView != null) {
-                    onHideCustomView()
-                    return
-                }
-                customView = view
-                customViewCallback = callback
-                webView.visibility = View.GONE
-                rootContainer.addView(
-                    view,
-                    FrameLayout.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                    ),
-                )
-            }
-
-            override fun onHideCustomView() {
-                hideCustomView()
+        setContent {
+            MaterialTheme(colorScheme = darkColorScheme()) {
+                TwykApp()
             }
         }
     }
+}
 
-    private fun hideCustomView() {
-        val view = customView ?: return
-        rootContainer.removeView(view)
-        webView.visibility = View.VISIBLE
-        customViewCallback?.onCustomViewHidden()
-        customView = null
-        customViewCallback = null
+private enum class Tab(val label: String, val icon: ImageVector) {
+    Home("Inicio", Icons.Filled.Home),
+    Battles("Batallas", Icons.Filled.Whatshot),
+    Upload("Subir", Icons.Filled.AddBox),
+    Inbox("Buzón", Icons.Filled.Inbox),
+    Profile("Perfil", Icons.Filled.Person),
+}
+
+@Composable
+private fun TwykApp() {
+    var tab by remember { mutableStateOf(Tab.Home) }
+    Box(Modifier.fillMaxSize().background(Color.Black)) {
+        when (tab) {
+            Tab.Home -> VersusFeed()
+            else -> ComingSoon(tab.label)
+        }
+        TwykBottomNav(
+            current = tab,
+            onSelect = { tab = it },
+            modifier = Modifier.align(Alignment.BottomCenter),
+        )
     }
+}
 
-    override fun onPause() {
-        super.onPause()
-        webView.onPause()
+@Composable
+private fun ComingSoon(title: String) {
+    Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(title, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(8.dp))
+            Text("Próximamente (nativo)", color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp)
+        }
     }
+}
 
-    override fun onResume() {
-        super.onResume()
-        webView.onResume()
-    }
-
-    override fun onDestroy() {
-        webView.destroy()
-        super.onDestroy()
+@Composable
+private fun TwykBottomNav(current: Tab, onSelect: (Tab) -> Unit, modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(Color(0xF20A0A0B))
+            .navigationBarsPadding()
+            .padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceAround,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        for (t in Tab.values()) {
+            val selected = t == current
+            val tint = if (selected) Color.White else Color.White.copy(alpha = 0.5f)
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .clickable { onSelect(t) }
+                    .padding(horizontal = 6.dp, vertical = 2.dp),
+            ) {
+                Icon(t.icon, contentDescription = t.label, tint = tint, modifier = Modifier.size(26.dp))
+                Spacer(Modifier.height(2.dp))
+                Text(t.label, color = tint, fontSize = 10.sp)
+            }
+        }
     }
 }

@@ -1,60 +1,63 @@
-# Twyk Android (Kotlin)
+# Twyk Android (nativo — Kotlin + Jetpack Compose + Media3/ExoPlayer)
 
-App Android que muestra **EXACTAMENTE la misma interfaz que tu app web Twyk**.
-Internamente carga tu web (`Config.BASE_URL`) dentro de un **WebView a pantalla
-completa**, así obtienes paridad total: feed de batallas (A vs B), votar, retar,
-comentar, compartir, guardar, perfil, subir contenido, notificaciones… todo igual
-que en la web, y se actualiza solo cuando actualizas tu web (sin recompilar).
+App **100% nativa**. El feed usa **reproductor nativo ExoPlayer** y **se adapta al
+formato de cada publicación**:
+- **versus / `carousel`** → carrusel horizontal A↔B, cada vídeo a **pantalla
+  completa** (se acabó la franja negra). Doble toque para votar.
+- **duet** → pantalla partida (horizontal: A arriba / B abajo; vertical: A izq / B der).
+
+Incluye barra de navegación inferior (Inicio, Batallas, Subir, Buzón, Perfil),
+cabecera del autor + Seguir, columna social (Votar / Comentar / Compartir /
+Guardar), etiqueta A/B con %, puntitos del carrusel y pista de voto. La **barra de
+estado queda intacta** y el vídeo se ve por detrás (edge-to-edge).
 
 > No se puede compilar dentro de Emergent (no hay SDK de Android). Se compila en
 > TU Android Studio. Aquí está todo el código fuente.
 
-## Barra de estado / pantalla
-- **Edge-to-edge**: la barra de estado queda **intacta y visible**, y el vídeo del
-  feed se dibuja **por detrás** de ella (la web ya usa `env(safe-area-inset-top)`,
-  así que la interfaz superior no se solapa con el reloj/batería).
-- La barra de navegación inferior del sistema **no tapa** la barra inferior de la
-  web (se aplica padding por insets).
+## Estado por fases
+- **Fase 1 (HECHA):** feed nativo adaptable (carrusel/dúo) + navegación + votar.
+- **Fase 2:** comentarios + compartir + guardar (modales nativos + API).
+- **Fase 3:** perfil (propio y ajeno) con cuadrícula de publicaciones.
+- **Fase 4:** subir contenido (selector + subida de vídeo).
+- **Fase 5:** notificaciones, retos (crear/aceptar) y login/registro.
+
+> 👉 Compila la **Fase 1** primero y confirma que arranca; así validamos el
+> toolchain antes de añadir las siguientes fases.
 
 ## Backend ya configurado
-`app/src/main/java/com/twyk/app/Config.kt` ya apunta a tu **preview**:
+`app/src/main/java/com/twyk/app/Config.kt` apunta a tu **preview**:
 ```kotlin
 const val BASE_URL = "https://8908c8d2-df22-4065-a399-daef14bf1723.preview.emergentagent.com/"
 ```
-Cuando despliegues tu web a un dominio propio, cambia solo esa línea (debe acabar en `/`).
+Cuando despliegues tu web a un dominio propio, cambia solo esa línea (acaba en `/`).
 
 ## Cómo abrirlo y generar el APK
 1. Abre Android Studio → **New Project → Empty Activity (Compose)**.
    - Name: `Twyk` | Package: `com.twyk.app` | Language: Kotlin | Minimum SDK: API 24
 2. Copia dentro del proyecto, respetando rutas:
-   - `app/src/main/java/com/twyk/app/` → los `.kt` de aquí
+   - `app/src/main/java/com/twyk/app/` → todos los `.kt` (Config, MainActivity, data/, feed/)
    - `app/src/main/AndroidManifest.xml`, `res/values/themes.xml`, `res/values/strings.xml`
-3. Sincroniza Gradle y pulsa **Run** ▶ (o **Build → Build APK(s)**).
-   El APK queda en `app/build/outputs/apk/debug/app-debug.apk`.
+3. En `app/build.gradle.kts` usa las dependencias de ESTE proyecto (Compose BOM,
+   **material-icons-extended**, Media3, Retrofit, Coil) y `compileSdk/targetSdk = 36`.
+4. Sincroniza Gradle y pulsa **Run** ▶ (o **Build → Build APK(s)**).
 
-> Alternativa: abrir directamente esta carpeta `android-twyk/` en Android Studio
-> (trae `build.gradle.kts` y `settings.gradle.kts`). Si alguna versión de Gradle/AGP
-> no cuadra con tu instalación, acepta las sugerencias de actualización (un clic).
+> Alternativa: abrir directamente la carpeta `android-twyk/` en Android Studio.
+> Si alguna versión de Gradle/AGP no cuadra, acepta las sugerencias de actualización.
 
-## Qué hace el WebView
-- JavaScript, almacenamiento (DOM/localStorage) y **autoplay de vídeo** activados.
-- **Subir archivos** (`<input type="file">`) abriendo el selector del sistema.
-- **Vídeo a pantalla completa** (HTML5 fullscreen) y permisos web (cámara/micro).
-- Botón **Atrás** del teléfono navega el historial de la web.
-
-## Estructura relevante
+## Estructura
 ```
-android-twyk/app/src/main/
-  java/com/twyk/app/
-    Config.kt          # <- aquí está la URL del backend (preview)
-    MainActivity.kt    # WebView a pantalla completa (edge-to-edge)
-    data/, feed/       # código del antiguo feed nativo (sin usar; se puede borrar)
-  AndroidManifest.xml  # permiso INTERNET + cleartext
-  res/values/themes.xml
+android-twyk/app/src/main/java/com/twyk/app/
+  Config.kt              # URL del backend (preview)
+  MainActivity.kt        # Compose: feed + barra de navegación (edge-to-edge)
+  data/Models.kt         # modelos del JSON del backend
+  data/TwykApi.kt        # Retrofit: /api/uploads, /api/feed, /api/vote
+  feed/VideoCache.kt     # caché en disco 150 MB (ExoPlayer)
+  feed/FeedViewModel.kt  # carga + scroll infinito + voto
+  feed/VersusFeed.kt     # feed adaptable (carrusel/dúo) + overlays + votar
 ```
 
-## Notas
-- No se pudo compilar aquí (entorno solo-web). El código usa APIs estándar de
-  WebView + AndroidX; si Android Studio sugiere ajustar alguna versión al abrir,
-  acéptalo (es lo normal en otra máquina).
-- Tu app **web sigue intacta**; esto es un proyecto independiente que la muestra.
+## Notas honestas
+- No se pudo compilar aquí (entorno solo-web). El código sigue las APIs de Compose
+  (BOM 2026.04.01) y Media3 1.5.x; si Android Studio sugiere ajustar versiones al
+  abrir, acéptalo (sync). Si algún import falla, dime el error y lo corrijo.
+- Es **solo Android**. Tu app **web sigue intacta**.

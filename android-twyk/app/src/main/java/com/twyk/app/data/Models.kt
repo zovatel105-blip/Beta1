@@ -13,11 +13,19 @@ data class Side(
     val posterUrl: String? = null,
     val author: Author? = null,
     val description: String? = null,
+    val music: String? = null,
 )
 
 data class Votes(
     val a: Int = 0,
     val b: Int = 0,
+)
+
+data class Stats(
+    val likes: Int = 0,
+    val comments: Int = 0,
+    val shares: Int = 0,
+    val saves: Int = 0,
 )
 
 data class Post(
@@ -29,6 +37,11 @@ data class Post(
     val votes: Votes? = null,
     val isChallenge: Boolean? = null,
     val description: String? = null,
+    val author: Author? = null,
+    val music: String? = null,
+    val posterUrl: String? = null,
+    val thumbnailUrl: String? = null,
+    val stats: Stats? = null,
 )
 
 data class UploadsResponse(val posts: List<Post>? = null)
