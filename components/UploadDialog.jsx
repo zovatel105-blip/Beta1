@@ -108,6 +108,7 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
     setProgress(0)
     try {
       const xhr = new XMLHttpRequest()
+      xhr.withCredentials = true // Incluir cookies en la petición
       const promise = new Promise((resolve, reject) => {
         xhr.upload.onprogress = (ev) => {
           if (ev.lengthComputable) setProgress(Math.round((ev.loaded / ev.total) * 100))

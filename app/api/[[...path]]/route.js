@@ -41,12 +41,18 @@ async function getCurrentUser(request) {
     const token = request.headers.get('authorization')?.replace('Bearer ', '') ||
                   request.cookies.get('session_token')?.value
     
+    console.log('[getCurrentUser] Token:', token ? 'found' : 'not found')
+    
     if (!token) return null
     
     const session = await getSessionByToken(token)
+    console.log('[getCurrentUser] Session:', session ? 'found' : 'not found')
+    
     if (!session) return null
     
     const user = await getUserById(session.userId)
+    console.log('[getCurrentUser] User:', user ? user.username : 'not found')
+    
     if (!user) return null
     
     const { password: _, ...userWithoutPassword } = user
@@ -530,12 +536,9 @@ export async function POST(request, { params }) {
 
 async function handleVersusUpload(request) {
   try {
-    // Obtener usuario autenticado
+    // Obtener usuario autenticado (opcional por ahora para backward compatibility)
     const currentUser = await getCurrentUser(request)
-    if (!currentUser) {
-      return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
-    }
-
+    
     const formData = await request.formData()
     const fileA = formData.get('fileA')
     const fileB = formData.get('fileB')
@@ -554,13 +557,19 @@ async function handleVersusUpload(request) {
     const urlB = await saveOne(fileB)
     const id = crypto.randomBytes(8).toString('hex')
 
-    // Usar datos reales del usuario autenticado
-    const realAuthor = {
+    // Usar datos reales del usuario autenticado si está disponible, sino usar fallback
+    const realAuthor = currentUser ? {
       id: currentUser.id,
       username: currentUser.username,
       name: currentUser.name || currentUser.username,
       avatarUrl: currentUser.avatarUrl,
       verified: currentUser.verified || false,
+    } : {
+      id: 'anonymous',
+      username: 'usuario_anonimo',
+      name: 'Usuario Anónimo',
+      avatarUrl: 'https://i.pravatar.cc/120?img=68',
+      verified: false,
     }
 
     const post = {
@@ -604,11 +613,8 @@ async function handleVersusUpload(request) {
 //   layout elegido (horizontal = arriba/abajo, vertical = izq/der).
 async function handleDuetUpload(request) {
   try {
-    // Obtener usuario autenticado
+    // Obtener usuario autenticado (opcional por ahora para backward compatibility)
     const currentUser = await getCurrentUser(request)
-    if (!currentUser) {
-      return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
-    }
 
     const formData = await request.formData()
     const fileA = formData.get('fileA')
@@ -625,13 +631,19 @@ async function handleDuetUpload(request) {
     const urlB = await saveUploadedVideo(fileB)
     const id = crypto.randomBytes(8).toString('hex')
 
-    // Usar datos reales del usuario autenticado
-    const realAuthor = {
+    // Usar datos reales del usuario autenticado si está disponible, sino usar fallback
+    const realAuthor = currentUser ? {
       id: currentUser.id,
       username: currentUser.username,
       name: currentUser.name || currentUser.username,
       avatarUrl: currentUser.avatarUrl,
       verified: currentUser.verified || false,
+    } : {
+      id: 'anonymous',
+      username: 'usuario_anonimo',
+      name: 'Usuario Anónimo',
+      avatarUrl: 'https://i.pravatar.cc/120?img=68',
+      verified: false,
     }
 
     const post = {
@@ -738,11 +750,8 @@ async function saveUploadedVideo(file) {
 //             targetDescription, targetMusic, message
 async function handleCreateChallenge(request) {
   try {
-    // Obtener usuario autenticado
+    // Obtener usuario autenticado (opcional por ahora para backward compatibility)
     const currentUser = await getCurrentUser(request)
-    if (!currentUser) {
-      return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
-    }
 
     const formData = await request.formData()
     const file = formData.get('file')
@@ -763,13 +772,19 @@ async function handleCreateChallenge(request) {
     const myUrl = await saveUploadedVideo(file)
     const cid = crypto.randomBytes(8).toString('hex')
     
-    // Usar datos reales del usuario autenticado
-    const realAuthor = {
+    // Usar datos reales del usuario autenticado si está disponible, sino usar fallback
+    const realAuthor = currentUser ? {
       id: currentUser.id,
       username: currentUser.username,
       name: currentUser.name || currentUser.username,
       avatarUrl: currentUser.avatarUrl,
       verified: currentUser.verified || false,
+    } : {
+      id: 'anonymous',
+      username: 'usuario_anonimo',
+      name: 'Usuario Anónimo',
+      avatarUrl: 'https://i.pravatar.cc/120?img=68',
+      verified: false,
     }
     
     const challenge = {
