@@ -43,6 +43,8 @@ import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.twyk.app.feed.VersusFeed
+import com.twyk.app.ui.AuthSheet
+import com.twyk.app.ui.CommentsSheet
 
 // Twyk Android — app NATIVA (Jetpack Compose + Media3/ExoPlayer).
 // El feed se adapta al formato de cada publicación; la barra inferior navega
@@ -80,9 +82,14 @@ private enum class Tab(val label: String, val icon: ImageVector) {
 @Composable
 private fun TwykApp() {
     var tab by remember { mutableStateOf(Tab.Home) }
+    var commentsPostId by remember { mutableStateOf<String?>(null) }
+    var authOpen by remember { mutableStateOf(false) }
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         when (tab) {
-            Tab.Home -> VersusFeed()
+            Tab.Home -> VersusFeed(
+                onOpenComments = { commentsPostId = it },
+                onRequireAuth = { authOpen = true },
+            )
             else -> ComingSoon(tab.label)
         }
         TwykBottomNav(
@@ -90,6 +97,17 @@ private fun TwykApp() {
             onSelect = { tab = it },
             modifier = Modifier.align(Alignment.BottomCenter),
         )
+        // Hojas por encima de la barra de navegación.
+        commentsPostId?.let { pid ->
+            CommentsSheet(
+                postId = pid,
+                onClose = { commentsPostId = null },
+                onRequireAuth = { authOpen = true },
+            )
+        }
+        if (authOpen) {
+            AuthSheet(onClose = { authOpen = false }, onAuthed = { authOpen = false })
+        }
     }
 }
 

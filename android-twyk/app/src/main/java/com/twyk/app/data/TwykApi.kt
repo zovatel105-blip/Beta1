@@ -19,6 +19,24 @@ interface TwykApi {
 
     @POST("api/vote")
     suspend fun vote(@Body body: VoteRequest): VoteResponse
+
+    @GET("api/comments")
+    suspend fun comments(@Query("postId") postId: String): CommentsResponse
+
+    @POST("api/comments")
+    suspend fun createComment(@Body body: CreateCommentRequest): CreateCommentResponse
+
+    @POST("api/comments/like")
+    suspend fun likeComment(@Body body: LikeCommentRequest): LikeResponse
+
+    @POST("api/save")
+    suspend fun save(@Body body: SaveRequest): SaveResponse
+
+    @POST("api/auth/login")
+    suspend fun login(@Body body: LoginRequest): AuthResponse
+
+    @POST("api/auth/register")
+    suspend fun register(@Body body: RegisterRequest): AuthResponse
 }
 
 object RetrofitProvider {
@@ -26,6 +44,18 @@ object RetrofitProvider {
         val client = OkHttpClient.Builder()
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(20, TimeUnit.SECONDS)
+            // Añade el token Bearer (si hay sesión) a todas las peticiones.
+            .addInterceptor { chain ->
+                val token = Session.token
+                val request = if (token != null) {
+                    chain.request().newBuilder()
+                        .header("Authorization", "Bearer $token")
+                        .build()
+                } else {
+                    chain.request()
+                }
+                chain.proceed(request)
+            }
             .build()
         Retrofit.Builder()
             .baseUrl(Config.BASE_URL)

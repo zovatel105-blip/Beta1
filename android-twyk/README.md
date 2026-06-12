@@ -16,10 +16,11 @@ estado queda intacta** y el vídeo se ve por detrás (edge-to-edge).
 
 ## Estado por fases
 - **Fase 1 (HECHA):** feed nativo adaptable (carrusel/dúo) + navegación + votar.
-- **Fase 2:** comentarios + compartir + guardar (modales nativos + API).
+- **Fase 2 (HECHA):** comentarios (ver/escribir + likes) + compartir (nativo) +
+  guardar + login/registro (Bearer token). Cuenta demo: `twyk_demo` / `demo1234`.
 - **Fase 3:** perfil (propio y ajeno) con cuadrícula de publicaciones.
 - **Fase 4:** subir contenido (selector + subida de vídeo).
-- **Fase 5:** notificaciones, retos (crear/aceptar) y login/registro.
+- **Fase 5:** notificaciones y retos (crear/aceptar).
 
 > 👉 Compila la **Fase 1** primero y confirma que arranca; así validamos el
 > toolchain antes de añadir las siguientes fases.

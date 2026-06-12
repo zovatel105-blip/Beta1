@@ -55,3 +55,42 @@ data class FeedResponse(
 data class VoteRequest(val id: String, val side: String)
 
 data class VoteResponse(val votes: Votes? = null)
+
+// ── Usuario / sesión ──────────────────────────────────────────────────────────
+data class User(
+    val id: String? = null,
+    val username: String? = null,
+    val name: String? = null,
+    val avatarUrl: String? = null,
+)
+
+data class LoginRequest(val username: String, val password: String)
+data class RegisterRequest(val username: String, val email: String, val password: String)
+data class AuthResponse(
+    val ok: Boolean = false,
+    val token: String? = null,
+    val user: User? = null,
+    val error: String? = null,
+    val message: String? = null,
+)
+
+// ── Comentarios ───────────────────────────────────────────────────────────────
+data class Comment(
+    val id: String = "",
+    val text: String = "",
+    val likes: Int = 0,
+    val userLiked: Boolean = false,
+    val isOwn: Boolean = false,
+    val timestamp: String? = null,
+    val author: Author? = null,
+)
+
+data class CommentsResponse(val comments: List<Comment>? = null)
+data class CreateCommentRequest(val postId: String, val text: String)
+data class CreateCommentResponse(val ok: Boolean = false, val comment: Comment? = null)
+data class LikeCommentRequest(val commentId: String)
+data class LikeResponse(val ok: Boolean = false, val likes: Int = 0, val userLiked: Boolean = false)
+
+// ── Guardados ─────────────────────────────────────────────────────────────────
+data class SaveRequest(val postId: String)
+data class SaveResponse(val ok: Boolean = false, val saved: Boolean = false)

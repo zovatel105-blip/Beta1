@@ -5,6 +5,7 @@ package com.twyk.app.feed
 import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -27,6 +28,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.HowToVote
@@ -40,6 +42,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -66,7 +69,12 @@ import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
 import com.twyk.app.absoluteUrl
 import com.twyk.app.data.Post
+import com.twyk.app.data.RetrofitProvider
+import com.twyk.app.data.SaveRequest
+import com.twyk.app.data.Session
 import com.twyk.app.data.Votes
+import com.twyk.app.ui.sharePost
+import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -78,7 +86,11 @@ import kotlin.math.roundToInt
 //                             vertical: A izq / B der). Doble toque en un lado vota.
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
-fun VersusFeed(vm: FeedViewModel = viewModel()) {
+fun VersusFeed(
+    onOpenComments: (String) -> Unit,
+    onRequireAuth: () -> Unit,
+    vm: FeedViewModel = viewModel(),
+) {
     val posts by vm.posts.collectAsState()
     val context = LocalContext.current
     val dataSourceFactory = remember { VideoCache.cacheDataSourceFactory(context) }
@@ -102,10 +114,21 @@ fun VersusFeed(vm: FeedViewModel = viewModel()) {
         modifier = Modifier.fillMaxSize().background(Color.Black),
     ) { page ->
         val post = posts[page]
+        val active = page == pagerState.currentPage
         if (post.type == "duet") {
-            DuetPage(post, page == pagerState.currentPage, dataSourceFactory) { vm.vote(post.id, it) }
+            DuetPage(
+                post, active, dataSourceFactory,
+                onVote = { vm.vote(post.id, it) },
+                onComments = { onOpenComments(post.id) },
+                onRequireAuth = onRequireAuth,
+            )
         } else {
-            CarouselPage(post, page == pagerState.currentPage, dataSourceFactory) { vm.vote(post.id, it) }
+            CarouselPage(
+                post, active, dataSourceFactory,
+                onVote = { vm.vote(post.id, it) },
+                onComments = { onOpenComments(post.id) },
+                onRequireAuth = onRequireAuth,
+            )
         }
     }
 }
@@ -134,6 +157,8 @@ private fun CarouselPage(
     isActive: Boolean,
     dataSourceFactory: CacheDataSource.Factory,
     onVote: (String) -> Unit,
+    onComments: () -> Unit,
+    onRequireAuth: () -> Unit,
 ) {
     val context = LocalContext.current
     val playerA = remember(post.id) { buildPlayer(context, dataSourceFactory, post.sideA?.videoUrl, muted = false) }
@@ -178,7 +203,7 @@ private fun CarouselPage(
         )
 
         HeaderOverlay(post)
-        SocialRail(post, votes, voted)
+        SocialRail(post, votes, voted, onComments, onRequireAuth)
         Dots(active = sidePager.currentPage)
         if (voted == null) VoteHint()
     }
@@ -191,6 +216,8 @@ private fun DuetPage(
     isActive: Boolean,
     dataSourceFactory: CacheDataSource.Factory,
     onVote: (String) -> Unit,
+    onComments: () -> Unit,
+    onRequireAuth: () -> Unit,
 ) {
     val context = LocalContext.current
     val playerA = remember(post.id) { buildPlayer(context, dataSourceFactory, post.sideA?.videoUrl, muted = false) }
@@ -239,7 +266,7 @@ private fun DuetPage(
         )
 
         HeaderOverlay(post)
-        SocialRail(post, votes, voted)
+        SocialRail(post, votes, voted, onComments, onRequireAuth)
         if (voted == null) VoteHint()
     }
 }
@@ -318,7 +345,16 @@ private fun BoxScope.HeaderOverlay(post: Post) {
 }
 
 @Composable
-private fun BoxScope.SocialRail(post: Post, votes: Votes, voted: String?) {
+private fun BoxScope.SocialRail(
+    post: Post,
+    votes: Votes,
+    voted: String?,
+    onComments: () -> Unit,
+    onRequireAuth: () -> Unit,
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var saved by remember(post.id) { mutableStateOf(false) }
     Column(
         Modifier
             .align(Alignment.BottomEnd)
@@ -333,16 +369,33 @@ private fun BoxScope.SocialRail(post: Post, votes: Votes, voted: String?) {
             "b" -> Color(0xFF3B82F6)
             else -> Color.White
         }
-        RailItem(Icons.Filled.HowToVote, label(total, "Votar"), voteTint)
-        RailItem(Icons.Filled.ChatBubbleOutline, label(post.stats?.comments ?: 0, "Comentar"), Color.White)
-        RailItem(Icons.Filled.Share, label(post.stats?.shares ?: 0, "Compartir"), Color.White)
-        RailItem(Icons.Filled.BookmarkBorder, label(post.stats?.saves ?: 0, "Guardar"), Color.White)
+        RailItem(Icons.Filled.HowToVote, label(total, "Votar"), voteTint) { /* votar = doble toque en el vídeo */ }
+        RailItem(Icons.Filled.ChatBubbleOutline, label(post.stats?.comments ?: 0, "Comentar"), Color.White) { onComments() }
+        RailItem(Icons.Filled.Share, label(post.stats?.shares ?: 0, "Compartir"), Color.White) { sharePost(context, post) }
+        RailItem(
+            if (saved) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
+            label(post.stats?.saves ?: 0, "Guardar"),
+            if (saved) Color(0xFFFACC15) else Color.White,
+        ) {
+            if (Session.token == null) {
+                onRequireAuth()
+            } else {
+                scope.launch {
+                    runCatching { RetrofitProvider.api.save(SaveRequest(post.id)) }
+                        .onSuccess { saved = it.saved }
+                        .onFailure { onRequireAuth() }
+                }
+            }
+        }
     }
 }
 
 @Composable
-private fun RailItem(icon: ImageVector, text: String, tint: Color) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+private fun RailItem(icon: ImageVector, text: String, tint: Color, onClick: () -> Unit) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.clickable { onClick() },
+    ) {
         Icon(icon, contentDescription = text, tint = tint, modifier = Modifier.size(32.dp))
         Spacer(Modifier.height(3.dp))
         Text(text, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
