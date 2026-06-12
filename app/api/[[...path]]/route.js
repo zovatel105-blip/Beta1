@@ -26,6 +26,9 @@ import {
   markNotificationAsRead,
   markAllNotificationsAsRead,
   getUnreadNotificationsCount,
+  toggleFollowByUsername,
+  isFollowingByUsername,
+  getFollowersCountByUsername,
 } from '@/lib/db'
 
 export const runtime = 'nodejs'
@@ -435,6 +438,16 @@ export async function GET(request, { params }) {
       return NextResponse.json({ error: 'user_not_found' }, { status: 404 })
     }
 
+    // Followers reales (persistentes) derivados de la colección de follows +
+    // ¿lo sigo yo? (según la sesión actual, si la hay).
+    try {
+      const currentUser = await getCurrentUser(request)
+      info.followers = await getFollowersCountByUsername(username)
+      info.isFollowing = currentUser ? await isFollowingByUsername(currentUser.id, username) : false
+    } catch {
+      info.isFollowing = false
+    }
+
     // 2) Publicaciones del usuario: uploads propios + posts demo del feed.
     const uploads = await readUploadMeta()
     const mine = uploads.filter((p) => {
@@ -584,7 +597,33 @@ export async function POST(request, { params }) {
     return handleRejectChallenge(segs[1])
   }
 
+  // Seguir / dejar de seguir a un usuario (persistente). POST /api/users/:username/follow
+  if (segs[0] === 'users' && segs[2] === 'follow') {
+    return handleFollow(segs[1], request)
+  }
+
   return NextResponse.json({ ok: true })
+}
+
+async function handleFollow(username, request) {
+  try {
+    const currentUser = await getCurrentUser(request)
+    if (!currentUser) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    }
+    const targetUsername = decodeURIComponent(username || '')
+    if (!targetUsername) {
+      return NextResponse.json({ error: 'no_target' }, { status: 400 })
+    }
+    if (targetUsername === currentUser.username) {
+      return NextResponse.json({ error: 'cannot_follow_yourself' }, { status: 400 })
+    }
+    const result = await toggleFollowByUsername(currentUser.id, targetUsername)
+    return NextResponse.json({ ok: true, ...result })
+  } catch (err) {
+    console.error('[follow] error:', err)
+    return NextResponse.json({ error: 'follow_failed' }, { status: 500 })
+  }
 }
 
 async function handleVersusUpload(request) {

@@ -371,6 +371,8 @@ export default function Feed() {
         onClose={() => { setProfileOpen(false); setProfileUsername(null) }}
         onOpenProfile={openAuthorProfile}
         onOpenUpload={() => { setProfileOpen(false); requestUpload() }}
+        onChallenge={openChallenge}
+        onRequireAuth={() => setAuthOpen(true)}
       />
       <UploadDialog open={uploadOpen} onClose={() => setUploadOpen(false)} onUploaded={handleUploaded} onChallengeCreated={refreshChallenges} />
       <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} defaultTab="register" />

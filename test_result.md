@@ -230,8 +230,30 @@ backend:
         -working: "NA"
         -agent: "main"
         -comment: "vote increments side a/b. Already validated previously."
+  - task: "Seguir persistente: POST /api/users/:username/follow (toggle) + GET /api/users/:username devuelve isFollowing y followers reales"
+    implemented: true
+    working: "NA"
+    file: "app/api/[[...path]]/route.js, lib/db.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "NUEVO. Follow persistente keyed por (followerId, followingUsername) en colección 'follows' (universal: sirve para usuarios reales y autores demo). (1) POST /api/users/:username/follow SIN sesión -> 401 unauthorized. (2) CON sesión: primer POST -> {ok:true, following:true, followers:N+1}; segundo POST (toggle) -> {ok:true, following:false, followers:N}. (3) Seguirse a sí mismo -> 400 cannot_follow_yourself. (4) GET /api/users/:username SIN sesión -> user.isFollowing=false y user.followers=conteo real. (5) GET /api/users/:username CON sesión tras seguir -> user.isFollowing=true. IMPORTANTE: la DB 'twyk' está vacía (se perdió el .env, ya restaurado MONGO_URL=mongodb://localhost:27017/twyk). El testing agent debe REGISTRAR sus propios usuarios vía POST /api/auth/register (p.ej. follower1/follower2 con password). Probar follow entre dos usuarios registrados y verificar persistencia (segundo GET refleja el estado)."
 
 frontend:
+  - task: "ProfilePage: botón Seguir persistente (API) y botón Mensaje -> Retar (abre ChallengeDialog hacia ese usuario)"
+    implemented: true
+    working: "NA"
+    file: "components/ProfilePage.jsx, components/Feed.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "(1) SEGUIR: el estado inicial se toma de GET /api/users/:username (user.isFollowing) y followers reales; el toggle hace POST /api/users/:username/follow (optimista con rollback), requiere sesión (si invitado -> onRequireAuth abre login). (2) RETAR: sustituido el botón 'Mensaje' por 'Retar' (icono Swords) que llama onChallenge(target) reutilizando openChallenge -> ChallengeDialog del Feed, apuntando al contenido más reciente del usuario (videoUrl del primer post) y a su autor. Pendiente test frontend (solo con autorización del usuario)."
   - task: "Sesión permanente (~10 años) + fix condición de carrera 'me registré pero aparezco como no registrado'"
     implemented: true
     working: true
@@ -318,13 +340,14 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Publicar requiere sesión: /api/versus, /api/duet, /api/challenges devuelven 401 a invitados"
-    - "GET /api/auth/me valida la sesión por cookie httpOnly"
+    - "Seguir persistente: POST /api/users/:username/follow (toggle) + GET /api/users/:username devuelve isFollowing y followers reales"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 
 agent_communication:
+    -agent: "main"
+    -message: "NUEVA FUNCIÓN: Seguir persistente. Probar SOLO BACKEND. NOTA CRÍTICA: la base de datos 'twyk' está VACÍA (se había perdido el archivo .env, ya restaurado: MONGO_URL=mongodb://localhost:27017/twyk). No uses credenciales antiguas; REGISTRA usuarios nuevos. Escenarios: (A) Registra follower1 y target1 vía POST /api/auth/register {username,email,password} -> guarda cookie/token de follower1. (B) POST /api/users/target1/follow SIN sesión -> 401. (C) POST /api/users/target1/follow CON sesión de follower1 -> 200 {ok:true, following:true, followers:1}. (D) Repetir (toggle) -> {following:false, followers:0}. Volver a seguir -> following:true. (E) POST /api/users/follower1/follow con sesión de follower1 (a sí mismo) -> 400 cannot_follow_yourself. (F) GET /api/users/target1 SIN sesión -> user.isFollowing=false, user.followers=1 (refleja el follow persistente). (G) GET /api/users/target1 CON sesión de follower1 -> user.isFollowing=true. (H) También vale seguir a un autor demo (usa GET /api/users para tomar un username demo) -> follow funciona aunque no tenga documento de usuario. NO modificar el Testing Protocol."
     -agent: "main"
     -message: "BUG FIX 'publicaciones sin registro'. Probar SOLO BACKEND el gating de autenticación en publicación. Credenciales en /app/memory/test_credentials.md (testreg1 / secret123). Escenarios: (1) SIN sesión (sin cookie ni token): POST /api/versus (multipart fileA+fileB mp4 dummy) -> 401; POST /api/duet (fileA+fileB+layout) -> 401; POST /api/challenges (file + targetAuthor JSON) -> 401. (2) Login: POST /api/auth/login {username:'testreg1',password:'secret123'} -> 200, guarda la cookie session_token (o usa el token devuelto como 'Authorization: Bearer <token>'). (3) CON sesión: POST /api/versus -> 200 y post.author.username === 'testreg1' (NO 'usuario_anonimo'); idem /api/duet (post.author.username==='testreg1', sideA/sideB.author también) y /api/challenges (challenge.from.username==='testreg1') -> 200. (4) GET /api/auth/me sin cookie -> 401; con cookie -> 200 {user.username:'testreg1'}. (5) Regresión: GET /api/feed?cursor=0&limit=8 -> 200 con posts; GET /api/users -> 200. NO modificar el Testing Protocol."
     -agent: "main"

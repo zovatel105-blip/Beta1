@@ -122,13 +122,15 @@ const TABS = [
   },
 ]
 
-export default function ProfilePage({ open, onClose, onOpenUpload, username = null }) {
+export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, onRequireAuth, username = null }) {
   const { user } = useAuth()
   const [profile, setProfile] = useState(null) // { user, posts } del endpoint
   const [posts, setPosts] = useState([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('polls')
-  const [following, setFollowing] = useState(false) // toggle visual (MVP)
+  const [following, setFollowing] = useState(false) // ¿sigo a este usuario? (persistente)
+  const [followers, setFollowers] = useState(null)  // contador real de followers
+  const [followBusy, setFollowBusy] = useState(false)
 
   // ¿Es mi propio perfil? (sin username, o coincide con el usuario autenticado)
   const isOwn = !username || username === user?.username
@@ -144,7 +146,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, username = nu
     name: src?.name || src?.username || 'Usuario',
     handle: src?.username ? `@${src.username}` : '@usuario',
     avatarUrl: src?.avatarUrl || '',
-    followers: src?.followers || 0,
+    followers: followers != null ? followers : (src?.followers || 0),
     following: src?.following || 0,
   }
 
@@ -154,6 +156,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, username = nu
     setLoading(true)
     setActiveTab('polls')
     setFollowing(false)
+    setFollowers(null)
     ;(async () => {
       try {
         const res = await fetch(`/api/users/${encodeURIComponent(targetUsername)}`, { cache: 'no-store' })
@@ -161,6 +164,8 @@ export default function ProfilePage({ open, onClose, onOpenUpload, username = nu
         if (!cancelled) {
           setProfile(data || null)
           setPosts(data?.posts || [])
+          setFollowing(!!data?.user?.isFollowing)
+          setFollowers(typeof data?.user?.followers === 'number' ? data.user.followers : 0)
         }
       } catch {
         if (!cancelled) { setProfile(null); setPosts([]) }
@@ -170,6 +175,46 @@ export default function ProfilePage({ open, onClose, onOpenUpload, username = nu
     })()
     return () => { cancelled = true }
   }, [open, targetUsername])
+
+  // Seguir / dejar de seguir (persistente en backend). Optimista con rollback.
+  const handleToggleFollow = async () => {
+    if (!user) { onRequireAuth?.(); return }
+    if (followBusy) return
+    const prevFollowing = following
+    const prevFollowers = followers
+    setFollowBusy(true)
+    setFollowing(!prevFollowing)
+    setFollowers((c) => (c == null ? c : Math.max(0, c + (prevFollowing ? -1 : 1))))
+    try {
+      const res = await fetch(`/api/users/${encodeURIComponent(targetUsername)}/follow`, {
+        method: 'POST',
+        cache: 'no-store',
+      })
+      if (!res.ok) throw new Error('follow_failed')
+      const data = await res.json()
+      setFollowing(!!data.following)
+      if (typeof data.followers === 'number') setFollowers(data.followers)
+    } catch {
+      setFollowing(prevFollowing)
+      setFollowers(prevFollowers)
+    } finally {
+      setFollowBusy(false)
+    }
+  }
+
+  // Retar a este usuario: reutiliza el flujo de ChallengeDialog (openChallenge)
+  // apuntando a su contenido más reciente (o solo al autor si no tiene vídeos).
+  const handleChallenge = () => {
+    if (!user) { onRequireAuth?.(); return }
+    const firstPost = posts[0]
+    const target = {
+      videoUrl: firstPost ? videoFor(firstPost) : '',
+      author: { username: me.username, name: me.name, avatarUrl: me.avatarUrl },
+      description: firstPost?.description || '',
+      music: firstPost?.music || '',
+    }
+    onChallenge?.(target)
+  }
 
   // Publicaciones del perfil (ya vienen filtradas por el endpoint).
   const myPosts = posts
@@ -339,8 +384,9 @@ export default function ProfilePage({ open, onClose, onOpenUpload, username = nu
           ) : (
             <>
               <button
-                onClick={() => setFollowing((f) => !f)}
-                className={`h-9 px-7 rounded-full font-semibold text-[13px] tracking-tight active:scale-[0.97] transition-all ${
+                onClick={handleToggleFollow}
+                disabled={followBusy}
+                className={`h-9 px-7 rounded-full font-semibold text-[13px] tracking-tight active:scale-[0.97] transition-all disabled:opacity-60 ${
                   following
                     ? 'border border-white/15 text-white hover:bg-white/[0.06]'
                     : 'bg-white text-black hover:bg-zinc-100'
@@ -348,8 +394,12 @@ export default function ProfilePage({ open, onClose, onOpenUpload, username = nu
               >
                 {following ? 'Siguiendo' : 'Seguir'}
               </button>
-              <button className="h-9 px-6 rounded-full border border-white/15 hover:bg-white/[0.06] text-white font-semibold text-[13px] tracking-tight active:scale-[0.97] transition-all">
-                Mensaje
+              <button
+                onClick={handleChallenge}
+                className="h-9 px-6 rounded-full border border-white/15 hover:bg-white/[0.06] text-white font-semibold text-[13px] tracking-tight active:scale-[0.97] transition-all flex items-center gap-1.5"
+              >
+                <Swords className="w-[15px] h-[15px]" strokeWidth={2} />
+                Retar
               </button>
             </>
           )}
