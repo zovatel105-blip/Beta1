@@ -26,8 +26,10 @@ export default function AuthModal({ open, onClose, defaultTab = 'login' }) {
     try {
       const result = await login(loginData.username, loginData.password)
       if (result.success) {
+        // SPA: el estado de usuario se actualiza reactivamente (sin recargar la
+        // página). Antes había window.location.reload() que reiniciaba la app y
+        // en frío volvía a mostrar el estado de invitado.
         onClose()
-        window.location.reload()
       } else {
         setError(result.error || 'Error al iniciar sesión')
       }
@@ -53,8 +55,8 @@ export default function AuthModal({ open, onClose, defaultTab = 'login' }) {
     try {
       const result = await register(registerData.username, registerData.email, registerData.password)
       if (result.success) {
+        // SPA: sin recarga. El estado de usuario se propaga por contexto.
         onClose()
-        window.location.reload()
       } else {
         setError(result.error || 'Error al registrarse')
       }
