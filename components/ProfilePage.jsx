@@ -121,9 +121,21 @@ const GridItem = ({ post }) => {
 }
 
 const TABS = [
-  { key: 'polls', icon: () => <ColumnsIcon className="w-4 h-4" /> },
-  { key: 'saved', icon: () => <Bookmark className="w-4 h-4" strokeWidth={1.5} /> },
-  { key: 'links', icon: () => <LinkIcon className="w-4 h-4" strokeWidth={1.5} /> },
+  { 
+    key: 'polls', 
+    icon: (active) => <ColumnsIcon className={`w-[18px] h-[18px] transition-all ${active ? 'scale-110' : ''}`} />,
+    label: 'Posts'
+  },
+  { 
+    key: 'saved', 
+    icon: (active) => <Bookmark className={`w-[18px] h-[18px] transition-all ${active ? 'scale-110 fill-current' : ''}`} strokeWidth={active ? 2 : 1.5} />,
+    label: 'Guardados'
+  },
+  { 
+    key: 'links', 
+    icon: (active) => <LinkIcon className={`w-[18px] h-[18px] transition-all ${active ? 'scale-110' : ''}`} strokeWidth={active ? 2 : 1.5} />,
+    label: 'Enlaces'
+  },
 ]
 
 export default function ProfilePage({ open, onClose, onOpenUpload }) {
@@ -305,21 +317,31 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
         </div>
       </div>
 
-      {/* Tabs - diseño píldora (tema oscuro) */}
-      <div className="relative z-10 px-3 sm:px-4 max-w-md mx-auto w-full">
-        <div className="grid grid-cols-3 w-full bg-white/[0.06] border border-white/10 rounded-2xl p-1">
+      {/* Tabs - diseño premium minimalista */}
+      <div className="relative z-10 px-4 sm:px-6 max-w-md mx-auto w-full mt-8">
+        <div className="flex items-center justify-center gap-1 bg-zinc-900/60 backdrop-blur-xl border border-white/5 rounded-2xl p-1.5 shadow-lg shadow-black/20">
           {TABS.map((tab) => {
             const active = activeTab === tab.key
             return (
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                aria-label={tab.key}
-                className={`rounded-xl py-3 text-sm font-medium flex items-center justify-center transition-all ${
-                  active ? 'bg-white text-black' : 'text-zinc-400 hover:text-white'
-                }`}
+                aria-label={tab.label}
+                className={`
+                  relative flex-1 flex flex-col items-center justify-center gap-1.5 py-3 px-4
+                  rounded-xl font-medium text-[11px] uppercase tracking-wider
+                  transition-all duration-300 ease-out
+                  ${active 
+                    ? 'bg-white text-black shadow-lg shadow-black/10' 
+                    : 'text-zinc-500 hover:text-white hover:bg-white/5'
+                  }
+                `}
               >
                 {tab.icon(active)}
+                <span className="leading-none">{tab.label}</span>
+                {active && (
+                  <div className="absolute inset-0 rounded-xl bg-gradient-to-b from-white/20 to-transparent pointer-events-none" />
+                )}
               </button>
             )
           })}
