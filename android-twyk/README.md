@@ -1,71 +1,60 @@
-# Twyk Android (app nativa — Kotlin + Jetpack Compose)
+# Twyk Android (Kotlin)
 
-App nativa de Android con **reproductor nativo Media3/ExoPlayer**, feed vertical
-tipo TikTok y publicaciones **1vs1 (2 videos por pagina)** con votacion. Usa la
-misma tecnica que `compose-reels` (ExoPlayer + **cache en disco 150 MB** +
-**precarga del vecino** con `beyondViewportPageCount`), adaptada a 2 videos por
-pagina. Reutiliza tu **backend Next.js** existente.
+App Android que muestra **EXACTAMENTE la misma interfaz que tu app web Twyk**.
+Internamente carga tu web (`Config.BASE_URL`) dentro de un **WebView a pantalla
+completa**, así obtienes paridad total: feed de batallas (A vs B), votar, retar,
+comentar, compartir, guardar, perfil, subir contenido, notificaciones… todo igual
+que en la web, y se actualiza solo cuando actualizas tu web (sin recompilar).
 
 > No se puede compilar dentro de Emergent (no hay SDK de Android). Se compila en
-> TU Android Studio. Aqui esta todo el codigo fuente.
+> TU Android Studio. Aquí está todo el código fuente.
 
-## Forma recomendada de abrirlo (la mas fiable)
-Como las versiones exactas de Gradle/AGP dependen de tu Android Studio, lo mas
-seguro es:
+## Barra de estado / pantalla
+- **Edge-to-edge**: la barra de estado queda **intacta y visible**, y el vídeo del
+  feed se dibuja **por detrás** de ella (la web ya usa `env(safe-area-inset-top)`,
+  así que la interfaz superior no se solapa con el reloj/batería).
+- La barra de navegación inferior del sistema **no tapa** la barra inferior de la
+  web (se aplica padding por insets).
 
-1. Abre Android Studio -> **New Project -> Empty Activity (Compose)**.
-   - Name: `Twyk`  | Package name: `com.twyk.app`  | Language: Kotlin
-   - Minimum SDK: API 24
-2. Copia DENTRO del proyecto recien creado, respetando rutas:
-   - `app/src/main/java/com/twyk/app/`  -> los `.kt` de aqui (Config, MainActivity, data/, feed/)
-   - `app/src/main/AndroidManifest.xml` -> reemplaza por el de aqui (anade permiso INTERNET + cleartext)
-   - `app/src/main/res/values/themes.xml` y `strings.xml`
-3. En `app/build.gradle.kts` anade las dependencias de la seccion `dependencies`
-   de ESTE proyecto (Media3, Retrofit, Coil) y `compileSdk/targetSdk = 36`.
-4. Sincroniza Gradle.
-
-> Alternativa: abrir directamente esta carpeta `android-twyk/` en Android Studio.
-> Trae `build.gradle.kts` y `settings.gradle.kts` listos; Android Studio te
-> pedira el Gradle Wrapper y, si alguna version no cuadra con tu instalacion,
-> acepta sus sugerencias de actualizacion (son cambios de un clic).
-
-## Configura tu backend (OBLIGATORIO)
-Edita `app/src/main/java/com/twyk/app/Config.kt`:
+## Backend ya configurado
+`app/src/main/java/com/twyk/app/Config.kt` ya apunta a tu **preview**:
 ```kotlin
-const val BASE_URL = "https://TU-BACKEND.com/"   // termina en /
+const val BASE_URL = "https://8908c8d2-df22-4065-a399-daef14bf1723.preview.emergentagent.com/"
 ```
-- El movil NO puede usar `localhost`. Usa tu web desplegada (https) o, para
-  pruebas en local, la IP LAN de tu PC (p. ej. `http://192.168.1.50:3000/`).
-  (El cleartext http ya esta permitido para desarrollo en el Manifest.)
+Cuando despliegues tu web a un dominio propio, cambia solo esa línea (debe acabar en `/`).
 
-## Ejecutar / generar APK
-- Conecta tu telefono (Depuracion USB) o abre un emulador, y pulsa **Run** ▶.
-- APK de prueba: **Build -> Build Bundle(s)/APK(s) -> Build APK(s)**.
-  El APK queda en `app/build/outputs/apk/debug/app-debug.apk`.
+## Cómo abrirlo y generar el APK
+1. Abre Android Studio → **New Project → Empty Activity (Compose)**.
+   - Name: `Twyk` | Package: `com.twyk.app` | Language: Kotlin | Minimum SDK: API 24
+2. Copia dentro del proyecto, respetando rutas:
+   - `app/src/main/java/com/twyk/app/` → los `.kt` de aquí
+   - `app/src/main/AndroidManifest.xml`, `res/values/themes.xml`, `res/values/strings.xml`
+3. Sincroniza Gradle y pulsa **Run** ▶ (o **Build → Build APK(s)**).
+   El APK queda en `app/build/outputs/apk/debug/app-debug.apk`.
 
-## Como funciona la fluidez (igual que TikTok)
-- **Media3/ExoPlayer** nativo por cada lado del 1vs1 (2 reproductores/pagina).
-- **Cache en disco (150 MB LRU)**: un video ya visto se reabre al instante.
-- **Precarga del vecino** (`beyondViewportPageCount = 1`): la siguiente pagina se
-  prepara/bufferiza por adelantado -> al deslizar arranca sin espera. Solo la
-  pagina activa reproduce; las demas quedan en pausa (no agota decoders).
+> Alternativa: abrir directamente esta carpeta `android-twyk/` en Android Studio
+> (trae `build.gradle.kts` y `settings.gradle.kts`). Si alguna versión de Gradle/AGP
+> no cuadra con tu instalación, acepta las sugerencias de actualización (un clic).
 
-## Estructura
+## Qué hace el WebView
+- JavaScript, almacenamiento (DOM/localStorage) y **autoplay de vídeo** activados.
+- **Subir archivos** (`<input type="file">`) abriendo el selector del sistema.
+- **Vídeo a pantalla completa** (HTML5 fullscreen) y permisos web (cámara/micro).
+- Botón **Atrás** del teléfono navega el historial de la web.
+
+## Estructura relevante
 ```
-android-twyk/
-  app/src/main/java/com/twyk/app/
-    Config.kt                 # <- pon aqui tu BASE_URL
-    MainActivity.kt
-    data/Models.kt            # modelos del JSON del backend
-    data/TwykApi.kt           # Retrofit: /api/uploads, /api/feed, /api/vote
-    feed/VideoCache.kt        # cache en disco (ExoPlayer)
-    feed/FeedViewModel.kt     # carga + scroll infinito + voto
-    feed/VersusFeed.kt        # VerticalPager + pagina 1vs1 (2 ExoPlayer)
+android-twyk/app/src/main/
+  java/com/twyk/app/
+    Config.kt          # <- aquí está la URL del backend (preview)
+    MainActivity.kt    # WebView a pantalla completa (edge-to-edge)
+    data/, feed/       # código del antiguo feed nativo (sin usar; se puede borrar)
+  AndroidManifest.xml  # permiso INTERNET + cleartext
+  res/values/themes.xml
 ```
 
-## Notas honestas
-- No pude compilar esto aqui (entorno solo-web). El codigo sigue las APIs
-  actuales de Media3 1.5.x y Compose BOM 2026.04.01; si Android Studio marca
-  alguna version, deja que la ajuste (sync) — es lo normal al abrir en otra maquina.
-- Es **solo Android** (Compose). iOS seria un proyecto aparte mas adelante.
-- Tu app **web sigue intacta**; esto es un proyecto independiente.
+## Notas
+- No se pudo compilar aquí (entorno solo-web). El código usa APIs estándar de
+  WebView + AndroidX; si Android Studio sugiere ajustar alguna versión al abrir,
+  acéptalo (es lo normal en otra máquina).
+- Tu app **web sigue intacta**; esto es un proyecto independiente que la muestra.
