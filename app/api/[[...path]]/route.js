@@ -355,9 +355,22 @@ export async function GET(request, { params }) {
   // Devuelve los posts reales (mismo shape que el feed) para renderizarlos con
   // el mismo diseño (CarouselSlide/DuetSlide). Se derivan de los uploads con
   // isChallenge=true; sus votos van en vivo dentro de cada post.
+  // FILTRADO POR USUARIO: solo se devuelven los retos en los que el usuario
+  // actual participa (es retador sideA o retado sideB). Los invitados (sin
+  // sesión) no tienen retos completados -> lista vacía.
   if (path === '/challenges/completed') {
+    const currentUser = await getCurrentUser(request)
     const meta = await readUploadMeta()
-    const posts = meta.filter((p) => p.isChallenge && (p.type === 'versus' || p.type === 'duet'))
+    const challengePosts = meta.filter((p) => p.isChallenge && (p.type === 'versus' || p.type === 'duet'))
+    if (!currentUser) {
+      return NextResponse.json({ posts: [] })
+    }
+    const uname = currentUser.username
+    const posts = challengePosts.filter((p) => {
+      const a = p.sideA?.author?.username || p.author?.username
+      const b = p.sideB?.author?.username
+      return a === uname || b === uname
+    })
     return NextResponse.json({ posts })
   }
 

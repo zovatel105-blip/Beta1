@@ -144,6 +144,9 @@ backend:
         -working: true
         -agent: "main"
         -comment: "Devuelve {posts:[...]} con los uploads filtrados por isChallenge=true (type versus/duet), shape idéntico al feed. Verificado manualmente: GET /api/challenges/completed 200 y la página Completados renderiza 6 retos con CarouselSlide (diseño feed). Usuario pidió NO usar agente de testing."
+        -working: true
+        -agent: "main"
+        -comment: "BUG FIX (usuario: 'no tengo ningún reto completado pero me aparecen retos que no son míos'). CAUSA: el endpoint devolvía TODOS los posts isChallenge sin filtrar por usuario. FIX: ahora usa getCurrentUser y filtra por participante (sideA.author.username o sideB.author.username === usuario actual); invitados -> []. Verificado manualmente (sin agente de testing): invitado -> 0; retador X ve su reto (1); usuario Y no participante -> 0. Los 6 retos demo existentes (author 'tu_canal') ya no aparecen para otros usuarios."
   - task: "GET /api/users devuelve la lista de creadores demo"
     implemented: true
     working: true

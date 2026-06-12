@@ -1,5 +1,32 @@
 [
   {
+    "id": "challenge_3dbe169a3f263500",
+    "status": "pending",
+    "from": {
+      "id": "9e04c2cd-984b-4c77-8e8f-5b135d848148",
+      "username": "Nex",
+      "name": "Nex",
+      "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=Nex",
+      "verified": false
+    },
+    "to": {
+      "username": "usuario",
+      "name": "Usuario",
+      "avatarUrl": ""
+    },
+    "challengerVideoUrl": "/uploads/bee0ff91410bd38b.mp4",
+    "targetVideoUrl": null,
+    "targetAuthor": {
+      "username": "usuario",
+      "name": "Usuario",
+      "avatarUrl": ""
+    },
+    "targetDescription": "",
+    "targetMusic": "",
+    "message": "",
+    "createdAt": "2026-06-12T13:56:58.839Z"
+  },
+  {
     "id": "challenge_c36623167c28dcac",
     "status": "pending",
     "from": {

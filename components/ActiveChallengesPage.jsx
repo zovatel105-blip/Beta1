@@ -5,7 +5,8 @@ import { useEffect, useRef, useState } from 'react'
 import { Swiper, SwiperSlide } from 'swiper/react'
 import { Mousewheel, Keyboard } from 'swiper/modules'
 import 'swiper/css'
-import { Swords, Check, X, Loader2, User } from 'lucide-react'
+import { Swords, Check, X, Loader2 } from 'lucide-react'
+import Avatar from './Avatar'
 
 /**
  * ActiveChallengesPage — Retos activos (premium minimalista, vista completa).
@@ -17,14 +18,13 @@ import { Swords, Check, X, Loader2, User } from 'lucide-react'
  */
 const GOLD = '#E4C79B'
 
+// Avatar con anillo que usa el MISMO componente <Avatar> del perfil/feed -> los
+// avatares autogenerados (dicebear/pravatar) se muestran como la silueta gris,
+// idéntica a la del perfil.
 const RingAvatar = ({ src, ring, size = 'w-11 h-11' }) => (
   <div className={`${size} rounded-full p-[2px] shrink-0`} style={{ background: ring }}>
-    <div className="w-full h-full rounded-full overflow-hidden bg-zinc-800 flex items-center justify-center">
-      {src ? (
-        <img src={src} alt="" className="w-full h-full object-cover" draggable={false} />
-      ) : (
-        <User className="w-1/2 h-1/2 text-white/70" />
-      )}
+    <div className="w-full h-full rounded-full overflow-hidden bg-zinc-800">
+      <Avatar src={src} className="w-full h-full rounded-full" />
     </div>
   </div>
 )
