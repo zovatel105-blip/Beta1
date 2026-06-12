@@ -170,8 +170,8 @@ export default function BottomNav({ onOpenUpload, onOpenInbox, onOpenProfile, on
                 </div>
               </div>
             ) : (
-              // Sin foto actualizada: DefaultAvatar gris
-              <DefaultAvatar className="w-7 h-7" />
+              // Sin foto actualizada: DefaultAvatar gris (mismo tamaño que ícono User)
+              <DefaultAvatar className="w-5 h-5" />
             )
           ) : (
             // Usuario NO registrado: ícono simple
