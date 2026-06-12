@@ -1,9 +1,120 @@
 'use client'
 /* eslint-disable react-hooks/set-state-in-effect -- carga async al abrir; falso positivo de la regla experimental. */
 
-import { useEffect, useState } from 'react'
-import { X, Swords, Check, Loader2, Inbox } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { X, Swords, Check, Loader2, Inbox, Film } from 'lucide-react'
 import Avatar from './Avatar'
+
+/**
+ * InboxChallengeCard — una tarjeta de reto recibido en la bandeja. Si el reto
+ * es "con mención" (sin targetVideoUrl), el retado puede subir su vídeo de
+ * respuesta ANTES de aceptar (botón) o DESPUÉS (al pulsar Aceptar se abre el
+ * selector y se envía automáticamente).
+ */
+function InboxChallengeCard({ c, busy, onAccept, onReject }) {
+  const fileRef = useRef(null)
+  const pendingAcceptRef = useRef(false)
+  const [responseFile, setResponseFile] = useState(null)
+  const [responsePreview, setResponsePreview] = useState(null)
+
+  const needsVideo = !c.targetVideoUrl
+
+  useEffect(() => () => { if (responsePreview) URL.revokeObjectURL(responsePreview) }, [responsePreview])
+
+  const pickFile = () => fileRef.current?.click()
+  const onFileChange = (e) => {
+    const f = e.target.files?.[0]
+    e.target.value = ''
+    if (!f) return
+    if (!f.type.startsWith('video/')) return
+    setResponseFile(f)
+    setResponsePreview((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(f) })
+    if (pendingAcceptRef.current) {
+      pendingAcceptRef.current = false
+      onAccept(c, f)
+    }
+  }
+  const handleAccept = () => {
+    if (needsVideo && !responseFile) {
+      pendingAcceptRef.current = true
+      pickFile()
+      return
+    }
+    onAccept(c, responseFile)
+  }
+
+  const responseUrl = needsVideo ? responsePreview : c.targetVideoUrl
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+      <input ref={fileRef} type="file" accept="video/*" className="hidden" onChange={onFileChange} />
+      <div className="flex items-center gap-2 mb-3">
+        <div className="w-8 h-8 rounded-full overflow-hidden bg-zinc-800 shrink-0">
+          <Avatar src={c.from?.avatarUrl} className="w-full h-full rounded-full" />
+        </div>
+        <div className="text-sm text-white">
+          <span className="font-bold">@{c.from?.username}</span> te ha retado
+        </div>
+      </div>
+
+      <div className="flex items-stretch gap-2">
+        <div className="flex-1 aspect-[9/16] rounded-xl overflow-hidden relative bg-zinc-900">
+          <span className="absolute top-1 left-1 z-10 text-[10px] font-bold bg-black/50 rounded-full px-1.5" style={{ color: '#C084FC' }}>@{c.from?.username}</span>
+          {c.challengerVideoUrl && (
+            <video src={c.challengerVideoUrl + '#t=0.2'} muted playsInline preload="metadata" className="absolute inset-0 w-full h-full object-cover" />
+          )}
+        </div>
+        <div className="flex items-center text-white/60 font-black text-xs">VS</div>
+        <div className="flex-1 aspect-[9/16] rounded-xl overflow-hidden relative bg-zinc-900">
+          <span className="absolute top-1 left-1 z-10 text-[10px] font-bold bg-black/50 rounded-full px-1.5" style={{ color: '#60A5FA' }}>@{c.to?.username}</span>
+          {responseUrl ? (
+            <video src={responseUrl + '#t=0.2'} muted playsInline preload="metadata" className="absolute inset-0 w-full h-full object-cover" />
+          ) : (
+            <button onClick={pickFile} className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 text-center px-2 active:bg-white/5 transition">
+              <Film className="w-6 h-6 text-zinc-400" strokeWidth={1.5} />
+              <span className="text-[11px] font-semibold text-white leading-tight">Sube tu vídeo</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {c.message && (
+        <p className="text-xs text-white/70 mt-2 italic">“{c.message}”</p>
+      )}
+
+      {/* Subir mi vídeo ANTES de aceptar (retos con mención) */}
+      {needsVideo && (
+        <button
+          onClick={pickFile}
+          disabled={busy}
+          className="w-full rounded-full py-2.5 mt-3 text-sm font-bold text-white border border-white/20 hover:bg-white/10 active:scale-[0.98] transition disabled:opacity-50 flex items-center justify-center gap-1.5"
+        >
+          <Film size={15} strokeWidth={2} />
+          {responseFile ? 'Cambiar mi vídeo' : 'Subir mi vídeo'}
+        </button>
+      )}
+
+      <div className="flex gap-2 mt-3">
+        <button
+          onClick={() => onReject(c)}
+          disabled={busy}
+          className="flex-1 rounded-full py-2.5 text-sm font-bold text-white bg-white/10 hover:bg-white/20 active:scale-[0.98] transition disabled:opacity-50"
+        >
+          Cancelar
+        </button>
+        <button
+          onClick={handleAccept}
+          disabled={busy}
+          className="flex-1 rounded-full py-2.5 text-sm font-bold text-white active:scale-[0.98] transition disabled:opacity-50 flex items-center justify-center gap-1.5"
+          style={{ background: 'linear-gradient(90deg, #A855F7, #3B82F6)' }}
+        >
+          {busy ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+          {needsVideo && !responseFile ? 'Subir y aceptar' : 'Aceptar reto'}
+        </button>
+      </div>
+    </div>
+  )
+}
 
 /**
  * ChallengesInbox — Bandeja de retos (solicitudes de enfrentamiento).
@@ -36,10 +147,17 @@ export default function ChallengesInbox({ open, onClose, onAccepted, onChanged }
 
   if (!open) return null
 
-  const accept = async (c) => {
+  const accept = async (c, file = null) => {
     setBusyId(c.id)
     try {
-      const res = await fetch(`/api/challenges/${c.id}/accept`, { method: 'POST' })
+      let res
+      if (file) {
+        const fd = new FormData()
+        fd.append('file', file)
+        res = await fetch(`/api/challenges/${c.id}/accept`, { method: 'POST', body: fd })
+      } else {
+        res = await fetch(`/api/challenges/${c.id}/accept`, { method: 'POST' })
+      }
       if (res.ok) {
         const data = await res.json()
         setList((prev) => prev.filter((x) => x.id !== c.id))
@@ -92,55 +210,13 @@ export default function ChallengesInbox({ open, onClose, onAccepted, onChanged }
           ) : (
             <div className="space-y-3">
               {list.map((c) => (
-                <div key={c.id} className="rounded-2xl border border-white/10 bg-white/5 p-3">
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="w-8 h-8 rounded-full overflow-hidden bg-zinc-800 shrink-0">
-                      <Avatar src={c.from?.avatarUrl} className="w-full h-full rounded-full" />
-                    </div>
-                    <div className="text-sm text-white">
-                      <span className="font-bold">@{c.from?.username}</span> te ha retado
-                    </div>
-                  </div>
-
-                  <div className="flex items-stretch gap-2">
-                    <div className="flex-1 aspect-[9/16] rounded-xl overflow-hidden relative bg-zinc-900">
-                      <span className="absolute top-1 left-1 z-10 text-[10px] font-bold bg-black/50 rounded-full px-1.5" style={{ color: '#C084FC' }}>@{c.from?.username}</span>
-                      {c.challengerVideoUrl && (
-                        <video src={c.challengerVideoUrl + '#t=0.2'} muted playsInline preload="metadata" className="absolute inset-0 w-full h-full object-cover" />
-                      )}
-                    </div>
-                    <div className="flex items-center text-white/60 font-black text-xs">VS</div>
-                    <div className="flex-1 aspect-[9/16] rounded-xl overflow-hidden relative bg-zinc-900">
-                      <span className="absolute top-1 left-1 z-10 text-[10px] font-bold bg-black/50 rounded-full px-1.5" style={{ color: '#60A5FA' }}>@{c.to?.username}</span>
-                      {c.targetVideoUrl && (
-                        <video src={c.targetVideoUrl + '#t=0.2'} muted playsInline preload="metadata" className="absolute inset-0 w-full h-full object-cover" />
-                      )}
-                    </div>
-                  </div>
-
-                  {c.message && (
-                    <p className="text-xs text-white/70 mt-2 italic">“{c.message}”</p>
-                  )}
-
-                  <div className="flex gap-2 mt-3">
-                    <button
-                      onClick={() => reject(c)}
-                      disabled={busyId === c.id}
-                      className="flex-1 rounded-full py-2.5 text-sm font-bold text-white bg-white/10 hover:bg-white/20 active:scale-[0.98] transition disabled:opacity-50"
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      onClick={() => accept(c)}
-                      disabled={busyId === c.id}
-                      className="flex-1 rounded-full py-2.5 text-sm font-bold text-white active:scale-[0.98] transition disabled:opacity-50 flex items-center justify-center gap-1.5"
-                      style={{ background: 'linear-gradient(90deg, #A855F7, #3B82F6)' }}
-                    >
-                      {busyId === c.id ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
-                      Aceptar reto
-                    </button>
-                  </div>
-                </div>
+                <InboxChallengeCard
+                  key={c.id}
+                  c={c}
+                  busy={busyId === c.id}
+                  onAccept={accept}
+                  onReject={reject}
+                />
               ))}
             </div>
           )}

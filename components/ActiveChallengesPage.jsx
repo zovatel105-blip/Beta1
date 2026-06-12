@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Swiper, SwiperSlide } from 'swiper/react'
 import { Mousewheel, Keyboard } from 'swiper/modules'
 import 'swiper/css'
-import { Swords, Check, X, Loader2 } from 'lucide-react'
+import { Swords, Check, X, Loader2, Film } from 'lucide-react'
 import Avatar from './Avatar'
 
 /**
@@ -30,14 +30,55 @@ const RingAvatar = ({ src, size = 'w-11 h-11' }) => (
 const ChallengeSlide = ({ c, busy, onAccept, onReject }) => {
   const [idx, setIdx] = useState(0)
   const innerRef = useRef(null)
+  const fileRef = useRef(null)
+  const pendingAcceptRef = useRef(false)
+  const [responseFile, setResponseFile] = useState(null)
+  const [responsePreview, setResponsePreview] = useState(null)
 
+  // Reto "con mención": NO trae vídeo del retado (targetVideoUrl). El retado
+  // debe subir su vídeo de respuesta para poder aceptar.
+  const needsVideo = !c.targetVideoUrl
+
+  // Limpia el object URL del preview al cambiarlo/desmontar.
+  useEffect(() => () => { if (responsePreview) URL.revokeObjectURL(responsePreview) }, [responsePreview])
+
+  const pickFile = () => fileRef.current?.click()
+  const onFileChange = (e) => {
+    const f = e.target.files?.[0]
+    e.target.value = '' // permite volver a elegir el mismo archivo
+    if (!f) return
+    if (!f.type.startsWith('video/')) return
+    setResponseFile(f)
+    setResponsePreview((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(f) })
+    // Flujo "después": si pulsaste Aceptar sin vídeo, al elegirlo se envía solo.
+    if (pendingAcceptRef.current) {
+      pendingAcceptRef.current = false
+      onAccept(c, f)
+    }
+  }
+
+  const handleAccept = () => {
+    if (needsVideo && !responseFile) {
+      // Flujo "después": abrir el selector y enviar automáticamente al elegir.
+      pendingAcceptRef.current = true
+      pickFile()
+      return
+    }
+    onAccept(c, responseFile) // file puede ser null si el reto ya trae targetVideoUrl
+  }
+
+  // Lado B = vídeo de respuesta: el ya existente (targetVideoUrl) o el preview
+  // del archivo recién elegido. Si es reto con mención y aún no hay vídeo, el
+  // lado B se muestra como zona para subir.
+  const responseUrl = needsVideo ? responsePreview : c.targetVideoUrl
   const videos = [
-    { url: c.challengerVideoUrl, author: c.from, tag: 'A', tagColor: GOLD },
-    { url: c.targetVideoUrl, author: c.to, tag: 'B', tagColor: '#FFFFFF' },
-  ].filter((v) => v.url)
+    { url: c.challengerVideoUrl, author: c.from, tag: 'A', tagColor: GOLD, isResponse: false },
+    { url: responseUrl, author: c.to, tag: 'B', tagColor: '#FFFFFF', isResponse: true },
+  ]
 
   return (
     <div className="relative w-full h-full bg-black overflow-hidden">
+      <input ref={fileRef} type="file" accept="video/*" className="hidden" onChange={onFileChange} />
       {/* Carrusel horizontal de vídeos A / B */}
       <Swiper
         direction="horizontal"
@@ -51,23 +92,51 @@ const ChallengeSlide = ({ c, busy, onAccept, onReject }) => {
         {videos.map((v, i) => (
           <SwiperSlide key={i}>
             <div className="relative w-full h-full bg-black">
-              <video
-                src={v.url + '#t=0.3'}
-                muted
-                playsInline
-                loop
-                autoPlay
-                preload="metadata"
-                className="absolute inset-0 w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/25 to-black/40" />
-              {/* Etiqueta del lado */}
-              <span
-                className="absolute top-[72px] left-4 z-10 text-[11px] font-bold bg-black/45 backdrop-blur rounded-full px-2.5 py-1"
-                style={{ color: v.tagColor }}
-              >
-                {v.tag} · @{v.author?.username}
-              </span>
+              {v.url ? (
+                <>
+                  <video
+                    src={v.url + '#t=0.3'}
+                    muted
+                    playsInline
+                    loop
+                    autoPlay
+                    preload="metadata"
+                    className="absolute inset-0 w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black via-black/25 to-black/40" />
+                  {/* Etiqueta del lado */}
+                  <span
+                    className="absolute top-[72px] left-4 z-10 text-[11px] font-bold bg-black/45 backdrop-blur rounded-full px-2.5 py-1"
+                    style={{ color: v.tagColor }}
+                  >
+                    {v.tag} · @{v.author?.username}
+                  </span>
+                  {/* Si es mi respuesta recién subida, permitir cambiarla */}
+                  {v.isResponse && needsVideo && (
+                    <button
+                      onClick={pickFile}
+                      className="absolute top-[72px] right-4 z-10 text-[11px] font-semibold bg-black/55 backdrop-blur rounded-full px-3 py-1 text-white border border-white/15 hover:bg-black/70 active:scale-95 transition"
+                    >
+                      Cambiar vídeo
+                    </button>
+                  )}
+                </>
+              ) : (
+                // Lado B sin vídeo (reto con mención) -> zona para subir mi respuesta.
+                <button
+                  onClick={pickFile}
+                  className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-zinc-900 active:bg-zinc-800 transition"
+                >
+                  <span className="absolute top-[72px] left-4 z-10 text-[11px] font-bold bg-black/45 backdrop-blur rounded-full px-2.5 py-1 text-white">
+                    B · @{c.to?.username}
+                  </span>
+                  <div className="w-16 h-16 rounded-full border border-white/15 bg-white/[0.04] flex items-center justify-center">
+                    <Film className="w-7 h-7 text-zinc-400" strokeWidth={1.5} />
+                  </div>
+                  <span className="text-white font-semibold text-[15px]">Sube tu vídeo de respuesta</span>
+                  <span className="text-zinc-500 text-[13px]">Toca para grabar o elegir</span>
+                </button>
+              )}
             </div>
           </SwiperSlide>
         ))}
@@ -111,15 +180,27 @@ const ChallengeSlide = ({ c, busy, onAccept, onReject }) => {
             </div>
           </div>
 
+          {/* En retos con mención: opción de subir el vídeo ANTES de aceptar. */}
+          {needsVideo && (
+            <button
+              onClick={pickFile}
+              disabled={busy}
+              className="w-full h-10 mt-2.5 rounded-full border border-white/20 text-white font-semibold text-[14px] flex items-center justify-center gap-1.5 hover:bg-white/[0.06] active:scale-[0.99] transition disabled:opacity-50"
+            >
+              <Film size={16} strokeWidth={2} />
+              {responseFile ? 'Cambiar mi vídeo' : 'Subir mi vídeo'}
+            </button>
+          )}
+
           {/* Acciones compactas */}
           <div className="flex gap-2 mt-2.5">
             <button
-              onClick={() => onAccept(c)}
+              onClick={handleAccept}
               disabled={busy}
               className="flex-1 h-10 rounded-full bg-white text-black font-semibold text-[14px] flex items-center justify-center gap-1.5 hover:bg-zinc-100 active:scale-[0.99] transition disabled:opacity-50"
             >
               {busy ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} strokeWidth={2.5} />}
-              Aceptar
+              {needsVideo && !responseFile ? 'Subir y aceptar' : 'Aceptar reto'}
             </button>
             <button
               onClick={() => onReject(c)}
@@ -156,10 +237,19 @@ export default function ActiveChallengesPage({ open, onClose, onAccepted, onChan
 
   if (!open) return null
 
-  const accept = async (c) => {
+  const accept = async (c, file = null) => {
     setBusyId(c.id)
     try {
-      const res = await fetch(`/api/challenges/${c.id}/accept`, { method: 'POST' })
+      let res
+      if (file) {
+        // Reto con mención: subimos el vídeo de respuesta del retado.
+        const fd = new FormData()
+        fd.append('file', file)
+        res = await fetch(`/api/challenges/${c.id}/accept`, { method: 'POST', body: fd })
+      } else {
+        // Reto a un contenido concreto (ya trae targetVideoUrl).
+        res = await fetch(`/api/challenges/${c.id}/accept`, { method: 'POST' })
+      }
       if (res.ok) {
         const data = await res.json()
         setList((prev) => prev.filter((x) => x.id !== c.id))

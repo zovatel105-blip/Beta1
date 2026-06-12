@@ -188,15 +188,29 @@ backend:
         -comment: "✅ VERIFIED: POST /api/challenges with authenticated user (Bearer token) -> 200. Response has status='pending', from.username='testreg1' (authenticated user, not 'tu_canal'), to.username='urbanlife', challengerVideoUrl starts with /uploads/, targetVideoUrl=null. Challenge created successfully with correct authenticated author. Tested in backend_auth_test.py."
   - task: "POST /api/challenges/{id}/accept acepta el vídeo del retado (multipart file)"
     implemented: true
-    working: "NA"
+    working: true
     file: "app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         -working: "NA"
         -agent: "main"
-        -comment: "CAMBIO: accept ahora puede recibir multipart 'file' (vídeo del retado). Si el reto NO tiene targetVideoUrl y se envía file -> usa ese. Si el reto YA tiene targetVideoUrl y se acepta SIN body -> usa ese (compat). Si no hay ninguno -> 400 'no_response_video'. Devuelve {ok:true, post} type='versus' con sideA=challenger, sideB=respuesta; luego aparece en GET /api/uploads y desaparece de GET /api/challenges. id inexistente -> 404. PROBAR LOS 2 CAMINOS: (1) crear challenge SIN targetVideoUrl y aceptar CON file; (2) crear challenge CON targetVideoUrl y aceptar SIN body."
+        -comment: "CAMBIO: accept ahora puede recibir multipart 'file' (vídeo del retado). Si el reto NO tiene targetVideoUrl y se envía file -> usa ese. Si el reto YA tiene targetVideoUrl y se acepta SIN body -> usa ese (compat). Si no hay ninguno -> 400 'no_response_video'."
+        -working: true
+        -agent: "main"
+        -comment: "VERIFICADO MANUALMENTE (sin agente de testing, petición del usuario). Reto con mención SIN targetVideoUrl: menF reta a menT -> menT lo ve (targetVideoUrl=null). menT acepta CON multipart file -> 200, post type='versus', sideA.author='menF' (retador), sideB.author='menT', sideB.videoUrl empieza con /uploads/. El reto desaparece de activos y aparece en /challenges/completed de ambos participantes. Camino compat (aceptar sin body usando targetVideoUrl) ya verificado antes."
+  - task: "Subir vídeo de respuesta al aceptar un reto con mención (antes o después de pulsar Aceptar)"
+    implemented: true
+    working: true
+    file: "components/ActiveChallengesPage.jsx, components/ChallengesInbox.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "main"
+        -comment: "NUEVO (usuario: 'los retos con mención deben poder subir el contenido antes o después de aceptar'). En ActiveChallengesPage y ChallengesInbox: si el reto NO trae targetVideoUrl (mención), el lado B se muestra como zona para subir y hay botón 'Subir mi vídeo'. Flujo ANTES: subes el vídeo (preview) y luego pulsas 'Aceptar reto'. Flujo DESPUÉS: pulsas 'Subir y aceptar' -> se abre el selector y al elegir el vídeo se envía automáticamente (pendingAcceptRef). accept() ahora envía FormData con el file. Si el reto trae targetVideoUrl, acepta sin subir (compat). Verificado el backend del flujo completo manualmente."
   - task: "POST /api/challenges/{id}/reject elimina el reto"
     implemented: true
     working: true
