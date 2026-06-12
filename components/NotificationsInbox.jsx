@@ -1,19 +1,14 @@
 'use client'
-/* eslint-disable react-hooks/set-state-in-effect -- carga de notificaciones en useEffect al abrir; falso positivo de la regla experimental. */
 
 import { useEffect, useState } from 'react'
 import { Bell, Swords, UserPlus, MessageCircle, Check, ChevronLeft } from 'lucide-react'
 import VoteIcon from './icons/VoteIcon'
-import { MOCK_NOTIFICATIONS } from '@/lib/notifications'
+import { useAuth } from '@/contexts/AuthContext'
 
 /**
  * NotificationsInbox — Página de notificaciones (diseño premium minimalista, móvil).
- *
- * props:
- *   open    bool
- *   onClose () => void
+ * Ahora con datos reales de MongoDB.
  */
-// Colores de marca Twyk para las opciones de un reto.
 const TWYK_A = '#A855F7' // opción A (morado)
 const TWYK_B = '#3B82F6' // opción B (azul)
 
@@ -28,7 +23,6 @@ const iconFor = (n) => {
   }
 }
 
-// Pestañas para separar el tipo de notificaciones y toda la actividad.
 const FILTERS = [
   { key: 'all', label: 'Todo', types: null },
   { key: 'challenge', label: 'Retos', types: ['challenge', 'accepted'] },
@@ -40,25 +34,58 @@ const FILTERS = [
 export default function NotificationsInbox({ open, onClose }) {
   const [list, setList] = useState([])
   const [filter, setFilter] = useState('all')
+  const [loading, setLoading] = useState(false)
+  const { user } = useAuth()
 
   useEffect(() => {
-    if (open) {
-      setList(MOCK_NOTIFICATIONS)
-      setFilter('all')
+    if (open && user) {
+      loadNotifications(filter)
+    } else if (open && !user) {
+      setList([])
     }
-  }, [open])
+  }, [open, filter, user])
+
+  const loadNotifications = async (currentFilter) => {
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/notifications?filter=${currentFilter}`)
+      if (res.ok) {
+        const data = await res.json()
+        setList(data.notifications || [])
+      } else {
+        setList([])
+      }
+    } catch (err) {
+      console.error('Error loading notifications:', err)
+      setList([])
+    } finally {
+      setLoading(false)
+    }
+  }
 
   if (!open) return null
 
-  const markAllRead = () => setList((prev) => prev.map((n) => ({ ...n, read: true })))
+  const markAllRead = async () => {
+    try {
+      const res = await fetch('/api/notifications/read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ all: true }),
+      })
+      if (res.ok) {
+        setList((prev) => prev.map((n) => ({ ...n, read: true })))
+      }
+    } catch (err) {
+      console.error('Error marking all as read:', err)
+    }
+  }
+
   const hasUnread = list.some((n) => !n.read)
-
   const activeFilter = FILTERS.find((f) => f.key === filter) || FILTERS[0]
-  const filtered = activeFilter.types
-    ? list.filter((n) => activeFilter.types.includes(n.type))
-    : list
-
-  const countFor = (f) => (f.types ? list.filter((n) => f.types.includes(n.type)).length : list.length)
+  const countFor = (f) => {
+    if (!f.types) return list.length
+    return list.filter((n) => f.types.includes(n.type)).length
+  }
 
   return (
     <div className="fixed inset-0 z-[60] bg-[#0a0a0b] flex flex-col text-white">
@@ -114,7 +141,23 @@ export default function NotificationsInbox({ open, onClose }) {
 
       {/* Lista */}
       <div className="relative z-10 flex-1 overflow-y-auto px-2 pb-10">
-        {filtered.length === 0 ? (
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="w-8 h-8 rounded-full border-2 border-white/20 border-t-white animate-spin" />
+          </div>
+        ) : !user ? (
+          <div className="flex flex-col items-center justify-center text-center pt-28">
+            <div className="w-20 h-20 rounded-full border border-white/10 bg-white/[0.03] flex items-center justify-center mb-6">
+              <Bell className="w-9 h-9" strokeWidth={1.25} style={{ color: '#E4C79B' }} />
+            </div>
+            <h2 className="text-white text-[22px] font-semibold tracking-tight">
+              Inicia sesión
+            </h2>
+            <p className="text-zinc-400 text-[15px] mt-2 max-w-[16rem] leading-relaxed">
+              Necesitas iniciar sesión para ver tus notificaciones
+            </p>
+          </div>
+        ) : list.length === 0 ? (
           <div className="flex flex-col items-center justify-center text-center pt-28">
             <div className="w-20 h-20 rounded-full border border-white/10 bg-white/[0.03] flex items-center justify-center mb-6"
                  style={{ boxShadow: '0 0 48px -14px rgba(214,178,122,0.4)' }}>
@@ -131,7 +174,7 @@ export default function NotificationsInbox({ open, onClose }) {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-1.5 pt-1">
-            {filtered.map((n) => {
+            {list.map((n) => {
               const { Icon, color } = iconFor(n)
               return (
                 <div

@@ -1,5 +1,54 @@
 [
   {
+    "id": "versus_up_8d50543f710f8dc4",
+    "type": "versus",
+    "layout": "carousel",
+    "sideA": {
+      "videoUrl": "/uploads/061666f2e9432751.mp4",
+      "posterUrl": "/uploads/061666f2e9432751.jpg",
+      "author": {
+        "username": "tu_canal",
+        "name": "Tú",
+        "avatarUrl": "https://i.pravatar.cc/120?img=68"
+      },
+      "description": "Hi",
+      "music": "Opción A"
+    },
+    "sideB": {
+      "videoUrl": "/uploads/9dc64410d0b9965a.mp4",
+      "posterUrl": "/uploads/9dc64410d0b9965a.jpg",
+      "author": {
+        "username": "tu_canal",
+        "name": "Tú",
+        "avatarUrl": "https://i.pravatar.cc/120?img=68"
+      },
+      "description": "Hi",
+      "music": "Opción B"
+    },
+    "author": {
+      "username": "tu_canal",
+      "name": "Tú",
+      "avatarUrl": "https://i.pravatar.cc/120?img=68"
+    },
+    "description": "Hi",
+    "music": "Tu versus original",
+    "videoUrl": "/uploads/061666f2e9432751.mp4",
+    "posterUrl": "/uploads/061666f2e9432751.jpg",
+    "thumbnailUrl": "/uploads/061666f2e9432751.jpg",
+    "stats": {
+      "likes": 0,
+      "comments": 0,
+      "shares": 0,
+      "saves": 0
+    },
+    "votes": {
+      "a": 0,
+      "b": 0
+    },
+    "duration": 0,
+    "uploadedAt": "2026-06-12T05:10:41.751Z"
+  },
+  {
     "id": "versus_ch_9c9b5d2116d2a0f8",
     "type": "versus",
     "layout": "carousel",

@@ -21,6 +21,10 @@ import {
   createPost as createPostDB,
   votePost as votePostDB,
   incrementPostViews,
+  getNotifications as getNotificationsDB,
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+  getUnreadNotificationsCount,
 } from '@/lib/db'
 
 export const runtime = 'nodejs'
@@ -426,6 +430,31 @@ export async function GET(request, { params }) {
     return NextResponse.json({ user: currentUser })
   }
 
+  // GET /api/notifications - Obtener notificaciones del usuario
+  if (path === '/notifications') {
+    const currentUser = await getCurrentUser(request)
+    if (!currentUser) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    }
+
+    const { searchParams } = new URL(request.url)
+    const filter = searchParams.get('filter') || 'all'
+    
+    const notifications = await getNotificationsDB(currentUser.id, { filter })
+    return NextResponse.json({ notifications })
+  }
+
+  // GET /api/notifications/unread - Contador de notificaciones no leídas
+  if (path === '/notifications/unread') {
+    const currentUser = await getCurrentUser(request)
+    if (!currentUser) {
+      return NextResponse.json({ count: 0 })
+    }
+
+    const count = await getUnreadNotificationsCount(currentUser.id)
+    return NextResponse.json({ count })
+  }
+
   if (path === '/' || path === '') {
     return NextResponse.json({ ok: true, service: 'snaptok-api' })
   }
@@ -476,6 +505,11 @@ export async function POST(request, { params }) {
   // POST /api/auth/logout - Cerrar sesión
   if (path === '/auth/logout') {
     return handleLogout(request)
+  }
+
+  // POST /api/notifications/read - Marcar notificaciones como leídas
+  if (path === '/notifications/read') {
+    return handleMarkNotificationsRead(request)
   }
 
   // Crear un reto (solicitud de enfrentamiento) con un vídeo subido.
@@ -885,6 +919,32 @@ async function handleLogout(request) {
   } catch (err) {
     console.error('logout error', err)
     return NextResponse.json({ error: 'logout_failed' }, { status: 500 })
+  }
+}
+
+// POST /api/notifications/read - Marcar notificaciones como leídas
+async function handleMarkNotificationsRead(request) {
+  try {
+    const currentUser = await getCurrentUser(request)
+    if (!currentUser) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    }
+
+    const body = await request.json().catch(() => ({}))
+    const { notificationId, all } = body
+
+    if (all) {
+      await markAllNotificationsAsRead(currentUser.id)
+    } else if (notificationId) {
+      await markNotificationAsRead(notificationId)
+    } else {
+      return NextResponse.json({ error: 'missing_params' }, { status: 400 })
+    }
+
+    return NextResponse.json({ ok: true })
+  } catch (err) {
+    console.error('mark notifications read error', err)
+    return NextResponse.json({ error: 'mark_read_failed' }, { status: 500 })
   }
 }
 
