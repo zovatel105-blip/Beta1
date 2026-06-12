@@ -11,9 +11,11 @@ import NotificationsInbox from './NotificationsInbox'
 import ProfilePage from './ProfilePage'
 import CompletedBattlesPage from './CompletedBattlesPage'
 import ActiveChallengesPage from './ActiveChallengesPage'
+import GuestPromptModal from './GuestPromptModal'
 import { notificationsUnreadCount } from '@/lib/notifications'
 import { startNetworkMonitor, pickQuality, shouldConserve } from '@/lib/networkQuality'
 import { useFeed } from '@/hooks/useFeed'
+import { useGuestTracking } from '@/hooks/useGuestTracking'
 import { reportBackground, reportDecoderReleaseMs } from '@/lib/perfMetrics'
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -70,6 +72,7 @@ const slotPoster = (p) => p && (p.posterUrl || p.sideA?.posterUrl || p.thumbnail
  */
 export default function Feed() {
   const { posts, ready, loadMore, prependPost } = useFeed()
+  const { showGuestPrompt, dismissPrompt, trackVideoView, isGuest } = useGuestTracking()
 
   const [activeIndex, setActiveIndex] = useState(0)
   const [muted, setMuted] = useState(true)
@@ -162,6 +165,10 @@ export default function Feed() {
           if (idx !== activeIndexRef.current) {
             activeIndexRef.current = idx
             setActiveIndex(idx) // 1 único setState por cambio de tarjeta
+            // Trackear visualización de video para usuarios invitados
+            if (isGuest) {
+              trackVideoView()
+            }
           }
           // PREFETCH de la SIGUIENTE página: cuando la tarjeta en activeIndex+2
           // (zona de cola) entra en viewport, pedimos más feed. Mantiene siempre
@@ -175,7 +182,7 @@ export default function Feed() {
       if (slot) io.observe(slot)
     }
     return () => io.disconnect()
-  }, [posts.length, loadMore])
+  }, [posts.length, loadMore, isGuest, trackVideoView])
 
   // Prefetch silencioso del media de las PRÓXIMAS tarjetas, por delante de la
   // ventana de montaje -> arranque instantáneo al llegar (aunque deslices rápido).
@@ -351,6 +358,10 @@ export default function Feed() {
         onClose={() => setActiveChallengesOpen(false)}
         onAccepted={(post) => { handleUploaded(post); setBattlesRefresh((k) => k + 1) }}
         onChanged={refreshChallenges}
+      />
+      <GuestPromptModal
+        open={showGuestPrompt}
+        onClose={dismissPrompt}
       />
     </div>
   )
