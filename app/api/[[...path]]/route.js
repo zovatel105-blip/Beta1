@@ -17,6 +17,10 @@ import {
   toggleSave as toggleSaveDB,
   getSavesByUserId,
   isPostSavedByUser,
+  getPosts as getPostsDB,
+  createPost as createPostDB,
+  votePost as votePostDB,
+  incrementPostViews,
 } from '@/lib/db'
 
 export const runtime = 'nodejs'
@@ -298,12 +302,34 @@ export async function GET(request, { params }) {
     const { searchParams } = new URL(request.url)
     const cursor = parseInt(searchParams.get('cursor') || '0', 10)
     const limit = Math.min(parseInt(searchParams.get('limit') || '8', 10), 20)
-    const store = await readVotesStore()
-    const posts = makePosts(cursor, limit).map((p) => ({
-      ...p,
-      votes: store[p.id] || seedVotes(p.id),
-    }))
-    return NextResponse.json({ posts, nextCursor: cursor + limit, hasMore: true })
+    
+    try {
+      // Intentar obtener posts reales de MongoDB
+      const result = await getPostsDB({ cursor, limit })
+      
+      // Si hay posts reales, devolverlos
+      if (result.posts.length > 0) {
+        return NextResponse.json(result)
+      }
+      
+      // Fallback: Si no hay posts en MongoDB, usar datos de demo
+      console.log('⚠️  No hay posts en MongoDB, usando datos de demo')
+      const store = await readVotesStore()
+      const posts = makePosts(cursor, limit).map((p) => ({
+        ...p,
+        votes: store[p.id] || seedVotes(p.id),
+      }))
+      return NextResponse.json({ posts, nextCursor: cursor + limit, hasMore: true })
+    } catch (err) {
+      console.error('Error fetching posts from MongoDB:', err)
+      // Fallback en caso de error
+      const store = await readVotesStore()
+      const posts = makePosts(cursor, limit).map((p) => ({
+        ...p,
+        votes: store[p.id] || seedVotes(p.id),
+      }))
+      return NextResponse.json({ posts, nextCursor: cursor + limit, hasMore: true })
+    }
   }
 
   if (path === '/uploads') {
@@ -592,7 +618,18 @@ async function handleVote(request) {
     if (!id || (side !== 'a' && side !== 'b')) {
       return NextResponse.json({ error: 'bad_request' }, { status: 400 })
     }
-    // 1) Uploaded posts (duet or versus) -> persist in meta
+
+    const currentUser = await getCurrentUser(request)
+    
+    // 1) Intentar con MongoDB posts primero
+    try {
+      const votes = await votePostDB(id, side, currentUser?.id)
+      return NextResponse.json({ ok: true, votes })
+    } catch (mongoErr) {
+      // Si no existe en MongoDB, continuar con el sistema legacy
+    }
+    
+    // 2) Uploaded posts (duet or versus) -> persist in meta
     const meta = await readUploadMeta()
     const idx = meta.findIndex((p) => p.id === id && (p.type === 'duet' || p.type === 'versus'))
     if (idx !== -1) {
@@ -603,7 +640,7 @@ async function handleVote(request) {
       await writeUploadMeta(meta)
       return NextResponse.json({ ok: true, votes: p.votes })
     }
-    // 2) Built-in feed versus posts -> persist in votes store (seed if first time)
+    // 3) Built-in feed versus posts -> persist in votes store (seed if first time)
     const store = await readVotesStore()
     const base = store[id] || seedVotes(id)
     base[side] = (base[side] || 0) + 1
