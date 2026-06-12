@@ -232,15 +232,18 @@ backend:
         -comment: "vote increments side a/b. Already validated previously."
   - task: "Seguir persistente: POST /api/users/:username/follow (toggle) + GET /api/users/:username devuelve isFollowing y followers reales"
     implemented: true
-    working: "NA"
+    working: true
     file: "app/api/[[...path]]/route.js, lib/db.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         -working: "NA"
         -agent: "main"
-        -comment: "NUEVO. Follow persistente keyed por (followerId, followingUsername) en colección 'follows' (universal: sirve para usuarios reales y autores demo). (1) POST /api/users/:username/follow SIN sesión -> 401 unauthorized. (2) CON sesión: primer POST -> {ok:true, following:true, followers:N+1}; segundo POST (toggle) -> {ok:true, following:false, followers:N}. (3) Seguirse a sí mismo -> 400 cannot_follow_yourself. (4) GET /api/users/:username SIN sesión -> user.isFollowing=false y user.followers=conteo real. (5) GET /api/users/:username CON sesión tras seguir -> user.isFollowing=true. IMPORTANTE: la DB 'twyk' está vacía (se perdió el .env, ya restaurado MONGO_URL=mongodb://localhost:27017/twyk). El testing agent debe REGISTRAR sus propios usuarios vía POST /api/auth/register (p.ej. follower1/follower2 con password). Probar follow entre dos usuarios registrados y verificar persistencia (segundo GET refleja el estado)."
+        -comment: "NUEVO. Follow persistente keyed por (followerId, followingUsername) en colección 'follows' (universal: sirve para usuarios reales y autores demo). Restaurado .env (MONGO_URL=mongodb://localhost:27017/twyk) que se había perdido."
+        -working: true
+        -agent: "main"
+        -comment: "VERIFICADO MANUALMENTE (el usuario pidió NO usar agente de testing). Registrados follower1/target1. (B) POST /api/users/target1/follow sin sesión -> 401 {error:unauthorized}. (C) con sesión -> 200 {ok:true,following:true,followers:1}. (D) toggle -> {following:false,followers:0}; de nuevo -> {following:true,followers:1}. (E) seguirse a sí mismo -> 400 {error:cannot_follow_yourself}. (F) GET /api/users/target1 sin sesión -> isFollowing=false, followers=1. (G) GET con sesión -> isFollowing=true, followers=1. (H) seguir autor demo 'wanderlust' (sin documento de usuario) -> 200 {following:true,followers:1}. Regresión: /api/feed y /api/users 200. Datos de prueba limpiados."
 
 frontend:
   - task: "ProfilePage: botón Seguir persistente (API) y botón Mensaje -> Retar (abre ChallengeDialog hacia ese usuario)"
