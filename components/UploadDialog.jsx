@@ -2,7 +2,7 @@
 /* eslint-disable react-hooks/set-state-in-effect -- setState en efectos de carga/reset async; falso positivo de la regla experimental. */
 
 import { useEffect, useRef, useState } from 'react'
-import { ChevronRight, Loader2, Film, Swords, Users, Rows3, Columns3, ArrowLeft, X } from 'lucide-react'
+import { ChevronRight, Loader2, Film, Swords, Users, Rows3, Columns3, ArrowLeft, X, Search } from 'lucide-react'
 import Avatar from './Avatar'
 
 /**
@@ -21,6 +21,7 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
   const [layout, setLayout] = useState('horizontal') // 'horizontal' | 'vertical'
   const [users, setUsers] = useState([])
   const [usersLoading, setUsersLoading] = useState(false)
+  const [userQuery, setUserQuery] = useState('')
   const [target, setTarget] = useState(null) // usuario al que retar
   const [file, setFile] = useState(null)
   const [fileB, setFileB] = useState(null)
@@ -61,6 +62,7 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
   useEffect(() => {
     if (step !== 'target') return
     setUsersLoading(true)
+    setUserQuery('')
     fetch('/api/users', { cache: 'no-store' })
       .then((r) => r.json())
       .then((d) => setUsers(d.users || []))
@@ -275,9 +277,35 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
         )}
 
         {/* STEP: target — elegir a quién retar (después de subir tu vídeo) */}
-        {step === 'target' && (
+        {step === 'target' && (() => {
+          const q = userQuery.trim().toLowerCase()
+          const filteredUsers = q
+            ? users.filter((u) =>
+                (u.username || '').toLowerCase().includes(q) ||
+                (u.name || '').toLowerCase().includes(q)
+              )
+            : users
+          return (
           <div className="max-w-md mx-auto">
             <p className="text-[13px] text-zinc-500 mb-4">Elige a quién retar. Le aparecerá en sus retos activos para aceptar.</p>
+
+            {/* Buscador de usuarios */}
+            <div className="flex items-center gap-2.5 h-11 px-4 rounded-full bg-white/[0.04] border border-white/10 focus-within:border-white/30 transition mb-4">
+              <Search className="w-4 h-4 text-zinc-500 shrink-0" />
+              <input
+                type="text"
+                value={userQuery}
+                onChange={(e) => setUserQuery(e.target.value)}
+                placeholder="Buscar usuario por nombre o @usuario"
+                className="flex-1 min-w-0 bg-transparent text-[14px] text-white placeholder:text-zinc-500 focus:outline-none"
+              />
+              {userQuery && (
+                <button onClick={() => setUserQuery('')} aria-label="Limpiar" className="shrink-0 text-zinc-500 hover:text-white transition">
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
             {usersLoading ? (
               <div className="flex justify-center py-16">
                 <Loader2 className="animate-spin text-zinc-400" />
@@ -290,9 +318,13 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
                 <p className="text-white font-semibold text-[15px]">Aún no hay usuarios para retar</p>
                 <p className="text-zinc-500 text-[13px] mt-1">Cuando se registren más creadores, aparecerán aquí.</p>
               </div>
+            ) : filteredUsers.length === 0 ? (
+              <div className="text-center py-12 px-4">
+                <p className="text-zinc-400 text-[14px]">Sin resultados para “{userQuery}”.</p>
+              </div>
             ) : (
               <div className="space-y-2">
-                {users.map((u) => (
+                {filteredUsers.map((u) => (
                   <button
                     key={u.username}
                     onClick={() => { setTarget(u); doUpload(u) }}
@@ -314,7 +346,8 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
             )}
             {error && <div className="text-xs text-rose-400 mt-4">{error}</div>}
           </div>
-        )}
+          )
+        })()}
 
         {/* STEP: file — vista previa a PANTALLA COMPLETA */}
         {step === 'file' && (
