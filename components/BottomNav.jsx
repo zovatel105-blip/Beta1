@@ -159,8 +159,8 @@ export default function BottomNav({ onOpenUpload, onOpenInbox, onOpenProfile, on
           {user ? (
             // Usuario registrado: verificar si tiene foto real o es avatar generado
             user.avatarUrl && !user.avatarUrl.includes('dicebear') && !user.avatarUrl.includes('pravatar') ? (
-              // Foto real subida por el usuario
-              <div className="w-7 h-7 rounded-full p-[2px] bg-gradient-to-br from-white/15 to-white/[0.03]">
+              // Foto real subida por el usuario (22px)
+              <div className="w-[22px] h-[22px] rounded-full p-[2px] bg-gradient-to-br from-white/15 to-white/[0.03]">
                 <div className="w-full h-full rounded-full overflow-hidden bg-zinc-900 ring-1 ring-white/10">
                   <img
                     src={user.avatarUrl}
@@ -170,11 +170,11 @@ export default function BottomNav({ onOpenUpload, onOpenInbox, onOpenProfile, on
                 </div>
               </div>
             ) : (
-              // Sin foto actualizada: DefaultAvatar gris (mismo tamaño que ícono User)
-              <DefaultAvatar className="w-5 h-5" />
+              // Sin foto actualizada: DefaultAvatar gris (22px)
+              <DefaultAvatar className="w-[22px] h-[22px]" />
             )
           ) : (
-            // Usuario NO registrado: ícono simple
+            // Usuario NO registrado: ícono simple (20px)
             <User
               className={cn(
                 'w-5 h-5 transition-all duration-200',
