@@ -3,12 +3,51 @@ import { promises as fs } from 'fs'
 import nodePath from 'path'
 import crypto from 'crypto'
 import { spawn } from 'child_process'
+import { 
+  createUser, 
+  verifyUserCredentials, 
+  createSession, 
+  getSessionByToken,
+  deleteSession,
+  getUserById,
+  createComment as createCommentDB,
+  getCommentsByPostId,
+  toggleCommentLike as toggleCommentLikeDB,
+  deleteComment as deleteCommentDB,
+  toggleSave as toggleSaveDB,
+  getSavesByUserId,
+  isPostSavedByUser,
+} from '@/lib/db'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 const UPLOAD_DIR = nodePath.join(process.cwd(), 'public', 'uploads')
 const UPLOAD_META = nodePath.join(UPLOAD_DIR, '_meta.json')
+
+// ────────────────────────────────────────────────────────────────────────────
+// HELPER: Obtener usuario actual desde token
+// ────────────────────────────────────────────────────────────────────────────
+async function getCurrentUser(request) {
+  try {
+    const token = request.headers.get('authorization')?.replace('Bearer ', '') ||
+                  request.cookies.get('session_token')?.value
+    
+    if (!token) return null
+    
+    const session = await getSessionByToken(token)
+    if (!session) return null
+    
+    const user = await getUserById(session.userId)
+    if (!user) return null
+    
+    const { password: _, ...userWithoutPassword } = user
+    return userWithoutPassword
+  } catch (err) {
+    console.error('Error getting current user:', err)
+    return null
+  }
+}
 
 function transcodeToWebm(inPath, outPath) {
   return new Promise((resolve) => {
@@ -335,16 +374,30 @@ export async function GET(request, { params }) {
     if (!postId) {
       return NextResponse.json({ error: 'missing_postId' }, { status: 400 })
     }
-    const store = await readComments()
-    const comments = store[postId] || []
+    
+    const currentUser = await getCurrentUser(request)
+    const comments = await getCommentsByPostId(postId, currentUser?.id)
     return NextResponse.json({ comments })
   }
 
   // GET /api/saves - Obtener posts guardados del usuario
   if (path === '/saves') {
-    const store = await readSaves()
-    const savedPosts = Object.keys(store).filter((postId) => store[postId] === true)
-    return NextResponse.json({ saves: savedPosts })
+    const currentUser = await getCurrentUser(request)
+    if (!currentUser) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    }
+    
+    const saves = await getSavesByUserId(currentUser.id)
+    return NextResponse.json({ saves })
+  }
+
+  // GET /api/auth/me - Obtener usuario actual
+  if (path === '/auth/me') {
+    const currentUser = await getCurrentUser(request)
+    if (!currentUser) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    }
+    return NextResponse.json({ user: currentUser })
   }
 
   if (path === '/' || path === '') {
@@ -382,6 +435,21 @@ export async function POST(request, { params }) {
   // POST /api/save - Guardar/quitar de guardados un post
   if (path === '/save') {
     return handleSavePost(request)
+  }
+
+  // POST /api/auth/register - Registrar nuevo usuario
+  if (path === '/auth/register') {
+    return handleRegister(request)
+  }
+
+  // POST /api/auth/login - Iniciar sesión
+  if (path === '/auth/login') {
+    return handleLogin(request)
+  }
+
+  // POST /api/auth/logout - Cerrar sesión
+  if (path === '/auth/logout') {
+    return handleLogout(request)
   }
 
   // Crear un reto (solicitud de enfrentamiento) con un vídeo subido.
@@ -690,9 +758,111 @@ async function handleRejectChallenge(cid) {
 // HANDLERS DE COMENTARIOS Y GUARDADOS
 // ────────────────────────────────────────────────────────────────────────────
 
+// ────────────────────────────────────────────────────────────────────────────
+// HANDLERS DE AUTENTICACIÓN
+// ────────────────────────────────────────────────────────────────────────────
+
+// POST /api/auth/register - Registrar nuevo usuario
+async function handleRegister(request) {
+  try {
+    const body = await request.json()
+    const { username, email, password } = body
+
+    if (!username || !email || !password) {
+      return NextResponse.json({ error: 'missing_fields' }, { status: 400 })
+    }
+
+    if (password.length < 6) {
+      return NextResponse.json({ error: 'password_too_short' }, { status: 400 })
+    }
+
+    const user = await createUser({ username, email, password })
+    const session = await createSession(user.id)
+
+    const response = NextResponse.json({ ok: true, user, token: session.token })
+    response.cookies.set('session_token', session.token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 30 * 24 * 60 * 60, // 30 días
+    })
+
+    return response
+  } catch (err) {
+    console.error('register error', err)
+    if (err.message === 'username_taken') {
+      return NextResponse.json({ error: 'username_taken', message: 'El nombre de usuario ya existe' }, { status: 400 })
+    }
+    if (err.message === 'email_taken') {
+      return NextResponse.json({ error: 'email_taken', message: 'El email ya está registrado' }, { status: 400 })
+    }
+    return NextResponse.json({ error: 'register_failed' }, { status: 500 })
+  }
+}
+
+// POST /api/auth/login - Iniciar sesión
+async function handleLogin(request) {
+  try {
+    const body = await request.json()
+    const { username, password } = body
+
+    if (!username || !password) {
+      return NextResponse.json({ error: 'missing_fields' }, { status: 400 })
+    }
+
+    const user = await verifyUserCredentials(username, password)
+    if (!user) {
+      return NextResponse.json({ error: 'invalid_credentials', message: 'Usuario o contraseña incorrectos' }, { status: 401 })
+    }
+
+    const session = await createSession(user.id)
+
+    const response = NextResponse.json({ ok: true, user, token: session.token })
+    response.cookies.set('session_token', session.token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 30 * 24 * 60 * 60,
+    })
+
+    return response
+  } catch (err) {
+    console.error('login error', err)
+    return NextResponse.json({ error: 'login_failed' }, { status: 500 })
+  }
+}
+
+// POST /api/auth/logout - Cerrar sesión
+async function handleLogout(request) {
+  try {
+    const token = request.headers.get('authorization')?.replace('Bearer ', '') ||
+                  request.cookies.get('session_token')?.value
+
+    if (token) {
+      await deleteSession(token)
+    }
+
+    const response = NextResponse.json({ ok: true })
+    response.cookies.delete('session_token')
+    return response
+  } catch (err) {
+    console.error('logout error', err)
+    return NextResponse.json({ error: 'logout_failed' }, { status: 500 })
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// HANDLERS DE COMENTARIOS (ACTUALIZADOS CON MONGODB)
+// ────────────────────────────────────────────────────────────────────────────
+
 // POST /api/comments - Crear un comentario
 async function handleCreateComment(request) {
   try {
+    const currentUser = await getCurrentUser(request)
+    if (!currentUser) {
+      return NextResponse.json({ error: 'unauthorized', message: 'Debes iniciar sesión' }, { status: 401 })
+    }
+
     const body = await request.json()
     const { postId, text } = body
 
@@ -700,24 +870,25 @@ async function handleCreateComment(request) {
       return NextResponse.json({ error: 'invalid_data' }, { status: 400 })
     }
 
-    const store = await readComments()
-    if (!store[postId]) store[postId] = []
+    const comment = await createCommentDB({ 
+      postId, 
+      userId: currentUser.id, 
+      text: text.trim() 
+    })
 
-    const comment = {
-      id: crypto.randomUUID(),
-      postId,
-      text: text.trim(),
-      author: ME_AUTHOR,
-      timestamp: new Date().toISOString(),
-      likes: 0,
+    // Formatear para el frontend
+    const formattedComment = {
+      id: comment.id,
+      postId: comment.postId,
+      text: comment.text,
+      likes: comment.likes,
       userLiked: false,
       isOwn: true,
+      timestamp: comment.createdAt,
+      author: comment.author,
     }
 
-    store[postId].unshift(comment)
-    await writeComments(store)
-
-    return NextResponse.json({ ok: true, comment })
+    return NextResponse.json({ ok: true, comment: formattedComment })
   } catch (err) {
     console.error('create comment error', err)
     return NextResponse.json({ error: 'create_failed' }, { status: 500 })
@@ -727,6 +898,11 @@ async function handleCreateComment(request) {
 // POST /api/comments/like - Dar like a un comentario
 async function handleLikeComment(request) {
   try {
+    const currentUser = await getCurrentUser(request)
+    if (!currentUser) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    }
+
     const body = await request.json()
     const { commentId } = body
 
@@ -734,38 +910,13 @@ async function handleLikeComment(request) {
       return NextResponse.json({ error: 'missing_commentId' }, { status: 400 })
     }
 
-    const store = await readComments()
-    let found = null
-    let foundPostId = null
-
-    // Buscar el comentario en todos los posts
-    for (const postId in store) {
-      const comment = store[postId].find((c) => c.id === commentId)
-      if (comment) {
-        found = comment
-        foundPostId = postId
-        break
-      }
-    }
-
-    if (!found) {
-      return NextResponse.json({ error: 'comment_not_found' }, { status: 404 })
-    }
-
-    // Toggle like
-    if (found.userLiked) {
-      found.likes = Math.max(0, (found.likes || 0) - 1)
-      found.userLiked = false
-    } else {
-      found.likes = (found.likes || 0) + 1
-      found.userLiked = true
-    }
-
-    await writeComments(store)
-
-    return NextResponse.json({ ok: true, likes: found.likes, userLiked: found.userLiked })
+    const result = await toggleCommentLikeDB(commentId, currentUser.id)
+    return NextResponse.json({ ok: true, ...result })
   } catch (err) {
     console.error('like comment error', err)
+    if (err.message === 'comment_not_found') {
+      return NextResponse.json({ error: 'comment_not_found' }, { status: 404 })
+    }
     return NextResponse.json({ error: 'like_failed' }, { status: 500 })
   }
 }
@@ -773,6 +924,11 @@ async function handleLikeComment(request) {
 // POST /api/save - Guardar/quitar de guardados
 async function handleSavePost(request) {
   try {
+    const currentUser = await getCurrentUser(request)
+    if (!currentUser) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    }
+
     const body = await request.json()
     const { postId } = body
 
@@ -780,15 +936,8 @@ async function handleSavePost(request) {
       return NextResponse.json({ error: 'missing_postId' }, { status: 400 })
     }
 
-    const store = await readSaves()
-    const isSaved = store[postId] === true
-
-    // Toggle save
-    store[postId] = !isSaved
-
-    await writeSaves(store)
-
-    return NextResponse.json({ ok: true, saved: store[postId] })
+    const result = await toggleSaveDB(postId, currentUser.id)
+    return NextResponse.json({ ok: true, ...result })
   } catch (err) {
     console.error('save post error', err)
     return NextResponse.json({ error: 'save_failed' }, { status: 500 })
@@ -796,34 +945,27 @@ async function handleSavePost(request) {
 }
 
 // DELETE /api/comments/{id} - Eliminar un comentario
-async function handleDeleteComment(commentId) {
+async function handleDeleteComment(commentId, request) {
   try {
+    const currentUser = await getCurrentUser(request)
+    if (!currentUser) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    }
+
     if (!commentId) {
       return NextResponse.json({ error: 'missing_commentId' }, { status: 400 })
     }
 
-    const store = await readComments()
-    let deleted = false
-
-    // Buscar y eliminar el comentario
-    for (const postId in store) {
-      const index = store[postId].findIndex((c) => c.id === commentId)
-      if (index !== -1) {
-        store[postId].splice(index, 1)
-        deleted = true
-        break
-      }
-    }
-
-    if (!deleted) {
-      return NextResponse.json({ error: 'comment_not_found' }, { status: 404 })
-    }
-
-    await writeComments(store)
-
+    await deleteCommentDB(commentId, currentUser.id)
     return NextResponse.json({ ok: true })
   } catch (err) {
     console.error('delete comment error', err)
+    if (err.message === 'comment_not_found') {
+      return NextResponse.json({ error: 'comment_not_found' }, { status: 404 })
+    }
+    if (err.message === 'unauthorized') {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 403 })
+    }
     return NextResponse.json({ error: 'delete_failed' }, { status: 500 })
   }
 }
