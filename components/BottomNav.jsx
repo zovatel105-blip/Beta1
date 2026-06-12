@@ -22,9 +22,10 @@ const DefaultAvatar = ({ className = '' }) => (
  * Home · Swords (Battle) · Plus (borde degradado lila→azul) · Inbox · Perfil.
  * El botón + abre el diálogo de subida (onOpenUpload). El resto sólo
  * gestiona el estado visual "activo" (la app es de una sola página).
+ * 
+ * @param {string} activeTab - Tab activo actual ('home', 'explore', 'messages', 'profile')
  */
-export default function BottomNav({ onOpenUpload, onOpenInbox, onOpenProfile, onGoHome, onOpenBattles, unreadCount = 0, challengesCount = 0 }) {
-  const [active, setActive] = useState('home')
+export default function BottomNav({ onOpenUpload, onOpenInbox, onOpenProfile, onGoHome, onOpenBattles, unreadCount = 0, challengesCount = 0, activeTab = 'home' }) {
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [notificationsCount, setNotificationsCount] = useState(0)
   const { user } = useAuth()
@@ -57,13 +58,11 @@ export default function BottomNav({ onOpenUpload, onOpenInbox, onOpenProfile, on
     if (!user) {
       setShowAuthModal(true)
     } else {
-      setActive('profile')
       onOpenProfile?.()
     }
   }
 
   const handleInboxClick = () => {
-    setActive('inbox')
     onOpenInbox?.()
     setNotificationsCount(0) // Reset al abrir
   }
@@ -77,16 +76,16 @@ export default function BottomNav({ onOpenUpload, onOpenInbox, onOpenProfile, on
         {/* Home */}
         <button
           aria-label="Inicio"
-          onClick={() => { setActive('home'); onGoHome?.() }}
+          onClick={() => { onGoHome?.() }}
           className="flex items-center justify-center w-9 h-9 transition-all duration-200 active:scale-90"
         >
           <Home
             className={cn(
               'w-5 h-5 transition-all duration-200',
-              active === 'home' ? 'text-white' : 'text-white/50'
+              activeTab === 'home' ? 'text-white' : 'text-white/50'
             )}
-            strokeWidth={active === 'home' ? 2.5 : 1.5}
-            fill={active === 'home' ? 'white' : 'none'}
+            strokeWidth={activeTab === 'home' ? 2.5 : 1.5}
+            fill={activeTab === 'home' ? 'white' : 'none'}
           />
         </button>
 
@@ -94,15 +93,15 @@ export default function BottomNav({ onOpenUpload, onOpenInbox, onOpenProfile, on
         <div className="relative flex items-center justify-center">
           <button
             aria-label="Battle"
-            onClick={() => { setActive('explore'); onOpenBattles?.() }}
+            onClick={() => { onOpenBattles?.() }}
             className="flex items-center justify-center w-9 h-9 transition-all duration-200 active:scale-90"
           >
             <Swords
               className={cn(
                 'w-5 h-5 transition-all duration-200',
-                active === 'explore' ? 'text-white' : 'text-white/50'
+                activeTab === 'explore' ? 'text-white' : 'text-white/50'
               )}
-              strokeWidth={active === 'explore' ? 2.5 : 1.5}
+              strokeWidth={activeTab === 'explore' ? 2.5 : 1.5}
             />
           </button>
           {challengesCount > 0 && (
@@ -138,9 +137,9 @@ export default function BottomNav({ onOpenUpload, onOpenInbox, onOpenProfile, on
             <Inbox
               className={cn(
                 'w-5 h-5 transition-all duration-200',
-                active === 'messages' ? 'text-white' : 'text-white/50'
+                activeTab === 'messages' ? 'text-white' : 'text-white/50'
               )}
-              strokeWidth={active === 'messages' ? 2.5 : 1.5}
+              strokeWidth={activeTab === 'messages' ? 2.5 : 1.5}
             />
           </button>
           {notificationsCount > 0 && (
@@ -178,9 +177,9 @@ export default function BottomNav({ onOpenUpload, onOpenInbox, onOpenProfile, on
             <User
               className={cn(
                 'w-5 h-5 transition-all duration-200',
-                active === 'profile' ? 'text-white' : 'text-white/50'
+                activeTab === 'profile' ? 'text-white' : 'text-white/50'
               )}
-              strokeWidth={active === 'profile' ? 2.5 : 1.5}
+              strokeWidth={activeTab === 'profile' ? 2.5 : 1.5}
             />
           )}
         </button>

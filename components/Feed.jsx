@@ -305,10 +305,21 @@ export default function Feed() {
         onOpenUpload={() => setUploadOpen(true)}
         onOpenInbox={() => setInboxOpen(true)}
         onOpenProfile={() => setProfileOpen(true)}
-        onGoHome={() => setProfileOpen(false)}
+        onGoHome={() => {
+          setProfileOpen(false)
+          setInboxOpen(false)
+          setBattlesOpen(false)
+          setActiveChallengesOpen(false)
+        }}
         onOpenBattles={() => setBattlesOpen(true)}
         unreadCount={notificationsUnreadCount}
         challengesCount={pendingCount}
+        activeTab={
+          profileOpen ? 'profile' :
+          inboxOpen ? 'messages' :
+          (battlesOpen || activeChallengesOpen) ? 'explore' :
+          'home'
+        }
       />
       <ProfilePage
         open={profileOpen}
