@@ -903,6 +903,10 @@ async function handleCreateChallenge(request) {
     if (!targetAuthor) {
       return NextResponse.json({ error: 'no_target' }, { status: 400 })
     }
+    // No puedes retarte a ti mismo.
+    if (targetAuthor.username && targetAuthor.username === currentUser.username) {
+      return NextResponse.json({ error: 'cannot_challenge_yourself', message: 'No puedes retarte a ti mismo' }, { status: 400 })
+    }
 
     const myUrl = await saveUploadedVideo(file)
     const cid = crypto.randomBytes(8).toString('hex')

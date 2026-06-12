@@ -625,7 +625,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
           </span>
         </button>
         {/* Retar — abre un selector A/B para elegir explícitamente a qué opción retar. */}
-        {!hideChallenge && (
+        {!hideChallenge && headAuthor?.username !== user?.username && (
           <button aria-label="retar" onClick={(e) => { 
             e.stopPropagation(); 
             if (!user) {

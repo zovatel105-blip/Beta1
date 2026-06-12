@@ -536,7 +536,7 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
           </span>
           <span className="text-[11px] font-semibold text-white leading-none">{countLabel(totalVotes, 'Votar')}</span>
         </button>
-        {!hideChallenge && (
+        {!hideChallenge && headAuthor?.username !== user?.username && (
           <button aria-label="retar" onClick={(e) => { 
             e.stopPropagation(); 
             if (!user) {

@@ -186,6 +186,9 @@ backend:
         -working: true
         -agent: "testing"
         -comment: "✅ VERIFIED: POST /api/challenges with authenticated user (Bearer token) -> 200. Response has status='pending', from.username='testreg1' (authenticated user, not 'tu_canal'), to.username='urbanlife', challengerVideoUrl starts with /uploads/, targetVideoUrl=null. Challenge created successfully with correct authenticated author. Tested in backend_auth_test.py."
+        -working: true
+        -agent: "main"
+        -comment: "AÑADIDO guard 'no puedes retarte a ti mismo': si targetAuthor.username === currentUser.username -> 400 {error:'cannot_challenge_yourself'}. Verificado manualmente: selfU intentando retarse -> 400. Frontend: botón Retar oculto en contenido propio (CarouselSlide/DuetSlide: headAuthor !== user) y guard en Feed.openChallenge; el perfil propio nunca muestra Retar. Retar desde perfil ajeno = reto de mención (sin vídeo del perfil)."
   - task: "POST /api/challenges/{id}/accept acepta el vídeo del retado (multipart file)"
     implemented: true
     working: true

@@ -173,9 +173,13 @@ export default function Feed() {
   }, [])
 
   const openChallenge = useCallback((target) => {
+    // No puedes retarte a ti mismo.
+    if (target?.author?.username && user?.username && target.author.username === user.username) {
+      return
+    }
     setChallengeTarget(target)
     setChallengeOpen(true)
-  }, [])
+  }, [user])
 
   // Auto-avance al SIGUIENTE duelo (winner card -> "siguiente"). scrollTo nativo:
   // la animación corre en el compositor, no en JS.
