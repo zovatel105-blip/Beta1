@@ -233,6 +233,17 @@ backend:
         -working: "NA"
         -agent: "main"
         -comment: "vote increments side a/b. Already validated previously."
+  - task: "GET /api/challenges filtra por usuario actual (retos dirigidos a mí)"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "main"
+        -comment: "BUG FIX (usuario: 'retos activos muestra retos que no son míos: muestra todos'). CAUSA: GET /api/challenges devolvía TODOS los retos pendientes sin filtrar. FIX: usa getCurrentUser y filtra; por defecto (role=to) devuelve los retos DIRIGIDOS a mí (los que puedo aceptar/rechazar: bandeja, retos activos, badge). role=from = los que yo envié; role=all = en los que participo. Invitados -> []. Verificado manualmente (sin agente de testing): chF reta a chT -> chT(to)=1, chF(default to)=0, chF(role=from)=1, invitado=0. Afecta a ActiveChallengesPage, ChallengesInbox y el badge pendingCount del Feed."
   - task: "Seguir persistente: POST /api/users/:username/follow (toggle) + GET /api/users/:username devuelve isFollowing y followers reales"
     implemented: true
     working: true

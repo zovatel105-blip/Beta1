@@ -374,10 +374,27 @@ export async function GET(request, { params }) {
     return NextResponse.json({ posts })
   }
 
-  // Lista de retos (solicitudes de enfrentamiento) pendientes.
+  // Lista de retos (solicitudes de enfrentamiento) pendientes DEL USUARIO ACTUAL.
+  // Por defecto devuelve los retos DIRIGIDOS a mí (role=to) -> los que puedo
+  // aceptar/rechazar (bandeja, retos activos, badge). role=from = los que yo
+  // envié; role=all = todos en los que participo. Invitados -> lista vacía.
   if (path === '/challenges') {
+    const currentUser = await getCurrentUser(request)
     const list = await readChallenges()
-    return NextResponse.json({ challenges: list })
+    if (!currentUser) {
+      return NextResponse.json({ challenges: [] })
+    }
+    const uname = currentUser.username
+    const { searchParams } = new URL(request.url)
+    const role = searchParams.get('role') || 'to'
+    const filtered = list.filter((c) => {
+      const isTo = c.to?.username === uname
+      const isFrom = c.from?.username === uname
+      if (role === 'from') return isFrom
+      if (role === 'all') return isTo || isFrom
+      return isTo
+    })
+    return NextResponse.json({ challenges: filtered })
   }
 
   // Catálogo de vídeos disponibles para emparejar en un 1vs1.
