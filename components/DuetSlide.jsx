@@ -34,7 +34,7 @@ function countLabel(n, placeholder) {
  *   - double tap  -> like (corazón flotante).
  * La UI (cabecera superior + columna social derecha) es idéntica a la del vídeo normal.
  */
-function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: globalMuted, playbackEnabled = true, onRequestNext, onChallenge, infoBottom = false, hideChallenge = false }) {
+function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: globalMuted, playbackEnabled = true, onRequestNext, onChallenge, onOpenProfile, infoBottom = false, hideChallenge = false }) {
   const { user } = useAuth()
   const videoARef = useRef(null)
   const videoBRef = useRef(null)
@@ -553,7 +553,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
               <div className="relative w-[39px] h-[39px] shrink-0">
                 {/* Avatar trasero (arriba-derecha) recortado en media luna: el hueco deja ver la publicación */}
                 <button
-                  onClick={(e) => e.stopPropagation()}
+                  onClick={(e) => { e.stopPropagation(); onOpenProfile?.(authorB.username) }}
                   className="absolute top-0 right-0 w-[24px] h-[24px] rounded-full overflow-hidden block"
                   style={{
                     WebkitMaskImage: 'radial-gradient(circle 15px at -3px 27px, transparent 0 15px, #000 15px)',
@@ -563,15 +563,15 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
                   <Avatar src={authorB.avatarUrl} alt={authorB.username} className="w-full h-full" />
                 </button>
                 {/* Avatar delantero (abajo-izquierda) */}
-                <button onClick={(e) => e.stopPropagation()} className="absolute bottom-0 left-0 w-[24px] h-[24px] rounded-full overflow-hidden block">
+                <button onClick={(e) => { e.stopPropagation(); onOpenProfile?.(authorA.username) }} className="absolute bottom-0 left-0 w-[24px] h-[24px] rounded-full overflow-hidden block">
                   <Avatar src={authorA.avatarUrl} alt={authorA.username} className="w-full h-full" />
                 </button>
               </div>
               <div className="flex flex-col min-w-0 max-w-[160px] leading-tight">
-                <span className="text-white font-semibold text-[14px] drop-shadow-md truncate">
+                <span onClick={(e) => { e.stopPropagation(); onOpenProfile?.(authorA.username) }} className="text-white font-semibold text-[14px] drop-shadow-md truncate cursor-pointer">
                   {authorA.username || authorA.name} <span className="font-light">vs</span>
                 </span>
-                <span className="text-white font-semibold text-[14px] drop-shadow-md truncate">
+                <span onClick={(e) => { e.stopPropagation(); onOpenProfile?.(authorB.username) }} className="text-white font-semibold text-[14px] drop-shadow-md truncate cursor-pointer">
                   {authorB.username || authorB.name}
                 </span>
               </div>
@@ -579,10 +579,10 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
           ) : (
             <>
               {/* Publicación normal: un solo avatar + nombre */}
-              <button onClick={(e) => e.stopPropagation()} className="w-[38px] h-[38px] rounded-full overflow-hidden block shrink-0">
+              <button onClick={(e) => { e.stopPropagation(); onOpenProfile?.(headAuthor.username) }} className="w-[38px] h-[38px] rounded-full overflow-hidden block shrink-0">
                 <Avatar src={headAuthor.avatarUrl} alt={headAuthor.username} className="w-full h-full" />
               </button>
-              <span className="text-white font-semibold text-[13px] leading-tight drop-shadow-md truncate max-w-[160px]">
+              <span onClick={(e) => { e.stopPropagation(); onOpenProfile?.(headAuthor.username) }} className="text-white font-semibold text-[13px] leading-tight drop-shadow-md truncate max-w-[160px] cursor-pointer">
                 {headAuthor.username || headAuthor.name}
               </span>
             </>

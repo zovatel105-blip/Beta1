@@ -92,6 +92,8 @@ export default function Feed() {
   const [challengeTarget, setChallengeTarget] = useState(null)
   const [inboxOpen, setInboxOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
+  // username del perfil a mostrar: null = mi propio perfil; si no, perfil ajeno.
+  const [profileUsername, setProfileUsername] = useState(null)
   const [battlesOpen, setBattlesOpen] = useState(false)
   const [activeChallengesOpen, setActiveChallengesOpen] = useState(false)
   const [battlesRefresh, setBattlesRefresh] = useState(0)
@@ -114,6 +116,13 @@ export default function Feed() {
   }, [])
 
   useEffect(() => { refreshChallenges() }, [refreshChallenges])
+
+  // Abrir el perfil (ajeno) de un autor al tocar su avatar/nombre en el feed.
+  const openAuthorProfile = useCallback((uname) => {
+    if (!uname) return
+    setProfileUsername(uname)
+    setProfileOpen(true)
+  }, [])
 
   // Gating de publicación: si hay sesión abre la subida; si no, abre el login.
   const requestUpload = useCallback(() => {
@@ -303,6 +312,7 @@ export default function Feed() {
                       playbackEnabled={playbackEnabled}
                       onRequestNext={goNext}
                       onChallenge={openChallenge}
+                      onOpenProfile={openAuthorProfile}
                     />
                   ) : (
                     <CarouselSlide
@@ -315,6 +325,7 @@ export default function Feed() {
                       playbackEnabled={playbackEnabled}
                       onRequestNext={goNext}
                       onChallenge={openChallenge}
+                      onOpenProfile={openAuthorProfile}
                     />
                   )
                 ) : inPosterWindow && poster ? (
@@ -337,7 +348,7 @@ export default function Feed() {
       <BottomNav
         onOpenUpload={requestUpload}
         onOpenInbox={() => setInboxOpen(true)}
-        onOpenProfile={() => setProfileOpen(true)}
+        onOpenProfile={() => { setProfileUsername(null); setProfileOpen(true) }}
         onGoHome={() => {
           setProfileOpen(false)
           setInboxOpen(false)
@@ -356,7 +367,9 @@ export default function Feed() {
       />
       <ProfilePage
         open={profileOpen}
-        onClose={() => setProfileOpen(false)}
+        username={profileUsername}
+        onClose={() => { setProfileOpen(false); setProfileUsername(null) }}
+        onOpenProfile={openAuthorProfile}
         onOpenUpload={() => { setProfileOpen(false); requestUpload() }}
       />
       <UploadDialog open={uploadOpen} onClose={() => setUploadOpen(false)} onUploaded={handleUploaded} onChallengeCreated={refreshChallenges} />

@@ -2,7 +2,7 @@
 /* eslint-disable react-hooks/set-state-in-effect -- setState dentro de fetch async en efecto de carga; falso positivo de la regla experimental. */
 
 import { useEffect, useMemo, useState } from 'react'
-import { Menu, Bookmark, Link as LinkIcon, Swords, Users, UserPlus } from 'lucide-react'
+import { Menu, Bookmark, Link as LinkIcon, Swords, Users, UserPlus, ArrowLeft } from 'lucide-react'
 import VoteIcon from './icons/VoteIcon'
 import { useAuth } from '@/contexts/AuthContext'
 import Avatar from './Avatar'
@@ -122,49 +122,57 @@ const TABS = [
   },
 ]
 
-export default function ProfilePage({ open, onClose, onOpenUpload }) {
+export default function ProfilePage({ open, onClose, onOpenUpload, username = null }) {
   const { user } = useAuth()
+  const [profile, setProfile] = useState(null) // { user, posts } del endpoint
   const [posts, setPosts] = useState([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('polls')
+  const [following, setFollowing] = useState(false) // toggle visual (MVP)
 
-  // Perfil real derivado del usuario autenticado.
+  // ¿Es mi propio perfil? (sin username, o coincide con el usuario autenticado)
+  const isOwn = !username || username === user?.username
+
+  // Usuario objetivo: el ajeno (username) o el mío.
+  const targetUsername = username || user?.username
+
+  // Perfil a mostrar: datos del endpoint (perfil ajeno/propio) con respaldo en
+  // el usuario autenticado para mi propio perfil mientras carga.
+  const src = profile?.user || (isOwn ? user : null)
   const me = {
-    username: user?.username || 'invitado',
-    name: user?.name || user?.username || 'Invitado',
-    handle: user?.username ? `@${user.username}` : '@invitado',
-    // Mismo avatar que el feed (author.avatarUrl). Silueta solo si está vacío.
-    avatarUrl: user?.avatarUrl || '',
-    followers: user?.followers || 0,
-    following: user?.following || 0,
+    username: src?.username || 'usuario',
+    name: src?.name || src?.username || 'Usuario',
+    handle: src?.username ? `@${src.username}` : '@usuario',
+    avatarUrl: src?.avatarUrl || '',
+    followers: src?.followers || 0,
+    following: src?.following || 0,
   }
 
   useEffect(() => {
-    if (!open) return
+    if (!open || !targetUsername) return
     let cancelled = false
     setLoading(true)
+    setActiveTab('polls')
+    setFollowing(false)
     ;(async () => {
       try {
-        const res = await fetch('/api/uploads', { cache: 'no-store' })
+        const res = await fetch(`/api/users/${encodeURIComponent(targetUsername)}`, { cache: 'no-store' })
         const data = await res.json()
-        if (!cancelled) setPosts(data.posts || [])
+        if (!cancelled) {
+          setProfile(data || null)
+          setPosts(data?.posts || [])
+        }
       } catch {
-        if (!cancelled) setPosts([])
+        if (!cancelled) { setProfile(null); setPosts([]) }
       } finally {
         if (!cancelled) setLoading(false)
       }
     })()
     return () => { cancelled = true }
-  }, [open])
+  }, [open, targetUsername])
 
-  // Solo MIS publicaciones (autor === usuario autenticado).
-  const myPosts = useMemo(() => {
-    if (!user) return []
-    return posts.filter((p) => {
-      const a = p?.author || p?.sideA?.author
-      return a && (a.id === user.id || a.username === user.username)
-    })
-  }, [posts, user])
+  // Publicaciones del perfil (ya vienen filtradas por el endpoint).
+  const myPosts = posts
 
   const stats = useMemo(() => {
     const votos = myPosts.reduce((acc, p) => acc + (p?.votes?.a || 0) + (p?.votes?.b || 0), 0)
@@ -191,7 +199,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
             </div>
             <div className="space-y-1">
               <h3 className="text-base font-semibold text-white">Aún no hay publicaciones</h3>
-              <p className="text-zinc-500 text-sm">Empieza a crear contenido</p>
+              <p className="text-zinc-500 text-sm">{isOwn ? 'Empieza a crear contenido' : 'Este usuario aún no ha publicado'}</p>
             </div>
           </div>
         )
@@ -227,10 +235,20 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
       <div className="pointer-events-none absolute inset-x-0 top-0 h-80 z-0"
            style={{ background: 'radial-gradient(60% 100% at 50% 0%, rgba(214,178,122,0.10), transparent 70%)' }} />
 
-      {/* Header minimalista: solo menú */}
+      {/* Header: atrás (perfil ajeno) o menú (perfil propio) */}
       <div className="sticky top-0 z-20 bg-[#0a0a0b]/70 backdrop-blur-xl border-b border-white/[0.06]"
            style={{ paddingTop: 'max(env(safe-area-inset-top), 8px)' }}>
-        <div className="flex items-center justify-end px-2 sm:px-4 h-14 max-w-md mx-auto w-full">
+        <div className="flex items-center justify-between px-2 sm:px-4 h-14 max-w-md mx-auto w-full">
+          {isOwn ? (
+            <span className="w-9" />
+          ) : (
+            <button aria-label="atrás" onClick={onClose} className="p-2 -ml-1 text-white active:scale-90 transition">
+              <ArrowLeft strokeWidth={1.9} className="w-[24px] h-[24px]" />
+            </button>
+          )}
+          {!isOwn && (
+            <span className="text-white font-semibold text-[15px] truncate max-w-[60%]">{me.username}</span>
+          )}
           <button aria-label="menú" className="p-2 -mr-2 text-white active:scale-90 transition">
             <Menu strokeWidth={1.9} className="w-[24px] h-[24px]" />
           </button>
@@ -270,7 +288,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
               <div className="relative">
                 <div className="w-[104px] h-[104px] rounded-full p-[3px] bg-gradient-to-br from-white/15 to-white/[0.03] shadow-[0_8px_30px_-8px_rgba(0,0,0,0.6)]">
                   <div className="w-full h-full rounded-full overflow-hidden bg-zinc-900 ring-2 ring-white/10">
-                    <Avatar src={user?.avatarUrl} alt={me.username} className="w-full h-full rounded-full" />
+                    <Avatar src={me.avatarUrl} alt={me.username} className="w-full h-full rounded-full" />
                   </div>
                 </div>
               </div>
@@ -307,21 +325,41 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
           <p className="text-[13px] text-zinc-400 font-medium">{me.handle}</p>
         </div>
 
-        {/* Botones de acción - compactos y limpios */}
+        {/* Botones de acción - propios vs ajenos */}
         <div className="mt-5 flex items-center justify-center gap-2">
-          <button className="h-9 px-6 rounded-full bg-white hover:bg-zinc-100 text-black font-semibold text-[13px] tracking-tight active:scale-[0.97] transition-all">
-            Editar perfil
-          </button>
-          <button className="h-9 px-6 rounded-full border border-white/15 hover:bg-white/[0.06] text-white font-semibold text-[13px] tracking-tight active:scale-[0.97] transition-all">
-            Compartir
-          </button>
+          {isOwn ? (
+            <>
+              <button className="h-9 px-6 rounded-full bg-white hover:bg-zinc-100 text-black font-semibold text-[13px] tracking-tight active:scale-[0.97] transition-all">
+                Editar perfil
+              </button>
+              <button className="h-9 px-6 rounded-full border border-white/15 hover:bg-white/[0.06] text-white font-semibold text-[13px] tracking-tight active:scale-[0.97] transition-all">
+                Compartir
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => setFollowing((f) => !f)}
+                className={`h-9 px-7 rounded-full font-semibold text-[13px] tracking-tight active:scale-[0.97] transition-all ${
+                  following
+                    ? 'border border-white/15 text-white hover:bg-white/[0.06]'
+                    : 'bg-white text-black hover:bg-zinc-100'
+                }`}
+              >
+                {following ? 'Siguiendo' : 'Seguir'}
+              </button>
+              <button className="h-9 px-6 rounded-full border border-white/15 hover:bg-white/[0.06] text-white font-semibold text-[13px] tracking-tight active:scale-[0.97] transition-all">
+                Mensaje
+              </button>
+            </>
+          )}
         </div>
       </div>
 
       {/* Tabs - diseño fino que aprovecha el ancho */}
       <div className="relative z-10 px-2 max-w-md mx-auto w-full mt-7">
         <div className="flex items-center justify-center gap-0.5 bg-white/[0.03] border border-white/[0.08] rounded-xl p-0.5">
-          {TABS.map((tab) => {
+          {(isOwn ? TABS : TABS.filter((t) => t.key === 'polls')).map((tab) => {
             const active = activeTab === tab.key
             return (
               <button

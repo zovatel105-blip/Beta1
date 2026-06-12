@@ -10,6 +10,7 @@ import {
   getSessionByToken,
   deleteSession,
   getUserById,
+  getUserByUsername,
   createComment as createCommentDB,
   getCommentsByPostId,
   toggleCommentLike as toggleCommentLikeDB,
@@ -401,6 +402,58 @@ export async function GET(request, { params }) {
       }
     }
     return NextResponse.json({ users })
+  }
+
+  // Perfil PÚBLICO de un usuario (propio o ajeno): info + sus publicaciones.
+  // GET /api/users/:username
+  if (segs[0] === 'users' && segs[1]) {
+    const username = decodeURIComponent(segs[1])
+
+    // 1) Info del usuario: primero usuarios registrados (DB), luego autores demo.
+    let info = null
+    try {
+      const dbUser = await getUserByUsername(username)
+      if (dbUser) {
+        info = {
+          username: dbUser.username,
+          name: dbUser.name || dbUser.username,
+          avatarUrl: dbUser.avatarUrl || '',
+          verified: dbUser.verified || false,
+          followers: dbUser.followers || 0,
+          following: dbUser.following || 0,
+          bio: dbUser.bio || '',
+        }
+      }
+    } catch { /* ignore DB errors */ }
+    if (!info) {
+      const vd = VIDEOS.find((x) => x.author?.username === username)
+      if (vd) {
+        info = { ...vd.author, verified: false, followers: 0, following: 0, bio: '' }
+      }
+    }
+    if (!info) {
+      return NextResponse.json({ error: 'user_not_found' }, { status: 404 })
+    }
+
+    // 2) Publicaciones del usuario: uploads propios + posts demo del feed.
+    const uploads = await readUploadMeta()
+    const mine = uploads.filter((p) => {
+      const a = p.author || p.sideA?.author
+      return a && a.username === username
+    })
+    const store = await readVotesStore()
+    const demo = makePosts(0, 40)
+      .filter((p) => p.author?.username === username)
+      .map((p) => ({ ...p, votes: store[p.id] || seedVotes(p.id) }))
+
+    const seenIds = new Set()
+    const posts = [...mine, ...demo].filter((p) => {
+      if (seenIds.has(p.id)) return false
+      seenIds.add(p.id)
+      return true
+    })
+
+    return NextResponse.json({ user: info, posts })
   }
 
   // GET /api/comments?postId=xxx - Obtener comentarios de un post
