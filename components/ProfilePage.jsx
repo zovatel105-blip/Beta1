@@ -7,8 +7,8 @@ import VoteIcon from './icons/VoteIcon'
 import { useAuth } from '@/contexts/AuthContext'
 
 // El perfil se deriva del usuario autenticado (useAuth) dentro del componente.
-// Avatares generados (dicebear/pravatar) se tratan como "sin foto" -> silueta.
-const isGeneratedAvatar = (url) => !url || url.includes('dicebear') || url.includes('pravatar')
+// El avatar usa la MISMA imagen (avatarUrl) que el feed; la silueta por defecto
+// solo aparece cuando no hay ninguna imagen.
 
 // Avatar por defecto: círculo gris claro con silueta de persona (gris medio),
 // idéntico al de la imagen de referencia (cabeza + busto que rellenan el círculo).
@@ -144,7 +144,8 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
     username: user?.username || 'invitado',
     name: user?.name || user?.username || 'Invitado',
     handle: user?.username ? `@${user.username}` : '@invitado',
-    avatarUrl: isGeneratedAvatar(user?.avatarUrl) ? '' : user.avatarUrl,
+    // Mismo avatar que el feed (author.avatarUrl). Silueta solo si está vacío.
+    avatarUrl: user?.avatarUrl || '',
     followers: user?.followers || 0,
     following: user?.following || 0,
   }

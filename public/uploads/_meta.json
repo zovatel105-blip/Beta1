@@ -1,5 +1,60 @@
 [
   {
+    "id": "versus_up_c60ca90fbe17ab8c",
+    "type": "versus",
+    "layout": "carousel",
+    "sideA": {
+      "videoUrl": "/uploads/99352f3b3ead244a.mp4",
+      "posterUrl": "/uploads/99352f3b3ead244a.jpg",
+      "author": {
+        "id": "290b25c3-a1bd-4269-a5cd-6923072b6902",
+        "username": "Nex",
+        "name": "Nex",
+        "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=Nex",
+        "verified": false
+      },
+      "description": "¿Cuál prefieres? 🅰️🆚🅱️",
+      "music": "Opción A"
+    },
+    "sideB": {
+      "videoUrl": "/uploads/73c96cdcf4aa7990.mp4",
+      "posterUrl": "/uploads/73c96cdcf4aa7990.jpg",
+      "author": {
+        "id": "290b25c3-a1bd-4269-a5cd-6923072b6902",
+        "username": "Nex",
+        "name": "Nex",
+        "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=Nex",
+        "verified": false
+      },
+      "description": "¿Cuál prefieres? 🅰️🆚🅱️",
+      "music": "Opción B"
+    },
+    "author": {
+      "id": "290b25c3-a1bd-4269-a5cd-6923072b6902",
+      "username": "Nex",
+      "name": "Nex",
+      "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=Nex",
+      "verified": false
+    },
+    "description": "¿Cuál prefieres? 🅰️🆚🅱️",
+    "music": "Tu versus original",
+    "videoUrl": "/uploads/99352f3b3ead244a.mp4",
+    "posterUrl": "/uploads/99352f3b3ead244a.jpg",
+    "thumbnailUrl": "/uploads/99352f3b3ead244a.jpg",
+    "stats": {
+      "likes": 0,
+      "comments": 0,
+      "shares": 0,
+      "saves": 0
+    },
+    "votes": {
+      "a": 0,
+      "b": 0
+    },
+    "duration": 0,
+    "uploadedAt": "2026-06-12T12:59:52.020Z"
+  },
+  {
     "id": "versus_up_56a2502a91f72433",
     "type": "versus",
     "layout": "carousel",
