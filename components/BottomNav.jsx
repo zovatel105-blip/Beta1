@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { Home, Swords, Plus, Inbox, User } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useAuth } from '@/contexts/AuthContext'
+import AuthModal from './AuthModal'
 
 /**
  * BottomNav — rediseño basado en el BottomNavigation.jsx de Twyk.
@@ -13,6 +15,17 @@ import { cn } from '@/lib/utils'
  */
 export default function BottomNav({ onOpenUpload, onOpenInbox, onOpenProfile, onGoHome, onOpenBattles, unreadCount = 0, challengesCount = 0 }) {
   const [active, setActive] = useState('home')
+  const [showAuthModal, setShowAuthModal] = useState(false)
+  const { user } = useAuth()
+
+  const handleProfileClick = () => {
+    if (!user) {
+      setShowAuthModal(true)
+    } else {
+      setActive('profile')
+      onOpenProfile?.()
+    }
+  }
 
   return (
     <nav
@@ -99,18 +112,35 @@ export default function BottomNav({ onOpenUpload, onOpenInbox, onOpenProfile, on
         {/* Perfil */}
         <button
           aria-label="Perfil"
-          onClick={() => { setActive('profile'); onOpenProfile?.() }}
+          onClick={handleProfileClick}
           className="flex items-center justify-center w-9 h-9 transition-all duration-200 active:scale-90"
         >
-          <User
-            className={cn(
-              'w-5 h-5 transition-all duration-200',
-              active === 'profile' ? 'text-white' : 'text-white/50'
-            )}
-            strokeWidth={active === 'profile' ? 2.5 : 1.5}
-          />
+          {user ? (
+            <div className="w-7 h-7 rounded-full overflow-hidden ring-2 ring-white/20">
+              <img
+                src={user.avatarUrl}
+                alt={user.username}
+                className="w-full h-full object-cover"
+              />
+            </div>
+          ) : (
+            <User
+              className={cn(
+                'w-5 h-5 transition-all duration-200',
+                active === 'profile' ? 'text-white' : 'text-white/50'
+              )}
+              strokeWidth={active === 'profile' ? 2.5 : 1.5}
+            />
+          )}
         </button>
       </div>
+
+      {/* Auth Modal */}
+      <AuthModal
+        open={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        defaultTab="login"
+      />
     </nav>
   )
 }
