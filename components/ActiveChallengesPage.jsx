@@ -18,14 +18,12 @@ import Avatar from './Avatar'
  */
 const GOLD = '#E4C79B'
 
-// Avatar con anillo que usa el MISMO componente <Avatar> del perfil/feed -> los
+// Avatar SIN anillo que usa el MISMO componente <Avatar> del perfil/feed -> los
 // avatares autogenerados (dicebear/pravatar) se muestran como la silueta gris,
 // idéntica a la del perfil.
-const RingAvatar = ({ src, ring, size = 'w-11 h-11' }) => (
-  <div className={`${size} rounded-full p-[2px] shrink-0`} style={{ background: ring }}>
-    <div className="w-full h-full rounded-full overflow-hidden bg-zinc-800">
-      <Avatar src={src} className="w-full h-full rounded-full" />
-    </div>
+const RingAvatar = ({ src, size = 'w-11 h-11' }) => (
+  <div className={`${size} rounded-full overflow-hidden bg-zinc-800 shrink-0`}>
+    <Avatar src={src} className="w-full h-full rounded-full" />
   </div>
 )
 
@@ -103,13 +101,13 @@ const ChallengeSlide = ({ c, busy, onAccept, onReject }) => {
           {/* Participantes en una sola línea compacta */}
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-2 min-w-0 flex-1">
-              <RingAvatar src={c.from?.avatarUrl} ring={GOLD} size="w-8 h-8" />
+              <RingAvatar src={c.from?.avatarUrl} size="w-8 h-8" />
               <span className="text-white font-semibold text-[13px] truncate">@{c.from?.username}</span>
             </div>
             <span className="shrink-0 text-white/80 font-bold text-[12px] tracking-wide">VS</span>
             <div className="flex items-center gap-2 min-w-0 flex-1 justify-end">
               <span className="text-white font-semibold text-[13px] truncate">@{c.to?.username}</span>
-              <RingAvatar src={c.to?.avatarUrl} ring="rgba(255,255,255,0.25)" size="w-8 h-8" />
+              <RingAvatar src={c.to?.avatarUrl} size="w-8 h-8" />
             </div>
           </div>
 

@@ -1,7 +1,9 @@
 'use client'
+/* eslint-disable react-hooks/set-state-in-effect -- carga async al abrir; falso positivo de la regla experimental. */
 
 import { useEffect, useState } from 'react'
 import { X, Swords, Check, Loader2, Inbox } from 'lucide-react'
+import Avatar from './Avatar'
 
 /**
  * ChallengesInbox — Bandeja de retos (solicitudes de enfrentamiento).
@@ -92,7 +94,9 @@ export default function ChallengesInbox({ open, onClose, onAccepted, onChanged }
               {list.map((c) => (
                 <div key={c.id} className="rounded-2xl border border-white/10 bg-white/5 p-3">
                   <div className="flex items-center gap-2 mb-3">
-                    <img src={c.from?.avatarUrl} className="w-8 h-8 rounded-full object-cover" alt="" />
+                    <div className="w-8 h-8 rounded-full overflow-hidden bg-zinc-800 shrink-0">
+                      <Avatar src={c.from?.avatarUrl} className="w-full h-full rounded-full" />
+                    </div>
                     <div className="text-sm text-white">
                       <span className="font-bold">@{c.from?.username}</span> te ha retado
                     </div>
