@@ -148,7 +148,8 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
       onClose()
     } catch (err) {
       console.error(err)
-      setError('Error al subir')
+      const needsLogin = /\b401\b/.test(err?.message || '')
+      setError(needsLogin ? 'Debes iniciar sesión para publicar' : 'Error al subir')
       setStep(mode === 'challenge' ? 'target' : 'file')
     }
   }

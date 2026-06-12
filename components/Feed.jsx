@@ -12,6 +12,8 @@ import ProfilePage from './ProfilePage'
 import CompletedBattlesPage from './CompletedBattlesPage'
 import ActiveChallengesPage from './ActiveChallengesPage'
 import GuestPromptModal from './GuestPromptModal'
+import AuthModal from './AuthModal'
+import { useAuth } from '@/contexts/AuthContext'
 import { notificationsUnreadCount } from '@/lib/notifications'
 import { startNetworkMonitor, pickQuality, shouldConserve } from '@/lib/networkQuality'
 import { useFeed } from '@/hooks/useFeed'
@@ -73,6 +75,7 @@ const slotPoster = (p) => p && (p.posterUrl || p.sideA?.posterUrl || p.thumbnail
 export default function Feed() {
   const { posts, ready, loadMore, prependPost } = useFeed()
   const { showGuestPrompt, dismissPrompt, trackVideoView, isGuest } = useGuestTracking()
+  const { user } = useAuth()
 
   const [activeIndex, setActiveIndex] = useState(0)
   const [muted, setMuted] = useState(true)
@@ -80,6 +83,11 @@ export default function Feed() {
   // tarjetas LIBEREN los decoders (no consumir batería/CPU en background).
   const [playbackEnabled, setPlaybackEnabled] = useState(true)
   const [uploadOpen, setUploadOpen] = useState(false)
+  // Gating de publicación: solo usuarios registrados pueden subir/publicar.
+  // Si un invitado pulsa "Crear", abrimos el login; tras autenticarse, se abre
+  // automáticamente el diálogo de subida (pendingUpload).
+  const [authOpen, setAuthOpen] = useState(false)
+  const [pendingUpload, setPendingUpload] = useState(false)
   const [challengeOpen, setChallengeOpen] = useState(false)
   const [challengeTarget, setChallengeTarget] = useState(null)
   const [inboxOpen, setInboxOpen] = useState(false)
@@ -106,6 +114,24 @@ export default function Feed() {
   }, [])
 
   useEffect(() => { refreshChallenges() }, [refreshChallenges])
+
+  // Gating de publicación: si hay sesión abre la subida; si no, abre el login.
+  const requestUpload = useCallback(() => {
+    if (user) {
+      setUploadOpen(true)
+    } else {
+      setPendingUpload(true)
+      setAuthOpen(true)
+    }
+  }, [user])
+  // Tras autenticarse desde el flujo "Crear", abrir automáticamente la subida.
+  useEffect(() => {
+    if (user && pendingUpload) {
+      setPendingUpload(false)
+      setUploadOpen(true)
+    }
+  }, [user, pendingUpload])
+
   // Medidor de red (estimación de ancho de banda real para la calidad adaptativa).
   useEffect(() => { startNetworkMonitor() }, [])
   // Service Worker (caché de pósters/imágenes; NO intercepta vídeo).
@@ -309,7 +335,7 @@ export default function Feed() {
         </div>
       )}
       <BottomNav
-        onOpenUpload={() => setUploadOpen(true)}
+        onOpenUpload={requestUpload}
         onOpenInbox={() => setInboxOpen(true)}
         onOpenProfile={() => setProfileOpen(true)}
         onGoHome={() => {
@@ -331,9 +357,10 @@ export default function Feed() {
       <ProfilePage
         open={profileOpen}
         onClose={() => setProfileOpen(false)}
-        onOpenUpload={() => { setProfileOpen(false); setUploadOpen(true) }}
+        onOpenUpload={() => { setProfileOpen(false); requestUpload() }}
       />
       <UploadDialog open={uploadOpen} onClose={() => setUploadOpen(false)} onUploaded={handleUploaded} onChallengeCreated={refreshChallenges} />
+      <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} defaultTab="register" />
       <ChallengeDialog
         open={challengeOpen}
         onClose={() => setChallengeOpen(false)}
@@ -349,7 +376,7 @@ export default function Feed() {
         refreshKey={battlesRefresh}
         onClose={() => setBattlesOpen(false)}
         onOpenActive={() => setActiveChallengesOpen(true)}
-        onOpenUpload={() => { setBattlesOpen(false); setUploadOpen(true) }}
+        onOpenUpload={() => { setBattlesOpen(false); requestUpload() }}
         onOpenInbox={() => { setBattlesOpen(false); setInboxOpen(true) }}
         onOpenProfile={() => { setBattlesOpen(false); setProfileOpen(true) }}
       />

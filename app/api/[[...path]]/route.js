@@ -538,7 +538,11 @@ async function handleVersusUpload(request) {
   try {
     // Obtener usuario autenticado (opcional por ahora para backward compatibility)
     const currentUser = await getCurrentUser(request)
-    
+    // Publicar requiere sesión: los invitados NO pueden crear publicaciones.
+    if (!currentUser) {
+      return NextResponse.json({ error: 'unauthorized', message: 'Debes iniciar sesión para publicar' }, { status: 401 })
+    }
+
     const formData = await request.formData()
     const fileA = formData.get('fileA')
     const fileB = formData.get('fileB')
@@ -615,6 +619,10 @@ async function handleDuetUpload(request) {
   try {
     // Obtener usuario autenticado (opcional por ahora para backward compatibility)
     const currentUser = await getCurrentUser(request)
+    // Publicar requiere sesión: los invitados NO pueden crear publicaciones.
+    if (!currentUser) {
+      return NextResponse.json({ error: 'unauthorized', message: 'Debes iniciar sesión para publicar' }, { status: 401 })
+    }
 
     const formData = await request.formData()
     const fileA = formData.get('fileA')
@@ -752,6 +760,10 @@ async function handleCreateChallenge(request) {
   try {
     // Obtener usuario autenticado (opcional por ahora para backward compatibility)
     const currentUser = await getCurrentUser(request)
+    // Retar requiere sesión: los invitados NO pueden crear retos.
+    if (!currentUser) {
+      return NextResponse.json({ error: 'unauthorized', message: 'Debes iniciar sesión para retar' }, { status: 401 })
+    }
 
     const formData = await request.formData()
     const file = formData.get('file')

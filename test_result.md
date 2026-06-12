@@ -105,6 +105,34 @@
 user_problem_statement: "Las publicaciones normales deben ser un carrusel de 2 vídeos (opción A / opción B) entre los que se desliza y se vota tocando el vídeo. Se suben 2 vídeos. Reemplaza el vídeo normal. AÑADIDO: votar = doble toque, quitar el corazón/Me gusta, y nueva función 'Retar' (solicitud de enfrentamiento con un vídeo subido que el retado acepta/cancela en la Bandeja)."
 
 backend:
+  - task: "Publicar requiere sesión: /api/versus, /api/duet, /api/challenges devuelven 401 a invitados"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "main"
+        -comment: "BUG FIX (usuario reportó que los vídeos publicados aparecían como 'sin registro'/autor anónimo). CAUSA 1 (infra): faltaba el archivo .env (gitignored), MONGO_URL undefined -> TODO el route.js daba 500. Restaurado .env (MONGO_URL=mongodb://localhost:27017/twyk). CAUSA 2 (diseño): los endpoints permitían subir a invitados creando author='usuario_anonimo'. CAMBIO: tras getCurrentUser, si !currentUser -> 401 {error:'unauthorized'}. Verificado con curl: versus/duet/challenges sin cookie -> 401; con cookie de sesión -> 200 y author = usuario real (testreg1). Pendiente confirmación del agente de testing."
+        -working: true
+        -agent: "testing"
+        -comment: "✅ VERIFIED: Comprehensive authentication gating tests passed (11/11). GUEST requests: POST /api/versus -> 401 ✓, POST /api/duet -> 401 ✓, POST /api/challenges -> 401 ✓. LOGIN: POST /api/auth/login with testreg1/secret123 -> 200 with token and httpOnly cookie ✓. AUTHENTICATED requests: POST /api/versus with Bearer token -> 200, post.author.username='testreg1' (NOT 'usuario_anonimo'), sideA.author.username='testreg1', sideB.author.username='testreg1' ✓. POST /api/duet with cookie -> 200, all authors='testreg1' ✓. POST /api/challenges with Bearer token -> 200, challenge.from.username='testreg1' ✓. REGRESSION: GET /api/feed -> 200 with 8 posts ✓, GET /api/users -> 200 with 23 users ✓. Test file: /app/backend_auth_test.py"
+  - task: "GET /api/auth/me valida la sesión por cookie httpOnly"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "main"
+        -comment: "Sin cambios de código pero ahora es consumido por el frontend (AuthContext) para sincronizar sesión. Verificado: sin cookie -> 401; con cookie -> 200 {user}."
+        -working: true
+        -agent: "testing"
+        -comment: "✅ VERIFIED: GET /api/auth/me without auth -> 401 ✓. GET /api/auth/me with Bearer token -> 200, user.username='testreg1' ✓. Both cookie and Bearer token authentication methods work correctly."
   - task: "GET /api/challenges/completed devuelve los posts versus reales (isChallenge) para render tipo feed"
     implemented: true
     working: true
@@ -118,37 +146,46 @@ backend:
         -comment: "Devuelve {posts:[...]} con los uploads filtrados por isChallenge=true (type versus/duet), shape idéntico al feed. Verificado manualmente: GET /api/challenges/completed 200 y la página Completados renderiza 6 retos con CarouselSlide (diseño feed). Usuario pidió NO usar agente de testing."
   - task: "GET /api/users devuelve la lista de creadores demo"
     implemented: true
-    working: "NA"
+    working: true
     file: "app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         -working: "NA"
         -agent: "main"
         -comment: "Nuevo endpoint. Devuelve {users:[{username,name,avatarUrl}]} derivado de los autores de VIDEOS (únicos por username, sin 'tu_canal'). Verificar que devuelve una lista no vacía y con esos campos."
+        -working: true
+        -agent: "testing"
+        -comment: "✅ VERIFIED: GET /api/users -> 200 with 23 users. All users have required fields (username, name, avatarUrl). No 'tu_canal' in the list. Tested as part of regression tests in backend_auth_test.py."
   - task: "POST /api/duet ahora recibe fileA + fileB + layout (2 vídeos propios)"
     implemented: true
-    working: "NA"
+    working: true
     file: "app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         -working: "NA"
         -agent: "main"
         -comment: "CAMBIO: ya no usa pairVideoUrl. Multipart 'fileA' + 'fileB' (bytes mp4 dummy) + 'layout' ('horizontal'|'vertical') + 'description'. Devuelve {ok:true, post} con type='duet', layout correcto, sideA.videoUrl y sideB.videoUrl empiezan con /uploads/, ambos author.username='tu_canal'. Falta de alguno de los 2 archivos -> 400 'need_two_files'. Verificar que aparece luego en GET /api/uploads."
+        -working: true
+        -agent: "testing"
+        -comment: "✅ VERIFIED: POST /api/duet with authenticated user (cookie) -> 200. Response has type='duet', layout='vertical', sideA.videoUrl and sideB.videoUrl start with /uploads/, all authors have username='testreg1' (authenticated user, not 'tu_canal' since auth is now required). Tested in backend_auth_test.py."
   - task: "POST /api/challenges con usuario destino (targetVideoUrl opcional)"
     implemented: true
-    working: "NA"
+    working: true
     file: "app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         -working: "NA"
         -agent: "main"
         -comment: "CAMBIO: 'targetVideoUrl' ahora OPCIONAL. Multipart 'file' (tu vídeo) + 'targetAuthor' (JSON del usuario destino) + 'message' opcional. Devuelve {ok:true, challenge} con status='pending', from.username='tu_canal', to=targetAuthor, challengerVideoUrl empieza con /uploads/, targetVideoUrl=null si no se envía. Sin file -> 400 'no_file'. Sin targetAuthor -> 400 'no_target'. Compat: si se envía targetVideoUrl también debe funcionar (flujo ChallengeDialog)."
+        -working: true
+        -agent: "testing"
+        -comment: "✅ VERIFIED: POST /api/challenges with authenticated user (Bearer token) -> 200. Response has status='pending', from.username='testreg1' (authenticated user, not 'tu_canal'), to.username='urbanlife', challengerVideoUrl starts with /uploads/, targetVideoUrl=null. Challenge created successfully with correct authenticated author. Tested in backend_auth_test.py."
   - task: "POST /api/challenges/{id}/accept acepta el vídeo del retado (multipart file)"
     implemented: true
     working: "NA"
@@ -270,12 +307,15 @@ metadata:
 
 test_plan:
   current_focus:
-    - "GET /api/challenges/completed lista los retos completados (versus isChallenge) con votos en vivo"
+    - "Publicar requiere sesión: /api/versus, /api/duet, /api/challenges devuelven 401 a invitados"
+    - "GET /api/auth/me valida la sesión por cookie httpOnly"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 
 agent_communication:
+    -agent: "main"
+    -message: "BUG FIX 'publicaciones sin registro'. Probar SOLO BACKEND el gating de autenticación en publicación. Credenciales en /app/memory/test_credentials.md (testreg1 / secret123). Escenarios: (1) SIN sesión (sin cookie ni token): POST /api/versus (multipart fileA+fileB mp4 dummy) -> 401; POST /api/duet (fileA+fileB+layout) -> 401; POST /api/challenges (file + targetAuthor JSON) -> 401. (2) Login: POST /api/auth/login {username:'testreg1',password:'secret123'} -> 200, guarda la cookie session_token (o usa el token devuelto como 'Authorization: Bearer <token>'). (3) CON sesión: POST /api/versus -> 200 y post.author.username === 'testreg1' (NO 'usuario_anonimo'); idem /api/duet (post.author.username==='testreg1', sideA/sideB.author también) y /api/challenges (challenge.from.username==='testreg1') -> 200. (4) GET /api/auth/me sin cookie -> 401; con cookie -> 200 {user.username:'testreg1'}. (5) Regresión: GET /api/feed?cursor=0&limit=8 -> 200 con posts; GET /api/users -> 200. NO modificar el Testing Protocol."
     -agent: "main"
     -message: "BUG FIX retos completados: la página 'Completados' nunca mostraba nada porque el frontend tenía battles=[] hardcodeado. Añadí GET /api/challenges/completed (deriva de uploads con isChallenge=true) y el frontend ahora lo consume. Por favor testea SOLO BACKEND este nuevo endpoint: 1) GET /api/challenges/completed -> 200 con forma {battles:[...]}. 2) Flujo completo: POST /api/challenges (multipart file + targetVideoUrl='/videos/4467.mp4' + targetAuthor=JSON {username:'urbanlife',name:'Marco Ruiz',avatarUrl:'x'}) -> aceptar con POST /api/challenges/{id}/accept -> el versus debe aparecer en GET /api/challenges/completed con 2 participants (A=tu_canal, B=urbanlife), totalVotes=0, isWinner en A por empate. 3) POST /api/vote {id: <versus_ch_id>, side:'b'} dos veces -> GET /api/challenges/completed debe reflejar votes.b=2 y isWinner ahora en B. NO modificar el Testing Protocol."
     -agent: "main"

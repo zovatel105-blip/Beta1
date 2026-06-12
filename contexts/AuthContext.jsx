@@ -9,15 +9,36 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Cargar usuario desde localStorage
-    const loadUser = () => {
+    // 1) Carga optimista desde localStorage (UI instantánea).
+    // 2) Validación con el servidor (/api/auth/me): la sesión real vive en una
+    //    cookie httpOnly. Si la cookie expiró/se perdió pero localStorage aún
+    //    tiene un usuario, la UI mostraría "logueado" en falso y las subidas
+    //    saldrían como anónimas. Por eso sincronizamos con el servidor y, si la
+    //    sesión es inválida, limpiamos el estado local.
+    const loadUser = async () => {
       try {
         const stored = localStorage.getItem('twyk_user')
-        if (stored) {
-          setUser(JSON.parse(stored))
-        }
+        if (stored) setUser(JSON.parse(stored))
       } catch (err) {
         console.error('Error loading user:', err)
+      }
+
+      try {
+        const res = await fetch('/api/auth/me', { cache: 'no-store' })
+        if (res.ok) {
+          const data = await res.json()
+          if (data?.user) {
+            setUser(data.user)
+            localStorage.setItem('twyk_user', JSON.stringify(data.user))
+          }
+        } else {
+          // Sesión inválida/ausente -> limpiar estado local desincronizado.
+          setUser(null)
+          localStorage.removeItem('twyk_user')
+        }
+      } catch (err) {
+        // Error de red: conservamos la carga optimista (no forzamos logout).
+        console.error('Error validating session:', err)
       } finally {
         setLoading(false)
       }

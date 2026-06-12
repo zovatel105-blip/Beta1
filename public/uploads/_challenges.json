@@ -1,5 +1,32 @@
 [
   {
+    "id": "challenge_c36623167c28dcac",
+    "status": "pending",
+    "from": {
+      "id": "ccd34343-fbdd-4876-b534-57547a910dc7",
+      "username": "testreg1",
+      "name": "testreg1",
+      "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=testreg1",
+      "verified": false
+    },
+    "to": {
+      "username": "urbanlife",
+      "name": "Marco",
+      "avatarUrl": "x"
+    },
+    "challengerVideoUrl": "/uploads/601455cc523c042a.mp4",
+    "targetVideoUrl": null,
+    "targetAuthor": {
+      "username": "urbanlife",
+      "name": "Marco",
+      "avatarUrl": "x"
+    },
+    "targetDescription": "",
+    "targetMusic": "",
+    "message": "Authenticated challenge test",
+    "createdAt": "2026-06-12T11:46:52.519Z"
+  },
+  {
     "id": "challenge_e1ff12517183dd5d",
     "status": "pending",
     "from": {
