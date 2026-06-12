@@ -89,6 +89,7 @@ import kotlin.math.roundToInt
 fun VersusFeed(
     onOpenComments: (String) -> Unit,
     onRequireAuth: () -> Unit,
+    onOpenProfile: (String) -> Unit,
     vm: FeedViewModel = viewModel(),
 ) {
     val posts by vm.posts.collectAsState()
@@ -121,6 +122,7 @@ fun VersusFeed(
                 onVote = { vm.vote(post.id, it) },
                 onComments = { onOpenComments(post.id) },
                 onRequireAuth = onRequireAuth,
+                onOpenProfile = onOpenProfile,
             )
         } else {
             CarouselPage(
@@ -128,6 +130,7 @@ fun VersusFeed(
                 onVote = { vm.vote(post.id, it) },
                 onComments = { onOpenComments(post.id) },
                 onRequireAuth = onRequireAuth,
+                onOpenProfile = onOpenProfile,
             )
         }
     }
@@ -159,6 +162,7 @@ private fun CarouselPage(
     onVote: (String) -> Unit,
     onComments: () -> Unit,
     onRequireAuth: () -> Unit,
+    onOpenProfile: (String) -> Unit,
 ) {
     val context = LocalContext.current
     val playerA = remember(post.id) { buildPlayer(context, dataSourceFactory, post.sideA?.videoUrl, muted = false) }
@@ -202,7 +206,7 @@ private fun CarouselPage(
             modifier = Modifier.align(Alignment.TopStart).statusBarsPadding().padding(12.dp),
         )
 
-        HeaderOverlay(post)
+        HeaderOverlay(post, onOpenProfile)
         SocialRail(post, votes, voted, onComments, onRequireAuth)
         Dots(active = sidePager.currentPage)
         if (voted == null) VoteHint()
@@ -218,6 +222,7 @@ private fun DuetPage(
     onVote: (String) -> Unit,
     onComments: () -> Unit,
     onRequireAuth: () -> Unit,
+    onOpenProfile: (String) -> Unit,
 ) {
     val context = LocalContext.current
     val playerA = remember(post.id) { buildPlayer(context, dataSourceFactory, post.sideA?.videoUrl, muted = false) }
@@ -265,7 +270,7 @@ private fun DuetPage(
                 .padding(12.dp),
         )
 
-        HeaderOverlay(post)
+        HeaderOverlay(post, onOpenProfile)
         SocialRail(post, votes, voted, onComments, onRequireAuth)
         if (voted == null) VoteHint()
     }
@@ -300,8 +305,9 @@ private fun VideoSurface(
 
 // ── Overlays ──────────────────────────────────────────────────────────────────
 @Composable
-private fun BoxScope.HeaderOverlay(post: Post) {
+private fun BoxScope.HeaderOverlay(post: Post, onOpenProfile: (String) -> Unit) {
     val author = post.sideA?.author ?: post.author
+    val uname = author?.username
     Column(
         Modifier
             .align(Alignment.TopStart)
@@ -310,7 +316,10 @@ private fun BoxScope.HeaderOverlay(post: Post) {
             .statusBarsPadding()
             .padding(start = 14.dp, end = 80.dp, top = 10.dp, bottom = 28.dp),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.clickable(enabled = uname != null) { uname?.let { onOpenProfile(it) } },
+        ) {
             val avatar = absoluteUrl(author?.avatarUrl)
             if (avatar != null) {
                 AsyncImage(

@@ -94,3 +94,18 @@ data class LikeResponse(val ok: Boolean = false, val likes: Int = 0, val userLik
 // ── Guardados ─────────────────────────────────────────────────────────────────
 data class SaveRequest(val postId: String)
 data class SaveResponse(val ok: Boolean = false, val saved: Boolean = false)
+
+// ── Perfil ────────────────────────────────────────────────────────────────────
+data class ProfileUser(
+    val username: String? = null,
+    val name: String? = null,
+    val avatarUrl: String? = null,
+    val verified: Boolean = false,
+    val followers: Int = 0,
+    val following: Int = 0,
+    val bio: String? = null,
+    val isFollowing: Boolean = false,
+)
+
+data class ProfileResponse(val user: ProfileUser? = null, val posts: List<Post>? = null)
+data class FollowResponse(val ok: Boolean = false, val following: Boolean = false, val followers: Int = 0)

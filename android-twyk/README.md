@@ -18,7 +18,9 @@ estado queda intacta** y el vídeo se ve por detrás (edge-to-edge).
 - **Fase 1 (HECHA):** feed nativo adaptable (carrusel/dúo) + navegación + votar.
 - **Fase 2 (HECHA):** comentarios (ver/escribir + likes) + compartir (nativo) +
   guardar + login/registro (Bearer token). Cuenta demo: `twyk_demo` / `demo1234`.
-- **Fase 3:** perfil (propio y ajeno) con cuadrícula de publicaciones.
+- **Fase 3 (HECHA):** perfil propio (pestaña Perfil) y ajeno (tocando el autor
+  en el feed) con cabecera, estadísticas, **seguir/dejar de seguir** y cuadrícula
+  3 columnas de publicaciones.
 - **Fase 4:** subir contenido (selector + subida de vídeo).
 - **Fase 5:** notificaciones y retos (crear/aceptar).
 

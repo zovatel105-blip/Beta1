@@ -7,6 +7,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
+import retrofit2.http.Path
 import retrofit2.http.Query
 import java.util.concurrent.TimeUnit
 
@@ -37,6 +38,12 @@ interface TwykApi {
 
     @POST("api/auth/register")
     suspend fun register(@Body body: RegisterRequest): AuthResponse
+
+    @GET("api/users/{username}")
+    suspend fun userProfile(@Path("username") username: String): ProfileResponse
+
+    @POST("api/users/{username}/follow")
+    suspend fun toggleFollow(@Path("username") username: String): FollowResponse
 }
 
 object RetrofitProvider {

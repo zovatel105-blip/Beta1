@@ -45,6 +45,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import com.twyk.app.feed.VersusFeed
 import com.twyk.app.ui.AuthSheet
 import com.twyk.app.ui.CommentsSheet
+import com.twyk.app.ui.ProfileScreen
 
 // Twyk Android — app NATIVA (Jetpack Compose + Media3/ExoPlayer).
 // El feed se adapta al formato de cada publicación; la barra inferior navega
@@ -84,10 +85,18 @@ private fun TwykApp() {
     var tab by remember { mutableStateOf(Tab.Home) }
     var commentsPostId by remember { mutableStateOf<String?>(null) }
     var authOpen by remember { mutableStateOf(false) }
+    var profileUsername by remember { mutableStateOf<String?>(null) }
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         when (tab) {
             Tab.Home -> VersusFeed(
                 onOpenComments = { commentsPostId = it },
+                onRequireAuth = { authOpen = true },
+                onOpenProfile = { profileUsername = it },
+            )
+            Tab.Profile -> ProfileScreen(
+                username = null,
+                isOverlay = false,
+                onClose = {},
                 onRequireAuth = { authOpen = true },
             )
             else -> ComingSoon(tab.label)
@@ -97,6 +106,15 @@ private fun TwykApp() {
             onSelect = { tab = it },
             modifier = Modifier.align(Alignment.BottomCenter),
         )
+        // Perfil ajeno (al tocar un autor en el feed) como overlay sobre todo.
+        profileUsername?.let { uname ->
+            ProfileScreen(
+                username = uname,
+                isOverlay = true,
+                onClose = { profileUsername = null },
+                onRequireAuth = { authOpen = true },
+            )
+        }
         // Hojas por encima de la barra de navegación.
         commentsPostId?.let { pid ->
             CommentsSheet(
