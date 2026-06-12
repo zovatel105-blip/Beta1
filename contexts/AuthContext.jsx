@@ -1,12 +1,17 @@
 'use client'
 
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect, useRef } from 'react'
 
 const AuthContext = createContext({})
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
+  // Marca cuando el usuario hace una acción de auth manual (login/registro/logout).
+  // Evita que una validación /api/auth/me EN VUELO (lanzada al montar, antes de
+  // existir la cookie) sobrescriba/borre un login o registro recién hecho
+  // (la causa del "me registré pero aparezco como no registrado").
+  const manualAuthRef = useRef(false)
 
   useEffect(() => {
     // 1) Carga optimista desde localStorage (UI instantánea).
@@ -25,6 +30,8 @@ export function AuthProvider({ children }) {
 
       try {
         const res = await fetch('/api/auth/me', { cache: 'no-store' })
+        // Si mientras tanto el usuario hizo login/registro, NO tocamos su estado.
+        if (manualAuthRef.current) return
         if (res.ok) {
           const data = await res.json()
           if (data?.user) {
@@ -61,6 +68,7 @@ export function AuthProvider({ children }) {
       }
 
       const data = await res.json()
+      manualAuthRef.current = true
       setUser(data.user)
       localStorage.setItem('twyk_user', JSON.stringify(data.user))
       return { success: true }
@@ -83,6 +91,7 @@ export function AuthProvider({ children }) {
       }
 
       const data = await res.json()
+      manualAuthRef.current = true
       setUser(data.user)
       localStorage.setItem('twyk_user', JSON.stringify(data.user))
       return { success: true }
@@ -91,9 +100,13 @@ export function AuthProvider({ children }) {
     }
   }
 
-  const logout = () => {
+  const logout = async () => {
+    manualAuthRef.current = true
     setUser(null)
     localStorage.removeItem('twyk_user')
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' })
+    } catch { /* ignore */ }
   }
 
   return (

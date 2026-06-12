@@ -922,7 +922,7 @@ async function handleRegister(request) {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 30 * 24 * 60 * 60, // 30 días
+      maxAge: 10 * 365 * 24 * 60 * 60, // ~10 años (sesión permanente)
     })
 
     return response
@@ -960,7 +960,7 @@ async function handleLogin(request) {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 30 * 24 * 60 * 60,
+      maxAge: 10 * 365 * 24 * 60 * 60, // ~10 años (sesión permanente)
     })
 
     return response

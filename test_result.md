@@ -232,6 +232,17 @@ backend:
         -comment: "vote increments side a/b. Already validated previously."
 
 frontend:
+  - task: "Sesión permanente (~10 años) + fix condición de carrera 'me registré pero aparezco como no registrado'"
+    implemented: true
+    working: true
+    file: "contexts/AuthContext.jsx, app/api/[[...path]]/route.js, lib/db.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "main"
+        -comment: "(1) SESIÓN PERMANENTE: cookie session_token maxAge 30 días -> ~10 años (Max-Age=315360000, verificado expira 2036) en login y register; createSession expiresAt -> ~10 años. (2) BUG 'me registré pero aparezco como no registrado': era una condición de carrera introducida por la validación /api/auth/me al montar — la petición se lanza SIN cookie (devuelve 401) y, si el usuario se registraba mientras estaba en vuelo, su respuesta 401 borraba el usuario recién creado. FIX en AuthContext: ref manualAuthRef que se activa en login/register/logout; el handler de /api/auth/me hace 'return' si manualAuthRef.current (no toca el estado tras una acción manual). logout ahora también llama POST /api/auth/logout. Verificado por curl/inspección de cookie; lint limpio. NO usar agente de testing (petición del usuario)."
   - task: "Twyk v2 (b)+(a): background/foreground + modo ahorro (G3/G4), arranque atómico A/B + watchdog de drift con timeout (C5), instrumentación perfMetrics (C1/C3/C5)"
     implemented: true
     working: true
