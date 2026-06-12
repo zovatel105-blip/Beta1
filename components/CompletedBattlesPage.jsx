@@ -266,6 +266,7 @@ export default function CompletedBattlesPage({ open, onClose, onOpenActive, onOp
         onOpenInbox={onOpenInbox}
         onOpenProfile={onOpenProfile}
         unreadCount={notificationsUnreadCount}
+        activeTab="explore"
       />
     </div>
   )
