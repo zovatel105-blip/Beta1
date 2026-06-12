@@ -920,8 +920,12 @@ async function handleRegister(request) {
     const response = NextResponse.json({ ok: true, user, token: session.token })
     response.cookies.set('session_token', session.token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      // SameSite=None + Secure: imprescindible para que la cookie viaje dentro
+      // del iframe del preview (contexto cross-site) y en producción (HTTPS).
+      // Con 'lax' el navegador NO enviaba la cookie en el iframe -> /api/auth/me
+      // daba 401 y "la sesión se cerraba sola".
+      secure: true,
+      sameSite: 'none',
       maxAge: 10 * 365 * 24 * 60 * 60, // ~10 años (sesión permanente)
     })
 
@@ -958,8 +962,12 @@ async function handleLogin(request) {
     const response = NextResponse.json({ ok: true, user, token: session.token })
     response.cookies.set('session_token', session.token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      // SameSite=None + Secure: imprescindible para que la cookie viaje dentro
+      // del iframe del preview (contexto cross-site) y en producción (HTTPS).
+      // Con 'lax' el navegador NO enviaba la cookie en el iframe -> /api/auth/me
+      // daba 401 y "la sesión se cerraba sola".
+      secure: true,
+      sameSite: 'none',
       maxAge: 10 * 365 * 24 * 60 * 60, // ~10 años (sesión permanente)
     })
 

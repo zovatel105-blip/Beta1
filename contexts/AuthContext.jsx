@@ -29,7 +29,14 @@ export function AuthProvider({ children }) {
       }
 
       try {
-        const res = await fetch('/api/auth/me', { cache: 'no-store' })
+        // Respaldo por token Bearer (localStorage) además de la cookie: si el
+        // navegador bloquea la cookie dentro del iframe del preview (cookies de
+        // terceros), el token mantiene la sesión y /api/auth/me responde 200.
+        const token = localStorage.getItem('twyk_token')
+        const res = await fetch('/api/auth/me', {
+          cache: 'no-store',
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        })
         // Si mientras tanto el usuario hizo login/registro, NO tocamos su estado.
         if (manualAuthRef.current) return
         if (res.ok) {
@@ -38,10 +45,12 @@ export function AuthProvider({ children }) {
             setUser(data.user)
             localStorage.setItem('twyk_user', JSON.stringify(data.user))
           }
-        } else {
-          // Sesión inválida/ausente -> limpiar estado local desincronizado.
+        } else if (res.status === 401) {
+          // Sesión realmente inválida/ausente -> limpiar estado desincronizado.
+          // (Solo en 401; un 500/transitorio NO debe cerrar la sesión.)
           setUser(null)
           localStorage.removeItem('twyk_user')
+          localStorage.removeItem('twyk_token')
         }
       } catch (err) {
         // Error de red: conservamos la carga optimista (no forzamos logout).
@@ -71,6 +80,7 @@ export function AuthProvider({ children }) {
       manualAuthRef.current = true
       setUser(data.user)
       localStorage.setItem('twyk_user', JSON.stringify(data.user))
+      if (data.token) localStorage.setItem('twyk_token', data.token)
       return { success: true }
     } catch (err) {
       return { success: false, error: err.message }
@@ -94,6 +104,7 @@ export function AuthProvider({ children }) {
       manualAuthRef.current = true
       setUser(data.user)
       localStorage.setItem('twyk_user', JSON.stringify(data.user))
+      if (data.token) localStorage.setItem('twyk_token', data.token)
       return { success: true }
     } catch (err) {
       return { success: false, error: err.message }
@@ -102,10 +113,15 @@ export function AuthProvider({ children }) {
 
   const logout = async () => {
     manualAuthRef.current = true
+    const token = localStorage.getItem('twyk_token')
     setUser(null)
     localStorage.removeItem('twyk_user')
+    localStorage.removeItem('twyk_token')
     try {
-      await fetch('/api/auth/logout', { method: 'POST' })
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      })
     } catch { /* ignore */ }
   }
 

@@ -138,6 +138,12 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
         fd.append('fileB', fileB)
         fd.append('description', description || '¿Cuál prefieres? 🅰️🆚🅱️')
       }
+      // Respaldo por token Bearer (además de la cookie withCredentials): si el
+      // navegador bloquea la cookie dentro del iframe, el token autentica igual.
+      try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('twyk_token') : null
+        if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+      } catch { /* ignore */ }
       xhr.send(fd)
       const data = await promise
       if (mode === 'challenge') {
