@@ -5,21 +5,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { Menu, Bookmark, Link as LinkIcon, Swords, Users, UserPlus } from 'lucide-react'
 import VoteIcon from './icons/VoteIcon'
 import { useAuth } from '@/contexts/AuthContext'
+import Avatar from './Avatar'
 
 // El perfil se deriva del usuario autenticado (useAuth) dentro del componente.
-// El avatar usa la MISMA imagen (avatarUrl) que el feed; la silueta por defecto
-// solo aparece cuando no hay ninguna imagen.
-
-// Avatar por defecto: círculo gris claro con silueta de persona (gris medio),
-// idéntico al de la imagen de referencia (cabeza + busto que rellenan el círculo).
-const DefaultAvatar = ({ className = '' }) => (
-  <div className={`rounded-full bg-gray-200 overflow-hidden ${className}`}>
-    <svg viewBox="0 0 100 100" className="w-full h-full" aria-hidden="true">
-      <circle cx="50" cy="40" r="16" fill="#9ca3af" />
-      <path d="M16 100C16 75 31 62 50 62s34 13 34 38z" fill="#9ca3af" />
-    </svg>
-  </div>
-)
+// El avatar usa el componente compartido <Avatar> -> idéntico al del feed.
 
 const formatNumber = (num) => {
   const n = Number(num)
@@ -281,11 +270,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
               <div className="relative">
                 <div className="w-[104px] h-[104px] rounded-full p-[3px] bg-gradient-to-br from-white/15 to-white/[0.03] shadow-[0_8px_30px_-8px_rgba(0,0,0,0.6)]">
                   <div className="w-full h-full rounded-full overflow-hidden bg-zinc-900 ring-2 ring-white/10">
-                    {me.avatarUrl ? (
-                      <img src={me.avatarUrl} alt={me.username} className="w-full h-full rounded-full object-cover" draggable={false} />
-                    ) : (
-                      <DefaultAvatar className="w-full h-full" />
-                    )}
+                    <Avatar src={user?.avatarUrl} alt={me.username} className="w-full h-full rounded-full" />
                   </div>
                 </div>
               </div>

@@ -9,6 +9,7 @@ import VSWinnerCard from './VSWinnerCard'
 import CommentsModal from './CommentsModal'
 import ShareModal from './ShareModal'
 import AuthModal from './AuthModal'
+import Avatar, { isGeneratedAvatar } from './Avatar'
 import { useAuth } from '@/contexts/AuthContext'
 import { pickQuality, reportStall } from '@/lib/networkQuality'
 
@@ -475,11 +476,11 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
                     maskImage: 'radial-gradient(circle 15px at -3px 27px, transparent 0 15px, #000 15px)',
                   }}
                 >
-                  <img src={authorB.avatarUrl} alt={authorB.username} className="w-full h-full object-cover" draggable={false} />
+                  <Avatar src={authorB.avatarUrl} alt={authorB.username} className="w-full h-full" />
                 </button>
                 {/* Avatar delantero (abajo-izquierda) */}
                 <button onClick={(e) => e.stopPropagation()} className="absolute bottom-0 left-0 w-[24px] h-[24px] rounded-full overflow-hidden block">
-                  <img src={authorA.avatarUrl} alt={authorA.username} className="w-full h-full object-cover" draggable={false} />
+                  <Avatar src={authorA.avatarUrl} alt={authorA.username} className="w-full h-full" />
                 </button>
               </div>
               <div className="flex flex-col min-w-0 max-w-[160px] leading-tight">
@@ -495,7 +496,7 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
             <>
               {/* Publicación normal: un solo avatar + nombre */}
               <button onClick={(e) => e.stopPropagation()} className="w-[38px] h-[38px] rounded-full overflow-hidden block shrink-0">
-                <img src={headAuthor.avatarUrl} alt={headAuthor.username} className="w-full h-full object-cover" draggable={false} />
+                <Avatar src={headAuthor.avatarUrl} alt={headAuthor.username} className="w-full h-full" />
               </button>
               <span className="text-white font-semibold text-[13px] leading-tight drop-shadow-md truncate max-w-[160px]">
                 {headAuthor.username || headAuthor.name}
@@ -571,7 +572,7 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
           <MoreVertical className="w-[25px] h-[25px] text-white" strokeWidth={1.5} fill="currentColor" />
         </button>
         <div className="mt-1 w-10 h-10 rounded-full overflow-hidden border border-white/30 bg-gradient-to-br from-zinc-700 to-black flex items-center justify-center" style={{ animation: 'spin 6s linear infinite' }}>
-          <img src={headAuthor.avatarUrl} alt="" className="w-6 h-6 rounded-full object-cover" draggable={false} />
+          <Avatar src={headAuthor.avatarUrl} alt="" className="w-6 h-6 rounded-full" />
         </div>
       </div>
 
@@ -623,7 +624,7 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
         winnerSide={chosenKey}
         winnerName={chosenName}
         winnerPercentage={chosenPct}
-        winnerImage={chosenSide.author?.avatarUrl}
+        winnerImage={isGeneratedAvatar(chosenSide.author?.avatarUrl) ? null : chosenSide.author?.avatarUrl}
         winnerVideoUrl={chosenSrc}
         loserName={otherName}
         loserPercentage={otherPct}
