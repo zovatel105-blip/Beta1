@@ -123,18 +123,15 @@ const GridItem = ({ post }) => {
 const TABS = [
   { 
     key: 'polls', 
-    icon: (active) => <ColumnsIcon className={`w-[18px] h-[18px] transition-all ${active ? 'scale-110' : ''}`} />,
-    label: 'Posts'
+    icon: (active) => <ColumnsIcon className={`w-5 h-5 transition-all ${active ? '' : ''}`} />
   },
   { 
     key: 'saved', 
-    icon: (active) => <Bookmark className={`w-[18px] h-[18px] transition-all ${active ? 'scale-110 fill-current' : ''}`} strokeWidth={active ? 2 : 1.5} />,
-    label: 'Guardados'
+    icon: (active) => <Bookmark className={`w-5 h-5 transition-all ${active ? 'fill-current' : ''}`} strokeWidth={1.5} />
   },
   { 
     key: 'links', 
-    icon: (active) => <LinkIcon className={`w-[18px] h-[18px] transition-all ${active ? 'scale-110' : ''}`} strokeWidth={active ? 2 : 1.5} />,
-    label: 'Enlaces'
+    icon: (active) => <LinkIcon className={`w-5 h-5 transition-all`} strokeWidth={1.5} />
   },
 ]
 
@@ -317,31 +314,27 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
         </div>
       </div>
 
-      {/* Tabs - diseño premium minimalista */}
-      <div className="relative z-10 px-4 sm:px-6 max-w-md mx-auto w-full mt-8">
-        <div className="flex items-center justify-center gap-1 bg-zinc-900/60 backdrop-blur-xl border border-white/5 rounded-2xl p-1.5 shadow-lg shadow-black/20">
+      {/* Tabs - diseño fino y minimalista */}
+      <div className="relative z-10 px-4 sm:px-6 max-w-md mx-auto w-full mt-7">
+        <div className="flex items-center justify-center gap-0.5 bg-white/[0.03] border border-white/[0.08] rounded-full p-0.5">
           {TABS.map((tab) => {
             const active = activeTab === tab.key
             return (
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                aria-label={tab.label}
+                aria-label={tab.key}
                 className={`
-                  relative flex-1 flex flex-col items-center justify-center gap-1.5 py-3 px-4
-                  rounded-xl font-medium text-[11px] uppercase tracking-wider
-                  transition-all duration-300 ease-out
+                  flex-1 flex items-center justify-center h-11
+                  rounded-full
+                  transition-all duration-200
                   ${active 
-                    ? 'bg-white text-black shadow-lg shadow-black/10' 
-                    : 'text-zinc-500 hover:text-white hover:bg-white/5'
+                    ? 'bg-white text-black' 
+                    : 'text-zinc-500 hover:text-white active:scale-95'
                   }
                 `}
               >
                 {tab.icon(active)}
-                <span className="leading-none">{tab.label}</span>
-                {active && (
-                  <div className="absolute inset-0 rounded-xl bg-gradient-to-b from-white/20 to-transparent pointer-events-none" />
-                )}
               </button>
             )
           })}
