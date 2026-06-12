@@ -155,19 +155,9 @@ export default function BottomNav({ onOpenUpload, onOpenInbox, onOpenProfile, on
               />
             </div>
           ) : (
-            <div className={cn(
-              'w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200',
-              'bg-gradient-to-br from-white/10 to-white/5',
-              'ring-2',
-              active === 'profile' 
-                ? 'ring-white/30 bg-white/15' 
-                : 'ring-white/10 hover:ring-white/20'
-            )}>
+            <div className="w-7 h-7 rounded-full overflow-hidden bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center ring-2 ring-white/20 hover:ring-white/30 transition-all">
               <User
-                className={cn(
-                  'w-4 h-4 transition-all duration-200',
-                  active === 'profile' ? 'text-white' : 'text-white/60'
-                )}
+                className="w-4 h-4 text-white"
                 strokeWidth={2}
               />
             </div>
