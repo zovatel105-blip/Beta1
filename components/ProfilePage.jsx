@@ -314,8 +314,8 @@ export default function ProfilePage({ open, onClose, onOpenUpload }) {
         </div>
       </div>
 
-      {/* Tabs - diseño fino con bordes laterales */}
-      <div className="relative z-10 px-4 sm:px-6 max-w-md mx-auto w-full mt-7">
+      {/* Tabs - diseño fino que aprovecha el ancho */}
+      <div className="relative z-10 px-3 max-w-md mx-auto w-full mt-7">
         <div className="flex items-center justify-center gap-0.5 bg-white/[0.03] border border-white/[0.08] rounded-xl p-0.5">
           {TABS.map((tab) => {
             const active = activeTab === tab.key
