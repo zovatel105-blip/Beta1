@@ -98,6 +98,33 @@ data class SaveResponse(val ok: Boolean = false, val saved: Boolean = false)
 // ── Subida ────────────────────────────────────────────────────────────────────
 data class UploadPostResponse(val ok: Boolean = false, val post: Post? = null)
 
+data class UsersResponse(val users: List<User>? = null)
+data class ChallengeResponse(val ok: Boolean = false, val error: String? = null, val message: String? = null)
+
+// ── Notificaciones / Retos (buzón y batallas) ─────────────────────────────────
+data class NotificationItem(
+    val id: String = "",
+    val type: String = "",
+    val user: User? = null,
+    val text: String? = null,
+    val time: String? = null,
+    val read: Boolean = false,
+)
+data class NotificationsResponse(val notifications: List<NotificationItem>? = null)
+
+data class Challenge(
+    val id: String = "",
+    val status: String? = null,
+    val from: User? = null,
+    val to: User? = null,
+    val message: String? = null,
+    val challengerVideoUrl: String? = null,
+    val createdAt: String? = null,
+)
+data class ChallengesResponse(val challenges: List<Challenge>? = null)
+data class PostsResponse(val posts: List<Post>? = null)
+data class OkResponse(val ok: Boolean = false, val error: String? = null)
+
 // ── Perfil ────────────────────────────────────────────────────────────────────
 data class ProfileUser(
     val username: String? = null,

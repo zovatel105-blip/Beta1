@@ -1,5 +1,32 @@
 [
   {
+    "id": "challenge_10b06a0708a80aab",
+    "status": "pending",
+    "from": {
+      "id": "d4c1b800-c04e-4817-a17c-f85b604b8d3a",
+      "username": "twyk_demo",
+      "name": "twyk_demo",
+      "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=twyk_demo",
+      "verified": false
+    },
+    "to": {
+      "username": "wanderlust",
+      "name": "Sofía Vela",
+      "avatarUrl": "https://i.pravatar.cc/120?img=47"
+    },
+    "challengerVideoUrl": "/uploads/51ab9e6e96615b6c.mp4",
+    "targetVideoUrl": null,
+    "targetAuthor": {
+      "username": "wanderlust",
+      "name": "Sofía Vela",
+      "avatarUrl": "https://i.pravatar.cc/120?img=47"
+    },
+    "targetDescription": "",
+    "targetMusic": "",
+    "message": "Te reto!",
+    "createdAt": "2026-06-12T19:07:54.291Z"
+  },
+  {
     "id": "challenge_77c2568665971621",
     "status": "pending",
     "from": {

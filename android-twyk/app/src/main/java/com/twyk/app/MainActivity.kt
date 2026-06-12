@@ -45,7 +45,9 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.twyk.app.feed.VersusFeed
 import com.twyk.app.ui.AuthSheet
+import com.twyk.app.ui.BattlesScreen
 import com.twyk.app.ui.CommentsSheet
+import com.twyk.app.ui.InboxScreen
 import com.twyk.app.ui.ProfileScreen
 import com.twyk.app.ui.UploadScreen
 
@@ -108,7 +110,11 @@ private fun TwykApp() {
                 onClose = {},
                 onRequireAuth = { authOpen = true },
             )
-            else -> ComingSoon(tab.label)
+            Tab.Inbox -> InboxScreen(
+                onRequireAuth = { authOpen = true },
+                onAccepted = { feedReloadKey++ },
+            )
+            Tab.Battles -> BattlesScreen(onRequireAuth = { authOpen = true })
         }
         TwykBottomNav(
             current = tab,
@@ -134,17 +140,6 @@ private fun TwykApp() {
         }
         if (authOpen) {
             AuthSheet(onClose = { authOpen = false }, onAuthed = { authOpen = false })
-        }
-    }
-}
-
-@Composable
-private fun ComingSoon(title: String) {
-    Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(title, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(8.dp))
-            Text("Próximamente (nativo)", color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp)
         }
     }
 }

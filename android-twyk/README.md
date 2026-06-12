@@ -16,15 +16,13 @@ estado queda intacta** y el vídeo se ve por detrás (edge-to-edge).
 
 ## Estado por fases
 - **Fase 1 (HECHA):** feed nativo adaptable (carrusel/dúo) + navegación + votar.
-- **Fase 2 (HECHA):** comentarios (ver/escribir + likes) + compartir (nativo) +
-  guardar + login/registro (Bearer token). Cuenta demo: `twyk_demo` / `demo1234`.
-- **Fase 3 (HECHA):** perfil propio (pestaña Perfil) y ajeno (tocando el autor
-  en el feed) con cabecera, estadísticas, **seguir/dejar de seguir** y cuadrícula
-  3 columnas de publicaciones.
-- **Fase 4 (HECHA):** subir contenido nativo — **Versus** (carrusel A/B) y
-  **1vs1 / Duelo** (dúo, con disposición arriba-abajo o izq-der). Selector de
-  vídeos del sistema + publicación multipart; el feed se recarga al publicar.
-- **Fase 5:** notificaciones y retos (crear/aceptar).
+- **Fase 2 (HECHA):** comentarios + compartir + guardar + login/registro (Bearer token).
+- **Fase 3 (HECHA):** perfil propio y ajeno + seguir + cuadrícula de publicaciones.
+- **Fase 4 (HECHA):** subir contenido — **Versus**, **1vs1/Duelo** y **Reto** (retar a un usuario).
+- **Fase 5 (HECHA):** **Buzón** (retos recibidos: aceptar subiendo vídeo / rechazar +
+  notificaciones) y **Batallas** (retos completados en los que participas).
+
+> ✅ App nativa COMPLETA. Cuenta demo: `twyk_demo` / `demo1234`.
 
 > 👉 Compila la **Fase 1** primero y confirma que arranca; así validamos el
 > toolchain antes de añadir las siguientes fases.

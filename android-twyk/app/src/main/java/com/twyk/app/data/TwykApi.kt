@@ -65,6 +65,33 @@ interface TwykApi {
         @Part("description") description: RequestBody,
         @Part("layout") layout: RequestBody,
     ): UploadPostResponse
+
+    @GET("api/users")
+    suspend fun users(): UsersResponse
+
+    @Multipart
+    @POST("api/challenges")
+    suspend fun createChallenge(
+        @Part file: MultipartBody.Part,
+        @Part("targetAuthor") targetAuthor: RequestBody,
+        @Part("message") message: RequestBody,
+    ): ChallengeResponse
+
+    @GET("api/notifications")
+    suspend fun notifications(): NotificationsResponse
+
+    @GET("api/challenges")
+    suspend fun challenges(@Query("role") role: String = "to"): ChallengesResponse
+
+    @GET("api/challenges/completed")
+    suspend fun completedBattles(): PostsResponse
+
+    @Multipart
+    @POST("api/challenges/{id}/accept")
+    suspend fun acceptChallenge(@Path("id") id: String, @Part file: MultipartBody.Part): UploadPostResponse
+
+    @POST("api/challenges/{id}/reject")
+    suspend fun rejectChallenge(@Path("id") id: String): OkResponse
 }
 
 object RetrofitProvider {

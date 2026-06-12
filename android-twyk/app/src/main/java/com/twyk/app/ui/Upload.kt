@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
@@ -28,6 +29,7 @@ import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -38,13 +40,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import com.google.gson.Gson
+import com.twyk.app.absoluteUrl
 import com.twyk.app.data.RetrofitProvider
 import com.twyk.app.data.Session
+import com.twyk.app.data.User
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -54,7 +61,8 @@ import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.File
 
-// Pantalla SUBIR: crea un Versus (carrusel A/B) o un 1vs1/Duelo (pantalla partida).
+// Pantalla SUBIR: Versus (carrusel A/B), 1vs1/Duelo (pantalla partida) o Reto
+// (subes tu vídeo y retas a un usuario registrado).
 @Composable
 fun UploadScreen(onRequireAuth: () -> Unit, onDone: () -> Unit) {
     if (Session.token == null) {
@@ -74,16 +82,25 @@ fun UploadScreen(onRequireAuth: () -> Unit, onDone: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    var type by remember { mutableStateOf("versus") } // "versus" | "duet"
+    var type by remember { mutableStateOf("versus") } // "versus" | "duet" | "reto"
     var uriA by remember { mutableStateOf<Uri?>(null) }
     var uriB by remember { mutableStateOf<Uri?>(null) }
     var description by remember { mutableStateOf("") }
-    var layout by remember { mutableStateOf("horizontal") } // duet: horizontal | vertical
+    var layout by remember { mutableStateOf("horizontal") }
+    var users by remember { mutableStateOf<List<User>>(emptyList()) }
+    var targetUser by remember { mutableStateOf<User?>(null) }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
 
     val pickA = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uriA = it }
     val pickB = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uriB = it }
+
+    // Carga la lista de usuarios a retar al cambiar a "reto".
+    LaunchedEffect(type) {
+        if (type == "reto" && users.isEmpty()) {
+            users = runCatching { RetrofitProvider.api.users().users.orEmpty() }.getOrDefault(emptyList())
+        }
+    }
 
     Column(
         Modifier
@@ -96,41 +113,65 @@ fun UploadScreen(onRequireAuth: () -> Unit, onDone: () -> Unit) {
         Text("Crear publicación", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(16.dp))
 
-        // Tipo
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        // Tipo (3 opciones)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Chip("Versus", type == "versus", Modifier.weight(1f)) { type = "versus" }
-            Chip("1vs1 / Duelo", type == "duet", Modifier.weight(1f)) { type = "duet" }
+            Chip("Duelo", type == "duet", Modifier.weight(1f)) { type = "duet" }
+            Chip("Reto", type == "reto", Modifier.weight(1f)) { type = "reto" }
         }
         Spacer(Modifier.height(8.dp))
         Text(
-            if (type == "versus") "Carrusel: se desliza entre A y B." else "Pantalla partida: A y B a la vez.",
+            when (type) {
+                "versus" -> "Carrusel: se desliza entre A y B."
+                "duet" -> "Pantalla partida: A y B a la vez."
+                else -> "Subes tu vídeo y retas a un usuario."
+            },
             color = Color.White.copy(alpha = 0.55f), fontSize = 12.sp,
         )
         Spacer(Modifier.height(18.dp))
 
-        // Vídeos
-        PickRow("Vídeo A", uriA != null) { pickA.launch("video/*") }
-        Spacer(Modifier.height(10.dp))
-        PickRow("Vídeo B", uriB != null) { pickB.launch("video/*") }
-
-        if (type == "duet") {
+        if (type == "reto") {
+            // Reto: 1 vídeo (el tuyo) + elegir a quién retar.
+            PickRow("Tu vídeo", uriA != null) { pickA.launch("video/*") }
             Spacer(Modifier.height(18.dp))
-            Text("Disposición", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+            Text("A quién retas", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
             Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Chip("Arriba / Abajo", layout == "horizontal", Modifier.weight(1f)) { layout = "horizontal" }
-                Chip("Izq / Der", layout == "vertical", Modifier.weight(1f)) { layout = "vertical" }
+            if (users.isEmpty()) {
+                Text("No hay usuarios para retar todavía.", color = Color.White.copy(alpha = 0.5f), fontSize = 13.sp)
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    users.forEach { u -> UserRow(u, selected = targetUser?.username == u.username) { targetUser = u } }
+                }
+            }
+        } else {
+            // Versus / Duelo: 2 vídeos.
+            PickRow("Vídeo A", uriA != null) { pickA.launch("video/*") }
+            Spacer(Modifier.height(10.dp))
+            PickRow("Vídeo B", uriB != null) { pickB.launch("video/*") }
+            if (type == "duet") {
+                Spacer(Modifier.height(18.dp))
+                Text("Disposición", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Chip("Arriba / Abajo", layout == "horizontal", Modifier.weight(1f)) { layout = "horizontal" }
+                    Chip("Izq / Der", layout == "vertical", Modifier.weight(1f)) { layout = "vertical" }
+                }
             }
         }
 
         Spacer(Modifier.height(18.dp))
-        Text("Descripción", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+        Text(if (type == "reto") "Mensaje" else "Descripción", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
         Spacer(Modifier.height(8.dp))
         Box(
             Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(Color.White.copy(alpha = 0.08f))
                 .padding(horizontal = 14.dp, vertical = 12.dp),
         ) {
-            if (description.isEmpty()) Text("Escribe una descripción…", color = Color.White.copy(alpha = 0.4f), fontSize = 14.sp)
+            if (description.isEmpty()) {
+                Text(
+                    if (type == "reto") "Mensaje del reto (opcional)…" else "Escribe una descripción…",
+                    color = Color.White.copy(alpha = 0.4f), fontSize = 14.sp,
+                )
+            }
             BasicTextField(
                 value = description,
                 onValueChange = { description = it },
@@ -147,30 +188,47 @@ fun UploadScreen(onRequireAuth: () -> Unit, onDone: () -> Unit) {
         }
 
         Spacer(Modifier.height(22.dp))
-        val canPublish = uriA != null && uriB != null && !busy
+        val canPublish = !busy && uriA != null && (if (type == "reto") targetUser != null else uriB != null)
         Box(
             Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
                 .background(if (canPublish) Color(0xFFEF2D56) else Color.White.copy(alpha = 0.15f))
                 .clickable(enabled = canPublish) {
-                    val a = uriA; val b = uriB ?: return@clickable
-                    if (a == null) return@clickable
+                    val a = uriA ?: return@clickable
                     error = null
                     busy = true
                     scope.launch {
                         try {
-                            val parts = withContext(Dispatchers.IO) {
-                                filePart(context, "fileA", a) to filePart(context, "fileB", b)
-                            }
-                            val desc = (description.ifBlank {
-                                if (type == "versus") "¿Cuál prefieres? 🅰️🆚🅱️" else "¿Quién gana? 🥊 #1vs1"
-                            }).toRequestBody("text/plain".toMediaTypeOrNull())
-                            if (type == "versus") {
-                                RetrofitProvider.api.uploadVersus(parts.first, parts.second, desc)
-                            } else {
-                                RetrofitProvider.api.uploadDuet(
-                                    parts.first, parts.second, desc,
-                                    layout.toRequestBody("text/plain".toMediaTypeOrNull()),
+                            if (type == "reto") {
+                                val tgt = targetUser ?: throw IllegalStateException("Sin objetivo")
+                                val part = withContext(Dispatchers.IO) { filePart(context, "file", a) }
+                                val targetJson = Gson().toJson(
+                                    mapOf(
+                                        "username" to (tgt.username ?: ""),
+                                        "name" to (tgt.name ?: tgt.username ?: ""),
+                                        "avatarUrl" to (tgt.avatarUrl ?: ""),
+                                    ),
                                 )
+                                RetrofitProvider.api.createChallenge(
+                                    part,
+                                    targetJson.toRequestBody("text/plain".toMediaTypeOrNull()),
+                                    description.toRequestBody("text/plain".toMediaTypeOrNull()),
+                                )
+                            } else {
+                                val b = uriB ?: throw IllegalStateException("Falta vídeo B")
+                                val parts = withContext(Dispatchers.IO) {
+                                    filePart(context, "fileA", a) to filePart(context, "fileB", b)
+                                }
+                                val desc = (description.ifBlank {
+                                    if (type == "versus") "¿Cuál prefieres? 🅰️🆚🅱️" else "¿Quién gana? 🥊 #1vs1"
+                                }).toRequestBody("text/plain".toMediaTypeOrNull())
+                                if (type == "versus") {
+                                    RetrofitProvider.api.uploadVersus(parts.first, parts.second, desc)
+                                } else {
+                                    RetrofitProvider.api.uploadDuet(
+                                        parts.first, parts.second, desc,
+                                        layout.toRequestBody("text/plain".toMediaTypeOrNull()),
+                                    )
+                                }
                             }
                             busy = false
                             onDone()
@@ -183,7 +241,10 @@ fun UploadScreen(onRequireAuth: () -> Unit, onDone: () -> Unit) {
                 .padding(vertical = 13.dp),
             contentAlignment = Alignment.Center,
         ) {
-            Text(if (busy) "Publicando…" else "Publicar", color = Color.White, fontWeight = FontWeight.SemiBold)
+            Text(
+                if (busy) "Enviando…" else if (type == "reto") "Enviar reto" else "Publicar",
+                color = Color.White, fontWeight = FontWeight.SemiBold,
+            )
         }
     }
 }
@@ -213,6 +274,26 @@ private fun PickRow(label: String, selected: Boolean, onClick: () -> Unit) {
         Spacer(Modifier.width(12.dp))
         Text(if (selected) "$label seleccionado" else "Elegir $label", color = Color.White, fontSize = 14.sp, modifier = Modifier.weight(1f))
         if (selected) Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = Color(0xFF22C55E), modifier = Modifier.size(22.dp))
+    }
+}
+
+@Composable
+private fun UserRow(user: User, selected: Boolean, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+            .background(if (selected) Color(0xFF3B82F6).copy(alpha = 0.25f) else Color.White.copy(alpha = 0.06f))
+            .clickable { onClick() }.padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        val avatar = absoluteUrl(user.avatarUrl)
+        if (avatar != null) {
+            AsyncImage(model = avatar, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.size(36.dp).clip(CircleShape))
+        } else {
+            Box(Modifier.size(36.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.1f)))
+        }
+        Spacer(Modifier.width(12.dp))
+        Text("@" + (user.username ?: ""), color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+        if (selected) Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = Color(0xFF22C55E), modifier = Modifier.size(20.dp))
     }
 }
 

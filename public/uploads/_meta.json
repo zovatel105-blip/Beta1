@@ -1,5 +1,59 @@
 [
   {
+    "id": "versus_ch_b806f2885bdba803",
+    "type": "versus",
+    "layout": "carousel",
+    "sideA": {
+      "videoUrl": "/uploads/7167e03ef743b407.mp4",
+      "posterUrl": "/uploads/7167e03ef743b407.jpg",
+      "author": {
+        "id": "d8ce2604-3052-417b-97ee-d45113d3eedf",
+        "username": "twyk_rival",
+        "name": "twyk_rival",
+        "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=twyk_rival",
+        "verified": false
+      },
+      "description": "Te reto demo!",
+      "music": "Reto"
+    },
+    "sideB": {
+      "videoUrl": "/uploads/0800bcc024267cc5.mp4",
+      "posterUrl": "/uploads/0800bcc024267cc5.jpg",
+      "author": {
+        "username": "twyk_demo",
+        "name": "twyk_demo",
+        "avatarUrl": ""
+      },
+      "description": "",
+      "music": ""
+    },
+    "author": {
+      "id": "d8ce2604-3052-417b-97ee-d45113d3eedf",
+      "username": "twyk_rival",
+      "name": "twyk_rival",
+      "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=twyk_rival",
+      "verified": false
+    },
+    "description": "Te reto demo!",
+    "music": "Reto aceptado",
+    "videoUrl": "/uploads/7167e03ef743b407.mp4",
+    "posterUrl": "/uploads/7167e03ef743b407.jpg",
+    "thumbnailUrl": "/uploads/7167e03ef743b407.jpg",
+    "stats": {
+      "likes": 0,
+      "comments": 0,
+      "shares": 0,
+      "saves": 0
+    },
+    "votes": {
+      "a": 0,
+      "b": 0
+    },
+    "duration": 0,
+    "uploadedAt": "2026-06-12T19:10:42.907Z",
+    "isChallenge": true
+  },
+  {
     "id": "duet_ed11d1e995c6528c",
     "type": "duet",
     "layout": "horizontal",
