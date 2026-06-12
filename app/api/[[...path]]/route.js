@@ -530,6 +530,12 @@ export async function POST(request, { params }) {
 
 async function handleVersusUpload(request) {
   try {
+    // Obtener usuario autenticado
+    const currentUser = await getCurrentUser(request)
+    if (!currentUser) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    }
+
     const formData = await request.formData()
     const fileA = formData.get('fileA')
     const fileB = formData.get('fileB')
@@ -548,19 +554,22 @@ async function handleVersusUpload(request) {
     const urlB = await saveOne(fileB)
     const id = crypto.randomBytes(8).toString('hex')
 
-    const meAuthor = {
-      username: 'tu_canal',
-      name: 'Tú',
-      avatarUrl: 'https://i.pravatar.cc/120?img=68',
+    // Usar datos reales del usuario autenticado
+    const realAuthor = {
+      id: currentUser.id,
+      username: currentUser.username,
+      name: currentUser.name || currentUser.username,
+      avatarUrl: currentUser.avatarUrl,
+      verified: currentUser.verified || false,
     }
 
     const post = {
       id: `versus_up_${id}`,
       type: 'versus',
       layout: 'carousel',
-      sideA: { videoUrl: urlA, posterUrl: posterFor(urlA), author: meAuthor, description: captionA || description, music: 'Opción A' },
-      sideB: { videoUrl: urlB, posterUrl: posterFor(urlB), author: meAuthor, description: captionB || description, music: 'Opción B' },
-      author: meAuthor,
+      sideA: { videoUrl: urlA, posterUrl: posterFor(urlA), author: realAuthor, description: captionA || description, music: 'Opción A' },
+      sideB: { videoUrl: urlB, posterUrl: posterFor(urlB), author: realAuthor, description: captionB || description, music: 'Opción B' },
+      author: realAuthor,
       description,
       music: 'Tu versus original',
       videoUrl: urlA,
@@ -595,6 +604,12 @@ async function handleVersusUpload(request) {
 //   layout elegido (horizontal = arriba/abajo, vertical = izq/der).
 async function handleDuetUpload(request) {
   try {
+    // Obtener usuario autenticado
+    const currentUser = await getCurrentUser(request)
+    if (!currentUser) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    }
+
     const formData = await request.formData()
     const fileA = formData.get('fileA')
     const fileB = formData.get('fileB')
@@ -610,14 +625,23 @@ async function handleDuetUpload(request) {
     const urlB = await saveUploadedVideo(fileB)
     const id = crypto.randomBytes(8).toString('hex')
 
+    // Usar datos reales del usuario autenticado
+    const realAuthor = {
+      id: currentUser.id,
+      username: currentUser.username,
+      name: currentUser.name || currentUser.username,
+      avatarUrl: currentUser.avatarUrl,
+      verified: currentUser.verified || false,
+    }
+
     const post = {
       id: `duet_${id}`,
       type: 'duet',
       layout, // 'horizontal' | 'vertical'
       // Ambos lados son contenido propio del usuario.
-      sideA: { videoUrl: urlA, posterUrl: posterFor(urlA), author: ME_AUTHOR, description, music: 'Opción A' },
-      sideB: { videoUrl: urlB, posterUrl: posterFor(urlB), author: ME_AUTHOR, description, music: 'Opción B' },
-      author: ME_AUTHOR,
+      sideA: { videoUrl: urlA, posterUrl: posterFor(urlA), author: realAuthor, description, music: 'Opción A' },
+      sideB: { videoUrl: urlB, posterUrl: posterFor(urlB), author: realAuthor, description, music: 'Opción B' },
+      author: realAuthor,
       description,
       music: 'Tu 1vs1 original',
       videoUrl: urlA,
@@ -714,6 +738,12 @@ async function saveUploadedVideo(file) {
 //             targetDescription, targetMusic, message
 async function handleCreateChallenge(request) {
   try {
+    // Obtener usuario autenticado
+    const currentUser = await getCurrentUser(request)
+    if (!currentUser) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    }
+
     const formData = await request.formData()
     const file = formData.get('file')
     const targetVideoUrl = (formData.get('targetVideoUrl') || '').toString()
@@ -732,10 +762,20 @@ async function handleCreateChallenge(request) {
 
     const myUrl = await saveUploadedVideo(file)
     const cid = crypto.randomBytes(8).toString('hex')
+    
+    // Usar datos reales del usuario autenticado
+    const realAuthor = {
+      id: currentUser.id,
+      username: currentUser.username,
+      name: currentUser.name || currentUser.username,
+      avatarUrl: currentUser.avatarUrl,
+      verified: currentUser.verified || false,
+    }
+    
     const challenge = {
       id: `challenge_${cid}`,
       status: 'pending',
-      from: ME_AUTHOR,
+      from: realAuthor,
       to: targetAuthor,
       challengerVideoUrl: myUrl, // lado A = tu vídeo
       targetVideoUrl: targetVideoUrl || null, // lado B = lo sube el retado al aceptar

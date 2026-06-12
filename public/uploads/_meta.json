@@ -1,5 +1,54 @@
 [
   {
+    "id": "versus_up_56a2502a91f72433",
+    "type": "versus",
+    "layout": "carousel",
+    "sideA": {
+      "videoUrl": "/uploads/b3e0f9c967546ee9.mp4",
+      "posterUrl": "/uploads/b3e0f9c967546ee9.jpg",
+      "author": {
+        "username": "tu_canal",
+        "name": "Tú",
+        "avatarUrl": "https://i.pravatar.cc/120?img=68"
+      },
+      "description": "¿Cuál prefieres? 🅰️🆚🅱️",
+      "music": "Opción A"
+    },
+    "sideB": {
+      "videoUrl": "/uploads/2c74b3dd54b14553.mp4",
+      "posterUrl": "/uploads/2c74b3dd54b14553.jpg",
+      "author": {
+        "username": "tu_canal",
+        "name": "Tú",
+        "avatarUrl": "https://i.pravatar.cc/120?img=68"
+      },
+      "description": "¿Cuál prefieres? 🅰️🆚🅱️",
+      "music": "Opción B"
+    },
+    "author": {
+      "username": "tu_canal",
+      "name": "Tú",
+      "avatarUrl": "https://i.pravatar.cc/120?img=68"
+    },
+    "description": "¿Cuál prefieres? 🅰️🆚🅱️",
+    "music": "Tu versus original",
+    "videoUrl": "/uploads/b3e0f9c967546ee9.mp4",
+    "posterUrl": "/uploads/b3e0f9c967546ee9.jpg",
+    "thumbnailUrl": "/uploads/b3e0f9c967546ee9.jpg",
+    "stats": {
+      "likes": 0,
+      "comments": 0,
+      "shares": 0,
+      "saves": 0
+    },
+    "votes": {
+      "a": 0,
+      "b": 0
+    },
+    "duration": 0,
+    "uploadedAt": "2026-06-12T08:14:44.478Z"
+  },
+  {
     "id": "versus_up_8d50543f710f8dc4",
     "type": "versus",
     "layout": "carousel",
