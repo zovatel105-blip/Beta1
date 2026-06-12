@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Home, Swords, Plus, Inbox, User } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
@@ -16,7 +16,32 @@ import AuthModal from './AuthModal'
 export default function BottomNav({ onOpenUpload, onOpenInbox, onOpenProfile, onGoHome, onOpenBattles, unreadCount = 0, challengesCount = 0 }) {
   const [active, setActive] = useState('home')
   const [showAuthModal, setShowAuthModal] = useState(false)
+  const [notificationsCount, setNotificationsCount] = useState(0)
   const { user } = useAuth()
+
+  // Cargar contador de notificaciones
+  useEffect(() => {
+    if (user) {
+      loadNotificationsCount()
+      // Actualizar cada 30 segundos
+      const interval = setInterval(loadNotificationsCount, 30000)
+      return () => clearInterval(interval)
+    } else {
+      setNotificationsCount(0)
+    }
+  }, [user])
+
+  const loadNotificationsCount = async () => {
+    try {
+      const res = await fetch('/api/notifications/unread')
+      if (res.ok) {
+        const data = await res.json()
+        setNotificationsCount(data.count || 0)
+      }
+    } catch (err) {
+      console.error('Error loading notifications count:', err)
+    }
+  }
 
   const handleProfileClick = () => {
     if (!user) {
@@ -25,6 +50,12 @@ export default function BottomNav({ onOpenUpload, onOpenInbox, onOpenProfile, on
       setActive('profile')
       onOpenProfile?.()
     }
+  }
+
+  const handleInboxClick = () => {
+    setActive('inbox')
+    onOpenInbox?.()
+    setNotificationsCount(0) // Reset al abrir
   }
 
   return (
@@ -91,7 +122,7 @@ export default function BottomNav({ onOpenUpload, onOpenInbox, onOpenProfile, on
         <div className="relative flex items-center justify-center">
           <button
             aria-label="Bandeja"
-            onClick={() => { setActive('messages'); onOpenInbox?.() }}
+            onClick={handleInboxClick}
             className="flex items-center justify-center w-9 h-9 transition-all duration-200 active:scale-90"
           >
             <Inbox
@@ -102,9 +133,9 @@ export default function BottomNav({ onOpenUpload, onOpenInbox, onOpenProfile, on
               strokeWidth={active === 'messages' ? 2.5 : 1.5}
             />
           </button>
-          {unreadCount > 0 && (
+          {notificationsCount > 0 && (
             <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 bg-red-500 rounded-full text-[10px] font-bold text-white flex items-center justify-center">
-              {unreadCount > 9 ? '9+' : unreadCount}
+              {notificationsCount > 9 ? '9+' : notificationsCount}
             </span>
           )}
         </div>
