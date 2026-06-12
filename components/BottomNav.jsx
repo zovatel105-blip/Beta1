@@ -6,6 +6,16 @@ import { cn } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
 import AuthModal from './AuthModal'
 
+// Avatar por defecto: círculo gris claro con silueta de persona (gris medio)
+const DefaultAvatar = ({ className = '' }) => (
+  <div className={`rounded-full bg-gray-200 overflow-hidden ${className}`}>
+    <svg viewBox="0 0 100 100" className="w-full h-full" aria-hidden="true">
+      <circle cx="50" cy="40" r="16" fill="#9ca3af" />
+      <path d="M16 100C16 75 31 62 50 62s34 13 34 38z" fill="#9ca3af" />
+    </svg>
+  </div>
+)
+
 /**
  * BottomNav — rediseño basado en el BottomNavigation.jsx de Twyk.
  * Barra negra con esquinas superiores redondeadas (rounded-t-3xl), 5 iconos:
@@ -155,12 +165,7 @@ export default function BottomNav({ onOpenUpload, onOpenInbox, onOpenProfile, on
               />
             </div>
           ) : (
-            <div className="w-7 h-7 rounded-full overflow-hidden bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center ring-2 ring-white/20 hover:ring-white/30 transition-all">
-              <User
-                className="w-4 h-4 text-white"
-                strokeWidth={2}
-              />
-            </div>
+            <DefaultAvatar className="w-7 h-7" />
           )}
         </button>
       </div>
