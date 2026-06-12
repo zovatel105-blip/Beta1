@@ -157,17 +157,29 @@ export default function BottomNav({ onOpenUpload, onOpenInbox, onOpenProfile, on
           className="flex items-center justify-center w-9 h-9 transition-all duration-200 active:scale-90"
         >
           {user ? (
-            <div className="w-7 h-7 rounded-full p-[2px] bg-gradient-to-br from-white/15 to-white/[0.03]">
-              <div className="w-full h-full rounded-full overflow-hidden bg-zinc-900 ring-1 ring-white/10">
-                <img
-                  src={user.avatarUrl}
-                  alt={user.username}
-                  className="w-full h-full object-cover"
-                />
+            // Usuario registrado: mostrar avatar del perfil
+            user.avatarUrl ? (
+              <div className="w-7 h-7 rounded-full p-[2px] bg-gradient-to-br from-white/15 to-white/[0.03]">
+                <div className="w-full h-full rounded-full overflow-hidden bg-zinc-900 ring-1 ring-white/10">
+                  <img
+                    src={user.avatarUrl}
+                    alt={user.username}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
               </div>
-            </div>
+            ) : (
+              <DefaultAvatar className="w-7 h-7" />
+            )
           ) : (
-            <DefaultAvatar className="w-7 h-7" />
+            // Usuario NO registrado: ícono simple
+            <User
+              className={cn(
+                'w-5 h-5 transition-all duration-200',
+                active === 'profile' ? 'text-white' : 'text-white/50'
+              )}
+              strokeWidth={active === 'profile' ? 2.5 : 1.5}
+            />
           )}
         </button>
       </div>
