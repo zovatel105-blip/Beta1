@@ -147,7 +147,7 @@ export default function BottomNav({ onOpenUpload, onOpenInbox, onOpenProfile, on
           className="flex items-center justify-center w-9 h-9 transition-all duration-200 active:scale-90"
         >
           {user ? (
-            <div className="w-7 h-7 rounded-full overflow-hidden ring-2 ring-white/20">
+            <div className="w-7 h-7 rounded-full overflow-hidden ring-2 ring-white/20 hover:ring-white/40 transition-all">
               <img
                 src={user.avatarUrl}
                 alt={user.username}
@@ -155,13 +155,22 @@ export default function BottomNav({ onOpenUpload, onOpenInbox, onOpenProfile, on
               />
             </div>
           ) : (
-            <User
-              className={cn(
-                'w-5 h-5 transition-all duration-200',
-                active === 'profile' ? 'text-white' : 'text-white/50'
-              )}
-              strokeWidth={active === 'profile' ? 2.5 : 1.5}
-            />
+            <div className={cn(
+              'w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200',
+              'bg-gradient-to-br from-white/10 to-white/5',
+              'ring-2',
+              active === 'profile' 
+                ? 'ring-white/30 bg-white/15' 
+                : 'ring-white/10 hover:ring-white/20'
+            )}>
+              <User
+                className={cn(
+                  'w-4 h-4 transition-all duration-200',
+                  active === 'profile' ? 'text-white' : 'text-white/60'
+                )}
+                strokeWidth={2}
+              />
+            </div>
           )}
         </button>
       </div>
