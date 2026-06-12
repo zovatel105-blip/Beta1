@@ -21,7 +21,9 @@ estado queda intacta** y el vídeo se ve por detrás (edge-to-edge).
 - **Fase 3 (HECHA):** perfil propio (pestaña Perfil) y ajeno (tocando el autor
   en el feed) con cabecera, estadísticas, **seguir/dejar de seguir** y cuadrícula
   3 columnas de publicaciones.
-- **Fase 4:** subir contenido (selector + subida de vídeo).
+- **Fase 4 (HECHA):** subir contenido nativo — **Versus** (carrusel A/B) y
+  **1vs1 / Duelo** (dúo, con disposición arriba-abajo o izq-der). Selector de
+  vídeos del sistema + publicación multipart; el feed se recarga al publicar.
 - **Fase 5:** notificaciones y retos (crear/aceptar).
 
 > 👉 Compila la **Fase 1** primero y confirma que arranca; así validamos el

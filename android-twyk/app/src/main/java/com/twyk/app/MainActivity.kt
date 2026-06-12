@@ -30,6 +30,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -46,6 +47,7 @@ import com.twyk.app.feed.VersusFeed
 import com.twyk.app.ui.AuthSheet
 import com.twyk.app.ui.CommentsSheet
 import com.twyk.app.ui.ProfileScreen
+import com.twyk.app.ui.UploadScreen
 
 // Twyk Android — app NATIVA (Jetpack Compose + Media3/ExoPlayer).
 // El feed se adapta al formato de cada publicación; la barra inferior navega
@@ -86,12 +88,19 @@ private fun TwykApp() {
     var commentsPostId by remember { mutableStateOf<String?>(null) }
     var authOpen by remember { mutableStateOf(false) }
     var profileUsername by remember { mutableStateOf<String?>(null) }
+    var feedReloadKey by remember { mutableStateOf(0) }
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         when (tab) {
-            Tab.Home -> VersusFeed(
-                onOpenComments = { commentsPostId = it },
+            Tab.Home -> key(feedReloadKey) {
+                VersusFeed(
+                    onOpenComments = { commentsPostId = it },
+                    onRequireAuth = { authOpen = true },
+                    onOpenProfile = { profileUsername = it },
+                )
+            }
+            Tab.Upload -> UploadScreen(
                 onRequireAuth = { authOpen = true },
-                onOpenProfile = { profileUsername = it },
+                onDone = { feedReloadKey++; tab = Tab.Home },
             )
             Tab.Profile -> ProfileScreen(
                 username = null,

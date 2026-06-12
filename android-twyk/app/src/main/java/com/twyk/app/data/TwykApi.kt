@@ -1,12 +1,16 @@
 package com.twyk.app.data
 
 import com.twyk.app.Config
+import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
+import okhttp3.RequestBody
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.Multipart
 import retrofit2.http.POST
+import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.Query
 import java.util.concurrent.TimeUnit
@@ -44,6 +48,23 @@ interface TwykApi {
 
     @POST("api/users/{username}/follow")
     suspend fun toggleFollow(@Path("username") username: String): FollowResponse
+
+    @Multipart
+    @POST("api/versus")
+    suspend fun uploadVersus(
+        @Part fileA: MultipartBody.Part,
+        @Part fileB: MultipartBody.Part,
+        @Part("description") description: RequestBody,
+    ): UploadPostResponse
+
+    @Multipart
+    @POST("api/duet")
+    suspend fun uploadDuet(
+        @Part fileA: MultipartBody.Part,
+        @Part fileB: MultipartBody.Part,
+        @Part("description") description: RequestBody,
+        @Part("layout") layout: RequestBody,
+    ): UploadPostResponse
 }
 
 object RetrofitProvider {

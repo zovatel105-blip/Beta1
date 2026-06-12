@@ -1,5 +1,115 @@
 [
   {
+    "id": "duet_ed11d1e995c6528c",
+    "type": "duet",
+    "layout": "horizontal",
+    "sideA": {
+      "videoUrl": "/uploads/d86db5e9f5f6382e.mp4",
+      "posterUrl": "/uploads/d86db5e9f5f6382e.jpg",
+      "author": {
+        "id": "d4c1b800-c04e-4817-a17c-f85b604b8d3a",
+        "username": "twyk_demo",
+        "name": "twyk_demo",
+        "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=twyk_demo",
+        "verified": false
+      },
+      "description": "Mi duelo",
+      "music": "Opción A"
+    },
+    "sideB": {
+      "videoUrl": "/uploads/573e004a5034b137.mp4",
+      "posterUrl": "/uploads/573e004a5034b137.jpg",
+      "author": {
+        "id": "d4c1b800-c04e-4817-a17c-f85b604b8d3a",
+        "username": "twyk_demo",
+        "name": "twyk_demo",
+        "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=twyk_demo",
+        "verified": false
+      },
+      "description": "Mi duelo",
+      "music": "Opción B"
+    },
+    "author": {
+      "id": "d4c1b800-c04e-4817-a17c-f85b604b8d3a",
+      "username": "twyk_demo",
+      "name": "twyk_demo",
+      "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=twyk_demo",
+      "verified": false
+    },
+    "description": "Mi duelo",
+    "music": "Tu 1vs1 original",
+    "videoUrl": "/uploads/d86db5e9f5f6382e.mp4",
+    "posterUrl": "/uploads/d86db5e9f5f6382e.jpg",
+    "thumbnailUrl": "/uploads/d86db5e9f5f6382e.jpg",
+    "stats": {
+      "likes": 0,
+      "comments": 0,
+      "shares": 0,
+      "saves": 0
+    },
+    "votes": {
+      "a": 0,
+      "b": 0
+    },
+    "duration": 0,
+    "uploadedAt": "2026-06-12T19:02:41.377Z"
+  },
+  {
+    "id": "versus_up_9dcd15142b68af07",
+    "type": "versus",
+    "layout": "carousel",
+    "sideA": {
+      "videoUrl": "/uploads/558c7263dc399135.mp4",
+      "posterUrl": "/uploads/558c7263dc399135.jpg",
+      "author": {
+        "id": "d4c1b800-c04e-4817-a17c-f85b604b8d3a",
+        "username": "twyk_demo",
+        "name": "twyk_demo",
+        "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=twyk_demo",
+        "verified": false
+      },
+      "description": "Mi versus de prueba",
+      "music": "Opción A"
+    },
+    "sideB": {
+      "videoUrl": "/uploads/1dbfa9cec078fd68.mp4",
+      "posterUrl": "/uploads/1dbfa9cec078fd68.jpg",
+      "author": {
+        "id": "d4c1b800-c04e-4817-a17c-f85b604b8d3a",
+        "username": "twyk_demo",
+        "name": "twyk_demo",
+        "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=twyk_demo",
+        "verified": false
+      },
+      "description": "Mi versus de prueba",
+      "music": "Opción B"
+    },
+    "author": {
+      "id": "d4c1b800-c04e-4817-a17c-f85b604b8d3a",
+      "username": "twyk_demo",
+      "name": "twyk_demo",
+      "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=twyk_demo",
+      "verified": false
+    },
+    "description": "Mi versus de prueba",
+    "music": "Tu versus original",
+    "videoUrl": "/uploads/558c7263dc399135.mp4",
+    "posterUrl": "/uploads/558c7263dc399135.jpg",
+    "thumbnailUrl": "/uploads/558c7263dc399135.jpg",
+    "stats": {
+      "likes": 0,
+      "comments": 0,
+      "shares": 0,
+      "saves": 0
+    },
+    "votes": {
+      "a": 0,
+      "b": 0
+    },
+    "duration": 0,
+    "uploadedAt": "2026-06-12T19:02:41.205Z"
+  },
+  {
     "id": "versus_ch_1a339537633d1a2b",
     "type": "versus",
     "layout": "carousel",

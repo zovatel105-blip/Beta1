@@ -95,6 +95,9 @@ data class LikeResponse(val ok: Boolean = false, val likes: Int = 0, val userLik
 data class SaveRequest(val postId: String)
 data class SaveResponse(val ok: Boolean = false, val saved: Boolean = false)
 
+// ── Subida ────────────────────────────────────────────────────────────────────
+data class UploadPostResponse(val ok: Boolean = false, val post: Post? = null)
+
 // ── Perfil ────────────────────────────────────────────────────────────────────
 data class ProfileUser(
     val username: String? = null,

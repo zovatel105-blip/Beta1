@@ -57,6 +57,7 @@ dependencies {
     implementation("androidx.media3:media3-datasource:$media3")
 
     // Red (consume el backend Next.js existente).
+    implementation("com.squareup.okhttp3:okhttp:4.12.0") // extensiones Kotlin (asRequestBody, toMediaTypeOrNull…)
     implementation("com.squareup.retrofit2:retrofit:2.11.0")
     implementation("com.squareup.retrofit2:converter-gson:2.11.0")
 
