@@ -1,5 +1,115 @@
 [
   {
+    "id": "versus_up_8b0a66a96e07d5b8",
+    "type": "versus",
+    "layout": "carousel",
+    "sideA": {
+      "videoUrl": "/uploads/ecf3112b69bc9ac4.mp4",
+      "posterUrl": "/uploads/ecf3112b69bc9ac4.jpg",
+      "author": {
+        "id": "anonymous",
+        "username": "usuario_anonimo",
+        "name": "Usuario Anónimo",
+        "avatarUrl": "https://i.pravatar.cc/120?img=68",
+        "verified": false
+      },
+      "description": "Versus invitado",
+      "music": "Opción A"
+    },
+    "sideB": {
+      "videoUrl": "/uploads/10abf3bfef8020d6.mp4",
+      "posterUrl": "/uploads/10abf3bfef8020d6.jpg",
+      "author": {
+        "id": "anonymous",
+        "username": "usuario_anonimo",
+        "name": "Usuario Anónimo",
+        "avatarUrl": "https://i.pravatar.cc/120?img=68",
+        "verified": false
+      },
+      "description": "Versus invitado",
+      "music": "Opción B"
+    },
+    "author": {
+      "id": "anonymous",
+      "username": "usuario_anonimo",
+      "name": "Usuario Anónimo",
+      "avatarUrl": "https://i.pravatar.cc/120?img=68",
+      "verified": false
+    },
+    "description": "Versus invitado",
+    "music": "Tu versus original",
+    "videoUrl": "/uploads/ecf3112b69bc9ac4.mp4",
+    "posterUrl": "/uploads/ecf3112b69bc9ac4.jpg",
+    "thumbnailUrl": "/uploads/ecf3112b69bc9ac4.jpg",
+    "stats": {
+      "likes": 0,
+      "comments": 0,
+      "shares": 0,
+      "saves": 0
+    },
+    "votes": {
+      "a": 0,
+      "b": 0
+    },
+    "duration": 0,
+    "uploadedAt": "2026-06-12T11:26:21.608Z"
+  },
+  {
+    "id": "versus_up_26eeb80ecf965e2b",
+    "type": "versus",
+    "layout": "carousel",
+    "sideA": {
+      "videoUrl": "/uploads/b6ff1d5e86859437.mp4",
+      "posterUrl": "/uploads/b6ff1d5e86859437.jpg",
+      "author": {
+        "id": "ccd34343-fbdd-4876-b534-57547a910dc7",
+        "username": "testreg1",
+        "name": "testreg1",
+        "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=testreg1",
+        "verified": false
+      },
+      "description": "Mi versus de prueba",
+      "music": "Opción A"
+    },
+    "sideB": {
+      "videoUrl": "/uploads/439c10fc54f485ce.mp4",
+      "posterUrl": "/uploads/439c10fc54f485ce.jpg",
+      "author": {
+        "id": "ccd34343-fbdd-4876-b534-57547a910dc7",
+        "username": "testreg1",
+        "name": "testreg1",
+        "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=testreg1",
+        "verified": false
+      },
+      "description": "Mi versus de prueba",
+      "music": "Opción B"
+    },
+    "author": {
+      "id": "ccd34343-fbdd-4876-b534-57547a910dc7",
+      "username": "testreg1",
+      "name": "testreg1",
+      "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=testreg1",
+      "verified": false
+    },
+    "description": "Mi versus de prueba",
+    "music": "Tu versus original",
+    "videoUrl": "/uploads/b6ff1d5e86859437.mp4",
+    "posterUrl": "/uploads/b6ff1d5e86859437.jpg",
+    "thumbnailUrl": "/uploads/b6ff1d5e86859437.jpg",
+    "stats": {
+      "likes": 0,
+      "comments": 0,
+      "shares": 0,
+      "saves": 0
+    },
+    "votes": {
+      "a": 0,
+      "b": 0
+    },
+    "duration": 0,
+    "uploadedAt": "2026-06-12T11:26:21.499Z"
+  },
+  {
     "id": "versus_up_56a2502a91f72433",
     "type": "versus",
     "layout": "carousel",
