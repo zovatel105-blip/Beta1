@@ -3,6 +3,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { ChevronRight, Loader2, Film, Swords, Users, Rows3, Columns3, ArrowLeft, X } from 'lucide-react'
+import Avatar from './Avatar'
 
 /**
  * UploadDialog — flujo multi-paso para crear publicaciones de votación: Versus
@@ -60,7 +61,7 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
   useEffect(() => {
     if (step !== 'target') return
     setUsersLoading(true)
-    fetch('/api/users')
+    fetch('/api/users', { cache: 'no-store' })
       .then((r) => r.json())
       .then((d) => setUsers(d.users || []))
       .catch(() => setUsers([]))
@@ -281,6 +282,14 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
               <div className="flex justify-center py-16">
                 <Loader2 className="animate-spin text-zinc-400" />
               </div>
+            ) : users.length === 0 ? (
+              <div className="text-center py-14 px-4">
+                <div className="w-14 h-14 rounded-full bg-white/[0.04] border border-white/10 flex items-center justify-center mx-auto mb-4">
+                  <Users className="w-6 h-6 text-zinc-500" strokeWidth={1.5} />
+                </div>
+                <p className="text-white font-semibold text-[15px]">Aún no hay usuarios para retar</p>
+                <p className="text-zinc-500 text-[13px] mt-1">Cuando se registren más creadores, aparecerán aquí.</p>
+              </div>
             ) : (
               <div className="space-y-2">
                 {users.map((u) => (
@@ -289,7 +298,9 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
                     onClick={() => { setTarget(u); doUpload(u) }}
                     className="w-full flex items-center gap-3 p-3 rounded-2xl bg-white/[0.03] border border-white/[0.08] hover:border-white/40 active:scale-[0.99] transition text-left"
                   >
-                    <img src={u.avatarUrl} className="w-11 h-11 rounded-full object-cover ring-1 ring-white/10 shrink-0" alt="" />
+                    <div className="w-11 h-11 rounded-full overflow-hidden ring-1 ring-white/10 shrink-0 bg-zinc-800">
+                      <Avatar src={u.avatarUrl} className="w-full h-full rounded-full" />
+                    </div>
                     <div className="min-w-0">
                       <div className="text-[14px] font-semibold truncate">{u.name || u.username}</div>
                       <div className="text-[12px] text-zinc-500 truncate">@{u.username}</div>

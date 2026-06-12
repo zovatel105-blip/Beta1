@@ -147,20 +147,17 @@ backend:
         -working: true
         -agent: "main"
         -comment: "BUG FIX (usuario: 'no tengo ningún reto completado pero me aparecen retos que no son míos'). CAUSA: el endpoint devolvía TODOS los posts isChallenge sin filtrar por usuario. FIX: ahora usa getCurrentUser y filtra por participante (sideA.author.username o sideB.author.username === usuario actual); invitados -> []. Verificado manualmente (sin agente de testing): invitado -> 0; retador X ve su reto (1); usuario Y no participante -> 0. Los 6 retos demo existentes (author 'tu_canal') ya no aparecen para otros usuarios."
-  - task: "GET /api/users devuelve la lista de creadores demo"
+  - task: "GET /api/users devuelve usuarios REGISTRADOS reales (no autores mock) para elegir a quién retar"
     implemented: true
     working: true
-    file: "app/api/[[...path]]/route.js"
+    file: "app/api/[[...path]]/route.js, lib/db.js"
     stuck_count: 0
     priority: "high"
     needs_retesting: false
     status_history:
-        -working: "NA"
-        -agent: "main"
-        -comment: "Nuevo endpoint. Devuelve {users:[{username,name,avatarUrl}]} derivado de los autores de VIDEOS (únicos por username, sin 'tu_canal'). Verificar que devuelve una lista no vacía y con esos campos."
         -working: true
-        -agent: "testing"
-        -comment: "✅ VERIFIED: GET /api/users -> 200 with 23 users. All users have required fields (username, name, avatarUrl). No 'tu_canal' in the list. Tested as part of regression tests in backend_auth_test.py."
+        -agent: "main"
+        -comment: "BUG FIX (usuario: 'al elegir a quién retar aparecen usuarios mock'). CAUSA: /api/users derivaba la lista de los autores demo de VIDEOS (mock). FIX: nueva getAllUsers() en db.js (usuarios registrados sin password) y /api/users ahora devuelve usuarios reales de MongoDB, excluyendo al usuario actual (no puedes retarte a ti mismo). UploadDialog usa Avatar compartido + estado vacío. Verificado manualmente (sin agente de testing): como realA -> ['realB','Kiki','Nex'] (sin mocks, sin realA). Único consumidor: UploadDialog."
   - task: "POST /api/duet ahora recibe fileA + fileB + layout (2 vídeos propios)"
     implemented: true
     working: true

@@ -11,6 +11,7 @@ import {
   deleteSession,
   getUserById,
   getUserByUsername,
+  getAllUsers,
   createComment as createCommentDB,
   getCommentsByPostId,
   toggleCommentLike as toggleCommentLikeDB,
@@ -423,18 +424,18 @@ export async function GET(request, { params }) {
     return NextResponse.json({ options: [...userOptions, ...builtin] })
   }
 
-  // Lista de creadores (usuarios demo) para elegir a quién retar.
+  // Lista de USUARIOS REGISTRADOS (reales) para elegir a quién retar.
+  // Excluye al usuario actual (no puedes retarte a ti mismo). Ya NO devuelve
+  // los autores demo/mock derivados de los vídeos.
   if (path === '/users') {
-    const seen = new Set()
-    const users = []
-    for (const vd of VIDEOS) {
-      const a = vd.author
-      if (a && a.username && !seen.has(a.username)) {
-        seen.add(a.username)
-        users.push(a)
-      }
+    try {
+      const currentUser = await getCurrentUser(request)
+      const users = await getAllUsers({ excludeUsername: currentUser?.username || null })
+      return NextResponse.json({ users })
+    } catch (err) {
+      console.error('[users] error:', err)
+      return NextResponse.json({ users: [] })
     }
-    return NextResponse.json({ users })
   }
 
   // Perfil PÚBLICO de un usuario (propio o ajeno): info + sus publicaciones.
