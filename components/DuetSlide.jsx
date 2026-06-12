@@ -9,6 +9,8 @@ import VSWinnerCard from './VSWinnerCard'
 import VSContentCard from './VSContentCard'
 import CommentsModal from './CommentsModal'
 import ShareModal from './ShareModal'
+import AuthModal from './AuthModal'
+import { useAuth } from '@/contexts/AuthContext'
 import { pickQuality, reportStall } from '@/lib/networkQuality'
 
 function formatCount(n) {
@@ -32,6 +34,7 @@ function countLabel(n, placeholder) {
  * La UI (cabecera superior + columna social derecha) es idéntica a la del vídeo normal.
  */
 function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: globalMuted, playbackEnabled = true, onRequestNext, onChallenge, infoBottom = false, hideChallenge = false }) {
+  const { user } = useAuth()
   const videoARef = useRef(null)
   const videoBRef = useRef(null)
   const overlayRef = useRef(null)
@@ -53,13 +56,21 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
   const [following, setFollowing] = useState(false)
   const [voteBursts, setVoteBursts] = useState([])
 
-  // Modales de comentarios y compartir
+  // Modales de comentarios, compartir y auth
   const [commentsOpen, setCommentsOpen] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
+  const [authModalOpen, setAuthModalOpen] = useState(false)
 
   // Manejar guardar/favorito con API
   const handleSaveToggle = useCallback(async (e) => {
     e.stopPropagation()
+    
+    // Verificar autenticación
+    if (!user) {
+      setAuthModalOpen(true)
+      return
+    }
+    
     const newSaved = !saved
     setSaved(newSaved)
     
@@ -74,7 +85,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
       // Revertir en caso de error
       setSaved(!newSaved)
     }
-  }, [post.id, saved])
+  }, [post.id, saved, user])
 
   // Live votes + user vote tracking
   const [votes, setVotes] = useState({
@@ -304,6 +315,12 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
   }, [])
 
   const submitVote = useCallback(async (side, pt) => {
+    // Verificar autenticación
+    if (!user) {
+      setAuthModalOpen(true)
+      return
+    }
+    
     if (userVote || voting) return
     setVoting(true)
     // Optimistic update
@@ -332,7 +349,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
     } catch { /* ignore */ } finally {
       setVoting(false)
     }
-  }, [post.id, userVote, voting])
+  }, [post.id, userVote, voting, user])
 
   // Tap handler per side:
   //   doble toque -> vota por ese lado
@@ -570,7 +587,14 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
             </>
           )}
           <button
-            onClick={(e) => { e.stopPropagation(); setFollowing((f) => !f) }}
+            onClick={(e) => { 
+              e.stopPropagation(); 
+              if (!user) {
+                setAuthModalOpen(true);
+                return;
+              }
+              setFollowing((f) => !f);
+            }}
             aria-label="seguir"
             className={cn(
               'shrink-0 px-3 py-1 rounded-lg border text-[13px] font-medium transition-all duration-200 active:scale-95',
@@ -601,13 +625,27 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
         </button>
         {/* Retar — abre un selector A/B para elegir explícitamente a qué opción retar. */}
         {!hideChallenge && (
-          <button aria-label="retar" onClick={(e) => { e.stopPropagation(); setChallengePickOpen(true) }} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
+          <button aria-label="retar" onClick={(e) => { 
+            e.stopPropagation(); 
+            if (!user) {
+              setAuthModalOpen(true);
+              return;
+            }
+            setChallengePickOpen(true);
+          }} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
             <Swords className="w-[25px] h-[25px] text-white" strokeWidth={1.25} />
             <span className="text-[10px] font-semibold text-white leading-none">Retar</span>
           </button>
         )}
         {/* Comentar */}
-        <button aria-label="comments" onClick={(e) => { e.stopPropagation(); setCommentsOpen(true) }} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
+        <button aria-label="comments" onClick={(e) => { 
+          e.stopPropagation(); 
+          if (!user) {
+            setAuthModalOpen(true);
+            return;
+          }
+          setCommentsOpen(true);
+        }} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
           <MessageCircle className="w-[25px] h-[25px] text-white" strokeWidth={1.25} />
           <span className="text-[10px] font-semibold text-white leading-none">{countLabel(post.stats?.comments, 'Comentar')}</span>
         </button>
@@ -740,7 +778,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
         onClose={() => setShowContent(false)}
       />
 
-      {/* Modales de comentarios y compartir */}
+      {/* Modales de comentarios, compartir y auth */}
       <CommentsModal
         open={commentsOpen}
         postId={post.id}
@@ -750,6 +788,11 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
         open={shareOpen}
         postId={post.id}
         onClose={() => setShareOpen(false)}
+      />
+      <AuthModal
+        open={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        defaultTab="register"
       />
     </div>
   )
