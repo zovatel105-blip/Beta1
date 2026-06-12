@@ -169,7 +169,10 @@ export default function ChallengeDialog({ open, onClose, target, onCreated }) {
                   {target?.videoUrl ? (
                     <video src={target.videoUrl + '#t=0.2'} muted playsInline preload="metadata" className="absolute inset-0 w-full h-full object-cover" />
                   ) : (
-                    <div className="absolute inset-0 flex items-center justify-center"><Film size={24} className="text-white/25" /></div>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-2 text-center">
+                      <Film size={24} className="text-white/30" />
+                      <span className="text-[11px] text-white/55 leading-tight">Subirá su vídeo al aceptar el reto</span>
+                    </div>
                   )}
                 </div>
 

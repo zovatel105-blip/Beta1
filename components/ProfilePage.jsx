@@ -202,16 +202,17 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
     }
   }
 
-  // Retar a este usuario: reutiliza el flujo de ChallengeDialog (openChallenge)
-  // apuntando a su contenido más reciente (o solo al autor si no tiene vídeos).
+  // Retar a este usuario: reto "con mención" (sin vídeo del retado). Reutiliza
+  // el flujo de ChallengeDialog (openChallenge) apuntando SOLO al autor; el
+  // usuario retado subirá su vídeo de respuesta cuando acepte. NO se selecciona
+  // ningún vídeo del perfil.
   const handleChallenge = () => {
     if (!user) { onRequireAuth?.(); return }
-    const firstPost = posts[0]
     const target = {
-      videoUrl: firstPost ? videoFor(firstPost) : '',
+      videoUrl: '', // mención al usuario -> sin vídeo concreto
       author: { username: me.username, name: me.name, avatarUrl: me.avatarUrl },
-      description: firstPost?.description || '',
-      music: firstPost?.music || '',
+      description: '',
+      music: '',
     }
     onChallenge?.(target)
   }

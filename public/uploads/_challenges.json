@@ -1,1 +1,81 @@
-[{"id": "challenge_d0363155c01e4dd2", "status": "pending", "from": {"id": "9e04c2cd-984b-4c77-8e8f-5b135d848148", "username": "Nex", "name": "Nex", "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=Nex", "verified": false}, "to": {"username": "Kiki", "name": "Kiki", "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=Kiki", "verified": false}, "challengerVideoUrl": "/uploads/53211203195b6773.mp4", "targetVideoUrl": null, "targetAuthor": {"username": "Kiki", "name": "Kiki", "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=Kiki", "verified": false}, "targetDescription": "", "targetMusic": "", "message": "", "createdAt": "2026-06-12T14:50:51.236Z"}, {"id": "challenge_3dbe169a3f263500", "status": "pending", "from": {"id": "9e04c2cd-984b-4c77-8e8f-5b135d848148", "username": "Nex", "name": "Nex", "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=Nex", "verified": false}, "to": {"username": "usuario", "name": "Usuario", "avatarUrl": ""}, "challengerVideoUrl": "/uploads/bee0ff91410bd38b.mp4", "targetVideoUrl": null, "targetAuthor": {"username": "usuario", "name": "Usuario", "avatarUrl": ""}, "targetDescription": "", "targetMusic": "", "message": "", "createdAt": "2026-06-12T13:56:58.839Z"}, {"id": "challenge_c36623167c28dcac", "status": "pending", "from": {"id": "ccd34343-fbdd-4876-b534-57547a910dc7", "username": "testreg1", "name": "testreg1", "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=testreg1", "verified": false}, "to": {"username": "urbanlife", "name": "Marco", "avatarUrl": "x"}, "challengerVideoUrl": "/uploads/601455cc523c042a.mp4", "targetVideoUrl": null, "targetAuthor": {"username": "urbanlife", "name": "Marco", "avatarUrl": "x"}, "targetDescription": "", "targetMusic": "", "message": "Authenticated challenge test", "createdAt": "2026-06-12T11:46:52.519Z"}, {"id": "challenge_e1ff12517183dd5d", "status": "pending", "from": {"username": "tu_canal", "name": "T\u00fa", "avatarUrl": "https://i.pravatar.cc/120?img=68"}, "to": {"username": "wanderlust", "name": "Sof\u00eda Vela", "avatarUrl": "https://i.pravatar.cc/120?img=47"}, "challengerVideoUrl": "/uploads/fd5d3869f89414a6.mp4", "targetVideoUrl": null, "targetAuthor": {"username": "wanderlust", "name": "Sof\u00eda Vela", "avatarUrl": "https://i.pravatar.cc/120?img=47"}, "targetDescription": "", "targetMusic": "", "message": "", "createdAt": "2026-06-10T13:16:20.742Z"}]
+[
+  {
+    "id": "challenge_3dbe169a3f263500",
+    "status": "pending",
+    "from": {
+      "id": "9e04c2cd-984b-4c77-8e8f-5b135d848148",
+      "username": "Nex",
+      "name": "Nex",
+      "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=Nex",
+      "verified": false
+    },
+    "to": {
+      "username": "usuario",
+      "name": "Usuario",
+      "avatarUrl": ""
+    },
+    "challengerVideoUrl": "/uploads/bee0ff91410bd38b.mp4",
+    "targetVideoUrl": null,
+    "targetAuthor": {
+      "username": "usuario",
+      "name": "Usuario",
+      "avatarUrl": ""
+    },
+    "targetDescription": "",
+    "targetMusic": "",
+    "message": "",
+    "createdAt": "2026-06-12T13:56:58.839Z"
+  },
+  {
+    "id": "challenge_c36623167c28dcac",
+    "status": "pending",
+    "from": {
+      "id": "ccd34343-fbdd-4876-b534-57547a910dc7",
+      "username": "testreg1",
+      "name": "testreg1",
+      "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=testreg1",
+      "verified": false
+    },
+    "to": {
+      "username": "urbanlife",
+      "name": "Marco",
+      "avatarUrl": "x"
+    },
+    "challengerVideoUrl": "/uploads/601455cc523c042a.mp4",
+    "targetVideoUrl": null,
+    "targetAuthor": {
+      "username": "urbanlife",
+      "name": "Marco",
+      "avatarUrl": "x"
+    },
+    "targetDescription": "",
+    "targetMusic": "",
+    "message": "Authenticated challenge test",
+    "createdAt": "2026-06-12T11:46:52.519Z"
+  },
+  {
+    "id": "challenge_e1ff12517183dd5d",
+    "status": "pending",
+    "from": {
+      "username": "tu_canal",
+      "name": "Tú",
+      "avatarUrl": "https://i.pravatar.cc/120?img=68"
+    },
+    "to": {
+      "username": "wanderlust",
+      "name": "Sofía Vela",
+      "avatarUrl": "https://i.pravatar.cc/120?img=47"
+    },
+    "challengerVideoUrl": "/uploads/fd5d3869f89414a6.mp4",
+    "targetVideoUrl": null,
+    "targetAuthor": {
+      "username": "wanderlust",
+      "name": "Sofía Vela",
+      "avatarUrl": "https://i.pravatar.cc/120?img=47"
+    },
+    "targetDescription": "",
+    "targetMusic": "",
+    "message": "",
+    "createdAt": "2026-06-10T13:16:20.742Z"
+  }
+]
