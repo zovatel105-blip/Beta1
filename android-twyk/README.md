@@ -30,7 +30,7 @@ estado queda intacta** y el vídeo se ve por detrás (edge-to-edge).
 ## Backend ya configurado
 `app/src/main/java/com/twyk/app/Config.kt` apunta a tu **preview**:
 ```kotlin
-const val BASE_URL = "https://8908c8d2-df22-4065-a399-daef14bf1723.preview.emergentagent.com/"
+const val BASE_URL = "https://design-sync-75.preview.emergentagent.com/"
 ```
 Cuando despliegues tu web a un dominio propio, cambia solo esa línea (acaba en `/`).
 
