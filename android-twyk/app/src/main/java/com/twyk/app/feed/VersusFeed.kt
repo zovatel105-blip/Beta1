@@ -369,7 +369,7 @@ private fun BoxScope.SocialRail(
             .navigationBarsPadding()
             .padding(end = 8.dp, bottom = 64.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         val total = votes.a + votes.b
         val voteTint = when (voted) {
@@ -377,8 +377,8 @@ private fun BoxScope.SocialRail(
             "b" -> Color(0xFF3B82F6)
             else -> Color.White
         }
-        // Votar (icono personalizado: papeleta marcada). Votar = doble toque en el vídeo.
-        RailItem(TwykIcons.vote(voted != null), label(total, "Votar"), voteTint, size = 36) { }
+        // Votar (papeleta marcada, sólida = más gruesa). Votar = doble toque en el vídeo.
+        RailItem(TwykIcons.vote(true), label(total, "Votar"), voteTint, size = 34) { }
         // Retar (espadas cruzadas)
         RailItem(TwykIcons.Swords, "Retar", Color.White, size = 25) {
             if (Session.token == null) onRequireAuth()
