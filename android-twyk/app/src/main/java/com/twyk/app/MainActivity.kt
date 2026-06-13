@@ -6,27 +6,27 @@ import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AddBox
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Whatshot
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Inbox
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -36,11 +36,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.twyk.app.feed.VersusFeed
@@ -76,12 +76,8 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class Tab(val label: String, val icon: ImageVector) {
-    Home("Inicio", Icons.Filled.Home),
-    Battles("Batallas", Icons.Filled.Whatshot),
-    Upload("Subir", Icons.Filled.AddBox),
-    Inbox("Buzón", Icons.Filled.Inbox),
-    Profile("Perfil", Icons.Filled.Person),
+private enum class Tab {
+    Home, Battles, Upload, Inbox, Profile,
 }
 
 @Composable
@@ -149,25 +145,63 @@ private fun TwykBottomNav(current: Tab, onSelect: (Tab) -> Unit, modifier: Modif
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .background(Color(0xF20A0A0B))
+            .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+            .background(Color.Black)
             .navigationBarsPadding()
-            .padding(vertical = 8.dp),
+            .padding(horizontal = 16.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.SpaceAround,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        for (t in Tab.values()) {
-            val selected = t == current
-            val tint = if (selected) Color.White else Color.White.copy(alpha = 0.5f)
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier
-                    .clickable { onSelect(t) }
-                    .padding(horizontal = 6.dp, vertical = 2.dp),
-            ) {
-                Icon(t.icon, contentDescription = t.label, tint = tint, modifier = Modifier.size(26.dp))
-                Spacer(Modifier.height(2.dp))
-                Text(t.label, color = tint, fontSize = 10.sp)
-            }
+        // Inicio — relleno al estar activo (igual que la web).
+        NavIcon(
+            icon = if (current == Tab.Home) Icons.Filled.Home else Icons.Outlined.Home,
+            selected = current == Tab.Home,
+        ) { onSelect(Tab.Home) }
+
+        // Batallas — espadas cruzadas (icono de la web).
+        NavIcon(icon = TwykIcons.Swords, selected = current == Tab.Battles) { onSelect(Tab.Battles) }
+
+        // Crear / Subir — borde con degradado lila → azul.
+        Box(
+            Modifier
+                .size(38.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .border(
+                    width = 2.dp,
+                    brush = Brush.linearGradient(listOf(Color(0xFFA855F7), Color(0xFF3B82F6))),
+                    shape = RoundedCornerShape(12.dp),
+                )
+                .clickable { onSelect(Tab.Upload) },
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(Icons.Filled.Add, contentDescription = "Subir", tint = Color.White, modifier = Modifier.size(22.dp))
         }
+
+        // Buzón
+        NavIcon(
+            icon = if (current == Tab.Inbox) Icons.Filled.Inbox else Icons.Outlined.Inbox,
+            selected = current == Tab.Inbox,
+        ) { onSelect(Tab.Inbox) }
+
+        // Perfil
+        NavIcon(
+            icon = if (current == Tab.Profile) Icons.Filled.Person else Icons.Outlined.Person,
+            selected = current == Tab.Profile,
+        ) { onSelect(Tab.Profile) }
+    }
+}
+
+@Composable
+private fun NavIcon(icon: ImageVector, selected: Boolean, onClick: () -> Unit) {
+    Box(
+        Modifier.size(36.dp).clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = if (selected) Color.White else Color.White.copy(alpha = 0.5f),
+            modifier = Modifier.size(24.dp),
+        )
     }
 }

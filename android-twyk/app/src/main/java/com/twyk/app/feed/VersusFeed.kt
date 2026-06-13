@@ -3,10 +3,16 @@
 package com.twyk.app.feed
 
 import android.content.Context
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -31,8 +37,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.ChatBubbleOutline
-import androidx.compose.material.icons.filled.HowToVote
-import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -47,6 +55,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -67,6 +76,8 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
+import com.twyk.app.Config
+import com.twyk.app.TwykIcons
 import com.twyk.app.absoluteUrl
 import com.twyk.app.data.Post
 import com.twyk.app.data.RetrofitProvider
@@ -74,6 +85,7 @@ import com.twyk.app.data.SaveRequest
 import com.twyk.app.data.Session
 import com.twyk.app.data.Votes
 import com.twyk.app.ui.sharePost
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -84,6 +96,8 @@ import kotlin.math.roundToInt
 //                             COMPLETA (sin franja negra). Doble toque para votar.
 //   · duet                 -> pantalla partida (horizontal: A arriba / B abajo;
 //                             vertical: A izq / B der). Doble toque en un lado vota.
+//
+// La UI (cabecera, columna social, barra inferior) replica la de la WEB.
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
 fun VersusFeed(
@@ -199,17 +213,13 @@ private fun CarouselPage(
             }
         }
 
-        val sideKey = if (sidePager.currentPage == 0) "a" else "b"
-        LabelChip(
-            text = if (voted != null) "${sideKey.uppercase()}  ${pctFor(votes, sidePager.currentPage)}%" else sideKey.uppercase(),
-            highlighted = voted == sideKey,
-            modifier = Modifier.align(Alignment.TopStart).statusBarsPadding().padding(12.dp),
-        )
+        val visiblePlayer = if (sidePager.currentPage == 0) playerA else playerB
 
         HeaderOverlay(post, onOpenProfile)
         SocialRail(post, votes, voted, onComments, onRequireAuth)
         Dots(active = sidePager.currentPage)
-        if (voted == null) VoteHint()
+        ProgressBar(visiblePlayer, isActive)
+        if (voted == null) VoteHint("Desliza para comparar · doble toque para votar")
     }
 }
 
@@ -242,37 +252,29 @@ private fun DuetPage(
     val voteA: () -> Unit = { if (voted == null) { voted = "a"; votes = bump(votes, "a"); onVote("a") } }
     val voteB: () -> Unit = { if (voted == null) { voted = "b"; votes = bump(votes, "b"); onVote("b") } }
 
+    // Borde de color en el lado VOTADO (igual que el "ring" de la web).
+    fun ring(side: String): Modifier =
+        if (voted == side) Modifier.border(2.dp, if (side == "a") Color(0xFFA855F7) else Color(0xFF3B82F6)) else Modifier
+
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         if (isHorizontal) {
             Column(Modifier.fillMaxSize()) {
-                VideoSurface(playerA, Modifier.weight(1f).fillMaxWidth(), onVoteA = voteA)
+                VideoSurface(playerA, Modifier.weight(1f).fillMaxWidth().then(ring("a")), onVoteA = voteA)
                 Box(Modifier.fillMaxWidth().height(2.dp).background(Color.White.copy(alpha = 0.3f)))
-                VideoSurface(playerB, Modifier.weight(1f).fillMaxWidth(), onVoteA = voteB)
+                VideoSurface(playerB, Modifier.weight(1f).fillMaxWidth().then(ring("b")), onVoteA = voteB)
             }
         } else {
             Row(Modifier.fillMaxSize()) {
-                VideoSurface(playerA, Modifier.weight(1f).fillMaxHeight(), onVoteA = voteA)
+                VideoSurface(playerA, Modifier.weight(1f).fillMaxHeight().then(ring("a")), onVoteA = voteA)
                 Box(Modifier.fillMaxHeight().width(2.dp).background(Color.White.copy(alpha = 0.3f)))
-                VideoSurface(playerB, Modifier.weight(1f).fillMaxHeight(), onVoteA = voteB)
+                VideoSurface(playerB, Modifier.weight(1f).fillMaxHeight().then(ring("b")), onVoteA = voteB)
             }
         }
 
-        LabelChip(
-            text = if (voted != null) "A  ${pctFor(votes, 0)}%" else "A",
-            highlighted = voted == "a",
-            modifier = Modifier.align(Alignment.TopStart).statusBarsPadding().padding(12.dp),
-        )
-        LabelChip(
-            text = if (voted != null) "B  ${pctFor(votes, 1)}%" else "B",
-            highlighted = voted == "b",
-            modifier = Modifier
-                .align(if (isHorizontal) Alignment.CenterStart else Alignment.TopEnd)
-                .padding(12.dp),
-        )
-
         HeaderOverlay(post, onOpenProfile)
         SocialRail(post, votes, voted, onComments, onRequireAuth)
-        if (voted == null) VoteHint()
+        ProgressBar(playerA, isActive)
+        if (voted == null) VoteHint("Doble toque para votar")
     }
 }
 
@@ -333,22 +335,23 @@ private fun BoxScope.HeaderOverlay(post: Post, onOpenProfile: (String) -> Unit) 
             Text(
                 author?.username ?: author?.name ?: "twyk",
                 color = Color.White,
-                fontSize = 14.sp,
+                fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
             )
             Spacer(Modifier.width(10.dp))
             Box(
                 Modifier
+                    .clip(RoundedCornerShape(8.dp))
                     .border(1.dp, Color.White, RoundedCornerShape(8.dp))
-                    .padding(horizontal = 10.dp, vertical = 3.dp),
+                    .padding(horizontal = 12.dp, vertical = 4.dp),
             ) {
-                Text("Seguir", color = Color.White, fontSize = 12.sp)
+                Text("Seguir", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium)
             }
         }
         val desc = post.sideA?.description ?: post.description
         if (!desc.isNullOrBlank()) {
             Spacer(Modifier.height(6.dp))
-            Text(desc, color = Color.White, fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(desc, color = Color.White, fontSize = 14.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -364,13 +367,18 @@ private fun BoxScope.SocialRail(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var saved by remember(post.id) { mutableStateOf(false) }
+    var menuOpen by remember(post.id) { mutableStateOf(false) }
+
+    val author = post.sideA?.author ?: post.author
+    val avatar = absoluteUrl(author?.avatarUrl)
+
     Column(
         Modifier
             .align(Alignment.BottomEnd)
             .navigationBarsPadding()
-            .padding(end = 10.dp, bottom = 92.dp),
+            .padding(end = 8.dp, bottom = 86.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(18.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
         val total = votes.a + votes.b
         val voteTint = when (voted) {
@@ -378,13 +386,22 @@ private fun BoxScope.SocialRail(
             "b" -> Color(0xFF3B82F6)
             else -> Color.White
         }
-        RailItem(Icons.Filled.HowToVote, label(total, "Votar"), voteTint) { /* votar = doble toque en el vídeo */ }
-        RailItem(Icons.Filled.ChatBubbleOutline, label(post.stats?.comments ?: 0, "Comentar"), Color.White) { onComments() }
-        RailItem(Icons.Filled.Share, label(post.stats?.shares ?: 0, "Compartir"), Color.White) { sharePost(context, post) }
+        // Votar (icono personalizado: papeleta marcada). Votar = doble toque en el vídeo.
+        RailItem(TwykIcons.vote(voted != null), label(total, "Votar"), voteTint, size = 36) { }
+        // Retar (espadas cruzadas)
+        RailItem(TwykIcons.Swords, "Retar", Color.White, size = 25) {
+            if (Session.token == null) onRequireAuth()
+        }
+        // Comentar
+        RailItem(Icons.Filled.ChatBubbleOutline, label(post.stats?.comments ?: 0, "Comentar"), Color.White, size = 25) { onComments() }
+        // Compartir (flecha estilo TikTok)
+        RailItem(TwykIcons.Share, label(post.stats?.shares ?: 0, "Compartir"), Color.White, size = 25) { sharePost(context, post) }
+        // Guardar
         RailItem(
             if (saved) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
             label(post.stats?.saves ?: 0, "Guardar"),
             if (saved) Color(0xFFFACC15) else Color.White,
+            size = 25,
         ) {
             if (Session.token == null) {
                 onRequireAuth()
@@ -396,18 +413,82 @@ private fun BoxScope.SocialRail(
                 }
             }
         }
+        // Más opciones
+        RailItem(Icons.Filled.MoreVert, "", Color.White, size = 25) { menuOpen = true }
+        // Disco de música giratorio
+        MusicDisc(avatar)
     }
+
+    if (menuOpen) MoreOptionsSheet(onClose = { menuOpen = false })
 }
 
 @Composable
-private fun RailItem(icon: ImageVector, text: String, tint: Color, onClick: () -> Unit) {
+private fun RailItem(icon: ImageVector, label: String, tint: Color, size: Int = 25, onClick: () -> Unit) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier.clickable { onClick() },
     ) {
-        Icon(icon, contentDescription = text, tint = tint, modifier = Modifier.size(32.dp))
-        Spacer(Modifier.height(3.dp))
-        Text(text, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+        Icon(
+            icon,
+            contentDescription = if (label.isEmpty()) null else label,
+            tint = tint,
+            modifier = Modifier.size(size.dp),
+        )
+        if (label.isNotEmpty()) {
+            Spacer(Modifier.height(3.dp))
+            Text(label, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+        }
+    }
+}
+
+@Composable
+private fun MusicDisc(avatar: String?) {
+    val transition = rememberInfiniteTransition()
+    val angle by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(animation = tween(durationMillis = 6000, easing = LinearEasing)),
+    )
+    Box(
+        Modifier
+            .size(40.dp)
+            .rotate(angle)
+            .clip(CircleShape)
+            .border(1.dp, Color.White.copy(alpha = 0.3f), CircleShape)
+            .background(Brush.linearGradient(listOf(Color(0xFF3F3F46), Color.Black))),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (avatar != null) {
+            AsyncImage(
+                model = avatar,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.size(24.dp).clip(CircleShape),
+            )
+        }
+    }
+}
+
+@Composable
+private fun BoxScope.ProgressBar(player: ExoPlayer, active: Boolean) {
+    var fraction by remember { mutableStateOf(0f) }
+    LaunchedEffect(active, player) {
+        while (active) {
+            val dur = player.duration
+            if (dur > 0) fraction = (player.currentPosition.toFloat() / dur.toFloat()).coerceIn(0f, 1f)
+            delay(200)
+        }
+    }
+    Box(
+        Modifier
+            .align(Alignment.BottomStart)
+            .navigationBarsPadding()
+            .padding(bottom = 74.dp)
+            .fillMaxWidth()
+            .height(2.dp)
+            .background(Color.White.copy(alpha = 0.15f)),
+    ) {
+        Box(Modifier.fillMaxWidth(fraction).fillMaxHeight().background(Color.White.copy(alpha = 0.8f)))
     }
 }
 
@@ -417,7 +498,7 @@ private fun BoxScope.Dots(active: Int) {
         Modifier
             .align(Alignment.BottomCenter)
             .navigationBarsPadding()
-            .padding(bottom = 88.dp),
+            .padding(bottom = 86.dp),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         for (i in 0..1) {
@@ -432,7 +513,7 @@ private fun BoxScope.Dots(active: Int) {
 }
 
 @Composable
-private fun BoxScope.VoteHint() {
+private fun BoxScope.VoteHint(text: String) {
     Box(
         Modifier
             .align(Alignment.TopCenter)
@@ -442,19 +523,74 @@ private fun BoxScope.VoteHint() {
             .background(Color.Black.copy(alpha = 0.45f))
             .padding(horizontal = 12.dp, vertical = 5.dp),
     ) {
-        Text("Desliza para comparar · doble toque para votar", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+        Text(text, color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+// Hoja inferior "Más opciones" (igual que la web).
+@Composable
+private fun MoreOptionsSheet(onClose: () -> Unit) {
+    val context = LocalContext.current
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.5f))
+            .clickable(onClick = onClose),
+        contentAlignment = Alignment.BottomCenter,
+    ) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+                .background(Color(0xFF0A0A0B))
+                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { }
+                .navigationBarsPadding()
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+        ) {
+            Box(
+                Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .padding(bottom = 10.dp)
+                    .size(width = 40.dp, height = 4.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(Color.White.copy(alpha = 0.25f)),
+            )
+            SheetItem(Icons.Filled.VisibilityOff, "No me interesa", Color.White, onClose)
+            SheetItem(Icons.Filled.Link, "Copiar enlace", Color.White) {
+                runCatching {
+                    val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                    cm.setPrimaryClip(android.content.ClipData.newPlainText("twyk", Config.BASE_URL))
+                }
+                onClose()
+            }
+            SheetItem(Icons.Filled.Flag, "Reportar", Color(0xFFF87171), onClose)
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable(onClick = onClose)
+                    .padding(vertical = 14.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text("Cancelar", color = Color.White.copy(alpha = 0.7f), fontWeight = FontWeight.Medium, fontSize = 15.sp)
+            }
+        }
     }
 }
 
 @Composable
-private fun LabelChip(text: String, highlighted: Boolean, modifier: Modifier = Modifier) {
-    Box(
-        modifier
-            .clip(RoundedCornerShape(14.dp))
-            .background(if (highlighted) Color(0xCCA855F7) else Color(0x8C000000))
-            .padding(horizontal = 10.dp, vertical = 4.dp),
+private fun SheetItem(icon: ImageVector, text: String, tint: Color, onClick: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(text, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(20.dp))
+        Spacer(Modifier.width(12.dp))
+        Text(text, color = tint, fontSize = 15.sp)
     }
 }
 
@@ -462,6 +598,7 @@ private fun LabelChip(text: String, highlighted: Boolean, modifier: Modifier = M
 private fun bump(v: Votes, side: String): Votes =
     if (side == "a") v.copy(a = v.a + 1) else v.copy(b = v.b + 1)
 
+@Suppress("unused")
 private fun pctFor(votes: Votes, side: Int): Int {
     val total = votes.a + votes.b
     if (total <= 0) return 50
