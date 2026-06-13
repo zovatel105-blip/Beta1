@@ -34,6 +34,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -147,10 +148,13 @@ private fun TwykBottomNav(current: Tab, onSelect: (Tab) -> Unit, modifier: Modif
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // Inicio — relleno al estar activo (igual que la web).
-        NavIcon(icon = TwykIcons.home(current == Tab.Home), selected = current == Tab.Home) { onSelect(Tab.Home) }
+        NavIcon(
+            icon = ImageVector.vectorResource(if (current == Tab.Home) R.drawable.ic_home_filled else R.drawable.ic_home),
+            selected = current == Tab.Home,
+        ) { onSelect(Tab.Home) }
 
         // Batallas — espadas cruzadas (icono de la web).
-        NavIcon(icon = TwykIcons.Swords, selected = current == Tab.Battles) { onSelect(Tab.Battles) }
+        NavIcon(icon = ImageVector.vectorResource(R.drawable.ic_swords), selected = current == Tab.Battles) { onSelect(Tab.Battles) }
 
         // Crear / Subir — borde con degradado lila → azul.
         Box(
@@ -169,10 +173,10 @@ private fun TwykBottomNav(current: Tab, onSelect: (Tab) -> Unit, modifier: Modif
         }
 
         // Buzón
-        NavIcon(icon = TwykIcons.Inbox, selected = current == Tab.Inbox) { onSelect(Tab.Inbox) }
+        NavIcon(icon = ImageVector.vectorResource(R.drawable.ic_inbox), selected = current == Tab.Inbox) { onSelect(Tab.Inbox) }
 
         // Perfil
-        NavIcon(icon = TwykIcons.User, selected = current == Tab.Profile) { onSelect(Tab.Profile) }
+        NavIcon(icon = ImageVector.vectorResource(R.drawable.ic_user), selected = current == Tab.Profile) { onSelect(Tab.Profile) }
     }
 }
 

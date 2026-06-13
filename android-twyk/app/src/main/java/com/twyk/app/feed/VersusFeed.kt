@@ -59,6 +59,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -74,7 +75,7 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
 import com.twyk.app.Config
-import com.twyk.app.TwykIcons
+import com.twyk.app.R
 import com.twyk.app.absoluteUrl
 import com.twyk.app.data.Post
 import com.twyk.app.data.RetrofitProvider
@@ -304,10 +305,11 @@ private fun BoxScope.HeaderOverlay(post: Post, onOpenProfile: (String) -> Unit) 
     val uname = author?.username
     Column(
         Modifier
-            .align(Alignment.TopStart)
+            .align(Alignment.BottomStart)
             .fillMaxWidth()
-            .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.55f), Color.Transparent)))
-            .padding(start = 14.dp, end = 80.dp, top = 12.dp, bottom = 28.dp),
+            .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f))))
+            .navigationBarsPadding()
+            .padding(start = 14.dp, end = 80.dp, top = 40.dp, bottom = 78.dp),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -377,19 +379,19 @@ private fun BoxScope.SocialRail(
             "b" -> Color(0xFF3B82F6)
             else -> Color.White
         }
-        // Votar (papeleta marcada, sólida = más gruesa). Votar = doble toque en el vídeo.
-        RailItem(TwykIcons.vote(true), label(total, "Votar"), voteTint, size = 34) { }
+        // Votar (papeleta marcada HUECA, como los demás botones). Votar = doble toque en el vídeo.
+        RailItem(ImageVector.vectorResource(R.drawable.ic_vote), label(total, "Votar"), voteTint, size = 34) { }
         // Retar (espadas cruzadas)
-        RailItem(TwykIcons.Swords, "Retar", Color.White, size = 25) {
+        RailItem(ImageVector.vectorResource(R.drawable.ic_swords), "Retar", Color.White, size = 25) {
             if (Session.token == null) onRequireAuth()
         }
         // Comentar (bocadillo redondo, igual que la web)
-        RailItem(TwykIcons.Comment, label(post.stats?.comments ?: 0, "Comentar"), Color.White, size = 25) { onComments() }
+        RailItem(ImageVector.vectorResource(R.drawable.ic_comment), label(post.stats?.comments ?: 0, "Comentar"), Color.White, size = 25) { onComments() }
         // Compartir (flecha estilo TikTok)
-        RailItem(TwykIcons.Share, label(post.stats?.shares ?: 0, "Compartir"), Color.White, size = 25) { sharePost(context, post) }
+        RailItem(ImageVector.vectorResource(R.drawable.ic_share), label(post.stats?.shares ?: 0, "Compartir"), Color.White, size = 25) { sharePost(context, post) }
         // Guardar (marcador, igual que la web)
         RailItem(
-            TwykIcons.bookmark(saved),
+            ImageVector.vectorResource(if (saved) R.drawable.ic_bookmark_filled else R.drawable.ic_bookmark),
             label(post.stats?.saves ?: 0, "Guardar"),
             if (saved) Color(0xFFFACC15) else Color.White,
             size = 25,
