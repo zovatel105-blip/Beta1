@@ -19,12 +19,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Inbox
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.Inbox
-import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
@@ -153,10 +147,7 @@ private fun TwykBottomNav(current: Tab, onSelect: (Tab) -> Unit, modifier: Modif
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // Inicio — relleno al estar activo (igual que la web).
-        NavIcon(
-            icon = if (current == Tab.Home) Icons.Filled.Home else Icons.Outlined.Home,
-            selected = current == Tab.Home,
-        ) { onSelect(Tab.Home) }
+        NavIcon(icon = TwykIcons.home(current == Tab.Home), selected = current == Tab.Home) { onSelect(Tab.Home) }
 
         // Batallas — espadas cruzadas (icono de la web).
         NavIcon(icon = TwykIcons.Swords, selected = current == Tab.Battles) { onSelect(Tab.Battles) }
@@ -178,16 +169,10 @@ private fun TwykBottomNav(current: Tab, onSelect: (Tab) -> Unit, modifier: Modif
         }
 
         // Buzón
-        NavIcon(
-            icon = if (current == Tab.Inbox) Icons.Filled.Inbox else Icons.Outlined.Inbox,
-            selected = current == Tab.Inbox,
-        ) { onSelect(Tab.Inbox) }
+        NavIcon(icon = TwykIcons.Inbox, selected = current == Tab.Inbox) { onSelect(Tab.Inbox) }
 
         // Perfil
-        NavIcon(
-            icon = if (current == Tab.Profile) Icons.Filled.Person else Icons.Outlined.Person,
-            selected = current == Tab.Profile,
-        ) { onSelect(Tab.Profile) }
+        NavIcon(icon = TwykIcons.User, selected = current == Tab.Profile) { onSelect(Tab.Profile) }
     }
 }
 

@@ -34,9 +34,6 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Bookmark
-import androidx.compose.material.icons.filled.BookmarkBorder
-import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.MoreVert
@@ -85,7 +82,6 @@ import com.twyk.app.data.SaveRequest
 import com.twyk.app.data.Session
 import com.twyk.app.data.Votes
 import com.twyk.app.ui.sharePost
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -126,7 +122,7 @@ fun VersusFeed(
     VerticalPager(
         state = pagerState,
         beyondViewportPageCount = 1,
-        modifier = Modifier.fillMaxSize().background(Color.Black),
+        modifier = Modifier.fillMaxSize().background(Color.Black).statusBarsPadding(),
     ) { page ->
         val post = posts[page]
         val active = page == pagerState.currentPage
@@ -213,12 +209,9 @@ private fun CarouselPage(
             }
         }
 
-        val visiblePlayer = if (sidePager.currentPage == 0) playerA else playerB
-
         HeaderOverlay(post, onOpenProfile)
         SocialRail(post, votes, voted, onComments, onRequireAuth)
         Dots(active = sidePager.currentPage)
-        ProgressBar(visiblePlayer, isActive)
         if (voted == null) VoteHint("Desliza para comparar · doble toque para votar")
     }
 }
@@ -273,7 +266,6 @@ private fun DuetPage(
 
         HeaderOverlay(post, onOpenProfile)
         SocialRail(post, votes, voted, onComments, onRequireAuth)
-        ProgressBar(playerA, isActive)
         if (voted == null) VoteHint("Doble toque para votar")
     }
 }
@@ -315,8 +307,7 @@ private fun BoxScope.HeaderOverlay(post: Post, onOpenProfile: (String) -> Unit) 
             .align(Alignment.TopStart)
             .fillMaxWidth()
             .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.55f), Color.Transparent)))
-            .statusBarsPadding()
-            .padding(start = 14.dp, end = 80.dp, top = 10.dp, bottom = 28.dp),
+            .padding(start = 14.dp, end = 80.dp, top = 12.dp, bottom = 28.dp),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -376,9 +367,9 @@ private fun BoxScope.SocialRail(
         Modifier
             .align(Alignment.BottomEnd)
             .navigationBarsPadding()
-            .padding(end = 8.dp, bottom = 86.dp),
+            .padding(end = 8.dp, bottom = 64.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(20.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         val total = votes.a + votes.b
         val voteTint = when (voted) {
@@ -392,13 +383,13 @@ private fun BoxScope.SocialRail(
         RailItem(TwykIcons.Swords, "Retar", Color.White, size = 25) {
             if (Session.token == null) onRequireAuth()
         }
-        // Comentar
-        RailItem(Icons.Filled.ChatBubbleOutline, label(post.stats?.comments ?: 0, "Comentar"), Color.White, size = 25) { onComments() }
+        // Comentar (bocadillo redondo, igual que la web)
+        RailItem(TwykIcons.Comment, label(post.stats?.comments ?: 0, "Comentar"), Color.White, size = 25) { onComments() }
         // Compartir (flecha estilo TikTok)
         RailItem(TwykIcons.Share, label(post.stats?.shares ?: 0, "Compartir"), Color.White, size = 25) { sharePost(context, post) }
-        // Guardar
+        // Guardar (marcador, igual que la web)
         RailItem(
-            if (saved) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
+            TwykIcons.bookmark(saved),
             label(post.stats?.saves ?: 0, "Guardar"),
             if (saved) Color(0xFFFACC15) else Color.White,
             size = 25,
@@ -470,29 +461,6 @@ private fun MusicDisc(avatar: String?) {
 }
 
 @Composable
-private fun BoxScope.ProgressBar(player: ExoPlayer, active: Boolean) {
-    var fraction by remember { mutableStateOf(0f) }
-    LaunchedEffect(active, player) {
-        while (active) {
-            val dur = player.duration
-            if (dur > 0) fraction = (player.currentPosition.toFloat() / dur.toFloat()).coerceIn(0f, 1f)
-            delay(200)
-        }
-    }
-    Box(
-        Modifier
-            .align(Alignment.BottomStart)
-            .navigationBarsPadding()
-            .padding(bottom = 74.dp)
-            .fillMaxWidth()
-            .height(2.dp)
-            .background(Color.White.copy(alpha = 0.15f)),
-    ) {
-        Box(Modifier.fillMaxWidth(fraction).fillMaxHeight().background(Color.White.copy(alpha = 0.8f)))
-    }
-}
-
-@Composable
 private fun BoxScope.Dots(active: Int) {
     Row(
         Modifier
@@ -517,7 +485,6 @@ private fun BoxScope.VoteHint(text: String) {
     Box(
         Modifier
             .align(Alignment.TopCenter)
-            .statusBarsPadding()
             .padding(top = 14.dp)
             .clip(RoundedCornerShape(20.dp))
             .background(Color.Black.copy(alpha = 0.45f))
