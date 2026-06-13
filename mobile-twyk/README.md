@@ -27,9 +27,12 @@ src/config/env.ts  ->  API_BASE_URL
 ```bash
 cd mobile-twyk
 npm install
+# Asegura la versión de FlashList compatible con tu SDK de Expo:
+npx expo install @shopify/flash-list
 # Alinea automáticamente las versiones de las librerías al SDK de Expo instalado:
 npx expo install --fix
 ```
+> `@expo/vector-icons` viene incluido con `expo` (no requiere instalación aparte).
 
 ## 4) Generar el proyecto nativo y ejecutarlo
 ```bash
@@ -58,13 +61,15 @@ También puedes abrir la carpeta `android/` resultante directamente en Android S
 ## Estructura
 ```
 mobile-twyk/
-  App.tsx                      # raíz
-  src/config/env.ts            # <-- pon aquí tu API_BASE_URL
-  src/api/client.ts            # llamadas a /api/uploads, /api/feed, /api/vote
-  src/hooks/useFeed.ts         # carga + scroll infinito (igual que la web)
-  src/components/FeedScreen.tsx# feed vertical (FlatList paginado)
-  src/components/VersusCard.tsx# tarjeta 1vs1 (2 vídeos + votación)
-  src/components/VideoSide.tsx # REPRODUCTOR (expo-video). <-- aquí se enchufa el tuyo
+  App.tsx                          # raíz
+  src/config/env.ts                # <-- pon aquí tu API_BASE_URL
+  src/api/client.ts                # llamadas a /api/uploads, /api/feed, /api/vote
+  src/hooks/useFeed.ts             # carga + scroll infinito (igual que la web)
+  src/hooks/useFeedInteractions.ts # estado por-post (votos/voto/guardado) FUERA de las celdas
+  src/components/FeedScreen.tsx    # feed vertical con FlashList (reciclaje real de vistas)
+  src/components/VersusCard.tsx    # tarjeta 1vs1 PRESENTACIONAL (2 vídeos + votación)
+  src/components/SocialColumn.tsx  # columna social reciclable (voto/comentar/compartir/guardar)
+  src/components/VideoSide.tsx     # REPRODUCTOR (expo-video). <-- aquí se enchufa el tuyo
 ```
 
 ## Enchufar TU reproductor
@@ -72,8 +77,28 @@ Cuando subas tu reproductor, sustituye **solo** `src/components/VideoSide.tsx`
 manteniendo sus props (`uri`, `isActive`, `muted`). Todo lo demás (feed, votación,
 precarga) seguirá funcionando igual.
 
+## Reciclaje de vistas (View Pooling, estilo TikTok)
+El feed usa **`@shopify/flash-list` (v2)**, que **recicla** las celdas en vez de
+destruirlas y recrearlas al deslizar (igual que `RecyclerView` en Android /
+`UICollectionView` en iOS). Al pasar al siguiente vídeo, FlashList **reutiliza
+los mismos componentes** (las tarjetas y la columna de botones) y solo
+**actualiza sus datos** (nuevos contadores, avatar, estado de voto/guardado).
+
+Para que el reciclaje sea seguro:
+- **Las tarjetas son presentacionales** (`VersusCard` / `SocialColumn`): no
+  tienen estado interno; reciben todo por props.
+- **El estado por-publicación vive fuera de las celdas** en
+  `useFeedInteractions` (un mapa keyed por `post.id`) → al reciclar una vista
+  nunca se arrastra el estado de la publicación anterior.
+- **`extraData`** avisa a FlashList de los cambios para re-renderizar las celdas
+  recicladas con los datos correctos.
+- **`getItemType`** agrupa por tipo (`versus`/`duet`) para mantener pools de
+  reciclaje homogéneos.
+- **`VideoSide`** sustituye la fuente con `player.replace()` al reciclarse (no
+  recrea el reproductor → reutiliza el decoder nativo).
+
 ## Notas de rendimiento (precarga tipo TikTok)
 - Se monta el reproductor de la tarjeta ACTIVA y de la SIGUIENTE → arranque
   instantáneo al deslizar; las demás muestran solo el póster (0 decoders).
-- `FlatList` con `pagingEnabled`, `getItemLayout` y `windowSize` reducido para
-  no agotar memoria/decoders en gama baja.
+- FlashList con `pagingEnabled` + reciclaje de vistas para no agotar
+  memoria/decoders en gama baja (sin necesidad de `getItemLayout` en v2).

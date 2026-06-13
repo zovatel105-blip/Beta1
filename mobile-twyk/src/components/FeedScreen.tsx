@@ -1,18 +1,26 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  FlatList,
   StyleSheet,
   useWindowDimensions,
   View,
   ViewToken,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { useFeed } from '../hooks/useFeed';
+import { resolveInteraction, useFeedInteractions } from '../hooks/useFeedInteractions';
 import { Post } from '../types';
 import { VersusCard } from './VersusCard';
 
+// FeedScreen — feed vertical tipo TikTok con RECICLAJE REAL DE VISTAS.
+//
+// Usa @shopify/flash-list (v2), que recicla las celdas (view pooling): al
+// deslizar, reutiliza los componentes ya montados y solo les pasa nuevos datos,
+// en lugar de destruirlos y recrearlos. El estado por-publicación vive en
+// useFeedInteractions (FUERA de las celdas) -> reciclaje sin estado contaminado.
 export function FeedScreen() {
   const { posts, ready, loadMore } = useFeed();
+  const { byId, vote, toggleSave } = useFeedInteractions();
   const { height } = useWindowDimensions();
   const [activeIndex, setActiveIndex] = useState(0);
 
@@ -27,27 +35,36 @@ export function FeedScreen() {
 
   const keyExtractor = useCallback((item: Post) => item.id, []);
 
-  const renderItem = useCallback(
-    ({ item, index }: { item: Post; index: number }) => (
-      <VersusCard
-        post={item}
-        isActive={index === activeIndex}
-        // Monta el reproductor de la tarjeta ACTIVA y la SIGUIENTE (precarga) ->
-        // arranque instantaneo al deslizar. El resto solo muestra poster.
-        shouldMount={index === activeIndex || index === activeIndex + 1}
-        itemHeight={height}
-      />
-    ),
-    [activeIndex, height]
-  );
+  // getItemType agrupa por tipo de publicación -> FlashList mantiene pools de
+  // reciclaje separados para vistas homogéneas ('versus' / 'duet') = reciclaje
+  // más eficiente (reutiliza una celda 'versus' solo con otra 'versus').
+  const getItemType = useCallback((item: Post) => item.type, []);
 
-  const getItemLayout = useCallback(
-    (_: ArrayLike<Post> | null | undefined, index: number) => ({
-      length: height,
-      offset: height * index,
-      index,
-    }),
-    [height]
+  // extraData cambia de identidad cuando cambian las interacciones o la tarjeta
+  // activa -> FlashList vuelve a renderizar las celdas RECICLADAS con los datos
+  // nuevos (sin recrear las vistas).
+  const extraData = useMemo(() => ({ byId, activeIndex }), [byId, activeIndex]);
+
+  const renderItem = useCallback(
+    ({ item, index }: { item: Post; index: number }) => {
+      const it = resolveInteraction(byId, item.id, item.votes);
+      return (
+        <VersusCard
+          post={item}
+          isActive={index === activeIndex}
+          // Monta el reproductor de la tarjeta ACTIVA y la SIGUIENTE (precarga)
+          // -> arranque instantáneo al deslizar; el resto solo muestra póster.
+          shouldMount={index === activeIndex || index === activeIndex + 1}
+          itemHeight={height}
+          votes={it.votes}
+          userVote={it.userVote}
+          saved={it.saved}
+          onVote={vote}
+          onToggleSave={toggleSave}
+        />
+      );
+    },
+    [byId, activeIndex, height, vote, toggleSave]
   );
 
   if (!ready || posts.length === 0) {
@@ -59,11 +76,12 @@ export function FeedScreen() {
   }
 
   return (
-    <FlatList
+    <FlashList
       data={posts}
       keyExtractor={keyExtractor}
+      getItemType={getItemType}
       renderItem={renderItem}
-      getItemLayout={getItemLayout}
+      extraData={extraData}
       pagingEnabled
       decelerationRate="fast"
       showsVerticalScrollIndicator={false}
@@ -71,10 +89,6 @@ export function FeedScreen() {
       onEndReachedThreshold={0.6}
       viewabilityConfig={viewabilityConfig}
       onViewableItemsChanged={onViewableItemsChanged}
-      windowSize={3}
-      maxToRenderPerBatch={2}
-      initialNumToRender={2}
-      removeClippedSubviews
     />
   );
 }

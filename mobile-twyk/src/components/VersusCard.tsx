@@ -1,17 +1,32 @@
-import { memo, useState } from 'react';
+import { memo } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import { sendVote } from '../api/client';
 import { absoluteUrl } from '../config/env';
 import { Post, Side } from '../types';
+import { Votes } from '../hooks/useFeedInteractions';
 import { VideoSide } from './VideoSide';
+import { SocialColumn } from './SocialColumn';
+
+// VersusCard — tarjeta 1vs1 (2 vídeos + votación + columna social).
+//
+// IMPORTANTE (view pooling): es 100% PRESENTACIONAL. NO tiene estado interno;
+// recibe `votes`, `userVote` y `saved` por props desde el store del feed
+// (keyed por id). Así, cuando FlashList RECICLA esta vista para otra
+// publicación, solo cambian los DATOS (props) y nunca se arrastra estado de la
+// publicación anterior. Los callbacks (onVote / onToggleSave) son ESTABLES
+// (vienen memoizados del hook) -> el `memo` evita renders innecesarios.
 
 type Props = {
   post: Post;
   isActive: boolean;
   // shouldMount: montar el reproductor (activa + siguiente) para precargar; el
-  // resto muestra solo el poster (0 decoders) y se monta al acercarse.
+  // resto muestra solo el póster (0 decoders) y se monta al acercarse.
   shouldMount: boolean;
   itemHeight: number;
+  votes: Votes;
+  userVote: 'a' | 'b' | null;
+  saved: boolean;
+  onVote: (id: string, side: 'a' | 'b', base: Votes) => void;
+  onToggleSave: (id: string, base: Votes) => void;
 };
 
 function Half({
@@ -29,7 +44,7 @@ function Half({
   isActive: boolean;
   shouldMount: boolean;
   audible: boolean;
-  votes: { a: number; b: number };
+  votes: Votes;
   userVote: 'a' | 'b' | null;
   onVote: (s: 'a' | 'b') => void;
 }) {
@@ -57,24 +72,21 @@ function Half({
   );
 }
 
-export const VersusCard = memo(function VersusCard({ post, isActive, shouldMount, itemHeight }: Props) {
-  const [votes, setVotes] = useState<{ a: number; b: number }>({
-    a: post.votes?.a || 0,
-    b: post.votes?.b || 0,
-  });
-  const [userVote, setUserVote] = useState<'a' | 'b' | null>(null);
-
-  const vote = async (side: 'a' | 'b') => {
-    if (userVote) return;
-    setUserVote(side);
-    setVotes((v) => ({ ...v, [side]: (v[side] || 0) + 1 }));
-    try {
-      const data = await sendVote(post.id, side);
-      if (data?.votes) setVotes(data.votes);
-    } catch {
-      /* mantiene el optimista */
-    }
-  };
+export const VersusCard = memo(function VersusCard({
+  post,
+  isActive,
+  shouldMount,
+  itemHeight,
+  votes,
+  userVote,
+  saved,
+  onVote,
+  onToggleSave,
+}: Props) {
+  const base = post.votes ?? { a: 0, b: 0 };
+  const total = (votes.a || 0) + (votes.b || 0);
+  const headAuthor = post.sideA?.author ?? post.author ?? {};
+  const handleVote = (side: 'a' | 'b') => onVote(post.id, side, base);
 
   return (
     <View style={[styles.card, { height: itemHeight }]}>
@@ -86,7 +98,7 @@ export const VersusCard = memo(function VersusCard({ post, isActive, shouldMount
         audible
         votes={votes}
         userVote={userVote}
-        onVote={vote}
+        onVote={handleVote}
       />
       <View style={styles.divider} />
       <Half
@@ -97,8 +109,9 @@ export const VersusCard = memo(function VersusCard({ post, isActive, shouldMount
         audible={false}
         votes={votes}
         userVote={userVote}
-        onVote={vote}
+        onVote={handleVote}
       />
+
       {/* Cabecera */}
       <View style={styles.header} pointerEvents="none">
         <Text style={styles.headerTitle} numberOfLines={2}>
@@ -106,6 +119,19 @@ export const VersusCard = memo(function VersusCard({ post, isActive, shouldMount
         </Text>
         {!userVote ? <Text style={styles.hint}>Toca una opción para votar</Text> : null}
       </View>
+
+      {/* Columna social RECICLADA: misma vista para todas las publicaciones; al
+          deslizar solo se actualizan sus datos (contadores, guardado, avatar). */}
+      <SocialColumn
+        avatarUrl={headAuthor.avatarUrl}
+        totalVotes={total}
+        voted={!!userVote}
+        comments={post.stats?.comments}
+        shares={post.stats?.shares}
+        saves={post.stats?.saves}
+        saved={saved}
+        onSave={() => onToggleSave(post.id, base)}
+      />
     </View>
   );
 });
@@ -144,7 +170,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
     left: 0,
-    right: 0,
+    right: 64,
     paddingTop: 48,
     paddingHorizontal: 16,
     paddingBottom: 12,
