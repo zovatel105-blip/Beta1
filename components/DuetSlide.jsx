@@ -551,13 +551,13 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
             <>
               {/* Reto 1vs1 (estilo colaboración): dos avatares solapados + "userA / userB" */}
               <div className="relative w-[39px] h-[39px] shrink-0">
-                {/* Avatar trasero (arriba-derecha) recortado en media luna: el hueco deja ver la publicación */}
+                {/* Avatar trasero (arriba-izquierda) recortado en media luna: el hueco deja ver el de abajo */}
                 <button
                   onClick={(e) => { e.stopPropagation(); onOpenProfile?.(authorB.username) }}
-                  className="absolute top-0 right-0 w-[24px] h-[24px] rounded-full overflow-hidden block"
+                  className="absolute top-0 left-0 w-[24px] h-[24px] rounded-full overflow-hidden block"
                   style={{
-                    WebkitMaskImage: 'radial-gradient(circle 15px at -3px 27px, transparent 0 15px, #000 15px)',
-                    maskImage: 'radial-gradient(circle 15px at -3px 27px, transparent 0 15px, #000 15px)',
+                    WebkitMaskImage: 'radial-gradient(circle 15px at 12px 27px, transparent 0 15px, #000 15px)',
+                    maskImage: 'radial-gradient(circle 15px at 12px 27px, transparent 0 15px, #000 15px)',
                   }}
                 >
                   <Avatar src={authorB.avatarUrl} alt={authorB.username} className="w-full h-full" />

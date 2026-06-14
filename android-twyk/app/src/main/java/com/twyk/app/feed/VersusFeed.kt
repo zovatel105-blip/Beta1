@@ -350,10 +350,10 @@ private fun BoxScope.HeaderOverlay(post: Post, onOpenProfile: (String) -> Unit) 
                 val authorA = post.sideA?.author ?: post.author
                 val authorB = post.sideB?.author ?: post.author
                 Box(Modifier.size(39.dp)) {
-                    // Avatar trasero (arriba-derecha)
+                    // Avatar trasero (arriba-izquierda)
                     Box(
                         Modifier
-                            .align(Alignment.TopEnd)
+                            .align(Alignment.TopStart)
                             .size(24.dp)
                             .clickable(enabled = authorB?.username != null) { authorB?.username?.let(onOpenProfile) },
                     ) {
