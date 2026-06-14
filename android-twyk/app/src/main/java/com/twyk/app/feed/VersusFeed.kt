@@ -3,6 +3,7 @@
 package com.twyk.app.feed
 
 import android.content.Context
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -38,6 +39,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -54,6 +56,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
@@ -83,6 +86,7 @@ import com.twyk.app.data.SaveRequest
 import com.twyk.app.data.Session
 import com.twyk.app.data.Votes
 import com.twyk.app.ui.sharePost
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -199,6 +203,10 @@ private fun CarouselPage(
         }
     }
 
+    val visiblePlayer = if (sidePager.currentPage == 0) playerA else playerB
+    var burstId by remember(post.id) { mutableStateOf(0L) }
+    var burstColor by remember(post.id) { mutableStateOf(Color(0xFFA855F7)) }
+
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         HorizontalPager(state = sidePager, modifier = Modifier.fillMaxSize()) { p ->
             VideoSurface(
@@ -206,9 +214,18 @@ private fun CarouselPage(
                 modifier = Modifier.fillMaxSize(),
             ) {
                 val s = if (p == 0) "a" else "b"
-                if (voted == null) { voted = s; votes = bump(votes, s); onVote(s) }
+                if (voted == null) {
+                    voted = s; votes = bump(votes, s); onVote(s)
+                    burstColor = if (s == "b") Color(0xFF3B82F6) else Color(0xFFA855F7)
+                    burstId = System.currentTimeMillis()
+                }
             }
         }
+
+        // ── Capas RECICLADAS estilo TikTok (se resetean al reciclarse la celda) ──
+        VideoProgressBar(visiblePlayer, isActive)                                 // barra de progreso
+        BufferingSpinner(visiblePlayer)                                           // spinner de carga
+        if (burstId != 0L) VoteBurst(burstId, burstColor) { burstId = 0L }        // burst del doble toque
 
         HeaderOverlay(post, onOpenProfile)
         SocialRail(post, votes, voted, onComments, onRequireAuth)
@@ -487,6 +504,91 @@ private fun BoxScope.Dots(active: Int) {
             )
         }
     }
+}
+
+// Barra de progreso (reciclada): línea blanca fina que sigue al vídeo VISIBLE.
+@Composable
+private fun BoxScope.VideoProgressBar(player: ExoPlayer, active: Boolean) {
+    var progress by remember { mutableStateOf(0f) }
+    LaunchedEffect(player, active) {
+        if (!active) {
+            progress = 0f
+            return@LaunchedEffect
+        }
+        while (true) {
+            val dur = runCatching { player.duration }.getOrDefault(0L)
+            val pos = runCatching { player.currentPosition }.getOrDefault(0L)
+            progress = if (dur > 0) (pos.toFloat() / dur).coerceIn(0f, 1f) else 0f
+            delay(150)
+        }
+    }
+    Box(
+        Modifier
+            .align(Alignment.BottomCenter)
+            .navigationBarsPadding()
+            .padding(bottom = 56.dp)
+            .fillMaxWidth()
+            .height(2.dp)
+            .background(Color.White.copy(alpha = 0.15f)),
+    ) {
+        Box(
+            Modifier
+                .fillMaxWidth(progress)
+                .height(2.dp)
+                .background(Color.White.copy(alpha = 0.8f)),
+        )
+    }
+}
+
+// Spinner de carga (reciclado): se muestra solo cuando el reproductor bufferiza.
+@Composable
+private fun BoxScope.BufferingSpinner(player: ExoPlayer) {
+    var buffering by remember { mutableStateOf(false) }
+    DisposableEffect(player) {
+        val listener = object : Player.Listener {
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                buffering = playbackState == Player.STATE_BUFFERING
+            }
+        }
+        player.addListener(listener)
+        buffering = player.playbackState == Player.STATE_BUFFERING
+        onDispose { player.removeListener(listener) }
+    }
+    if (buffering) {
+        CircularProgressIndicator(
+            color = Color.White,
+            strokeWidth = 2.dp,
+            modifier = Modifier.align(Alignment.Center).size(40.dp),
+        )
+    }
+}
+
+// Burst del doble toque (reciclado): icono de voto grande que crece y se desvanece.
+@Composable
+private fun BoxScope.VoteBurst(id: Long, color: Color, onEnd: () -> Unit) {
+    val anim = remember(id) { Animatable(0f) }
+    LaunchedEffect(id) {
+        anim.snapTo(0f)
+        anim.animateTo(1f, animationSpec = tween(durationMillis = 750))
+        onEnd()
+    }
+    val v = anim.value
+    val scale = 0.6f + v * 0.7f
+    val fade = (1f - ((v - 0.6f) / 0.4f)).coerceIn(0f, 1f)
+    Icon(
+        ImageVector.vectorResource(R.drawable.ic_vote_filled),
+        contentDescription = null,
+        tint = color,
+        modifier = Modifier
+            .align(Alignment.Center)
+            .size(96.dp)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+                alpha = fade
+                translationY = -v * 80f
+            },
+    )
 }
 
 @Composable
