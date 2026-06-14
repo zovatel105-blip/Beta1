@@ -8,6 +8,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -314,16 +315,8 @@ private fun BoxScope.HeaderOverlay(post: Post, onOpenProfile: (String) -> Unit) 
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.clickable(enabled = uname != null) { uname?.let { onOpenProfile(it) } },
         ) {
-            val avatar = absoluteUrl(author?.avatarUrl)
-            if (avatar != null) {
-                AsyncImage(
-                    model = avatar,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.size(38.dp).clip(CircleShape),
-                )
-                Spacer(Modifier.width(8.dp))
-            }
+            TwykAvatar(author?.avatarUrl, 38.dp)
+            Spacer(Modifier.width(8.dp))
             Text(
                 author?.username ?: author?.name ?: "twyk",
                 color = Color.White,
@@ -362,13 +355,12 @@ private fun BoxScope.SocialRail(
     var menuOpen by remember(post.id) { mutableStateOf(false) }
 
     val author = post.sideA?.author ?: post.author
-    val avatar = absoluteUrl(author?.avatarUrl)
 
     Column(
         Modifier
             .align(Alignment.BottomEnd)
             .navigationBarsPadding()
-            .padding(end = 8.dp, bottom = 64.dp),
+            .padding(end = 4.dp, bottom = 64.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
@@ -378,8 +370,8 @@ private fun BoxScope.SocialRail(
             "b" -> Color(0xFF3B82F6)
             else -> Color.White
         }
-        // Votar (papeleta marcada HUECA, como los demás botones). Votar = doble toque en el vídeo.
-        RailItem(ImageVector.vectorResource(R.drawable.ic_vote), label(total, "Votar"), voteTint, size = 36) { }
+        // Votar — al votar pasa a icono SÓLIDO (relleno por dentro), como la web.
+        RailItem(ImageVector.vectorResource(if (voted != null) R.drawable.ic_vote_filled else R.drawable.ic_vote), label(total, "Votar"), voteTint, size = 36) { }
         // Retar (espadas cruzadas)
         RailItem(ImageVector.vectorResource(R.drawable.ic_swords), "Retar", Color.White, size = 25) {
             if (Session.token == null) onRequireAuth()
@@ -408,7 +400,7 @@ private fun BoxScope.SocialRail(
         // Más opciones (tres puntos finos, igual que la web)
         RailItem(ImageVector.vectorResource(R.drawable.ic_more), "", Color.White, size = 18) { menuOpen = true }
         // Disco de música giratorio
-        MusicDisc(avatar)
+        MusicDisc(author?.avatarUrl)
     }
 
     if (menuOpen) MoreOptionsSheet(onClose = { menuOpen = false })
@@ -434,7 +426,30 @@ private fun RailItem(icon: ImageVector, label: String, tint: Color, size: Int = 
 }
 
 @Composable
-private fun MusicDisc(avatar: String?) {
+private fun TwykAvatar(url: String?, size: androidx.compose.ui.unit.Dp, modifier: Modifier = Modifier) {
+    // Réplica del <Avatar> de la web: muestra la imagen real SOLO si no es un
+    // avatar autogenerado (dicebear/pravatar); si no, la silueta gris por defecto.
+    val abs = absoluteUrl(url)
+    val generated = url == null || url.contains("dicebear") || url.contains("pravatar")
+    if (abs != null && !generated) {
+        AsyncImage(
+            model = abs,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = modifier.size(size).clip(CircleShape),
+        )
+    } else {
+        Image(
+            imageVector = ImageVector.vectorResource(R.drawable.ic_avatar_default),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = modifier.size(size).clip(CircleShape),
+        )
+    }
+}
+
+@Composable
+private fun MusicDisc(avatarUrl: String?) {
     val transition = rememberInfiniteTransition()
     val angle by transition.animateFloat(
         initialValue = 0f,
@@ -450,14 +465,7 @@ private fun MusicDisc(avatar: String?) {
             .background(Brush.linearGradient(listOf(Color(0xFF3F3F46), Color.Black))),
         contentAlignment = Alignment.Center,
     ) {
-        if (avatar != null) {
-            AsyncImage(
-                model = avatar,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.size(24.dp).clip(CircleShape),
-            )
-        }
+        TwykAvatar(avatarUrl, 24.dp)
     }
 }
 
@@ -467,7 +475,7 @@ private fun BoxScope.Dots(active: Int) {
         Modifier
             .align(Alignment.BottomCenter)
             .navigationBarsPadding()
-            .padding(bottom = 70.dp),
+            .padding(bottom = 64.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         for (i in 0..1) {
