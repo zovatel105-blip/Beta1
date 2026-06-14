@@ -602,13 +602,13 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
       )}
 
       {/* Puntitos del carrusel */}
-      <div className="absolute left-1/2 -translate-x-1/2 bottom-20 z-20 flex items-center gap-1.5">
+      <div className="absolute left-1/2 -translate-x-1/2 bottom-[70px] z-20 flex items-center gap-1">
         {[0, 1].map((i) => (
           <button
             key={i}
             aria-label={`opción ${i === 0 ? 'A' : 'B'}`}
             onClick={(e) => { e.stopPropagation(); goTo(i) }}
-            className={cn('rounded-full transition-all duration-200', sideIdx === i ? 'w-4 h-1.5 bg-white' : 'w-1.5 h-1.5 bg-white/40')}
+            className={cn('rounded-full transition-all duration-200', sideIdx === i ? 'w-4 h-[3px] bg-white' : 'w-[3px] h-[3px] bg-white/40')}
           />
         ))}
       </div>
