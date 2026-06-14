@@ -1,27 +1,34 @@
-import { memo } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { memo, useEffect, useRef, useState } from 'react';
+import {
+  Animated,
+  Image,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { absoluteUrl } from '../config/env';
-import { Post, Side } from '../types';
+import { Post } from '../types';
 import { Votes } from '../hooks/useFeedInteractions';
 import { VideoSide } from './VideoSide';
 import { SocialColumn } from './SocialColumn';
+import { VoteIcon } from './icons/VoteIcon';
 
-// VersusCard — tarjeta 1vs1 (2 vídeos + votación + columna social).
-//
-// IMPORTANTE (view pooling): es 100% PRESENTACIONAL. NO tiene estado interno;
-// recibe `votes`, `userVote`, `saved` y `following` por props desde el store del
-// feed (keyed por id). Así, cuando FlashList RECICLA esta vista para otra
-// publicación, solo cambian los DATOS (props) y nunca se arrastra estado de la
-// publicación anterior. Los callbacks (onVote / onToggleSave / onToggleFollow)
-// son ESTABLES (memoizados en el hook) -> el `memo` evita renders innecesarios.
+// VersusCard — réplica nativa de la tarjeta carrusel web (CarouselSlide):
+// carrusel horizontal de 2 vídeos (A/B), swipe para comparar, doble toque para
+// votar, dots, barra de progreso, info inferior (avatar+nombre+Seguir+título) y
+// columna social. 100% PRESENTACIONAL salvo el índice de lado (UI efímera).
 
 type Props = {
   post: Post;
   isActive: boolean;
-  // shouldMount: montar el reproductor (activa + siguiente) para precargar; el
-  // resto muestra solo el póster (0 decoders) y se monta al acercarse.
   shouldMount: boolean;
   itemHeight: number;
+  muted: boolean;
   votes: Votes;
   userVote: 'a' | 'b' | null;
   saved: boolean;
@@ -31,49 +38,12 @@ type Props = {
   onToggleFollow: (id: string, base: Votes) => void;
 };
 
-function Half({
-  side,
-  sideKey,
-  isActive,
-  shouldMount,
-  audible,
-  votes,
-  userVote,
-  onVote,
-}: {
-  side?: Side;
-  sideKey: 'a' | 'b';
-  isActive: boolean;
-  shouldMount: boolean;
-  audible: boolean;
-  votes: Votes;
-  userVote: 'a' | 'b' | null;
-  onVote: (s: 'a' | 'b') => void;
-}) {
-  const total = (votes.a || 0) + (votes.b || 0);
-  const pct = total > 0 ? Math.round(((votes[sideKey] || 0) / total) * 100) : 50;
-  const poster = absoluteUrl(side?.posterUrl);
-  const chosen = userVote === sideKey;
-  return (
-    <Pressable style={styles.half} onPress={() => onVote(sideKey)}>
-      {poster ? <Image source={{ uri: poster }} style={styles.posterFill} /> : null}
-      {shouldMount && side?.videoUrl ? (
-        <VideoSide uri={side.videoUrl} isActive={isActive} muted={!audible || !isActive} />
-      ) : null}
-      {/* Etiqueta + porcentaje */}
-      <View style={[styles.badge, chosen && styles.badgeChosen]}>
-        <Text style={styles.badgeLabel}>{sideKey === 'a' ? 'A' : 'B'}</Text>
-        {userVote ? <Text style={styles.badgePct}>{pct}%</Text> : null}
-      </View>
-    </Pressable>
-  );
-}
-
 export const VersusCard = memo(function VersusCard({
   post,
   isActive,
   shouldMount,
   itemHeight,
+  muted,
   votes,
   userVote,
   saved,
@@ -82,47 +52,118 @@ export const VersusCard = memo(function VersusCard({
   onToggleSave,
   onToggleFollow,
 }: Props) {
+  const { width } = useWindowDimensions();
+  const [sideIdx, setSideIdx] = useState(0); // 0 = A, 1 = B
+  const scrollRef = useRef<ScrollView>(null);
+  const lastTapRef = useRef(0);
+
+  // Burst del icono de voto al votar (mismo gesto que la web).
+  const burst = useRef(new Animated.Value(0)).current;
+  const [burstColor, setBurstColor] = useState('#A855F7');
+
   const base = post.votes ?? { a: 0, b: 0 };
   const total = (votes.a || 0) + (votes.b || 0);
 
-  const authorA = post.sideA?.author ?? post.author ?? {};
-  const authorB = post.sideB?.author ?? post.author ?? {};
-  const headAuthor = authorA;
+  const sideA = post.sideA ?? {};
+  const sideB = post.sideB ?? {};
+  const current = sideIdx === 0 ? sideA : sideB;
+  const sideKey: 'a' | 'b' = sideIdx === 0 ? 'a' : 'b';
+
+  const authorA = sideA.author ?? post.author ?? {};
+  const authorB = sideB.author ?? post.author ?? {};
+  const headAuthor = current.author ?? post.author ?? {};
   const avatar = absoluteUrl(headAuthor.avatarUrl);
 
-  // Nombre mostrado: en retos 1vs1 mostramos "userA vs userB"; en publicación
-  // normal, el nombre/usuario del autor principal.
   const displayName = post.isChallenge
     ? `${authorA.username || authorA.name || ''} vs ${authorB.username || authorB.name || ''}`
     : headAuthor.username || headAuthor.name || 'Twyk';
 
-  const handleVote = (side: 'a' | 'b') => onVote(post.id, side, base);
+  // Reset al RECICLARSE la vista para otra publicación (FlashList).
+  useEffect(() => {
+    setSideIdx(0);
+    scrollRef.current?.scrollTo({ x: 0, animated: false });
+  }, [post.id]);
+
+  const playBurst = (s: 'a' | 'b') => {
+    setBurstColor(s === 'a' ? '#A855F7' : '#3B82F6');
+    burst.setValue(0);
+    Animated.timing(burst, { toValue: 1, duration: 800, useNativeDriver: true }).start();
+  };
+
+  const handleTap = (s: 'a' | 'b') => {
+    const now = Date.now();
+    if (now - lastTapRef.current < 300) {
+      if (!userVote) {
+        onVote(post.id, s, base);
+        playBurst(s);
+      }
+    }
+    lastTapRef.current = now;
+  };
+
+  const onMomentumEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const idx = Math.round(e.nativeEvent.contentOffset.x / width);
+    setSideIdx(Math.max(0, Math.min(1, idx)));
+  };
+
+  const goTo = (i: number) => {
+    scrollRef.current?.scrollTo({ x: i * width, animated: true });
+    setSideIdx(i);
+  };
+
+  const renderPage = (side: typeof sideA, key: 'a' | 'b') => {
+    const poster = absoluteUrl(side?.posterUrl);
+    const isVisible = (key === 'a') === (sideIdx === 0);
+    return (
+      <Pressable style={{ width, height: itemHeight }} onPress={() => handleTap(key)}>
+        {poster ? <Image source={{ uri: poster }} style={styles.posterFill} /> : null}
+        {shouldMount && side?.videoUrl ? (
+          <VideoSide uri={side.videoUrl} isActive={isActive && isVisible} muted={muted || !isVisible} />
+        ) : null}
+      </Pressable>
+    );
+  };
 
   return (
     <View style={[styles.card, { height: itemHeight }]}>
-      <Half
-        side={post.sideA}
-        sideKey="a"
-        isActive={isActive}
-        shouldMount={shouldMount}
-        audible
-        votes={votes}
-        userVote={userVote}
-        onVote={handleVote}
-      />
-      <View style={styles.divider} />
-      <Half
-        side={post.sideB}
-        sideKey="b"
-        isActive={isActive}
-        shouldMount={shouldMount}
-        audible={false}
-        votes={votes}
-        userVote={userVote}
-        onVote={handleVote}
-      />
+      {/* Carrusel horizontal (2 vídeos) */}
+      <ScrollView
+        ref={scrollRef}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onMomentumScrollEnd={onMomentumEnd}
+        style={StyleSheet.absoluteFill}
+      >
+        {renderPage(sideA, 'a')}
+        {renderPage(sideB, 'b')}
+      </ScrollView>
 
-      {/* Info INFERIOR (como la web): avatar + nombre + Seguir + título. */}
+      {/* Pista para votar (arriba) */}
+      {!userVote ? (
+        <View style={styles.hintWrap} pointerEvents="none">
+          <Text style={styles.hint}>Desliza para comparar · doble toque para votar</Text>
+        </View>
+      ) : null}
+
+      {/* Burst del icono de voto */}
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          styles.burst,
+          {
+            opacity: burst.interpolate({ inputRange: [0, 0.7, 1], outputRange: [1, 1, 0] }),
+            transform: [
+              { scale: burst.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1.3] }) },
+              { translateY: burst.interpolate({ inputRange: [0, 1], outputRange: [0, -30] }) },
+            ],
+          },
+        ]}
+      >
+        <VoteIcon size={96} color={burstColor} filled strokeWidth={180} />
+      </Animated.View>
+
+      {/* Info INFERIOR: avatar + nombre + Seguir + título */}
       <View style={styles.bottomInfo} pointerEvents="box-none">
         <View style={styles.authorRow}>
           {avatar ? (
@@ -141,61 +182,65 @@ export const VersusCard = memo(function VersusCard({
             <Text style={styles.followText}>{following ? 'Siguiendo' : 'Seguir'}</Text>
           </Pressable>
         </View>
-
         <Text style={styles.title} numberOfLines={2}>
-          {post.description || (post.isChallenge ? 'Reto 1vs1' : 'Twyk')}
+          {current.description || post.description || (post.isChallenge ? 'Reto 1vs1' : 'Twyk')}
         </Text>
-        {!userVote ? <Text style={styles.hint}>Toca una opción para votar</Text> : null}
       </View>
 
-      {/* Columna social RECICLADA: misma vista para todas las publicaciones; al
-          deslizar solo se actualizan sus datos (contadores, guardado, avatar). */}
+      {/* Columna social */}
       <SocialColumn
         avatarUrl={headAuthor.avatarUrl}
         totalVotes={total}
-        voted={!!userVote}
+        userVote={userVote}
         comments={post.stats?.comments}
         shares={post.stats?.shares}
         saves={post.stats?.saves}
         saved={saved}
         onSave={() => onToggleSave(post.id, base)}
       />
+
+      {/* Puntitos del carrusel */}
+      <View style={styles.dots}>
+        {[0, 1].map((i) => (
+          <Pressable key={i} onPress={() => goTo(i)} hitSlop={8}>
+            <View style={[styles.dot, sideIdx === i ? styles.dotActive : styles.dotInactive]} />
+          </Pressable>
+        ))}
+      </View>
+
+      {/* Barra de progreso (línea fina) */}
+      <View style={styles.progressTrack} pointerEvents="none">
+        <View style={styles.progressFill} />
+      </View>
     </View>
   );
 });
 
 const styles = StyleSheet.create({
-  card: { width: '100%', backgroundColor: '#000' },
-  half: { flex: 1, overflow: 'hidden', justifyContent: 'flex-end' },
-  posterFill: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
-  divider: { height: 2, backgroundColor: 'rgba(255,255,255,0.3)' },
-  badge: {
+  card: { width: '100%', backgroundColor: '#000', overflow: 'hidden' },
+  posterFill: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%' },
+  hintWrap: {
     position: 'absolute',
-    top: 12,
-    left: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    top: 48,
+    alignSelf: 'center',
+    backgroundColor: 'rgba(0,0,0,0.45)',
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 14,
+    borderRadius: 999,
   },
-  badgeChosen: { backgroundColor: 'rgba(168,85,247,0.85)' },
-  badgeLabel: { color: '#fff', fontWeight: '700', fontSize: 13 },
-  badgePct: { color: '#fff', fontWeight: '700', fontSize: 13 },
-  // Info inferior
-  bottomInfo: {
+  hint: { color: '#fff', fontSize: 10, fontWeight: '600' },
+  burst: {
     position: 'absolute',
-    bottom: 40,
-    left: 12,
-    right: 72,
-  },
-  authorRow: {
-    flexDirection: 'row',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     alignItems: 'center',
-    gap: 10,
+    justifyContent: 'center',
   },
+  // Info inferior
+  bottomInfo: { position: 'absolute', bottom: 80, left: 16, right: 64 },
+  authorRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   avatar: {
     width: 38,
     height: 38,
@@ -208,13 +253,13 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     color: '#fff',
     fontWeight: '600',
-    fontSize: 14,
+    fontSize: 13,
     textShadowColor: 'rgba(0,0,0,0.6)',
     textShadowRadius: 4,
   },
   followBtn: {
     paddingHorizontal: 12,
-    paddingVertical: 5,
+    paddingVertical: 4,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.9)',
@@ -223,13 +268,36 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.4)',
     backgroundColor: 'rgba(255,255,255,0.15)',
   },
-  followText: { color: '#fff', fontWeight: '600', fontSize: 13 },
+  followText: { color: '#fff', fontWeight: '500', fontSize: 13 },
   title: {
     color: '#fff',
     fontSize: 14,
-    marginTop: 8,
+    marginTop: 6,
     textShadowColor: 'rgba(0,0,0,0.6)',
     textShadowRadius: 4,
   },
-  hint: { color: 'rgba(255,255,255,0.85)', fontSize: 12, marginTop: 4 },
+  // Dots
+  dots: {
+    position: 'absolute',
+    bottom: 70,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  dot: { borderRadius: 999 },
+  dotActive: { width: 16, height: 3, backgroundColor: '#fff' },
+  dotInactive: { width: 3, height: 3, backgroundColor: 'rgba(255,255,255,0.4)' },
+  // Progress bar
+  progressTrack: {
+    position: 'absolute',
+    bottom: 64,
+    left: 0,
+    right: 0,
+    height: 2,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+  },
+  progressFill: { height: 2, width: '0%', backgroundColor: 'rgba(255,255,255,0.8)' },
 });
+
+export default VersusCard;

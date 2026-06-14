@@ -11,18 +11,17 @@ import { useFeed } from '../hooks/useFeed';
 import { resolveInteraction, useFeedInteractions } from '../hooks/useFeedInteractions';
 import { Post } from '../types';
 import { VersusCard } from './VersusCard';
+import { TopBar } from './TopBar';
+import { BottomNav } from './BottomNav';
 
-// FeedScreen — feed vertical tipo TikTok con RECICLAJE REAL DE VISTAS.
-//
-// Usa @shopify/flash-list (v2), que recicla las celdas (view pooling): al
-// deslizar, reutiliza los componentes ya montados y solo les pasa nuevos datos,
-// en lugar de destruirlos y recrearlos. El estado por-publicación vive en
-// useFeedInteractions (FUERA de las celdas) -> reciclaje sin estado contaminado.
+// FeedScreen — pantalla del feed (réplica nativa de la web): TopBar arriba,
+// feed vertical con reciclaje real de vistas (FlashList) y BottomNav abajo.
 export function FeedScreen() {
   const { posts, ready, loadMore } = useFeed();
   const { byId, vote, toggleSave, toggleFollow } = useFeedInteractions();
   const { height } = useWindowDimensions();
   const [activeIndex, setActiveIndex] = useState(0);
+  const [muted, setMuted] = useState(true);
 
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 80 }).current;
   const onViewableItemsChanged = useRef(
@@ -34,16 +33,9 @@ export function FeedScreen() {
   ).current;
 
   const keyExtractor = useCallback((item: Post) => item.id, []);
-
-  // getItemType agrupa por tipo de publicación -> FlashList mantiene pools de
-  // reciclaje separados para vistas homogéneas ('versus' / 'duet') = reciclaje
-  // más eficiente (reutiliza una celda 'versus' solo con otra 'versus').
   const getItemType = useCallback((item: Post) => item.type, []);
 
-  // extraData cambia de identidad cuando cambian las interacciones o la tarjeta
-  // activa -> FlashList vuelve a renderizar las celdas RECICLADAS con los datos
-  // nuevos (sin recrear las vistas).
-  const extraData = useMemo(() => ({ byId, activeIndex }), [byId, activeIndex]);
+  const extraData = useMemo(() => ({ byId, activeIndex, muted }), [byId, activeIndex, muted]);
 
   const renderItem = useCallback(
     ({ item, index }: { item: Post; index: number }) => {
@@ -52,10 +44,9 @@ export function FeedScreen() {
         <VersusCard
           post={item}
           isActive={index === activeIndex}
-          // Monta el reproductor de la tarjeta ACTIVA y la SIGUIENTE (precarga)
-          // -> arranque instantáneo al deslizar; el resto solo muestra póster.
           shouldMount={index === activeIndex || index === activeIndex + 1}
           itemHeight={height}
+          muted={muted}
           votes={it.votes}
           userVote={it.userVote}
           saved={it.saved}
@@ -66,7 +57,7 @@ export function FeedScreen() {
         />
       );
     },
-    [byId, activeIndex, height, vote, toggleSave, toggleFollow]
+    [byId, activeIndex, height, muted, vote, toggleSave, toggleFollow]
   );
 
   if (!ready || posts.length === 0) {
@@ -78,23 +69,30 @@ export function FeedScreen() {
   }
 
   return (
-    <FlashList
-      data={posts}
-      keyExtractor={keyExtractor}
-      getItemType={getItemType}
-      renderItem={renderItem}
-      extraData={extraData}
-      pagingEnabled
-      decelerationRate="fast"
-      showsVerticalScrollIndicator={false}
-      onEndReached={loadMore}
-      onEndReachedThreshold={0.6}
-      viewabilityConfig={viewabilityConfig}
-      onViewableItemsChanged={onViewableItemsChanged}
-    />
+    <View style={styles.root}>
+      <FlashList
+        data={posts}
+        keyExtractor={keyExtractor}
+        getItemType={getItemType}
+        renderItem={renderItem}
+        extraData={extraData}
+        pagingEnabled
+        decelerationRate="fast"
+        showsVerticalScrollIndicator={false}
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.6}
+        viewabilityConfig={viewabilityConfig}
+        onViewableItemsChanged={onViewableItemsChanged}
+      />
+
+      {/* Capas fijas: barra superior + navegación inferior */}
+      <TopBar muted={muted} onToggleMute={() => setMuted((m) => !m)} />
+      <BottomNav activeTab="home" />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: '#000' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#000' },
 });

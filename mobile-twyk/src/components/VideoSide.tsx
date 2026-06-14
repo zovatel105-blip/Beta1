@@ -63,7 +63,6 @@ export function VideoSide({ uri, isActive, muted }: Props) {
         player={player}
         contentFit="cover"
         nativeControls={false}
-        allowsFullscreen={false}
       />
     </View>
   );

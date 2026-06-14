@@ -1,12 +1,12 @@
 import { memo } from 'react';
-import { Ionicons } from '@expo/vector-icons';
+import { Bookmark, MessageCircle, MoreVertical, Swords } from 'lucide-react-native';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { absoluteUrl } from '../config/env';
+import { VoteIcon } from './icons/VoteIcon';
+import { ShareIcon } from './icons/ShareIcon';
 
-// SocialColumn — la columna de acciones (voto / comentario / compartir /
-// guardar + avatar). Es una vista PRESENTACIONAL y RECICLABLE: FlashList la
-// reutiliza para cada publicación y solo le pasa nuevos DATOS por props (no se
-// destruye ni se recrea al deslizar). Sin estado interno -> 100% recycle-safe.
+// SocialColumn — réplica nativa de la columna social web (mismos iconos,
+// tamaños y posiciones). Presentacional y reciclable (sin estado interno).
 
 function fmt(n?: number): string {
   const v = Number(n) || 0;
@@ -14,65 +14,91 @@ function fmt(n?: number): string {
   if (v >= 1_000) return (v / 1_000).toFixed(1).replace(/\.0$/, '') + 'K';
   return String(v);
 }
+function label(n: number | undefined, placeholder: string): string {
+  return (Number(n) || 0) === 0 ? placeholder : fmt(n);
+}
 
 type Props = {
   avatarUrl?: string;
   totalVotes: number;
-  voted: boolean;
+  userVote: 'a' | 'b' | null;
   comments?: number;
   shares?: number;
   saves?: number;
   saved: boolean;
+  showRetar?: boolean;
+  onRetar?: () => void;
   onComment?: () => void;
   onShare?: () => void;
   onSave: () => void;
+  onMore?: () => void;
 };
 
 export const SocialColumn = memo(function SocialColumn({
   avatarUrl,
   totalVotes,
-  voted,
+  userVote,
   comments,
   shares,
   saves,
   saved,
+  showRetar = true,
+  onRetar,
   onComment,
   onShare,
   onSave,
+  onMore,
 }: Props) {
   const avatar = absoluteUrl(avatarUrl);
+  const voteColor = userVote === 'a' ? '#A855F7' : userVote === 'b' ? '#3B82F6' : '#fff';
+
   return (
     <View style={styles.col} pointerEvents="box-none">
-      {/* Voto (el voto se emite tocando un vídeo; aquí mostramos el total) */}
+      {/* Voto (el voto real se emite tocando el vídeo; aquí el contador) */}
       <View style={styles.item}>
-        <Ionicons
-          name={voted ? 'arrow-up-circle' : 'arrow-up-circle-outline'}
-          size={38}
-          color={voted ? '#A855F7' : '#fff'}
-        />
-        <Text style={styles.label}>{totalVotes > 0 ? fmt(totalVotes) : 'Votar'}</Text>
+        <VoteIcon size={36} color={voteColor} filled={!!userVote} strokeWidth={180} />
+        <Text style={styles.label}>{label(totalVotes, 'Votar')}</Text>
       </View>
 
-      <Pressable style={styles.item} onPress={onComment} hitSlop={8}>
-        <Ionicons name="chatbubble-ellipses" size={31} color="#fff" />
-        <Text style={styles.label}>{(comments ?? 0) > 0 ? fmt(comments) : 'Comentar'}</Text>
+      {showRetar ? (
+        <Pressable style={styles.item} onPress={onRetar} hitSlop={6}>
+          <Swords size={25} color="#fff" strokeWidth={1.25} />
+          <Text style={styles.label}>Retar</Text>
+        </Pressable>
+      ) : null}
+
+      <Pressable style={styles.item} onPress={onComment} hitSlop={6}>
+        <MessageCircle size={25} color="#fff" strokeWidth={1.25} />
+        <Text style={styles.label}>{label(comments, 'Comentar')}</Text>
       </Pressable>
 
-      <Pressable style={styles.item} onPress={onShare} hitSlop={8}>
-        <Ionicons name="arrow-redo" size={31} color="#fff" />
-        <Text style={styles.label}>{(shares ?? 0) > 0 ? fmt(shares) : 'Compartir'}</Text>
+      <Pressable style={styles.item} onPress={onShare} hitSlop={6}>
+        <ShareIcon size={25} color="#fff" strokeWidth={1.1} />
+        <Text style={styles.label}>{label(shares, 'Compartir')}</Text>
       </Pressable>
 
-      <Pressable style={styles.item} onPress={onSave} hitSlop={8}>
-        <Ionicons name={saved ? 'bookmark' : 'bookmark-outline'} size={30} color={saved ? '#FACC15' : '#fff'} />
-        <Text style={styles.label}>{(saves ?? 0) > 0 ? fmt(saves) : 'Guardar'}</Text>
+      <Pressable style={styles.item} onPress={onSave} hitSlop={6}>
+        <Bookmark
+          size={25}
+          color={saved ? '#FACC15' : '#fff'}
+          fill={saved ? '#FACC15' : 'none'}
+          strokeWidth={1.25}
+        />
+        <Text style={styles.label}>{label(saves, 'Guardar')}</Text>
       </Pressable>
 
-      {avatar ? (
-        <Image source={{ uri: avatar }} style={styles.avatar} />
-      ) : (
-        <View style={[styles.avatar, styles.avatarFallback]} />
-      )}
+      <Pressable style={styles.itemTight} onPress={onMore} hitSlop={6}>
+        <MoreVertical size={18} color="#fff" fill="#fff" strokeWidth={1.25} />
+      </Pressable>
+
+      {/* Disco de avatar girando (estático aquí) */}
+      <View style={styles.disc}>
+        {avatar ? (
+          <Image source={{ uri: avatar }} style={styles.discAvatar} />
+        ) : (
+          <View style={[styles.discAvatar, styles.discFallback]} />
+        )}
+      </View>
     </View>
   );
 });
@@ -80,25 +106,35 @@ export const SocialColumn = memo(function SocialColumn({
 const styles = StyleSheet.create({
   col: {
     position: 'absolute',
-    right: 8,
-    bottom: 90,
+    right: 4,
+    bottom: 72,
     alignItems: 'center',
-    gap: 18,
+    gap: 16,
   },
   item: { alignItems: 'center', gap: 2 },
+  itemTight: { alignItems: 'center' },
   label: {
     color: '#fff',
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '600',
     textShadowColor: 'rgba(0,0,0,0.7)',
     textShadowRadius: 3,
+    textShadowOffset: { width: 0, height: 2 },
   },
-  avatar: {
+  disc: {
+    marginTop: 4,
     width: 40,
     height: 40,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.4)',
+    borderColor: 'rgba(255,255,255,0.3)',
+    backgroundColor: '#18181b',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
   },
-  avatarFallback: { backgroundColor: '#222' },
+  discAvatar: { width: 24, height: 24, borderRadius: 12 },
+  discFallback: { backgroundColor: '#3f3f46' },
 });
+
+export default SocialColumn;
