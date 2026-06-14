@@ -36,7 +36,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Link
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -380,7 +379,7 @@ private fun BoxScope.SocialRail(
             else -> Color.White
         }
         // Votar (papeleta marcada HUECA, como los demás botones). Votar = doble toque en el vídeo.
-        RailItem(ImageVector.vectorResource(R.drawable.ic_vote), label(total, "Votar"), voteTint, size = 34) { }
+        RailItem(ImageVector.vectorResource(R.drawable.ic_vote), label(total, "Votar"), voteTint, size = 36) { }
         // Retar (espadas cruzadas)
         RailItem(ImageVector.vectorResource(R.drawable.ic_swords), "Retar", Color.White, size = 25) {
             if (Session.token == null) onRequireAuth()
@@ -406,8 +405,8 @@ private fun BoxScope.SocialRail(
                 }
             }
         }
-        // Más opciones
-        RailItem(Icons.Filled.MoreVert, "", Color.White, size = 25) { menuOpen = true }
+        // Más opciones (tres puntos finos, igual que la web)
+        RailItem(ImageVector.vectorResource(R.drawable.ic_more), "", Color.White, size = 18) { menuOpen = true }
         // Disco de música giratorio
         MusicDisc(avatar)
     }
@@ -468,14 +467,14 @@ private fun BoxScope.Dots(active: Int) {
         Modifier
             .align(Alignment.BottomCenter)
             .navigationBarsPadding()
-            .padding(bottom = 86.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+            .padding(bottom = 70.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         for (i in 0..1) {
             Box(
                 Modifier
-                    .size(width = if (i == active) 16.dp else 6.dp, height = 6.dp)
-                    .clip(RoundedCornerShape(3.dp))
+                    .size(width = if (i == active) 16.dp else 3.dp, height = 3.dp)
+                    .clip(RoundedCornerShape(1.5.dp))
                     .background(if (i == active) Color.White else Color.White.copy(alpha = 0.4f)),
             )
         }
