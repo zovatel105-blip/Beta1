@@ -54,6 +54,7 @@ export const VersusCard = memo(function VersusCard({
 }: Props) {
   const { width } = useWindowDimensions();
   const [sideIdx, setSideIdx] = useState(0); // 0 = A, 1 = B
+  const [progress, setProgress] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
   const lastTapRef = useRef(0);
 
@@ -81,8 +82,14 @@ export const VersusCard = memo(function VersusCard({
   // Reset al RECICLARSE la vista para otra publicación (FlashList).
   useEffect(() => {
     setSideIdx(0);
+    setProgress(0);
     scrollRef.current?.scrollTo({ x: 0, animated: false });
   }, [post.id]);
+
+  // Reinicia el progreso al cambiar de lado (vídeo distinto).
+  useEffect(() => {
+    setProgress(0);
+  }, [sideIdx]);
 
   const playBurst = (s: 'a' | 'b') => {
     setBurstColor(s === 'a' ? '#A855F7' : '#3B82F6');
@@ -118,7 +125,12 @@ export const VersusCard = memo(function VersusCard({
       <Pressable style={{ width, height: itemHeight }} onPress={() => handleTap(key)}>
         {poster ? <Image source={{ uri: poster }} style={styles.posterFill} /> : null}
         {shouldMount && side?.videoUrl ? (
-          <VideoSide uri={side.videoUrl} isActive={isActive && isVisible} muted={muted || !isVisible} />
+          <VideoSide
+            uri={side.videoUrl}
+            isActive={isActive && isVisible}
+            muted={muted || !isVisible}
+            onProgress={isVisible ? setProgress : undefined}
+          />
         ) : null}
       </Pressable>
     );
@@ -208,9 +220,9 @@ export const VersusCard = memo(function VersusCard({
         ))}
       </View>
 
-      {/* Barra de progreso (línea fina) */}
+      {/* Barra de progreso (línea fina, avanza con el vídeo) */}
       <View style={styles.progressTrack} pointerEvents="none">
-        <View style={styles.progressFill} />
+        <View style={[styles.progressFill, { width: `${Math.round(progress * 100)}%` }]} />
       </View>
     </View>
   );
@@ -228,7 +240,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 999,
   },
-  hint: { color: '#fff', fontSize: 10, fontWeight: '600' },
+  hint: { color: '#fff', fontSize: 10, fontWeight: '600', includeFontPadding: false },
   burst: {
     position: 'absolute',
     top: 0,
@@ -254,6 +266,7 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '600',
     fontSize: 13,
+    includeFontPadding: false,
     textShadowColor: 'rgba(0,0,0,0.6)',
     textShadowRadius: 4,
   },
@@ -268,11 +281,12 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.4)',
     backgroundColor: 'rgba(255,255,255,0.15)',
   },
-  followText: { color: '#fff', fontWeight: '500', fontSize: 13 },
+  followText: { color: '#fff', fontWeight: '500', fontSize: 13, includeFontPadding: false },
   title: {
     color: '#fff',
     fontSize: 14,
     marginTop: 4,
+    includeFontPadding: false,
     textShadowColor: 'rgba(0,0,0,0.6)',
     textShadowRadius: 4,
   },

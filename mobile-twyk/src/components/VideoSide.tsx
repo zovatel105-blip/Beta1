@@ -5,20 +5,15 @@ import { absoluteUrl } from '../config/env';
 
 type Props = {
   uri?: string;
-  // ¿Esta tarjeta es la activa? -> reproduce; si no, se queda en pausa (pero el
-  // jugador montado ya bufferiza por delante = arranque instantáneo al activarse).
   isActive: boolean;
   muted: boolean;
+  // Reporta el progreso (0..1) del vídeo VISIBLE para la barra de progreso.
+  onProgress?: (ratio: number) => void;
 };
 
-// VideoSide — un lado de la publicación con un REPRODUCTOR NATIVO (expo-video:
-// ExoPlayer en Android / AVPlayer en iOS).
-//
-// COMPATIBLE CON RECICLAJE (FlashList): cuando esta vista se reutiliza para OTRA
-// publicación, el reproductor es el MISMO pero la `uri` cambia. En vez de
-// recrear el reproductor (caro: nuevo decoder + buffer), SUSTITUIMOS la fuente
-// con player.replace() -> reutilización real del decoder nativo (view pooling).
-export function VideoSide({ uri, isActive, muted }: Props) {
+// VideoSide — reproductor NATIVO (expo-video). Compatible con reciclaje:
+// sustituye la fuente con player.replace() en vez de recrear el reproductor.
+export function VideoSide({ uri, isActive, muted, onProgress }: Props) {
   const source = absoluteUrl(uri) ?? '';
   const player = useVideoPlayer(source, (p) => {
     p.loop = true;
@@ -26,8 +21,6 @@ export function VideoSide({ uri, isActive, muted }: Props) {
   });
   const lastSourceRef = useRef(source);
 
-  // Reciclaje: si la fuente cambia (misma vista, otra publicación), reemplaza
-  // la fuente en el reproductor existente (no se recrea).
   useEffect(() => {
     if (lastSourceRef.current !== source) {
       lastSourceRef.current = source;
@@ -56,14 +49,24 @@ export function VideoSide({ uri, isActive, muted }: Props) {
     }
   }, [isActive, player]);
 
+  // Progreso del vídeo (para la barra fina inferior, igual que la web).
+  useEffect(() => {
+    if (!isActive || !onProgress) return;
+    const id = setInterval(() => {
+      try {
+        const d = player.duration || 0;
+        const t = player.currentTime || 0;
+        if (d > 0) onProgress(Math.max(0, Math.min(1, t / d)));
+      } catch {
+        /* ignore */
+      }
+    }, 250);
+    return () => clearInterval(id);
+  }, [isActive, onProgress, player]);
+
   return (
     <View style={styles.fill}>
-      <VideoView
-        style={styles.fill}
-        player={player}
-        contentFit="cover"
-        nativeControls={false}
-      />
+      <VideoView style={styles.fill} player={player} contentFit="cover" nativeControls={false} />
     </View>
   );
 }
@@ -71,3 +74,5 @@ export function VideoSide({ uri, isActive, muted }: Props) {
 const styles = StyleSheet.create({
   fill: { width: '100%', height: '100%', backgroundColor: '#000' },
 });
+
+export default VideoSide;
