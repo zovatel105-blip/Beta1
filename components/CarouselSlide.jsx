@@ -528,13 +528,13 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
 
       {/* Columna social derecha — estilo Twyk (abajo) */}
       <div
-        className="absolute z-20 right-2 bottom-[72px] flex flex-col items-center gap-4 pointer-events-auto"
+        className="absolute z-20 right-1 bottom-[72px] flex flex-col items-center gap-4 pointer-events-auto"
       >
         <button aria-label="votos" onClick={(e) => e.stopPropagation()} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
           <span style={{ color: userVote === 'a' ? '#A855F7' : userVote === 'b' ? '#3B82F6' : '#fff', display: 'inline-flex', transition: 'color 200ms' }}>
             <VoteIcon className="w-[36px] h-[36px]" strokeWidth={180} filled={!!userVote} />
           </span>
-          <span className="text-[11px] font-semibold text-white leading-none">{countLabel(totalVotes, 'Votar')}</span>
+          <span className="text-[10px] font-semibold text-white leading-none">{countLabel(totalVotes, 'Votar')}</span>
         </button>
         {!hideChallenge && headAuthor?.username !== user?.username && (
           <button aria-label="retar" onClick={(e) => { 
