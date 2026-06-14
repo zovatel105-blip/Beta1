@@ -344,16 +344,71 @@ private fun BoxScope.HeaderOverlay(post: Post, onOpenProfile: (String) -> Unit) 
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.clickable(enabled = uname != null) { uname?.let { onOpenProfile(it) } },
         ) {
-            TwykAvatar(author?.avatarUrl, 38.dp)
-            Spacer(Modifier.width(8.dp))
-            Text(
-                author?.username ?: author?.name ?: "twyk",
-                color = Color.White,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold,
-            )
+            if (post.isChallenge == true) {
+                // ── Reto 1vs1: DOS creadores (avatar + nombre de cada lado), igual que la web ──
+                val authorA = post.sideA?.author ?: post.author
+                val authorB = post.sideB?.author ?: post.author
+                Box(Modifier.size(39.dp)) {
+                    // Avatar trasero (arriba-derecha)
+                    Box(
+                        Modifier
+                            .align(Alignment.TopEnd)
+                            .size(24.dp)
+                            .clickable(enabled = authorB?.username != null) { authorB?.username?.let(onOpenProfile) },
+                    ) {
+                        TwykAvatar(authorB?.avatarUrl, 24.dp)
+                    }
+                    // Avatar delantero (abajo-izquierda) con anillo negro que los separa
+                    Box(
+                        Modifier
+                            .align(Alignment.BottomStart)
+                            .size(26.dp)
+                            .clip(CircleShape)
+                            .background(Color.Black)
+                            .padding(2.dp)
+                            .clickable(enabled = authorA?.username != null) { authorA?.username?.let(onOpenProfile) },
+                    ) {
+                        TwykAvatar(authorA?.avatarUrl, 22.dp)
+                    }
+                }
+                Spacer(Modifier.width(8.dp))
+                Column {
+                    Text(
+                        (authorA?.username ?: authorA?.name ?: "twyk") + " vs",
+                        color = Color.White,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.clickable(enabled = authorA?.username != null) { authorA?.username?.let(onOpenProfile) },
+                    )
+                    Text(
+                        authorB?.username ?: authorB?.name ?: "twyk",
+                        color = Color.White,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.clickable(enabled = authorB?.username != null) { authorB?.username?.let(onOpenProfile) },
+                    )
+                }
+            } else {
+                // ── Publicación normal: un solo avatar + nombre ──
+                TwykAvatar(
+                    author?.avatarUrl,
+                    38.dp,
+                    Modifier.clickable(enabled = uname != null) { uname?.let { onOpenProfile(it) } },
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    author?.username ?: author?.name ?: "twyk",
+                    color = Color.White,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.clickable(enabled = uname != null) { uname?.let { onOpenProfile(it) } },
+                )
+            }
             Spacer(Modifier.width(10.dp))
             Box(
                 Modifier
