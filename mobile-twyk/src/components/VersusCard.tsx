@@ -312,7 +312,7 @@ const styles = StyleSheet.create({
   // Dots
   dots: {
     position: 'absolute',
-    bottom: 70,
+    bottom: 60,
     alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
@@ -324,7 +324,7 @@ const styles = StyleSheet.create({
   // Progress bar
   progressTrack: {
     position: 'absolute',
-    bottom: 64,
+    bottom: 54,
     left: 0,
     right: 0,
     height: 2,
