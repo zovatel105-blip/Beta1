@@ -62,7 +62,7 @@ export const SocialColumn = memo(function SocialColumn({
 
       {showRetar ? (
         <Pressable style={styles.item} onPress={onRetar} hitSlop={6}>
-          <Swords size={25} color="#fff" strokeWidth={1.25} />
+          <Swords size={25} color="#fff" strokeWidth={1} />
           <Text style={styles.label}>Retar</Text>
         </Pressable>
       ) : null}
@@ -88,7 +88,7 @@ export const SocialColumn = memo(function SocialColumn({
       </Pressable>
 
       <Pressable style={styles.itemTight} onPress={onMore} hitSlop={6}>
-        <MoreVertical size={18} color="#fff" fill="#fff" strokeWidth={1.25} />
+        <MoreVertical size={18} color="#fff" fill="#fff" strokeWidth={1} />
       </Pressable>
 
       {/* Disco de avatar girando (estático aquí) */}

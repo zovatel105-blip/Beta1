@@ -2,21 +2,38 @@ import { memo, useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Image,
+  LayoutAnimation,
   NativeScrollEvent,
   NativeSyntheticEvent,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  UIManager,
   useWindowDimensions,
   View,
 } from 'react-native';
+
 import { absoluteUrl } from '../config/env';
 import { Post } from '../types';
 import { Votes } from '../hooks/useFeedInteractions';
 import { VideoSide } from './VideoSide';
 import { SocialColumn } from './SocialColumn';
 import { VoteIcon } from './icons/VoteIcon';
+
+// Habilita LayoutAnimation en Android para animar el cambio de tamaño de los
+// puntitos del carrusel (igual que la transición suave `duration-200` de la web).
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
+// Transición suave de los dots: el dot activo crece/encoge como en la web.
+function animateDots() {
+  LayoutAnimation.configureNext(
+    LayoutAnimation.create(200, LayoutAnimation.Types.easeInEaseOut, LayoutAnimation.Properties.scaleXY),
+  );
+}
 
 // VersusCard — réplica nativa de la tarjeta carrusel web (CarouselSlide):
 // carrusel horizontal de 2 vídeos (A/B), swipe para comparar, doble toque para
@@ -110,11 +127,13 @@ export const VersusCard = memo(function VersusCard({
 
   const onMomentumEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const idx = Math.round(e.nativeEvent.contentOffset.x / width);
+    animateDots();
     setSideIdx(Math.max(0, Math.min(1, idx)));
   };
 
   const goTo = (i: number) => {
     scrollRef.current?.scrollTo({ x: i * width, animated: true });
+    animateDots();
     setSideIdx(i);
   };
 

@@ -17,18 +17,19 @@ type Props = {
 
 export function VoteIcon({ size = 36, color = '#fff', filled = true, strokeWidth = 250 }: Props) {
   return (
-    <Svg
-      width={size}
-      height={size}
-      viewBox="0 0 600 600"
-      fill={color}
-      stroke={color}
-      strokeWidth={strokeWidth}
-      strokeLinejoin="round"
-      strokeLinecap="round"
-    >
+    <Svg width={size} height={size} viewBox="0 0 600 600">
       <G transform="translate(0,600) scale(0.1,-0.1)">
-        <Path d={filled ? SOLID_PATH : OUTLINE_PATH} />
+        {/* En react-native-svg el trazo NO siempre se hereda del <Svg>: se
+            declara directamente en el <Path> para que el icono se vea igual
+            que en la web (mismo grosor de contorno). */}
+        <Path
+          d={filled ? SOLID_PATH : OUTLINE_PATH}
+          fill={color}
+          stroke={color}
+          strokeWidth={strokeWidth}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
       </G>
     </Svg>
   );
