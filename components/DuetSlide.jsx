@@ -541,7 +541,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
         className={cn(
           'absolute z-20 px-4 pointer-events-none',
           infoBottom
-            ? 'left-0 right-16 bottom-20 bg-gradient-to-t from-black/70 to-transparent pt-10'
+            ? 'left-0 right-16 bottom-20 pt-10'
             : 'top-0 left-0 right-0 bg-gradient-to-b from-black/70 to-transparent pb-10'
         )}
         style={infoBottom ? undefined : { paddingTop: 'max(1rem, env(safe-area-inset-top))' }}

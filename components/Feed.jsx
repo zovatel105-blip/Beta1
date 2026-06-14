@@ -314,6 +314,7 @@ export default function Feed() {
                       warm={warm}
                       muted={muted}
                       playbackEnabled={playbackEnabled}
+                      infoBottom
                       onRequestNext={goNext}
                       onChallenge={openChallenge}
                       onOpenProfile={openAuthorProfile}
@@ -327,6 +328,7 @@ export default function Feed() {
                       warm={warm}
                       muted={muted}
                       playbackEnabled={playbackEnabled}
+                      infoBottom
                       onRequestNext={goNext}
                       onChallenge={openChallenge}
                       onOpenProfile={openAuthorProfile}
