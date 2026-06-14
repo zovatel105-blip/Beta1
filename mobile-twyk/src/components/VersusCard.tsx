@@ -272,7 +272,7 @@ const styles = StyleSheet.create({
   title: {
     color: '#fff',
     fontSize: 14,
-    marginTop: 6,
+    marginTop: 4,
     textShadowColor: 'rgba(0,0,0,0.6)',
     textShadowRadius: 4,
   },

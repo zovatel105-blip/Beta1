@@ -64,7 +64,7 @@ const styles = StyleSheet.create({
   tabActive: { color: '#fff', fontSize: 15, fontWeight: '600' },
   underline: {
     position: 'absolute',
-    bottom: -6,
+    bottom: -4,
     alignSelf: 'center',
     width: 20,
     height: 2,
