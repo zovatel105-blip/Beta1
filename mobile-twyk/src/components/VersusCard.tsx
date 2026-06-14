@@ -9,11 +9,11 @@ import { SocialColumn } from './SocialColumn';
 // VersusCard — tarjeta 1vs1 (2 vídeos + votación + columna social).
 //
 // IMPORTANTE (view pooling): es 100% PRESENTACIONAL. NO tiene estado interno;
-// recibe `votes`, `userVote` y `saved` por props desde el store del feed
-// (keyed por id). Así, cuando FlashList RECICLA esta vista para otra
+// recibe `votes`, `userVote`, `saved` y `following` por props desde el store del
+// feed (keyed por id). Así, cuando FlashList RECICLA esta vista para otra
 // publicación, solo cambian los DATOS (props) y nunca se arrastra estado de la
-// publicación anterior. Los callbacks (onVote / onToggleSave) son ESTABLES
-// (vienen memoizados del hook) -> el `memo` evita renders innecesarios.
+// publicación anterior. Los callbacks (onVote / onToggleSave / onToggleFollow)
+// son ESTABLES (memoizados en el hook) -> el `memo` evita renders innecesarios.
 
 type Props = {
   post: Post;
@@ -25,8 +25,10 @@ type Props = {
   votes: Votes;
   userVote: 'a' | 'b' | null;
   saved: boolean;
+  following: boolean;
   onVote: (id: string, side: 'a' | 'b', base: Votes) => void;
   onToggleSave: (id: string, base: Votes) => void;
+  onToggleFollow: (id: string, base: Votes) => void;
 };
 
 function Half({
@@ -63,11 +65,6 @@ function Half({
         <Text style={styles.badgeLabel}>{sideKey === 'a' ? 'A' : 'B'}</Text>
         {userVote ? <Text style={styles.badgePct}>{pct}%</Text> : null}
       </View>
-      {side?.author?.username ? (
-        <Text style={styles.author} numberOfLines={1}>
-          @{side.author.username}
-        </Text>
-      ) : null}
     </Pressable>
   );
 }
@@ -80,12 +77,25 @@ export const VersusCard = memo(function VersusCard({
   votes,
   userVote,
   saved,
+  following,
   onVote,
   onToggleSave,
+  onToggleFollow,
 }: Props) {
   const base = post.votes ?? { a: 0, b: 0 };
   const total = (votes.a || 0) + (votes.b || 0);
-  const headAuthor = post.sideA?.author ?? post.author ?? {};
+
+  const authorA = post.sideA?.author ?? post.author ?? {};
+  const authorB = post.sideB?.author ?? post.author ?? {};
+  const headAuthor = authorA;
+  const avatar = absoluteUrl(headAuthor.avatarUrl);
+
+  // Nombre mostrado: en retos 1vs1 mostramos "userA vs userB"; en publicación
+  // normal, el nombre/usuario del autor principal.
+  const displayName = post.isChallenge
+    ? `${authorA.username || authorA.name || ''} vs ${authorB.username || authorB.name || ''}`
+    : headAuthor.username || headAuthor.name || 'Twyk';
+
   const handleVote = (side: 'a' | 'b') => onVote(post.id, side, base);
 
   return (
@@ -112,9 +122,27 @@ export const VersusCard = memo(function VersusCard({
         onVote={handleVote}
       />
 
-      {/* Cabecera */}
-      <View style={styles.header} pointerEvents="none">
-        <Text style={styles.headerTitle} numberOfLines={2}>
+      {/* Info INFERIOR (como la web): avatar + nombre + Seguir + título. */}
+      <View style={styles.bottomInfo} pointerEvents="box-none">
+        <View style={styles.authorRow}>
+          {avatar ? (
+            <Image source={{ uri: avatar }} style={styles.avatar} />
+          ) : (
+            <View style={[styles.avatar, styles.avatarFallback]} />
+          )}
+          <Text style={styles.authorName} numberOfLines={1}>
+            {displayName}
+          </Text>
+          <Pressable
+            onPress={() => onToggleFollow(post.id, base)}
+            hitSlop={6}
+            style={[styles.followBtn, following && styles.followBtnActive]}
+          >
+            <Text style={styles.followText}>{following ? 'Siguiendo' : 'Seguir'}</Text>
+          </Pressable>
+        </View>
+
+        <Text style={styles.title} numberOfLines={2}>
           {post.description || (post.isChallenge ? 'Reto 1vs1' : 'Twyk')}
         </Text>
         {!userVote ? <Text style={styles.hint}>Toca una opción para votar</Text> : null}
@@ -156,23 +184,52 @@ const styles = StyleSheet.create({
   badgeChosen: { backgroundColor: 'rgba(168,85,247,0.85)' },
   badgeLabel: { color: '#fff', fontWeight: '700', fontSize: 13 },
   badgePct: { color: '#fff', fontWeight: '700', fontSize: 13 },
-  author: {
+  // Info inferior
+  bottomInfo: {
     position: 'absolute',
-    bottom: 14,
+    bottom: 40,
     left: 12,
+    right: 72,
+  },
+  authorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  avatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.5)',
+  },
+  avatarFallback: { backgroundColor: '#222' },
+  authorName: {
+    flexShrink: 1,
     color: '#fff',
     fontWeight: '600',
-    fontSize: 13,
+    fontSize: 14,
     textShadowColor: 'rgba(0,0,0,0.6)',
     textShadowRadius: 4,
   },
-  header: {
-    position: 'absolute',
-    bottom: 48,
-    left: 0,
-    right: 72,
-    paddingHorizontal: 16,
+  followBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.9)',
   },
-  headerTitle: { color: '#fff', fontSize: 15, fontWeight: '600' },
-  hint: { color: 'rgba(255,255,255,0.8)', fontSize: 12, marginTop: 4 },
+  followBtnActive: {
+    borderColor: 'rgba(255,255,255,0.4)',
+    backgroundColor: 'rgba(255,255,255,0.15)',
+  },
+  followText: { color: '#fff', fontWeight: '600', fontSize: 13 },
+  title: {
+    color: '#fff',
+    fontSize: 14,
+    marginTop: 8,
+    textShadowColor: 'rgba(0,0,0,0.6)',
+    textShadowRadius: 4,
+  },
+  hint: { color: 'rgba(255,255,255,0.85)', fontSize: 12, marginTop: 4 },
 });

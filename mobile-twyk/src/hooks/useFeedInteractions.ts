@@ -16,10 +16,10 @@ import { sendVote } from '../api/client';
 // ───────────────────────────────────────────────────────────────────────────
 
 export type Votes = { a: number; b: number };
-export type Interaction = { votes: Votes; userVote: 'a' | 'b' | null; saved: boolean };
+export type Interaction = { votes: Votes; userVote: 'a' | 'b' | null; saved: boolean; following: boolean };
 export type InteractionMap = Record<string, Interaction>;
 
-const EMPTY: Interaction = { votes: { a: 0, b: 0 }, userVote: null, saved: false };
+const EMPTY: Interaction = { votes: { a: 0, b: 0 }, userVote: null, saved: false, following: false };
 
 // Devuelve la interacción de una publicación (o un valor base si aún no existe).
 export function resolveInteraction(map: InteractionMap, id: string, baseVotes?: Votes): Interaction {
@@ -65,5 +65,12 @@ export function useFeedInteractions() {
     });
   }, []);
 
-  return { byId, vote, toggleSave };
+  const toggleFollow = useCallback((id: string, baseVotes: Votes) => {
+    setById((prev) => {
+      const cur = prev[id] ?? { ...EMPTY, votes: baseVotes };
+      return { ...prev, [id]: { ...cur, following: !cur.following } };
+    });
+  }, []);
+
+  return { byId, vote, toggleSave, toggleFollow };
 }

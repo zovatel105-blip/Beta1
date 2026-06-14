@@ -20,7 +20,7 @@ import { VersusCard } from './VersusCard';
 // useFeedInteractions (FUERA de las celdas) -> reciclaje sin estado contaminado.
 export function FeedScreen() {
   const { posts, ready, loadMore } = useFeed();
-  const { byId, vote, toggleSave } = useFeedInteractions();
+  const { byId, vote, toggleSave, toggleFollow } = useFeedInteractions();
   const { height } = useWindowDimensions();
   const [activeIndex, setActiveIndex] = useState(0);
 
@@ -59,12 +59,14 @@ export function FeedScreen() {
           votes={it.votes}
           userVote={it.userVote}
           saved={it.saved}
+          following={it.following}
           onVote={vote}
           onToggleSave={toggleSave}
+          onToggleFollow={toggleFollow}
         />
       );
     },
-    [byId, activeIndex, height, vote, toggleSave]
+    [byId, activeIndex, height, vote, toggleSave, toggleFollow]
   );
 
   if (!ready || posts.length === 0) {
