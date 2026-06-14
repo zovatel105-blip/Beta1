@@ -349,20 +349,20 @@ private fun BoxScope.HeaderOverlay(post: Post, onOpenProfile: (String) -> Unit) 
                 // ── Reto 1vs1: DOS creadores (avatar + nombre de cada lado), igual que la web ──
                 val authorA = post.sideA?.author ?: post.author
                 val authorB = post.sideB?.author ?: post.author
-                Box(Modifier.width(40.dp).height(26.dp)) {
-                    // Avatar secundario (izquierda, detrás)
+                Box(Modifier.size(39.dp)) {
+                    // Avatar secundario (arriba-izquierda, detrás)
                     Box(
                         Modifier
-                            .align(Alignment.CenterStart)
+                            .align(Alignment.TopStart)
                             .size(24.dp)
                             .clickable(enabled = authorB?.username != null) { authorB?.username?.let(onOpenProfile) },
                     ) {
                         TwykAvatar(authorB?.avatarUrl, 24.dp)
                     }
-                    // Avatar principal (derecha, delante) con anillo negro que los separa
+                    // Avatar principal (abajo-derecha, delante) con anillo negro que los separa
                     Box(
                         Modifier
-                            .align(Alignment.CenterEnd)
+                            .align(Alignment.BottomEnd)
                             .size(26.dp)
                             .clip(CircleShape)
                             .background(Color.Black)
