@@ -466,20 +466,20 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
           {post.isChallenge ? (
             <>
               {/* Reto 1vs1 (estilo colaboración): dos avatares solapados + "userA / userB" */}
-              <div className="relative w-[39px] h-[39px] shrink-0">
-                {/* Avatar trasero (arriba-izquierda) recortado en media luna: el hueco deja ver el de abajo */}
+              <div className="relative w-[39px] h-[24px] shrink-0">
+                {/* Avatar secundario (izquierda, detrás) — hueco a la derecha para el principal */}
                 <button
                   onClick={(e) => { e.stopPropagation(); onOpenProfile?.(authorB.username) }}
-                  className="absolute top-0 left-0 w-[24px] h-[24px] rounded-full overflow-hidden block"
+                  className="absolute left-0 top-0 w-[24px] h-[24px] rounded-full overflow-hidden block"
                   style={{
-                    WebkitMaskImage: 'radial-gradient(circle 15px at 12px 27px, transparent 0 15px, #000 15px)',
-                    maskImage: 'radial-gradient(circle 15px at 12px 27px, transparent 0 15px, #000 15px)',
+                    WebkitMaskImage: 'radial-gradient(circle 15px at 27px 12px, transparent 0 15px, #000 15px)',
+                    maskImage: 'radial-gradient(circle 15px at 27px 12px, transparent 0 15px, #000 15px)',
                   }}
                 >
                   <Avatar src={authorB.avatarUrl} alt={authorB.username} className="w-full h-full" />
                 </button>
-                {/* Avatar delantero (abajo-izquierda) */}
-                <button onClick={(e) => { e.stopPropagation(); onOpenProfile?.(authorA.username) }} className="absolute bottom-0 left-0 w-[24px] h-[24px] rounded-full overflow-hidden block">
+                {/* Avatar principal (derecha, delante) */}
+                <button onClick={(e) => { e.stopPropagation(); onOpenProfile?.(authorA.username) }} className="absolute right-0 top-0 w-[24px] h-[24px] rounded-full overflow-hidden block">
                   <Avatar src={authorA.avatarUrl} alt={authorA.username} className="w-full h-full" />
                 </button>
               </div>
