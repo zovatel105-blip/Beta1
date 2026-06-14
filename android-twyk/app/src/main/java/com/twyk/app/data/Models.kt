@@ -109,8 +109,10 @@ data class NotificationItem(
     val text: String? = null,
     val time: String? = null,
     val read: Boolean = false,
+    val side: String? = null,
 )
 data class NotificationsResponse(val notifications: List<NotificationItem>? = null)
+data class MarkReadRequest(val all: Boolean? = null, val id: String? = null)
 
 data class Challenge(
     val id: String = "",

@@ -105,7 +105,10 @@ private fun TwykApp() {
                 onRequireAuth = { authOpen = true },
                 onAccepted = { feedReloadKey++ },
             )
-            Tab.Battles -> BattlesScreen(onRequireAuth = { authOpen = true })
+            Tab.Battles -> BattlesScreen(
+                onRequireAuth = { authOpen = true },
+                onChanged = { feedReloadKey++ },
+            )
         }
         TwykBottomNav(
             current = tab,

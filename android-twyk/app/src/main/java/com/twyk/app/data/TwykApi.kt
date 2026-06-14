@@ -80,6 +80,9 @@ interface TwykApi {
     @GET("api/notifications")
     suspend fun notifications(): NotificationsResponse
 
+    @POST("api/notifications/read")
+    suspend fun markNotificationsRead(@Body body: MarkReadRequest): OkResponse
+
     @GET("api/challenges")
     suspend fun challenges(@Query("role") role: String = "to"): ChallengesResponse
 
