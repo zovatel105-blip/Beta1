@@ -363,6 +363,18 @@ frontend:
         -agent: "main"
         -comment: "Manually validated in browser previously."
 
+  - task: "APP NATIVA (Android/Compose): 1vs1 (dueto) horizontal y vertical se veían desbalanceados (no 50/50)"
+    implemented: true
+    working: "NA"
+    file: "android-twyk/app/src/main/java/com/twyk/app/feed/VersusFeed.kt, android-twyk/app/src/main/res/layout/twyk_texture_player.xml"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "BUG FIX (usuario: en la app nativa los 1vs1 horizontal/vertical no se ven como en el preview web móvil). DIAGNÓSTICO (medición sobre las capturas del usuario): el split se renderizaba ~56/44 en horizontal y ~29/71 en vertical, en vez de 50/50. CAUSA RAÍZ: DuetPage usa weight(1f)/weight(1f) (50/50 correcto), pero VideoSurface usaba PlayerView con SurfaceView (tipo por defecto) + RESIZE_MODE_ZOOM. Un SurfaceView con zoom escala la superficie MÁS GRANDE que la vista y NO se recorta a los límites de Compose -> el vídeo se desborda sobre la mitad vecina (severo en vertical, cajas altas/estrechas). FIX: nuevo layout res/layout/twyk_texture_player.xml (PlayerView con app:surface_type=texture_view, resize_mode=zoom). VideoSurface acepta useTextureView (default false); DuetPage pasa useTextureView=true en sus 4 mitades + clipToBounds() en la Box. TextureView se dibuja en la jerarquía normal y SÍ recorta -> cada vídeo queda confinado a su 50% exacto (replica object-cover de la web). CarouselPage (versus fullscreen) sin cambios (SurfaceView, sin vecino que tapar). NO compilable en este contenedor (sin Android SDK); requiere rebuild del APK por el usuario. No aplica agente de testing (es Kotlin nativo, no web)."
+
 metadata:
   created_by: "main_agent"
   version: "1.1"

@@ -54,6 +54,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
@@ -270,15 +271,15 @@ private fun DuetPage(
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         if (isHorizontal) {
             Column(Modifier.fillMaxSize()) {
-                VideoSurface(playerA, Modifier.weight(1f).fillMaxWidth().then(ring("a")), onVoteA = voteA)
+                VideoSurface(playerA, Modifier.weight(1f).fillMaxWidth().then(ring("a")), useTextureView = true, onVoteA = voteA)
                 Box(Modifier.fillMaxWidth().height(2.dp).background(Color.White.copy(alpha = 0.3f)))
-                VideoSurface(playerB, Modifier.weight(1f).fillMaxWidth().then(ring("b")), onVoteA = voteB)
+                VideoSurface(playerB, Modifier.weight(1f).fillMaxWidth().then(ring("b")), useTextureView = true, onVoteA = voteB)
             }
         } else {
             Row(Modifier.fillMaxSize()) {
-                VideoSurface(playerA, Modifier.weight(1f).fillMaxHeight().then(ring("a")), onVoteA = voteA)
+                VideoSurface(playerA, Modifier.weight(1f).fillMaxHeight().then(ring("a")), useTextureView = true, onVoteA = voteA)
                 Box(Modifier.fillMaxHeight().width(2.dp).background(Color.White.copy(alpha = 0.3f)))
-                VideoSurface(playerB, Modifier.weight(1f).fillMaxHeight().then(ring("b")), onVoteA = voteB)
+                VideoSurface(playerB, Modifier.weight(1f).fillMaxHeight().then(ring("b")), useTextureView = true, onVoteA = voteB)
             }
         }
 
@@ -289,25 +290,38 @@ private fun DuetPage(
 }
 
 // ── Superficie de vídeo (PlayerView nativo) + doble toque para votar ──────────
+// useTextureView=true -> usa un PlayerView basado en TextureView (recorta el zoom
+// a sus límites). OBLIGATORIO en el 1vs1 (dueto): con SurfaceView + RESIZE_MODE_ZOOM
+// el vídeo se desbordaba sobre la mitad vecina y el split se veía desbalanceado
+// (29/71 vertical, 56/44 horizontal). El recorte (clipToBounds + TextureView)
+// confina cada vídeo a su 50% exacto, igual que el object-cover de la web.
 @Composable
 private fun VideoSurface(
     player: ExoPlayer,
     modifier: Modifier = Modifier,
+    useTextureView: Boolean = false,
     onVoteA: () -> Unit,
 ) {
     Box(
         modifier
+            .clipToBounds()
             .background(Color.Black)
             .pointerInput(Unit) { detectTapGestures(onDoubleTap = { onVoteA() }) },
     ) {
         AndroidView(
             factory = { ctx ->
-                PlayerView(ctx).apply {
-                    useController = false
-                    resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                    setShutterBackgroundColor(android.graphics.Color.BLACK)
-                    this.player = player
+                val view = if (useTextureView) {
+                    android.view.LayoutInflater.from(ctx)
+                        .inflate(R.layout.twyk_texture_player, null) as PlayerView
+                } else {
+                    PlayerView(ctx).apply {
+                        useController = false
+                        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                        setShutterBackgroundColor(android.graphics.Color.BLACK)
+                    }
                 }
+                view.player = player
+                view
             },
             update = { it.player = player },
             modifier = Modifier.fillMaxSize(),
