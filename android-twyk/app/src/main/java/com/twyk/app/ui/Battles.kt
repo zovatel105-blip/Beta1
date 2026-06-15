@@ -66,6 +66,8 @@ import com.twyk.app.data.Challenge
 import com.twyk.app.data.Post
 import com.twyk.app.data.RetrofitProvider
 import com.twyk.app.data.Session
+import com.twyk.app.data.VoteRequest
+import com.twyk.app.feed.FeedPager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -86,7 +88,12 @@ private val SUGGESTED = listOf(
 
 // BATALLAS — réplica de CompletedBattlesPage.jsx (Completados) + ActiveChallengesPage.jsx (Activos).
 @Composable
-fun BattlesScreen(onRequireAuth: () -> Unit, onChanged: () -> Unit = {}) {
+fun BattlesScreen(
+    onRequireAuth: () -> Unit,
+    onChanged: () -> Unit = {},
+    onOpenComments: (String) -> Unit = {},
+    onOpenProfile: (String) -> Unit = {},
+) {
     if (Session.token == null) {
         LoginPrompt("Inicia sesión para ver tus batallas", onRequireAuth, Icons.Filled.EmojiEvents)
         return
@@ -140,10 +147,14 @@ fun BattlesScreen(onRequireAuth: () -> Unit, onChanged: () -> Unit = {}) {
                 if (completed.isEmpty()) {
                     EmptyCompleted(onCreate = onRequireAuth, onActive = { tab = "active" })
                 } else {
-                    val pager = rememberPagerState(pageCount = { completed.size })
-                    VerticalPager(state = pager, modifier = Modifier.fillMaxSize()) { i ->
-                        CompletedBattleFrame(completed[i])
-                    }
+                    // Mismo feed nativo de vídeo que la página de inicio (idéntico a la web).
+                    FeedPager(
+                        posts = completed,
+                        onOpenComments = onOpenComments,
+                        onRequireAuth = onRequireAuth,
+                        onOpenProfile = onOpenProfile,
+                        onVote = { id, side -> scope.launch { runCatching { RetrofitProvider.api.vote(VoteRequest(id, side)) } } },
+                    )
                 }
             }
             else -> {

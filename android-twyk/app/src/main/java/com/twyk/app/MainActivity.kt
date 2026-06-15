@@ -85,13 +85,18 @@ private fun TwykApp() {
     var authOpen by remember { mutableStateOf(false) }
     var profileUsername by remember { mutableStateOf<String?>(null) }
     var feedReloadKey by remember { mutableStateOf(0) }
+    // Tocar TU propio autor abre tu perfil propio (no la vista de perfil ajeno).
+    val openProfile: (String) -> Unit = { uname ->
+        if (uname == com.twyk.app.data.Session.user?.username) tab = Tab.Profile
+        else profileUsername = uname
+    }
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         when (tab) {
             Tab.Home -> key(feedReloadKey) {
                 VersusFeed(
                     onOpenComments = { commentsPostId = it },
                     onRequireAuth = { authOpen = true },
-                    onOpenProfile = { profileUsername = it },
+                    onOpenProfile = openProfile,
                 )
             }
             Tab.Upload -> UploadScreen(
@@ -111,6 +116,8 @@ private fun TwykApp() {
             Tab.Battles -> BattlesScreen(
                 onRequireAuth = { authOpen = true },
                 onChanged = { feedReloadKey++ },
+                onOpenComments = { commentsPostId = it },
+                onOpenProfile = openProfile,
             )
         }
         TwykBottomNav(

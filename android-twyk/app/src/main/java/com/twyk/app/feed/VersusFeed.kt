@@ -109,8 +109,6 @@ fun VersusFeed(
     vm: FeedViewModel = viewModel(),
 ) {
     val posts by vm.posts.collectAsState()
-    val context = LocalContext.current
-    val dataSourceFactory = remember { VideoCache.cacheDataSourceFactory(context) }
 
     if (posts.isEmpty()) {
         Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
@@ -119,10 +117,33 @@ fun VersusFeed(
         return
     }
 
+    FeedPager(
+        posts = posts,
+        onOpenComments = onOpenComments,
+        onRequireAuth = onRequireAuth,
+        onOpenProfile = onOpenProfile,
+        onVote = { id, side -> vm.vote(id, side) },
+        onNearEnd = { vm.loadMore() },
+    )
+}
+
+// Pager de feed REUTILIZABLE (mismo reproductor nativo) con una lista de posts
+// externa. Lo usan tanto el feed principal como "Batallas > Completados".
+@Composable
+fun FeedPager(
+    posts: List<Post>,
+    onOpenComments: (String) -> Unit,
+    onRequireAuth: () -> Unit,
+    onOpenProfile: (String) -> Unit,
+    onVote: (String, String) -> Unit = { _, _ -> },
+    onNearEnd: () -> Unit = {},
+) {
+    val context = LocalContext.current
+    val dataSourceFactory = remember { VideoCache.cacheDataSourceFactory(context) }
     val pagerState = rememberPagerState(pageCount = { posts.size })
 
     LaunchedEffect(pagerState.currentPage, posts.size) {
-        if (posts.size - pagerState.currentPage <= 3) vm.loadMore()
+        if (posts.size - pagerState.currentPage <= 3) onNearEnd()
     }
 
     VerticalPager(
@@ -135,7 +156,7 @@ fun VersusFeed(
         if (post.type == "duet") {
             DuetPage(
                 post, active, dataSourceFactory,
-                onVote = { vm.vote(post.id, it) },
+                onVote = { onVote(post.id, it) },
                 onComments = { onOpenComments(post.id) },
                 onRequireAuth = onRequireAuth,
                 onOpenProfile = onOpenProfile,
@@ -143,7 +164,7 @@ fun VersusFeed(
         } else {
             CarouselPage(
                 post, active, dataSourceFactory,
-                onVote = { vm.vote(post.id, it) },
+                onVote = { onVote(post.id, it) },
                 onComments = { onOpenComments(post.id) },
                 onRequireAuth = onRequireAuth,
                 onOpenProfile = onOpenProfile,
