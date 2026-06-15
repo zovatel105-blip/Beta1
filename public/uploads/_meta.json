@@ -1,5 +1,116 @@
 [
   {
+    "id": "versus_ch_82ec9c0ed2bcf0da",
+    "type": "versus",
+    "layout": "carousel",
+    "sideA": {
+      "videoUrl": "/uploads/1ecb3fee0bf8fafc.mp4",
+      "posterUrl": "/uploads/1ecb3fee0bf8fafc.jpg",
+      "author": {
+        "id": "473635c6-56c1-46ad-b897-14e6f42c5385",
+        "username": "Tetk",
+        "name": "Tetk",
+        "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=Tetk",
+        "verified": false
+      },
+      "description": "Mi reto",
+      "music": "Reto"
+    },
+    "sideB": {
+      "videoUrl": "/uploads/402b017b5de4a46e.mp4",
+      "posterUrl": "/uploads/402b017b5de4a46e.jpg",
+      "author": {
+        "id": "453c0c7a-e727-4be8-bab3-ff383e459e1d",
+        "username": "nex",
+        "name": "nex",
+        "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=nex",
+        "verified": false
+      },
+      "description": "¿Quién gana? 🥊 #1vs1",
+      "music": "Opción A"
+    },
+    "author": {
+      "id": "473635c6-56c1-46ad-b897-14e6f42c5385",
+      "username": "Tetk",
+      "name": "Tetk",
+      "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=Tetk",
+      "verified": false
+    },
+    "description": "Reto: @Tetk 🆚 @nex 🥊",
+    "music": "Reto aceptado",
+    "videoUrl": "/uploads/1ecb3fee0bf8fafc.mp4",
+    "posterUrl": "/uploads/1ecb3fee0bf8fafc.jpg",
+    "thumbnailUrl": "/uploads/1ecb3fee0bf8fafc.jpg",
+    "stats": {
+      "likes": 0,
+      "comments": 0,
+      "shares": 0,
+      "saves": 0
+    },
+    "votes": {
+      "a": 0,
+      "b": 0
+    },
+    "duration": 0,
+    "uploadedAt": "2026-06-15T19:55:41.014Z",
+    "isChallenge": true
+  },
+  {
+    "id": "duet_68c617545382ac88",
+    "type": "duet",
+    "layout": "horizontal",
+    "sideA": {
+      "videoUrl": "/uploads/46fb9ae3c703fcce.mp4",
+      "posterUrl": "/uploads/46fb9ae3c703fcce.jpg",
+      "author": {
+        "id": "453c0c7a-e727-4be8-bab3-ff383e459e1d",
+        "username": "nex",
+        "name": "nex",
+        "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=nex",
+        "verified": false
+      },
+      "description": "¿Quién gana? 🥊 #1vs1",
+      "music": "Opción A"
+    },
+    "sideB": {
+      "videoUrl": "/uploads/d28c59a223f15c8c.mp4",
+      "posterUrl": "/uploads/d28c59a223f15c8c.jpg",
+      "author": {
+        "id": "453c0c7a-e727-4be8-bab3-ff383e459e1d",
+        "username": "nex",
+        "name": "nex",
+        "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=nex",
+        "verified": false
+      },
+      "description": "¿Quién gana? 🥊 #1vs1",
+      "music": "Opción B"
+    },
+    "author": {
+      "id": "453c0c7a-e727-4be8-bab3-ff383e459e1d",
+      "username": "nex",
+      "name": "nex",
+      "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=nex",
+      "verified": false
+    },
+    "description": "¿Quién gana? 🥊 #1vs1",
+    "music": "Tu 1vs1 original",
+    "videoUrl": "/uploads/46fb9ae3c703fcce.mp4",
+    "posterUrl": "/uploads/46fb9ae3c703fcce.jpg",
+    "thumbnailUrl": "/uploads/46fb9ae3c703fcce.jpg",
+    "stats": {
+      "likes": 0,
+      "comments": 0,
+      "shares": 0,
+      "saves": 0
+    },
+    "votes": {
+      "a": 0,
+      "b": 0
+    },
+    "duration": 0,
+    "uploadedAt": "2026-06-15T19:48:44.938Z"
+  },
+  {
     "id": "versus_ch_b806f2885bdba803",
     "type": "versus",
     "layout": "carousel",

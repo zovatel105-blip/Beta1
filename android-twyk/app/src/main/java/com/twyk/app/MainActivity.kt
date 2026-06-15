@@ -54,6 +54,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
+        // Restaura la sesión guardada (token + usuario) -> sobrevive al cerrar la app.
+        com.twyk.app.data.Session.init(applicationContext)
+
         // Edge-to-edge: el contenido se dibuja detrás de las barras del sistema.
         WindowCompat.setDecorFitsSystemWindows(window, false)
         window.statusBarColor = AndroidColor.TRANSPARENT

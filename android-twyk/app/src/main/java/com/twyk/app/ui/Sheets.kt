@@ -280,8 +280,17 @@ fun AuthSheet(onClose: () -> Unit, onAuthed: () -> Unit) {
                                     if (isRegister) RetrofitProvider.api.register(RegisterRequest(username.trim(), email.trim(), password))
                                     else RetrofitProvider.api.login(LoginRequest(username.trim(), password))
                                 }.onSuccess { r ->
-                                    if (r.token != null) { Session.token = r.token; Session.user = r.user; onAuthed() }
-                                    else error = r.message ?: r.error ?: "No se pudo continuar"
+                                    if (r.token != null) {
+                                        Session.set(r.token, r.user)
+                                        onAuthed()
+                                    } else if (isRegister) {
+                                        // Si el registro no devuelve token, iniciamos sesión automáticamente.
+                                        val lr = runCatching { RetrofitProvider.api.login(LoginRequest(username.trim(), password)) }.getOrNull()
+                                        if (lr?.token != null) { Session.set(lr.token, lr.user); onAuthed() }
+                                        else error = "Cuenta creada. Inicia sesión para continuar."
+                                    } else {
+                                        error = r.message ?: r.error ?: "No se pudo continuar"
+                                    }
                                 }.onFailure {
                                     error = if (isRegister) "No se pudo registrar (¿usuario o email en uso?)" else "Usuario o contraseña incorrectos"
                                 }
