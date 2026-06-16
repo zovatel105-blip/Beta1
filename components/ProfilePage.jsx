@@ -6,6 +6,8 @@ import { Menu, Bookmark, Swords, Users, UserPlus, ArrowLeft } from 'lucide-react
 import VoteIcon from './icons/VoteIcon'
 import { useAuth } from '@/contexts/AuthContext'
 import Avatar from './Avatar'
+import DuetSlide from './DuetSlide'
+import CarouselSlide from './CarouselSlide'
 
 // El perfil se deriva del usuario autenticado (useAuth) dentro del componente.
 // El avatar usa el componente compartido <Avatar> -> idéntico al del feed.
@@ -48,7 +50,7 @@ const GridHalf = ({ poster, video }) => {
   return <div className="w-full h-full bg-gradient-to-br from-gray-700 via-gray-800 to-gray-900" />
 }
 
-const GridItem = ({ post }) => {
+const GridItem = ({ post, onOpen }) => {
   const thumb = thumbFor(post)
   const video = videoFor(post)
   const [imgFailed, setImgFailed] = useState(false)
@@ -62,7 +64,11 @@ const GridItem = ({ post }) => {
   const isRow = post?.layout === 'vertical'
 
   return (
-    <div className="group relative aspect-[9/16] overflow-hidden rounded-lg bg-white/[0.04] border border-white/5">
+    <button
+      type="button"
+      onClick={() => onOpen?.(post)}
+      className="group relative aspect-[9/16] overflow-hidden rounded-lg bg-white/[0.04] border border-white cursor-pointer active:scale-[0.98] transition-transform"
+    >
       {hasTwo ? (
         <div className={`absolute inset-0 flex bg-white/30 ${isRow ? 'flex-row' : 'flex-col'}`} style={{ gap: '1.5px' }}>
           <div className="relative flex-1 min-w-0 min-h-0 overflow-hidden bg-gray-200">
@@ -103,6 +109,40 @@ const GridItem = ({ post }) => {
           <span>{formatNumber(totalVotes)}</span>
         </div>
       )}
+    </button>
+  )
+}
+
+// Visor de publicación: muestra la tarjeta TAL CUAL en el feed (mismos colores
+// e interacciones). Overlay a pantalla completa con botón de volver.
+const PostViewer = ({ post, onClose, onChallenge, onOpenProfile }) => {
+  if (!post) return null
+  const Slide = post?.type === 'duet' ? DuetSlide : CarouselSlide
+  return (
+    <div className="fixed inset-0 z-[70] bg-black">
+      <button
+        aria-label="volver"
+        onClick={onClose}
+        className="absolute top-3 left-3 z-[80] p-2 rounded-full bg-black/45 backdrop-blur-sm text-white hover:bg-black/60 active:scale-90 transition"
+        style={{ marginTop: 'env(safe-area-inset-top)' }}
+      >
+        <ArrowLeft className="w-6 h-6" strokeWidth={2} />
+      </button>
+      <div className="absolute inset-0 h-[100dvh] w-full">
+        <Slide
+          post={post}
+          isActive
+          isNear
+          isAdjacent
+          warm={false}
+          muted={true}
+          playbackEnabled={true}
+          infoBottom
+          onRequestNext={onClose}
+          onChallenge={onChallenge}
+          onOpenProfile={onOpenProfile}
+        />
+      </div>
     </div>
   )
 }
@@ -118,7 +158,7 @@ const TABS = [
   },
 ]
 
-export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, onRequireAuth, username = null }) {
+export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, onRequireAuth, onOpenProfile, username = null }) {
   const { user } = useAuth()
   const [profile, setProfile] = useState(null) // { user, posts } del endpoint
   const [posts, setPosts] = useState([])
@@ -127,6 +167,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
   const [following, setFollowing] = useState(false) // ¿sigo a este usuario? (persistente)
   const [followers, setFollowers] = useState(null)  // contador real de followers
   const [followBusy, setFollowBusy] = useState(false)
+  const [openPost, setOpenPost] = useState(null) // publicación abierta en el visor
 
   // ¿Es mi propio perfil? (sin username, o coincide con el usuario autenticado)
   const isOwn = !username || username === user?.username
@@ -248,7 +289,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
       }
       return (
         <div className="grid grid-cols-3 gap-1">
-          {myPosts.map((p) => <GridItem key={p.id} post={p} />)}
+          {myPosts.map((p) => <GridItem key={p.id} post={p} onOpen={setOpenPost} />)}
         </div>
       )
     }
@@ -433,6 +474,14 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
       <div className="relative z-10 mt-4 px-2 pb-28 max-w-md mx-auto w-full">
         {renderTabContent()}
       </div>
+
+      {/* Visor de publicación */}
+      <PostViewer
+        post={openPost}
+        onClose={() => setOpenPost(null)}
+        onChallenge={onChallenge}
+        onOpenProfile={onOpenProfile}
+      />
     </div>
   )
 }
