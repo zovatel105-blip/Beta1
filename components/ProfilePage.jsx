@@ -2,7 +2,7 @@
 /* eslint-disable react-hooks/set-state-in-effect -- setState dentro de fetch async en efecto de carga; falso positivo de la regla experimental. */
 
 import { useEffect, useMemo, useState } from 'react'
-import { Menu, Bookmark, Link as LinkIcon, Swords, Users, UserPlus, ArrowLeft } from 'lucide-react'
+import { Menu, Bookmark, Swords, Users, UserPlus, ArrowLeft } from 'lucide-react'
 import VoteIcon from './icons/VoteIcon'
 import { useAuth } from '@/contexts/AuthContext'
 import Avatar from './Avatar'
@@ -115,10 +115,6 @@ const TABS = [
   { 
     key: 'saved', 
     icon: (active) => <Bookmark className={`w-[18px] h-[18px] transition-transform duration-200 ${active ? 'fill-current scale-105' : 'scale-100'}`} strokeWidth={active ? 1.8 : 1.5} />
-  },
-  { 
-    key: 'links', 
-    icon: (active) => <LinkIcon className={`w-[18px] h-[18px] transition-transform duration-200 ${active ? 'scale-105' : 'scale-100'}`} strokeWidth={active ? 2 : 1.5} />
   },
 ]
 
@@ -259,7 +255,6 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
 
     const emptyMap = {
       saved: { Icon: Bookmark, title: 'No hay guardados', desc: 'Guarda vídeos para verlos luego' },
-      links: { Icon: LinkIcon, title: 'No hay enlaces', desc: 'Añade tus enlaces aquí' },
     }
     const e = emptyMap[activeTab]
     return (
