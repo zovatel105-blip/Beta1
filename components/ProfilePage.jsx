@@ -407,9 +407,9 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
         </div>
       </div>
 
-      {/* Tabs - estilo subrayado a ancho completo con indicador dorado */}
+      {/* Tabs - subrayado dorado a ancho completo (Opción D) */}
       <div className="relative z-10 max-w-md mx-auto w-full mt-7">
-        <div className="relative flex items-stretch border-b border-white/[0.08]">
+        <div className="relative flex items-stretch">
           {(isOwn ? TABS : TABS.filter((t) => t.key === 'polls')).map((tab) => {
             const active = activeTab === tab.key
             return (
@@ -419,29 +419,30 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
                 aria-label={tab.key}
                 aria-selected={active}
                 className={`
-                  group relative flex-1 flex items-center justify-center h-12
+                  relative flex-1 flex items-center justify-center h-12
                   transition-colors duration-200
                   ${active
                     ? 'text-[#E4C79B]'
-                    : 'text-zinc-600 hover:text-zinc-300 active:scale-95'
+                    : 'text-zinc-600 hover:text-zinc-400 active:scale-95'
                   }
                 `}
               >
                 {tab.icon(active)}
-                {/* Indicador deslizante con brillo dorado */}
+                {/* Subrayado a todo el ancho de la pestaña */}
                 <span
-                  className={`pointer-events-none absolute -bottom-px left-1/2 -translate-x-1/2 h-[2.5px] rounded-full transition-all duration-300 ease-out ${
-                    active ? 'w-10 opacity-100' : 'w-0 opacity-0'
-                  }`}
-                  style={{
-                    background: 'linear-gradient(90deg, #E4C79B, #D6B27A)',
-                    boxShadow: active ? '0 0 12px rgba(214,178,122,0.55)' : 'none',
-                  }}
+                  className="pointer-events-none absolute bottom-0 left-0 right-0 h-[3px] rounded-full transition-all duration-300 ease-out"
+                  style={
+                    active
+                      ? { background: 'linear-gradient(90deg, #E4C79B, #D6B27A)', boxShadow: '0 0 10px rgba(214,178,122,0.5)' }
+                      : { background: 'transparent' }
+                  }
                 />
               </button>
             )
           })}
         </div>
+        {/* Línea base sutil bajo toda la barra */}
+        <div className="h-px bg-white/[0.08] -mt-px" />
       </div>
 
       {/* Contenido */}
