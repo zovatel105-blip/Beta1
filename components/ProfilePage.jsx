@@ -110,15 +110,15 @@ const GridItem = ({ post }) => {
 const TABS = [
   { 
     key: 'polls', 
-    icon: (active) => <ColumnsIcon className={`w-5 h-5 transition-all ${active ? '' : ''}`} />
+    icon: (active) => <ColumnsIcon className={`w-[22px] h-[22px] transition-transform duration-200 ${active ? 'scale-105' : 'scale-100'}`} />
   },
   { 
     key: 'saved', 
-    icon: (active) => <Bookmark className={`w-5 h-5 transition-all ${active ? 'fill-current' : ''}`} strokeWidth={1.5} />
+    icon: (active) => <Bookmark className={`w-[22px] h-[22px] transition-transform duration-200 ${active ? 'fill-current scale-105' : 'scale-100'}`} strokeWidth={active ? 1.8 : 1.5} />
   },
   { 
     key: 'links', 
-    icon: (active) => <LinkIcon className={`w-5 h-5 transition-all`} strokeWidth={1.5} />
+    icon: (active) => <LinkIcon className={`w-[22px] h-[22px] transition-transform duration-200 ${active ? 'scale-105' : 'scale-100'}`} strokeWidth={active ? 2 : 1.5} />
   },
 ]
 
@@ -407,9 +407,9 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
         </div>
       </div>
 
-      {/* Tabs - diseño fino que aprovecha el ancho */}
-      <div className="relative z-10 px-2 max-w-md mx-auto w-full mt-7">
-        <div className="flex items-center justify-center gap-0.5 bg-white/[0.03] border border-white/[0.08] rounded-xl p-0.5">
+      {/* Tabs - estilo subrayado a ancho completo con indicador dorado */}
+      <div className="relative z-10 max-w-md mx-auto w-full mt-7">
+        <div className="relative flex items-stretch border-b border-white/[0.08]">
           {(isOwn ? TABS : TABS.filter((t) => t.key === 'polls')).map((tab) => {
             const active = activeTab === tab.key
             return (
@@ -417,17 +417,27 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
                 aria-label={tab.key}
+                aria-selected={active}
                 className={`
-                  flex-1 flex items-center justify-center h-9
-                  rounded-lg
-                  transition-all duration-200
-                  ${active 
-                    ? 'bg-white text-black' 
-                    : 'text-zinc-500 hover:text-white active:scale-95'
+                  group relative flex-1 flex items-center justify-center h-12
+                  transition-colors duration-200
+                  ${active
+                    ? 'text-[#E4C79B]'
+                    : 'text-zinc-600 hover:text-zinc-300 active:scale-95'
                   }
                 `}
               >
                 {tab.icon(active)}
+                {/* Indicador deslizante con brillo dorado */}
+                <span
+                  className={`pointer-events-none absolute -bottom-px left-1/2 -translate-x-1/2 h-[2.5px] rounded-full transition-all duration-300 ease-out ${
+                    active ? 'w-10 opacity-100' : 'w-0 opacity-0'
+                  }`}
+                  style={{
+                    background: 'linear-gradient(90deg, #E4C79B, #D6B27A)',
+                    boxShadow: active ? '0 0 12px rgba(214,178,122,0.55)' : 'none',
+                  }}
+                />
               </button>
             )
           })}
