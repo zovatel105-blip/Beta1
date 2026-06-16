@@ -1,7 +1,7 @@
 'use client'
 /* eslint-disable react-hooks/set-state-in-effect -- setState dentro de fetch async en efecto de carga; falso positivo de la regla experimental. */
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Menu, Bookmark, Swords, Users, UserPlus, ArrowLeft } from 'lucide-react'
 import VoteIcon from './icons/VoteIcon'
 import { useAuth } from '@/contexts/AuthContext'
@@ -67,7 +67,7 @@ const GridItem = ({ post, onOpen }) => {
     <button
       type="button"
       onClick={() => onOpen?.(post)}
-      className="group relative aspect-[9/16] overflow-hidden rounded-lg bg-white/[0.04] border border-white cursor-pointer active:scale-[0.98] transition-transform"
+      className="group relative aspect-[9/16] overflow-hidden rounded-lg bg-white/[0.04] border border-white/5 cursor-pointer active:scale-[0.98] transition-transform"
     >
       {hasTwo ? (
         <div className={`absolute inset-0 flex bg-white/30 ${isRow ? 'flex-row' : 'flex-col'}`} style={{ gap: '1.5px' }}>
@@ -113,11 +113,42 @@ const GridItem = ({ post, onOpen }) => {
   )
 }
 
-// Visor de publicación: muestra la tarjeta TAL CUAL en el feed (mismos colores
-// e interacciones). Overlay a pantalla completa con botón de volver.
-const PostViewer = ({ post, onClose, onChallenge, onOpenProfile }) => {
-  if (!post) return null
-  const Slide = post?.type === 'duet' ? DuetSlide : CarouselSlide
+// Visor de publicaciones: feed vertical deslizable con TODAS las publicaciones
+// del perfil (mismas tarjetas y colores del feed). Arranca en la que se tocó.
+const PostViewer = ({ posts, startId, onClose, onChallenge, onOpenProfile }) => {
+  const containerRef = useRef(null)
+  const startIndex = Math.max(0, posts.findIndex((p) => p.id === startId))
+  const [activeIndex, setActiveIndex] = useState(startIndex)
+
+  // Posicionar el scroll en la publicación tocada al abrir.
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const target = el.querySelector(`[data-vindex="${startIndex}"]`)
+    if (target) target.scrollIntoView({ block: 'start' })
+  }, [startIndex])
+
+  // Detectar la tarjeta activa según el scroll (snap nativo).
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const obs = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (e.isIntersecting) {
+            const idx = Number(e.target.getAttribute('data-vindex'))
+            if (!Number.isNaN(idx)) setActiveIndex(idx)
+          }
+        })
+      },
+      { root: el, threshold: 0.6 }
+    )
+    el.querySelectorAll('[data-vindex]').forEach((s) => obs.observe(s))
+    return () => obs.disconnect()
+  }, [posts])
+
+  if (!posts || posts.length === 0) return null
+
   return (
     <div className="fixed inset-0 z-[70] bg-black">
       <button
@@ -128,20 +159,41 @@ const PostViewer = ({ post, onClose, onChallenge, onOpenProfile }) => {
       >
         <ArrowLeft className="w-6 h-6" strokeWidth={2} />
       </button>
-      <div className="absolute inset-0 h-[100dvh] w-full">
-        <Slide
-          post={post}
-          isActive
-          isNear
-          isAdjacent
-          warm={false}
-          muted={true}
-          playbackEnabled={true}
-          infoBottom
-          onRequestNext={onClose}
-          onChallenge={onChallenge}
-          onOpenProfile={onOpenProfile}
-        />
+
+      <div
+        ref={containerRef}
+        className="absolute inset-0 h-[100dvh] w-full overflow-y-auto snap-y snap-mandatory no-scrollbar overscroll-y-contain"
+      >
+        {posts.map((post, i) => {
+          const inWindow = Math.abs(i - activeIndex) <= 1
+          const Slide = post?.type === 'duet' ? DuetSlide : CarouselSlide
+          const poster = post?.thumbnailUrl || post?.posterUrl || post?.sideA?.posterUrl || ''
+          return (
+            <section
+              key={post.id}
+              data-vindex={i}
+              className="h-[100dvh] w-full snap-start snap-always relative"
+            >
+              {inWindow ? (
+                <Slide
+                  post={post}
+                  isActive={i === activeIndex}
+                  isNear={inWindow}
+                  isAdjacent={inWindow}
+                  warm={false}
+                  muted={true}
+                  playbackEnabled={true}
+                  infoBottom
+                  onRequestNext={() => {}}
+                  onChallenge={onChallenge}
+                  onOpenProfile={onOpenProfile}
+                />
+              ) : poster ? (
+                <img src={poster} alt="" aria-hidden draggable={false} className="absolute inset-0 w-full h-full object-cover" />
+              ) : null}
+            </section>
+          )
+        })}
       </div>
     </div>
   )
@@ -476,12 +528,16 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
       </div>
 
       {/* Visor de publicación */}
-      <PostViewer
-        post={openPost}
-        onClose={() => setOpenPost(null)}
-        onChallenge={onChallenge}
-        onOpenProfile={onOpenProfile}
-      />
+      {/* Visor de publicaciones (feed deslizable del perfil) */}
+      {openPost && (
+        <PostViewer
+          posts={myPosts}
+          startId={openPost.id}
+          onClose={() => setOpenPost(null)}
+          onChallenge={onChallenge}
+          onOpenProfile={onOpenProfile}
+        />
+      )}
     </div>
   )
 }
