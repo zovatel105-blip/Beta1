@@ -407,9 +407,9 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
         </div>
       </div>
 
-      {/* Tabs - subrayado dorado a ancho completo (Opción D) */}
-      <div className="relative z-10 max-w-md mx-auto w-full mt-7">
-        <div className="relative flex items-stretch">
+      {/* Tabs - chips (activo blanco / inactivos oscuros) */}
+      <div className="relative z-10 max-w-md mx-auto w-full mt-7 px-1">
+        <div className="flex items-center justify-center gap-3">
           {(isOwn ? TABS : TABS.filter((t) => t.key === 'polls')).map((tab) => {
             const active = activeTab === tab.key
             return (
@@ -419,30 +419,19 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
                 aria-label={tab.key}
                 aria-selected={active}
                 className={`
-                  relative flex-1 flex items-center justify-center h-12
-                  transition-colors duration-200
+                  flex-1 flex items-center justify-center h-12 rounded-2xl
+                  transition-all duration-200 active:scale-95
                   ${active
-                    ? 'text-[#E4C79B]'
-                    : 'text-zinc-600 hover:text-zinc-400 active:scale-95'
+                    ? 'bg-white text-black shadow-[0_6px_18px_-6px_rgba(255,255,255,0.35)]'
+                    : 'bg-white/[0.04] border border-white/[0.08] text-zinc-400 hover:text-white hover:bg-white/[0.07]'
                   }
                 `}
               >
                 {tab.icon(active)}
-                {/* Subrayado a todo el ancho de la pestaña */}
-                <span
-                  className="pointer-events-none absolute bottom-0 left-0 right-0 h-[3px] rounded-full transition-all duration-300 ease-out"
-                  style={
-                    active
-                      ? { background: 'linear-gradient(90deg, #E4C79B, #D6B27A)', boxShadow: '0 0 10px rgba(214,178,122,0.5)' }
-                      : { background: 'transparent' }
-                  }
-                />
               </button>
             )
           })}
         </div>
-        {/* Línea base sutil bajo toda la barra */}
-        <div className="h-px bg-white/[0.08] -mt-px" />
       </div>
 
       {/* Contenido */}
