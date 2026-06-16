@@ -110,15 +110,15 @@ const GridItem = ({ post }) => {
 const TABS = [
   { 
     key: 'polls', 
-    icon: (active) => <ColumnsIcon className={`w-[22px] h-[22px] transition-transform duration-200 ${active ? 'scale-105' : 'scale-100'}`} />
+    icon: (active) => <ColumnsIcon className={`w-[18px] h-[18px] transition-transform duration-200 ${active ? 'scale-105' : 'scale-100'}`} />
   },
   { 
     key: 'saved', 
-    icon: (active) => <Bookmark className={`w-[22px] h-[22px] transition-transform duration-200 ${active ? 'fill-current scale-105' : 'scale-100'}`} strokeWidth={active ? 1.8 : 1.5} />
+    icon: (active) => <Bookmark className={`w-[18px] h-[18px] transition-transform duration-200 ${active ? 'fill-current scale-105' : 'scale-100'}`} strokeWidth={active ? 1.8 : 1.5} />
   },
   { 
     key: 'links', 
-    icon: (active) => <LinkIcon className={`w-[22px] h-[22px] transition-transform duration-200 ${active ? 'scale-105' : 'scale-100'}`} strokeWidth={active ? 2 : 1.5} />
+    icon: (active) => <LinkIcon className={`w-[18px] h-[18px] transition-transform duration-200 ${active ? 'scale-105' : 'scale-100'}`} strokeWidth={active ? 2 : 1.5} />
   },
 ]
 
@@ -407,9 +407,9 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
         </div>
       </div>
 
-      {/* Tabs - chips (activo blanco / inactivos oscuros) */}
+      {/* Tabs - chips finos (activo blanco / inactivos oscuros) */}
       <div className="relative z-10 max-w-md mx-auto w-full mt-7 px-1">
-        <div className="flex items-center justify-center gap-3">
+        <div className="flex items-center justify-center gap-2 max-w-[300px] mx-auto">
           {(isOwn ? TABS : TABS.filter((t) => t.key === 'polls')).map((tab) => {
             const active = activeTab === tab.key
             return (
@@ -419,11 +419,11 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
                 aria-label={tab.key}
                 aria-selected={active}
                 className={`
-                  flex-1 flex items-center justify-center h-12 rounded-2xl
+                  flex-1 flex items-center justify-center h-8 rounded-lg
                   transition-all duration-200 active:scale-95
                   ${active
-                    ? 'bg-white text-black shadow-[0_6px_18px_-6px_rgba(255,255,255,0.35)]'
-                    : 'bg-white/[0.04] border border-white/[0.08] text-zinc-400 hover:text-white hover:bg-white/[0.07]'
+                    ? 'bg-white text-black shadow-[0_4px_12px_-6px_rgba(255,255,255,0.4)]'
+                    : 'bg-white/[0.04] border border-white/[0.07] text-zinc-400 hover:text-white hover:bg-white/[0.07]'
                   }
                 `}
               >
