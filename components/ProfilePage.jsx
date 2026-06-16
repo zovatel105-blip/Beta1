@@ -403,7 +403,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
       </div>
 
       {/* Tabs - chips finos a lo ancho (activo solo marco blanco) */}
-      <div className="relative z-10 max-w-md mx-auto w-full mt-7 px-5 sm:px-6">
+      <div className="relative z-10 max-w-md mx-auto w-full mt-7 px-2">
         <div className="flex items-center gap-2.5">
           {(isOwn ? TABS : TABS.filter((t) => t.key === 'polls')).map((tab) => {
             const active = activeTab === tab.key
