@@ -418,7 +418,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
                   transition-all duration-200 active:scale-95
                   ${active
                     ? 'bg-transparent border border-white text-white'
-                    : 'bg-white/[0.04] border border-white/[0.07] text-zinc-400 hover:text-white hover:bg-white/[0.07]'
+                    : 'bg-black border border-white/[0.07] text-zinc-400 hover:text-white hover:border-white/20'
                   }
                 `}
               >
