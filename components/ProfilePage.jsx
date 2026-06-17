@@ -120,30 +120,36 @@ const PostViewer = ({ posts, startId, onClose, onChallenge, onOpenProfile }) => 
   const startIndex = Math.max(0, posts.findIndex((p) => p.id === startId))
   const [activeIndex, setActiveIndex] = useState(startIndex)
 
-  // Gesto "tirar para volver" (estilo TikTok): al deslizar hacia abajo estando
-  // arriba del todo se cierra el visor y se vuelve al perfil.
+  // Gesto "deslizar desde la izquierda para volver" (estilo iOS): al arrastrar
+  // hacia la derecha empezando desde el borde izquierdo se cierra el visor.
+  const startXRef = useRef(0)
   const startYRef = useRef(0)
-  const atTopRef = useRef(false)
-  const dragYRef = useRef(0)
-  const [dragY, setDragY] = useState(0)
+  const edgeRef = useRef(false)
+  const dragXRef = useRef(0)
+  const [dragX, setDragX] = useState(0)
 
   const onTouchStart = (e) => {
-    startYRef.current = e.touches[0]?.clientY || 0
-    atTopRef.current = (containerRef.current?.scrollTop || 0) <= 0
+    const t = e.touches[0]
+    if (!t) return
+    startXRef.current = t.clientX
+    startYRef.current = t.clientY
+    edgeRef.current = t.clientX <= 32 // solo arranca desde el borde izquierdo
   }
   const onTouchMove = (e) => {
-    if (!atTopRef.current) return
-    const dy = (e.touches[0]?.clientY || 0) - startYRef.current
-    if (dy > 0) {
-      const v = Math.min(dy, 260)
-      dragYRef.current = v
-      setDragY(v)
+    if (!edgeRef.current) return
+    const t = e.touches[0]
+    if (!t) return
+    const dx = t.clientX - startXRef.current
+    if (dx > 0) {
+      const v = Math.min(dx, 320)
+      dragXRef.current = v
+      setDragX(v)
     }
   }
   const onTouchEnd = () => {
-    if (dragYRef.current > 110) { onClose?.() }
-    dragYRef.current = 0
-    setDragY(0)
+    if (dragXRef.current > 90) { onClose?.() }
+    dragXRef.current = 0
+    setDragX(0)
   }
 
   // Posicionar el scroll en la publicación tocada al abrir.
@@ -186,8 +192,8 @@ const PostViewer = ({ posts, startId, onClose, onChallenge, onOpenProfile }) => 
       >
         <div
           style={{
-            transform: dragY ? `translateY(${dragY}px)` : undefined,
-            transition: dragY ? 'none' : 'transform 0.25s ease',
+            transform: dragX ? `translateX(${dragX}px)` : undefined,
+            transition: dragX ? 'none' : 'transform 0.25s ease',
           }}
         >
           {posts.map((post, i) => {
