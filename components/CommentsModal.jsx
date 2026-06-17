@@ -99,18 +99,18 @@ export default function CommentsModal({ open, postId, onClose, votedSide = null 
           type="button"
           onClick={() => setExpanded((v) => !v)}
           aria-label={expanded ? 'contraer' : 'expandir'}
-          className="flex justify-center items-center pt-2.5 pb-1.5 shrink-0 active:scale-90 transition"
+          className="flex justify-center items-center pt-2 pb-0.5 shrink-0 active:scale-90 transition"
         >
           {expanded ? (
-            <ChevronDown className="w-6 h-6 text-zinc-500" strokeWidth={2.2} />
+            <ChevronDown className="w-5 h-5 text-zinc-500" strokeWidth={2.2} />
           ) : (
-            <ChevronUp className="w-6 h-6 text-zinc-500" strokeWidth={2.2} />
+            <ChevronUp className="w-5 h-5 text-zinc-500" strokeWidth={2.2} />
           )}
         </button>
 
         {/* Header */}
-        <div className="px-5 pb-3 border-b border-zinc-100 shrink-0">
-          <h3 className="text-center text-[15px] font-semibold text-zinc-900">
+        <div className="px-5 pb-2 border-b border-zinc-100 shrink-0">
+          <h3 className="text-center text-[13px] font-semibold text-zinc-800">
             {comments.length} {comments.length === 1 ? 'comentario' : 'comentarios'}
           </h3>
         </div>
