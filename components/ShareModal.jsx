@@ -48,12 +48,12 @@ export default function ShareModal({ open, postId, onClose }) {
         type="button"
         onClick={onClose}
         aria-label="cerrar"
-        className="flex justify-center items-center pt-2.5 pb-1.5 shrink-0 active:scale-90 transition"
+        className="flex justify-center items-center pt-1.5 pb-0.5 shrink-0 active:scale-90 transition"
       >
-        <ChevronDown className="w-6 h-6 text-zinc-500" strokeWidth={2.2} />
+        <ChevronDown className="w-4 h-4 text-zinc-500" strokeWidth={2.2} />
       </button>
-      <div className="px-5 pb-3 shrink-0">
-        <h3 className="text-center text-[15px] font-semibold text-zinc-900">Compartir</h3>
+      <div className="px-5 pb-1.5 shrink-0">
+        <h3 className="text-center text-[12px] font-semibold text-zinc-800">Compartir</h3>
       </div>
       <div className="border-t border-zinc-100 px-4 py-6">
         <div className="grid grid-cols-5 gap-2">

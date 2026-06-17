@@ -36,9 +36,9 @@ export default function OptionsModal({ open, postId, onClose }) {
         type="button"
         onClick={onClose}
         aria-label="cerrar"
-        className="flex justify-center items-center pt-2.5 pb-1.5 shrink-0 active:scale-90 transition"
+        className="flex justify-center items-center pt-1.5 pb-0.5 shrink-0 active:scale-90 transition"
       >
-        <ChevronDown className="w-6 h-6 text-zinc-500" strokeWidth={2.2} />
+        <ChevronDown className="w-4 h-4 text-zinc-500" strokeWidth={2.2} />
       </button>
       <div className="px-2 pb-2">
         {rows.map((r) => (
