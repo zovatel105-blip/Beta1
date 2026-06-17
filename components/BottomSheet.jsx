@@ -1,17 +1,27 @@
 'use client'
 
+import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
+
 /**
  * BottomSheet — Hoja inferior estilo Instagram.
  * - Fondo blanco, se desliza desde abajo.
  * - Backdrop oscuro semitransparente; se cierra al tocar fuera.
  * - Asa de arrastre oscura arriba.
+ * - Se renderiza mediante PORTAL a document.body para aparecer SIEMPRE por
+ *   encima de todo (incluida la barra de navegación), escapando de cualquier
+ *   contexto de apilamiento (contain:strict, z-index de slides, etc.).
  */
 export default function BottomSheet({ open, onClose, children, maxWidth = 'max-w-[480px]', className = '', hideHandle = false }) {
-  if (!open) return null
-  return (
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
+
+  if (!open || !mounted || typeof document === 'undefined') return null
+
+  const node = (
     <div
       className="fixed inset-0 flex items-end justify-center"
-      style={{ zIndex: 9999 }}
+      style={{ zIndex: 2147483000 }}
       onClick={onClose}
     >
       {/* Backdrop */}
@@ -33,4 +43,6 @@ export default function BottomSheet({ open, onClose, children, maxWidth = 'max-w
       </div>
     </div>
   )
+
+  return createPortal(node, document.body)
 }
