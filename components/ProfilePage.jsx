@@ -120,6 +120,32 @@ const PostViewer = ({ posts, startId, onClose, onChallenge, onOpenProfile }) => 
   const startIndex = Math.max(0, posts.findIndex((p) => p.id === startId))
   const [activeIndex, setActiveIndex] = useState(startIndex)
 
+  // Gesto "tirar para volver" (estilo TikTok): al deslizar hacia abajo estando
+  // arriba del todo se cierra el visor y se vuelve al perfil.
+  const startYRef = useRef(0)
+  const atTopRef = useRef(false)
+  const dragYRef = useRef(0)
+  const [dragY, setDragY] = useState(0)
+
+  const onTouchStart = (e) => {
+    startYRef.current = e.touches[0]?.clientY || 0
+    atTopRef.current = (containerRef.current?.scrollTop || 0) <= 0
+  }
+  const onTouchMove = (e) => {
+    if (!atTopRef.current) return
+    const dy = (e.touches[0]?.clientY || 0) - startYRef.current
+    if (dy > 0) {
+      const v = Math.min(dy, 260)
+      dragYRef.current = v
+      setDragY(v)
+    }
+  }
+  const onTouchEnd = () => {
+    if (dragYRef.current > 110) { onClose?.() }
+    dragYRef.current = 0
+    setDragY(0)
+  }
+
   // Posicionar el scroll en la publicación tocada al abrir.
   useEffect(() => {
     const el = containerRef.current
@@ -151,49 +177,50 @@ const PostViewer = ({ posts, startId, onClose, onChallenge, onOpenProfile }) => 
 
   return (
     <div className="fixed inset-0 z-[70] bg-black">
-      <button
-        aria-label="volver"
-        onClick={onClose}
-        className="absolute top-3 left-3 z-[80] p-2 rounded-full bg-black/45 backdrop-blur-sm text-white hover:bg-black/60 active:scale-90 transition"
-        style={{ marginTop: 'env(safe-area-inset-top)' }}
-      >
-        <ArrowLeft className="w-6 h-6" strokeWidth={2} />
-      </button>
-
       <div
         ref={containerRef}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
         className="absolute inset-0 h-[100dvh] w-full overflow-y-auto snap-y snap-mandatory no-scrollbar overscroll-y-contain"
       >
-        {posts.map((post, i) => {
-          const inWindow = Math.abs(i - activeIndex) <= 1
-          const Slide = post?.type === 'duet' ? DuetSlide : CarouselSlide
-          const poster = post?.thumbnailUrl || post?.posterUrl || post?.sideA?.posterUrl || ''
-          return (
-            <section
-              key={post.id}
-              data-vindex={i}
-              className="h-[100dvh] w-full snap-start snap-always relative"
-            >
-              {inWindow ? (
-                <Slide
-                  post={post}
-                  isActive={i === activeIndex}
-                  isNear={inWindow}
-                  isAdjacent={inWindow}
-                  warm={false}
-                  muted={true}
-                  playbackEnabled={true}
-                  infoBottom
-                  onRequestNext={() => {}}
-                  onChallenge={onChallenge}
-                  onOpenProfile={onOpenProfile}
-                />
-              ) : poster ? (
-                <img src={poster} alt="" aria-hidden draggable={false} className="absolute inset-0 w-full h-full object-cover" />
-              ) : null}
-            </section>
-          )
-        })}
+        <div
+          style={{
+            transform: dragY ? `translateY(${dragY}px)` : undefined,
+            transition: dragY ? 'none' : 'transform 0.25s ease',
+          }}
+        >
+          {posts.map((post, i) => {
+            const inWindow = Math.abs(i - activeIndex) <= 1
+            const Slide = post?.type === 'duet' ? DuetSlide : CarouselSlide
+            const poster = post?.thumbnailUrl || post?.posterUrl || post?.sideA?.posterUrl || ''
+            return (
+              <section
+                key={post.id}
+                data-vindex={i}
+                className="h-[100dvh] w-full snap-start snap-always relative"
+              >
+                {inWindow ? (
+                  <Slide
+                    post={post}
+                    isActive={i === activeIndex}
+                    isNear={inWindow}
+                    isAdjacent={inWindow}
+                    warm={false}
+                    muted={true}
+                    playbackEnabled={true}
+                    infoBottom
+                    onRequestNext={() => {}}
+                    onChallenge={onChallenge}
+                    onOpenProfile={onOpenProfile}
+                  />
+                ) : poster ? (
+                  <img src={poster} alt="" aria-hidden draggable={false} className="absolute inset-0 w-full h-full object-cover" />
+                ) : null}
+              </section>
+            )
+          })}
+        </div>
       </div>
     </div>
   )
