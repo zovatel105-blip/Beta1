@@ -1163,7 +1163,7 @@ async function handleCreateComment(request) {
     }
 
     const body = await request.json()
-    const { postId, text } = body
+    const { postId, text, votedSide } = body
 
     if (!postId || !text || typeof text !== 'string' || text.trim().length === 0) {
       return NextResponse.json({ error: 'invalid_data' }, { status: 400 })
@@ -1172,7 +1172,8 @@ async function handleCreateComment(request) {
     const comment = await createCommentDB({ 
       postId, 
       userId: currentUser.id, 
-      text: text.trim() 
+      text: text.trim(),
+      votedSide: votedSide === 'a' || votedSide === 'b' ? votedSide : null,
     })
 
     // Formatear para el frontend
@@ -1180,6 +1181,7 @@ async function handleCreateComment(request) {
       id: comment.id,
       postId: comment.postId,
       text: comment.text,
+      votedSide: comment.votedSide || null,
       likes: comment.likes,
       userLiked: false,
       isOwn: true,

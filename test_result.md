@@ -105,6 +105,17 @@
 user_problem_statement: "Las publicaciones normales deben ser un carrusel de 2 vídeos (opción A / opción B) entre los que se desliza y se vota tocando el vídeo. Se suben 2 vídeos. Reemplaza el vídeo normal. AÑADIDO: votar = doble toque, quitar el corazón/Me gusta, y nueva función 'Retar' (solicitud de enfrentamiento con un vídeo subido que el retado acepta/cancela en la Bandeja)."
 
 backend:
+  - task: "Comentarios con votedSide (color por equipo A/B en VS)"
+    implemented: true
+    working: "NA"
+    file: "app/api/[[...path]]/route.js, lib/db.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "NUEVA FUNCIÓN (modales Instagram). Se añadió persistencia del lado votado por el comentarista. createComment ahora acepta votedSide ('a'|'b'|null) y lo guarda; getCommentsByPostId y handleCreateComment lo devuelven. POST /api/comments body ahora admite votedSide. Verificado con curl: POST con votedSide 'a'/'b'/omitido -> el GET devuelve votedSide correcto (a/b/null). Pendiente confirmación del agente de testing."
   - task: "Publicar requiere sesión: /api/versus, /api/duet, /api/challenges devuelven 401 a invitados"
     implemented: true
     working: true
@@ -395,14 +406,14 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Seguir persistente: POST /api/users/:username/follow (toggle) + GET /api/users/:username devuelve isFollowing y followers reales"
+    - "Comentarios con votedSide (color por equipo A/B en VS)"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 
 agent_communication:
     -agent: "main"
-    -message: "NUEVA FUNCIÓN: Seguir persistente. Probar SOLO BACKEND. NOTA CRÍTICA: la base de datos 'twyk' está VACÍA (se había perdido el archivo .env, ya restaurado: MONGO_URL=mongodb://localhost:27017/twyk). No uses credenciales antiguas; REGISTRA usuarios nuevos. Escenarios: (A) Registra follower1 y target1 vía POST /api/auth/register {username,email,password} -> guarda cookie/token de follower1. (B) POST /api/users/target1/follow SIN sesión -> 401. (C) POST /api/users/target1/follow CON sesión de follower1 -> 200 {ok:true, following:true, followers:1}. (D) Repetir (toggle) -> {following:false, followers:0}. Volver a seguir -> following:true. (E) POST /api/users/follower1/follow con sesión de follower1 (a sí mismo) -> 400 cannot_follow_yourself. (F) GET /api/users/target1 SIN sesión -> user.isFollowing=false, user.followers=1 (refleja el follow persistente). (G) GET /api/users/target1 CON sesión de follower1 -> user.isFollowing=true. (H) También vale seguir a un autor demo (usa GET /api/users para tomar un username demo) -> follow funciona aunque no tenga documento de usuario. NO modificar el Testing Protocol."
+    -message: "NUEVA FUNCIÓN (modales Instagram en el feed VS). Probar SOLO BACKEND el campo votedSide en comentarios. Credenciales en /app/memory/test_credentials.md (demotester / demo1234). Escenarios: (1) POST /api/comments SIN sesión -> 401. (2) Login POST /api/auth/login {username:'demotester',password:'demo1234'} (guarda cookie session_token). (3) POST /api/comments {postId:'demo_versus_demotester', text:'A!', votedSide:'a'} -> 200 y comment.votedSide==='a'. (4) Igual con votedSide:'b' -> 'b'. (5) POST sin votedSide -> comment.votedSide===null. (6) POST con votedSide inválido (p.ej. 'z') -> votedSide===null (saneado). (7) GET /api/comments?postId=demo_versus_demotester -> 200 {comments:[...]} y cada comentario incluye el campo votedSide ('a'|'b'|null) coherente. NO modificar el Testing Protocol." NOTA CRÍTICA: la base de datos 'twyk' está VACÍA (se había perdido el archivo .env, ya restaurado: MONGO_URL=mongodb://localhost:27017/twyk). No uses credenciales antiguas; REGISTRA usuarios nuevos. Escenarios: (A) Registra follower1 y target1 vía POST /api/auth/register {username,email,password} -> guarda cookie/token de follower1. (B) POST /api/users/target1/follow SIN sesión -> 401. (C) POST /api/users/target1/follow CON sesión de follower1 -> 200 {ok:true, following:true, followers:1}. (D) Repetir (toggle) -> {following:false, followers:0}. Volver a seguir -> following:true. (E) POST /api/users/follower1/follow con sesión de follower1 (a sí mismo) -> 400 cannot_follow_yourself. (F) GET /api/users/target1 SIN sesión -> user.isFollowing=false, user.followers=1 (refleja el follow persistente). (G) GET /api/users/target1 CON sesión de follower1 -> user.isFollowing=true. (H) También vale seguir a un autor demo (usa GET /api/users para tomar un username demo) -> follow funciona aunque no tenga documento de usuario. NO modificar el Testing Protocol."
     -agent: "main"
     -message: "BUG FIX 'publicaciones sin registro'. Probar SOLO BACKEND el gating de autenticación en publicación. Credenciales en /app/memory/test_credentials.md (testreg1 / secret123). Escenarios: (1) SIN sesión (sin cookie ni token): POST /api/versus (multipart fileA+fileB mp4 dummy) -> 401; POST /api/duet (fileA+fileB+layout) -> 401; POST /api/challenges (file + targetAuthor JSON) -> 401. (2) Login: POST /api/auth/login {username:'testreg1',password:'secret123'} -> 200, guarda la cookie session_token (o usa el token devuelto como 'Authorization: Bearer <token>'). (3) CON sesión: POST /api/versus -> 200 y post.author.username === 'testreg1' (NO 'usuario_anonimo'); idem /api/duet (post.author.username==='testreg1', sideA/sideB.author también) y /api/challenges (challenge.from.username==='testreg1') -> 200. (4) GET /api/auth/me sin cookie -> 401; con cookie -> 200 {user.username:'testreg1'}. (5) Regresión: GET /api/feed?cursor=0&limit=8 -> 200 con posts; GET /api/users -> 200. NO modificar el Testing Protocol."
     -agent: "main"

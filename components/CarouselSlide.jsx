@@ -1,13 +1,14 @@
 'use client'
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { MessageCircle, Bookmark, Play, Swords, MoreVertical, Flag, EyeOff, Link2 } from 'lucide-react'
+import { MessageCircle, Bookmark, Play, Swords, MoreVertical } from 'lucide-react'
 import ShareIcon from './icons/ShareIcon'
 import { cn } from '@/lib/utils'
 import VoteIcon from './icons/VoteIcon'
 import VSWinnerCard from './VSWinnerCard'
 import CommentsModal from './CommentsModal'
 import ShareModal from './ShareModal'
+import OptionsModal from './OptionsModal'
 import AuthModal from './AuthModal'
 import Avatar, { isGeneratedAvatar } from './Avatar'
 import { useAuth } from '@/contexts/AuthContext'
@@ -576,30 +577,12 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
         </div>
       </div>
 
-      {/* Menú "Más opciones" (hoja inferior) */}
-      {menuOpen && (
-        <div className="absolute inset-0 z-40 flex items-end pointer-events-auto" onClick={(e) => { e.stopPropagation(); setMenuOpen(false) }}>
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-[1px]" />
-          <div className="relative w-full bg-[#0a0a0b] border-t border-white/10 rounded-t-2xl pt-2 pb-7 px-3" onClick={(e) => e.stopPropagation()}>
-            <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-white/25" />
-            <button onClick={() => setMenuOpen(false)} className="w-full flex items-center gap-3 px-3 py-3.5 rounded-xl text-white hover:bg-white/10 transition-colors">
-              <EyeOff className="w-5 h-5 text-white/80" strokeWidth={1.5} />
-              <span className="text-[15px]">No me interesa</span>
-            </button>
-            <button onClick={() => { try { navigator.clipboard?.writeText(window.location.href) } catch (_) { /* noop */ } setMenuOpen(false) }} className="w-full flex items-center gap-3 px-3 py-3.5 rounded-xl text-white hover:bg-white/10 transition-colors">
-              <Link2 className="w-5 h-5 text-white/80" strokeWidth={1.5} />
-              <span className="text-[15px]">Copiar enlace</span>
-            </button>
-            <button onClick={() => setMenuOpen(false)} className="w-full flex items-center gap-3 px-3 py-3.5 rounded-xl text-red-400 hover:bg-white/10 transition-colors">
-              <Flag className="w-5 h-5" strokeWidth={1.5} />
-              <span className="text-[15px]">Reportar</span>
-            </button>
-            <button onClick={() => setMenuOpen(false)} className="mt-1 w-full px-3 py-3.5 rounded-xl text-white/70 font-medium hover:bg-white/10 transition-colors">
-              Cancelar
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Menú "Más opciones" (hoja inferior estilo Instagram) */}
+      <OptionsModal
+        open={menuOpen}
+        postId={post.id}
+        onClose={() => setMenuOpen(false)}
+      />
 
       {/* Puntitos del carrusel */}
       <div className="absolute left-1/2 -translate-x-1/2 bottom-[70px] z-20 flex items-center gap-1">
@@ -637,6 +620,7 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
       <CommentsModal
         open={commentsOpen}
         postId={post.id}
+        votedSide={userVote}
         onClose={() => setCommentsOpen(false)}
       />
       <ShareModal

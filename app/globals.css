@@ -100,6 +100,14 @@ html, body, #__next {
 }
 
 
+/* Bottom sheet (modales estilo Instagram) */
+@keyframes sheetUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+}
+.animate-sheet-up { animation: sheetUp 0.28s cubic-bezier(0.32, 0.72, 0, 1); }
+.animate-sheet-fade { animation: fadeIn 0.2s ease; }
+
 /* Description gradient fade */
 .desc-fade {
     mask-image: linear-gradient(to bottom, black 70%, transparent 100%);
