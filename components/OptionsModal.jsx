@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { EyeOff, Flag, Ban, Link2, Check } from 'lucide-react'
+import { EyeOff, Flag, Ban, Link2, Check, ChevronDown } from 'lucide-react'
 import BottomSheet from './BottomSheet'
 
 /**
@@ -31,8 +31,16 @@ export default function OptionsModal({ open, postId, onClose }) {
   ]
 
   return (
-    <BottomSheet open={open} onClose={onClose}>
-      <div className="px-2 pt-1 pb-2">
+    <BottomSheet open={open} onClose={onClose} hideHandle>
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="cerrar"
+        className="flex justify-center items-center pt-2.5 pb-1.5 shrink-0 active:scale-90 transition"
+      >
+        <ChevronDown className="w-6 h-6 text-zinc-500" strokeWidth={2.2} />
+      </button>
+      <div className="px-2 pb-2">
         {rows.map((r) => (
           <button
             key={r.key}

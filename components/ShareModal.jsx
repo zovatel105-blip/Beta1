@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Send, Link2, Instagram, Check } from 'lucide-react'
+import { Send, Link2, Instagram, Check, ChevronDown } from 'lucide-react'
 import BottomSheet from './BottomSheet'
 
 const WhatsAppIcon = () => (
@@ -43,8 +43,16 @@ export default function ShareModal({ open, postId, onClose }) {
   ]
 
   return (
-    <BottomSheet open={open} onClose={onClose}>
-      <div className="px-5 pt-1 pb-3 shrink-0">
+    <BottomSheet open={open} onClose={onClose} hideHandle>
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="cerrar"
+        className="flex justify-center items-center pt-2.5 pb-1.5 shrink-0 active:scale-90 transition"
+      >
+        <ChevronDown className="w-6 h-6 text-zinc-500" strokeWidth={2.2} />
+      </button>
+      <div className="px-5 pb-3 shrink-0">
         <h3 className="text-center text-[15px] font-semibold text-zinc-900">Compartir</h3>
       </div>
       <div className="border-t border-zinc-100 px-4 py-6">
