@@ -105,6 +105,17 @@
 user_problem_statement: "Las publicaciones normales deben ser un carrusel de 2 vídeos (opción A / opción B) entre los que se desliza y se vota tocando el vídeo. Se suben 2 vídeos. Reemplaza el vídeo normal. AÑADIDO: votar = doble toque, quitar el corazón/Me gusta, y nueva función 'Retar' (solicitud de enfrentamiento con un vídeo subido que el retado acepta/cancela en la Bandeja)."
 
 backend:
+  - task: "Notificación de VOTO en publicaciones subidas (versus/1vs1) guardadas en _meta.json"
+    implemented: true
+    working: "NA"
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "BUG FIX (usuario: 'han votado en mi última publicación y no me llegan notificaciones'). CAUSA RAÍZ: handleVote tiene 3 rutas. Solo la #1 (votePostDB sobre la colección MongoDB POSTS) creaba notificación. Pero las publicaciones reales del usuario (POST /api/versus y /api/duet) se guardan en el store de archivos _meta.json (ruta #2), que SOLO incrementaba votos y NUNCA llamaba a createNotification. FIX: añadido createNotification en la ruta #2: tras incrementar, se determina el autor del lado votado (side 'a' -> sideA.author, 'b' -> sideB.author; en retos pueden ser usuarios distintos, en versus/1vs1 normales ambos lados = mismo autor), recipientId = sideAuthor.id || post.author.id; se crea notificación type='vote' si recipientId existe, no es 'anonymous' y no es el propio votante (no se autonotifica). fromUserId = currentUser?.id (null si invitado). Importado createNotification en route.js. Lint limpio."
   - task: "Comentarios con votedSide (color por equipo A/B en VS)"
     implemented: true
     working: "NA"
@@ -406,12 +417,14 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Comentarios con votedSide (color por equipo A/B en VS)"
+    - "Notificación de VOTO en publicaciones subidas (versus/1vs1) guardadas en _meta.json"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 
 agent_communication:
+    -agent: "main"
+    -message: "BUG FIX notificaciones de VOTO. Probar SOLO BACKEND. La BD puede estar vacía; REGISTRA usuarios nuevos. Escenarios: (A) Registra autorA y votanteB vía POST /api/auth/register {username,email,password}; guarda cookies/tokens de ambos. (B) Como autorA: POST /api/versus multipart (fileA + fileB = bytes mp4 dummy, description) -> 200, guarda post.id (empieza con 'versus_up_') y verifica post.author.username==='autorA'. (C) Como votanteB: POST /api/vote {id: <post.id>, side:'a'} -> 200 {ok:true, votes:{a:1,b:0}}. (D) Como autorA: GET /api/notifications -> 200 {notifications:[...]} y DEBE existir una notificación type==='vote', user.username==='votanteB', side==='a', postId===<post.id>. (E) GET /api/notifications/unread como autorA -> count>=1. (F) AUTONOTIFICACIÓN: como autorA, POST /api/vote sobre su propio post -> NO debe crear notificación nueva para autorA (el count no aumenta por su propio voto). (G) Repite con POST /api/duet (fileA+fileB+layout) y vota -> también genera notificación 'vote' al autor. NO modificar el Testing Protocol."
     -agent: "main"
     -message: "NUEVA FUNCIÓN (modales Instagram en el feed VS). Probar SOLO BACKEND el campo votedSide en comentarios. Credenciales en /app/memory/test_credentials.md (demotester / demo1234). Escenarios: (1) POST /api/comments SIN sesión -> 401. (2) Login POST /api/auth/login {username:'demotester',password:'demo1234'} (guarda cookie session_token). (3) POST /api/comments {postId:'demo_versus_demotester', text:'A!', votedSide:'a'} -> 200 y comment.votedSide==='a'. (4) Igual con votedSide:'b' -> 'b'. (5) POST sin votedSide -> comment.votedSide===null. (6) POST con votedSide inválido (p.ej. 'z') -> votedSide===null (saneado). (7) GET /api/comments?postId=demo_versus_demotester -> 200 {comments:[...]} y cada comentario incluye el campo votedSide ('a'|'b'|null) coherente. NO modificar el Testing Protocol." NOTA CRÍTICA: la base de datos 'twyk' está VACÍA (se había perdido el archivo .env, ya restaurado: MONGO_URL=mongodb://localhost:27017/twyk). No uses credenciales antiguas; REGISTRA usuarios nuevos. Escenarios: (A) Registra follower1 y target1 vía POST /api/auth/register {username,email,password} -> guarda cookie/token de follower1. (B) POST /api/users/target1/follow SIN sesión -> 401. (C) POST /api/users/target1/follow CON sesión de follower1 -> 200 {ok:true, following:true, followers:1}. (D) Repetir (toggle) -> {following:false, followers:0}. Volver a seguir -> following:true. (E) POST /api/users/follower1/follow con sesión de follower1 (a sí mismo) -> 400 cannot_follow_yourself. (F) GET /api/users/target1 SIN sesión -> user.isFollowing=false, user.followers=1 (refleja el follow persistente). (G) GET /api/users/target1 CON sesión de follower1 -> user.isFollowing=true. (H) También vale seguir a un autor demo (usa GET /api/users para tomar un username demo) -> follow funciona aunque no tenga documento de usuario. NO modificar el Testing Protocol."
     -agent: "main"

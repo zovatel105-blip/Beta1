@@ -1,18 +1,105 @@
 [
   {
+    "id": "versus_up_dc5379a86222feef",
+    "type": "versus",
+    "layout": "carousel",
+    "sideA": {
+      "videoUrl": "/uploads/392162ed5b2b314b.mp4",
+      "posterUrl": "/uploads/392162ed5b2b314b.jpg",
+      "author": {
+        "id": "cf7309fc-f97d-471e-91ff-331302d4696c",
+        "username": "Coco",
+        "name": "Coco",
+        "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=Coco",
+        "verified": false
+      },
+      "description": "¿Cuál prefieres? 🅰️🆚🅱️",
+      "music": "Opción A"
+    },
+    "sideB": {
+      "videoUrl": "/uploads/966999ada2fc90fe.mp4",
+      "posterUrl": "/uploads/966999ada2fc90fe.jpg",
+      "author": {
+        "id": "cf7309fc-f97d-471e-91ff-331302d4696c",
+        "username": "Coco",
+        "name": "Coco",
+        "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=Coco",
+        "verified": false
+      },
+      "description": "¿Cuál prefieres? 🅰️🆚🅱️",
+      "music": "Opción B"
+    },
+    "author": {
+      "id": "cf7309fc-f97d-471e-91ff-331302d4696c",
+      "username": "Coco",
+      "name": "Coco",
+      "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=Coco",
+      "verified": false
+    },
+    "description": "¿Cuál prefieres? 🅰️🆚🅱️",
+    "music": "Tu versus original",
+    "videoUrl": "/uploads/392162ed5b2b314b.mp4",
+    "posterUrl": "/uploads/392162ed5b2b314b.jpg",
+    "thumbnailUrl": "/uploads/392162ed5b2b314b.jpg",
+    "stats": {
+      "likes": 0,
+      "comments": 0,
+      "shares": 0,
+      "saves": 0
+    },
+    "votes": {
+      "a": 0,
+      "b": 0
+    },
+    "duration": 0,
+    "uploadedAt": "2026-06-21T01:51:10.229Z"
+  },
+  {
     "id": "demo_versus_demotester",
     "type": "versus",
     "layout": "carousel",
-    "author": { "username": "demotester", "name": "demotester", "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=demotester" },
+    "author": {
+      "username": "demotester",
+      "name": "demotester",
+      "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=demotester"
+    },
     "description": "Mi versus de prueba 🅰️🆚🅱️",
     "music": "Demo - Track",
     "videoUrl": "/videos/51330.mp4",
     "posterUrl": "/videos/51330.jpg",
     "thumbnailUrl": "/videos/51330.jpg",
-    "sideA": { "videoUrl": "/videos/51330.mp4", "posterUrl": "/videos/51330.jpg", "author": { "username": "demotester", "name": "demotester", "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=demotester" }, "description": "Lado A", "music": "Demo - Track" },
-    "sideB": { "videoUrl": "/videos/4467.mp4", "posterUrl": "/videos/4467.jpg", "author": { "username": "demotester", "name": "demotester", "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=demotester" }, "description": "Lado B", "music": "Demo - Track" },
-    "stats": { "likes": 0, "comments": 0, "shares": 0, "saves": 0 },
-    "votes": { "a": 1200, "b": 800 },
+    "sideA": {
+      "videoUrl": "/videos/51330.mp4",
+      "posterUrl": "/videos/51330.jpg",
+      "author": {
+        "username": "demotester",
+        "name": "demotester",
+        "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=demotester"
+      },
+      "description": "Lado A",
+      "music": "Demo - Track"
+    },
+    "sideB": {
+      "videoUrl": "/videos/4467.mp4",
+      "posterUrl": "/videos/4467.jpg",
+      "author": {
+        "username": "demotester",
+        "name": "demotester",
+        "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=demotester"
+      },
+      "description": "Lado B",
+      "music": "Demo - Track"
+    },
+    "stats": {
+      "likes": 0,
+      "comments": 0,
+      "shares": 0,
+      "saves": 0
+    },
+    "votes": {
+      "a": 1200,
+      "b": 800
+    },
     "duration": 0,
     "uploadedAt": "2026-06-16T00:00:00.000Z"
   },
@@ -20,16 +107,48 @@
     "id": "demo_duet_demotester",
     "type": "duet",
     "layout": "vertical",
-    "author": { "username": "demotester", "name": "demotester", "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=demotester" },
+    "author": {
+      "username": "demotester",
+      "name": "demotester",
+      "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=demotester"
+    },
     "description": "Mi dueto de prueba 🥊 #1vs1",
     "music": "Demo - Duet",
     "videoUrl": "/videos/1108.mp4",
     "posterUrl": "/videos/1108.jpg",
     "thumbnailUrl": "/videos/1108.jpg",
-    "sideA": { "videoUrl": "/videos/1108.mp4", "posterUrl": "/videos/1108.jpg", "author": { "username": "demotester", "name": "demotester", "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=demotester" }, "description": "Lado A", "music": "Demo - Duet" },
-    "sideB": { "videoUrl": "/videos/1149.mp4", "posterUrl": "/videos/1149.jpg", "author": { "username": "demotester", "name": "demotester", "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=demotester" }, "description": "Lado B", "music": "Demo - Duet" },
-    "stats": { "likes": 0, "comments": 0, "shares": 0, "saves": 0 },
-    "votes": { "a": 500, "b": 600 },
+    "sideA": {
+      "videoUrl": "/videos/1108.mp4",
+      "posterUrl": "/videos/1108.jpg",
+      "author": {
+        "username": "demotester",
+        "name": "demotester",
+        "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=demotester"
+      },
+      "description": "Lado A",
+      "music": "Demo - Duet"
+    },
+    "sideB": {
+      "videoUrl": "/videos/1149.mp4",
+      "posterUrl": "/videos/1149.jpg",
+      "author": {
+        "username": "demotester",
+        "name": "demotester",
+        "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=demotester"
+      },
+      "description": "Lado B",
+      "music": "Demo - Duet"
+    },
+    "stats": {
+      "likes": 0,
+      "comments": 0,
+      "shares": 0,
+      "saves": 0
+    },
+    "votes": {
+      "a": 500,
+      "b": 600
+    },
     "duration": 0,
     "uploadedAt": "2026-06-16T00:00:01.000Z"
   },

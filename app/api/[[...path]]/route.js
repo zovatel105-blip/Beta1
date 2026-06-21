@@ -24,6 +24,7 @@ import {
   votePost as votePostDB,
   incrementPostViews,
   getNotifications as getNotificationsDB,
+  createNotification,
   markNotificationAsRead,
   markAllNotificationsAsRead,
   getUnreadNotificationsCount,
@@ -839,6 +840,29 @@ async function handleVote(request) {
       p.votes[side] = (p.votes[side] || 0) + 1
       meta[idx] = p
       await writeUploadMeta(meta)
+
+      // Notificar al autor del lado votado (en retos sideA/sideB pueden ser
+      // usuarios distintos; en versus/1vs1 normales ambos lados son el mismo autor).
+      try {
+        const sideAuthor = side === 'a' ? p.sideA?.author : p.sideB?.author
+        const recipientId = sideAuthor?.id || p.author?.id
+        if (
+          recipientId &&
+          recipientId !== 'anonymous' &&
+          recipientId !== currentUser?.id
+        ) {
+          await createNotification({
+            userId: recipientId,
+            type: 'vote',
+            fromUserId: currentUser?.id || null,
+            postId: p.id,
+            side,
+          })
+        }
+      } catch (notifErr) {
+        console.error('vote notification error', notifErr)
+      }
+
       return NextResponse.json({ ok: true, votes: p.votes })
     }
     // 3) Built-in feed versus posts -> persist in votes store (seed if first time)

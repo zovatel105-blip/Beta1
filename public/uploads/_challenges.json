@@ -1,5 +1,36 @@
 [
   {
+    "id": "challenge_68d4630219cf4bc4",
+    "status": "pending",
+    "from": {
+      "id": "941856eb-f713-46ab-84e1-23e956438d07",
+      "username": "Nec",
+      "name": "Nec",
+      "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=Nec",
+      "verified": false
+    },
+    "to": {
+      "id": "cf7309fc-f97d-471e-91ff-331302d4696c",
+      "username": "Coco",
+      "name": "Coco",
+      "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=Coco",
+      "verified": false
+    },
+    "challengerVideoUrl": "/uploads/334054f07e5d1cc3.mp4",
+    "targetVideoUrl": "/uploads/392162ed5b2b314b.mp4",
+    "targetAuthor": {
+      "id": "cf7309fc-f97d-471e-91ff-331302d4696c",
+      "username": "Coco",
+      "name": "Coco",
+      "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=Coco",
+      "verified": false
+    },
+    "targetDescription": "¿Cuál prefieres? 🅰️🆚🅱️",
+    "targetMusic": "Opción A",
+    "message": "",
+    "createdAt": "2026-06-21T01:53:05.445Z"
+  },
+  {
     "id": "challenge_10b06a0708a80aab",
     "status": "pending",
     "from": {
