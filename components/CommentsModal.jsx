@@ -17,7 +17,7 @@ const sideColor = (s) => (s === 'a' ? SIDE_A : s === 'b' ? SIDE_B : null)
  * CommentsModal — Hoja inferior de comentarios estilo Instagram (blanco, ~75%).
  * Cada comentario se colorea segun el lado por el que voto su autor.
  */
-export default function CommentsModal({ open, postId, onClose, votedSide = null }) {
+export default function CommentsModal({ open, postId, onClose, votedSide = null, onCountChange }) {
   const [comments, setComments] = useState([])
   const [newComment, setNewComment] = useState('')
   const [loading, setLoading] = useState(false)
@@ -39,6 +39,7 @@ export default function CommentsModal({ open, postId, onClose, votedSide = null 
       if (res.ok) {
         const data = await res.json()
         setComments(data.comments || [])
+        onCountChange?.(data.comments?.length || 0)
       }
     } catch (err) {
       console.error('Error loading comments:', err)
@@ -61,7 +62,11 @@ export default function CommentsModal({ open, postId, onClose, votedSide = null 
       })
       if (res.ok) {
         const data = await res.json()
-        setComments((prev) => [data.comment, ...prev])
+        setComments((prev) => {
+          const next = [data.comment, ...prev]
+          onCountChange?.(next.length)
+          return next
+        })
         setNewComment('')
       } else if (res.status === 401) {
         setShowAuthModal(true)
@@ -71,7 +76,7 @@ export default function CommentsModal({ open, postId, onClose, votedSide = null 
     } finally {
       setSubmitting(false)
     }
-  }, [postId, newComment, submitting, user, votedSide])
+  }, [postId, newComment, submitting, user, votedSide, onCountChange])
 
   const formatTime = (timestamp) => {
     if (!timestamp) return ''

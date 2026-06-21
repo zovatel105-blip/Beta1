@@ -63,6 +63,30 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
   const [shareOpen, setShareOpen] = useState(false)
   const [authModalOpen, setAuthModalOpen] = useState(false)
 
+  // Contadores sociales en vivo: muestran el NÚMERO cuando ya se interactuó y el
+  // título sólo si aún no hay interacción. Persisten por post en localStorage.
+  const lsNum = (k) => { try { return parseInt(localStorage.getItem(k) || '0', 10) || 0 } catch { return 0 } }
+  const lsSet = (k, v) => { try { localStorage.setItem(k, String(v)) } catch { /* ignore */ } }
+  const [commentCount, setCommentCount] = useState(post.stats?.comments || 0)
+  const [shareCount, setShareCount] = useState(post.stats?.shares || 0)
+  const [saveCount, setSaveCount] = useState(post.stats?.saves || 0)
+  const [challengeCount, setChallengeCount] = useState(post.stats?.challenges || 0)
+
+  useEffect(() => {
+    setCommentCount((c) => Math.max(c, lsNum(`cmtN_${post.id}`)))
+    setShareCount((c) => Math.max(c, lsNum(`shrN_${post.id}`)))
+    setSaveCount((c) => Math.max(c, lsNum(`savN_${post.id}`)))
+    setChallengeCount((c) => Math.max(c, lsNum(`chlN_${post.id}`)))
+    const onChallenged = (e) => {
+      if (e.detail?.postId === post.id) {
+        setChallengeCount((n) => { const next = n + 1; lsSet(`chlN_${post.id}`, next); return next })
+      }
+    }
+    window.addEventListener('twyk:challenged', onChallenged)
+    return () => window.removeEventListener('twyk:challenged', onChallenged)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [post.id])
+
   // Manejar guardar/favorito con API
   const handleSaveToggle = useCallback(async (e) => {
     e.stopPropagation()
@@ -75,6 +99,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
     
     const newSaved = !saved
     setSaved(newSaved)
+    setSaveCount((n) => { const next = Math.max(0, n + (newSaved ? 1 : -1)); lsSet(`savN_${post.id}`, next); return next })
     
     try {
       await fetch('/api/save', {
@@ -86,6 +111,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
       console.error('Error saving post:', err)
       // Revertir en caso de error
       setSaved(!newSaved)
+      setSaveCount((n) => Math.max(0, n + (newSaved ? -1 : 1)))
     }
   }, [post.id, saved, user])
 
@@ -650,7 +676,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
             setChallengePickOpen(true);
           }} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
             <Swords className="w-[25px] h-[25px] text-white" strokeWidth={1.25} />
-            <span className="text-[10px] font-semibold text-white leading-none">Retar</span>
+            <span className="text-[10px] font-semibold text-white leading-none">{countLabel(challengeCount, 'Retar')}</span>
           </button>
         )}
         {/* Comentar */}
@@ -663,17 +689,17 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
           setCommentsOpen(true);
         }} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
           <MessageCircle className="w-[25px] h-[25px] text-white" strokeWidth={1.25} />
-          <span className="text-[10px] font-semibold text-white leading-none">{countLabel(post.stats?.comments, 'Comentar')}</span>
+          <span className="text-[10px] font-semibold text-white leading-none">{countLabel(commentCount, 'Comentar')}</span>
         </button>
         {/* Compartir */}
         <button aria-label="share" onClick={(e) => { e.stopPropagation(); setShareOpen(true) }} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
           <ShareIcon className="w-[25px] h-[25px] text-white" strokeWidth={1.1} />
-          <span className="text-[10px] font-semibold text-white leading-none">{countLabel(post.stats?.shares, 'Compartir')}</span>
+          <span className="text-[10px] font-semibold text-white leading-none">{countLabel(shareCount, 'Compartir')}</span>
         </button>
         {/* Guardar */}
         <button aria-label="bookmark" onClick={handleSaveToggle} className="flex flex-col items-center gap-0.5 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
           <Bookmark className={cn('w-[25px] h-[25px] transition-all duration-200', saved ? 'fill-current text-yellow-400' : 'text-white')} strokeWidth={1.25} />
-          <span className="text-[10px] font-semibold text-white leading-none">{countLabel(post.stats?.saves, 'Guardar')}</span>
+          <span className="text-[10px] font-semibold text-white leading-none">{countLabel(saveCount, 'Guardar')}</span>
         </button>
         {/* Más opciones */}
         <button aria-label="mas-opciones" onClick={(e) => { e.stopPropagation(); setMenuOpen(true) }} className="flex flex-col items-center hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
@@ -715,6 +741,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
                   onClick={() => {
                     setChallengePickOpen(false)
                     onChallenge?.({
+                      postId: post.id,
                       videoUrl: sd.videoUrl,
                       author: sd.author || headAuthor,
                       description: sd.description || post.description,
@@ -781,11 +808,13 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
         open={commentsOpen}
         postId={post.id}
         votedSide={userVote}
+        onCountChange={(n) => { setCommentCount(n); lsSet(`cmtN_${post.id}`, n) }}
         onClose={() => setCommentsOpen(false)}
       />
       <ShareModal
         open={shareOpen}
         postId={post.id}
+        onShared={() => setShareCount((n) => { const next = n + 1; lsSet(`shrN_${post.id}`, next); return next })}
         onClose={() => setShareOpen(false)}
       />
       <AuthModal

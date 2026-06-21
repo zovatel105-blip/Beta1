@@ -13,7 +13,7 @@ const WhatsAppIcon = () => (
 /**
  * ShareModal — Hoja inferior de compartir estilo Instagram.
  */
-export default function ShareModal({ open, postId, onClose }) {
+export default function ShareModal({ open, postId, onClose, onShared }) {
   const [copied, setCopied] = useState(false)
 
   const shareUrl = typeof window !== 'undefined' ? `${window.location.origin}/?post=${postId}` : ''
@@ -58,7 +58,7 @@ export default function ShareModal({ open, postId, onClose }) {
       <div className="border-t border-zinc-100 px-4 py-6">
         <div className="grid grid-cols-5 gap-2">
           {options.map((o) => (
-            <button key={o.key} onClick={o.onClick} className="flex flex-col items-center gap-2 active:scale-95 transition">
+            <button key={o.key} onClick={() => { o.onClick?.(); onShared?.() }} className="flex flex-col items-center gap-2 active:scale-95 transition">
               <span className={`w-14 h-14 rounded-full flex items-center justify-center ${o.bg}`}>{o.icon}</span>
               <span className="text-[11px] text-zinc-600 text-center leading-tight">{o.label}</span>
             </button>

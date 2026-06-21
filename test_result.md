@@ -310,6 +310,17 @@ backend:
         -comment: "VERIFICADO MANUALMENTE (el usuario pidió NO usar agente de testing). Registrados follower1/target1. (B) POST /api/users/target1/follow sin sesión -> 401 {error:unauthorized}. (C) con sesión -> 200 {ok:true,following:true,followers:1}. (D) toggle -> {following:false,followers:0}; de nuevo -> {following:true,followers:1}. (E) seguirse a sí mismo -> 400 {error:cannot_follow_yourself}. (F) GET /api/users/target1 sin sesión -> isFollowing=false, followers=1. (G) GET con sesión -> isFollowing=true, followers=1. (H) seguir autor demo 'wanderlust' (sin documento de usuario) -> 200 {following:true,followers:1}. Regresión: /api/feed y /api/users 200. Datos de prueba limpiados."
 
 frontend:
+  - task: "Botones sociales (Retar/Comentar/Compartir/Guardar): mostrar NÚMERO tras la acción, título solo si no se ha interactuado"
+    implemented: true
+    working: true
+    file: "components/CarouselSlide.jsx, components/DuetSlide.jsx, components/CommentsModal.jsx, components/ShareModal.jsx, components/Feed.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "main"
+        -comment: "FEATURE (usuario: 'los botones sociales de retar, comentar, compartir y guardar deben mostrar el número cuando se haya hecho la acción; el título solo cuando aún no se ha interactuado'). ANTES: 'Retar' mostraba SIEMPRE el texto (sin número) y Comentar/Compartir/Guardar usaban post.stats estáticos (0 en uploads) que no se actualizaban al actuar. AHORA: cada tarjeta mantiene contadores en vivo (commentCount/shareCount/saveCount/challengeCount) inicializados desde post.stats y fusionados con valores persistidos por post en localStorage (cmtN_/shrN_/savN_/chlN_) para que el incremento del usuario se mantenga al desplazar/recargar. countLabel(n, 'Título') muestra el número si n>0, si no el título. WIRING: Guardar -> handleSaveToggle +1/-1 (revierte en error); Comentar -> CommentsModal nuevo prop onCountChange (reporta total al cargar y al publicar); Compartir -> ShareModal nuevo prop onShared (incrementa al tocar una opción); Retar -> evento global 'twyk:challenged' que el Feed emite en ChallengeDialog.onCreated con el postId de origen (añadido postId al target en CarouselSlide y en el selector A/B de DuetSlide); cada tarjeta escucha y suma si el postId coincide. VERIFICADO VISUALMENTE en navegador: al guardar, el icono se vuelve amarillo y la etiqueta pasa de 'Guardar' a '1'; el resto sigue mostrando su título hasta interactuar. Lint limpio en los 5 archivos. (Sin agente de testing, petición del usuario.)"
   - task: "Avatar por defecto (silueta gris) consistente: modal de comentarios, notificaciones y modal de reto"
     implemented: true
     working: true

@@ -386,7 +386,13 @@ export default function Feed() {
         open={challengeOpen}
         onClose={() => setChallengeOpen(false)}
         target={challengeTarget}
-        onCreated={() => { refreshChallenges() }}
+        onCreated={() => {
+          refreshChallenges()
+          // Notifica a la tarjeta de origen para incrementar su contador "Retar".
+          if (challengeTarget?.postId) {
+            try { window.dispatchEvent(new CustomEvent('twyk:challenged', { detail: { postId: challengeTarget.postId } })) } catch { /* ignore */ }
+          }
+        }}
       />
       <NotificationsInbox
         open={inboxOpen}
