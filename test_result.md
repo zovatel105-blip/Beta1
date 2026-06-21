@@ -107,15 +107,18 @@ user_problem_statement: "Las publicaciones normales deben ser un carrusel de 2 v
 backend:
   - task: "Notificación de VOTO en publicaciones subidas (versus/1vs1) guardadas en _meta.json"
     implemented: true
-    working: "NA"
-    file: "app/api/[[...path]]/route.js"
+    working: true
+    file: "app/api/[[...path]]/route.js, lib/db.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         -working: "NA"
         -agent: "main"
-        -comment: "BUG FIX (usuario: 'han votado en mi última publicación y no me llegan notificaciones'). CAUSA RAÍZ: handleVote tiene 3 rutas. Solo la #1 (votePostDB sobre la colección MongoDB POSTS) creaba notificación. Pero las publicaciones reales del usuario (POST /api/versus y /api/duet) se guardan en el store de archivos _meta.json (ruta #2), que SOLO incrementaba votos y NUNCA llamaba a createNotification. FIX: añadido createNotification en la ruta #2: tras incrementar, se determina el autor del lado votado (side 'a' -> sideA.author, 'b' -> sideB.author; en retos pueden ser usuarios distintos, en versus/1vs1 normales ambos lados = mismo autor), recipientId = sideAuthor.id || post.author.id; se crea notificación type='vote' si recipientId existe, no es 'anonymous' y no es el propio votante (no se autonotifica). fromUserId = currentUser?.id (null si invitado). Importado createNotification en route.js. Lint limpio."
+        -comment: "BUG FIX (usuario: 'han votado en mi última publicación y no me llegan notificaciones'). Añadido createNotification en la ruta meta (#2) de handleVote."
+        -working: true
+        -agent: "main"
+        -comment: "CAUSA RAÍZ REAL encontrada tras 2º reporte ('voté en la publicación de coco pero el voto no se mantiene'). handleVote intenta votePostDB (MongoDB) primero; pero votePostDB NO lanzaba cuando el post no existe en la colección POSTS: updateOne no matcheaba nada, findOne devolvía null y RETORNABA {a:0,b:0} sin error. Como las publicaciones subidas (versus_up_*/duet_*) viven en _meta.json (NO en MongoDB), votePostDB cortaba el flujo y (1) el voto NUNCA se persistía (siempre 0,0) y (2) la ruta meta con la notificación NUNCA se ejecutaba. FIX: votePost() en lib/db.js ahora comprueba result.matchedCount===0 -> throw 'post_not_found_in_mongo', de modo que handleVote cae al store _meta.json, persiste el voto y crea la notificación. VERIFICADO MANUALMENTE con curl (sin agente de testing, petición del usuario): A sube versus -> B vota 'a' dos veces -> votes {a:2,b:0} y GET /api/uploads devuelve votes {a:2,b:0} (PERSISTE) -> A recibe 2 notificaciones type='vote', user=B, side='a'. Autovoto de A sobre su post: votes {a:2,b:1} pero unread NO aumenta (sin autonotificación). Lint limpio."
   - task: "Comentarios con votedSide (color por equipo A/B en VS)"
     implemented: true
     working: "NA"

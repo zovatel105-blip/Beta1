@@ -1,5 +1,60 @@
 [
   {
+    "id": "versus_up_620027ea2773708b",
+    "type": "versus",
+    "layout": "carousel",
+    "sideA": {
+      "videoUrl": "/uploads/1323540b76ec0afb.mp4",
+      "posterUrl": "/uploads/1323540b76ec0afb.jpg",
+      "author": {
+        "id": "68b8b209-0b51-41fa-b259-c5ebcf382ab5",
+        "username": "cocoA_32756",
+        "name": "cocoA_32756",
+        "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=cocoA_32756",
+        "verified": false
+      },
+      "description": "coco test",
+      "music": "Opción A"
+    },
+    "sideB": {
+      "videoUrl": "/uploads/b6a7c1614ec8d51c.mp4",
+      "posterUrl": "/uploads/b6a7c1614ec8d51c.jpg",
+      "author": {
+        "id": "68b8b209-0b51-41fa-b259-c5ebcf382ab5",
+        "username": "cocoA_32756",
+        "name": "cocoA_32756",
+        "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=cocoA_32756",
+        "verified": false
+      },
+      "description": "coco test",
+      "music": "Opción B"
+    },
+    "author": {
+      "id": "68b8b209-0b51-41fa-b259-c5ebcf382ab5",
+      "username": "cocoA_32756",
+      "name": "cocoA_32756",
+      "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=cocoA_32756",
+      "verified": false
+    },
+    "description": "coco test",
+    "music": "Tu versus original",
+    "videoUrl": "/uploads/1323540b76ec0afb.mp4",
+    "posterUrl": "/uploads/1323540b76ec0afb.jpg",
+    "thumbnailUrl": "/uploads/1323540b76ec0afb.jpg",
+    "stats": {
+      "likes": 0,
+      "comments": 0,
+      "shares": 0,
+      "saves": 0
+    },
+    "votes": {
+      "a": 3,
+      "b": 1
+    },
+    "duration": 0,
+    "uploadedAt": "2026-06-21T02:14:41.028Z"
+  },
+  {
     "id": "versus_up_dc5379a86222feef",
     "type": "versus",
     "layout": "carousel",
