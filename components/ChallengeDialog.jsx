@@ -3,6 +3,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { X, Film, Check, Loader2, Swords } from 'lucide-react'
+import Avatar from './Avatar'
 
 /**
  * ChallengeDialog — "Retar" un contenido (rediseño premium minimalista).
@@ -100,11 +101,7 @@ export default function ChallengeDialog({ open, onClose, target, onCreated }) {
         <div className="relative z-10 flex items-center gap-3 px-5 pt-4 pb-4">
           <div className="w-8 h-8 rounded-full p-[1.5px] bg-gradient-to-br from-white/15 to-white/[0.03] shrink-0">
             <div className="w-full h-full rounded-full overflow-hidden bg-zinc-900 ring-1 ring-white/10 flex items-center justify-center">
-              {target?.author?.avatarUrl ? (
-                <img src={target.author.avatarUrl} alt={username} className="w-full h-full object-cover" draggable={false} />
-              ) : (
-                <Swords className="w-4 h-4 text-white/70" />
-              )}
+              <Avatar src={target?.author?.avatarUrl} alt={username} className="w-full h-full rounded-full" />
             </div>
           </div>
           <div className="min-w-0">

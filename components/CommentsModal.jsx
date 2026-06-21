@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
 import AuthModal from './AuthModal'
 import BottomSheet from './BottomSheet'
+import Avatar from './Avatar'
 
 // Colores de equipo (reutilizan los del resultado de votación VS).
 const SIDE_A = '#A855F7' // morado (Lado A)
@@ -134,13 +135,7 @@ export default function CommentsModal({ open, postId, onClose, votedSide = null 
                   <div key={c.id} className="flex gap-3">
                     {/* Avatar */}
                     <div className="w-9 h-9 rounded-full overflow-hidden bg-zinc-200 flex-shrink-0">
-                      {c.author?.avatarUrl ? (
-                        <img src={c.author.avatarUrl} alt={c.author.username} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-zinc-600 text-xs font-bold">
-                          {c.author?.username?.[0]?.toUpperCase() || 'U'}
-                        </div>
-                      )}
+                      <Avatar src={c.author?.avatarUrl} alt={c.author?.username || ''} className="w-full h-full rounded-full" />
                     </div>
 
                     {/* Burbuja coloreada por equipo */}

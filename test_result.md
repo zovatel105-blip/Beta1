@@ -310,6 +310,17 @@ backend:
         -comment: "VERIFICADO MANUALMENTE (el usuario pidió NO usar agente de testing). Registrados follower1/target1. (B) POST /api/users/target1/follow sin sesión -> 401 {error:unauthorized}. (C) con sesión -> 200 {ok:true,following:true,followers:1}. (D) toggle -> {following:false,followers:0}; de nuevo -> {following:true,followers:1}. (E) seguirse a sí mismo -> 400 {error:cannot_follow_yourself}. (F) GET /api/users/target1 sin sesión -> isFollowing=false, followers=1. (G) GET con sesión -> isFollowing=true, followers=1. (H) seguir autor demo 'wanderlust' (sin documento de usuario) -> 200 {following:true,followers:1}. Regresión: /api/feed y /api/users 200. Datos de prueba limpiados."
 
 frontend:
+  - task: "Avatar por defecto (silueta gris) consistente: modal de comentarios, notificaciones y modal de reto"
+    implemented: true
+    working: true
+    file: "components/NotificationsInbox.jsx, components/CommentsModal.jsx, components/ChallengeDialog.jsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "main"
+        -comment: "BUG FIX (usuario: 'el modal de comentarios, las notificaciones y el modal de retos no muestran el avatar por defecto que se ve en el perfil cuando no hay foto'). CAUSA: esos 3 componentes usaban un <img> crudo de avatarUrl (o letra/icono) en vez del componente Avatar compartido. Como los usuarios sin foto tienen avatarUrl autogenerado (dicebear/pravatar), se mostraba ese avatar en vez de la silueta gris del perfil. FIX: importado y usado <Avatar> compartido (isGeneratedAvatar -> silueta gris) en NotificationsInbox (lista), CommentsModal (cada comentario) y ChallengeDialog (cabecera del retado). Revisado el resto: BottomNav (DefaultAvatar equivalente), ActiveChallengesPage/ChallengesInbox (RingAvatar->Avatar), CompletedBattlesPage, UploadDialog, ProfilePage, CarouselSlide y DuetSlide ya usaban Avatar -> consistentes. VERIFICADO VISUALMENTE en navegador: comentario de un usuario sin foto muestra la silueta gris en el modal de comentarios; cabecera de reto y nav inferior también. Lint limpio. (Sin agente de testing, petición del usuario.)"
   - task: "ProfilePage: botón Seguir persistente (API) y botón Mensaje -> Retar (abre ChallengeDialog hacia ese usuario)"
     implemented: true
     working: "NA"
