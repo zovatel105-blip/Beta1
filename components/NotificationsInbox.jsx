@@ -15,11 +15,11 @@ const TWYK_B = '#3B82F6' // opción B (azul)
 
 const iconFor = (n) => {
   switch (n.type) {
-    case 'challenge': return { Icon: Swords, color: '#E4C79B' }
+    case 'challenge': return { Icon: Swords, color: '#FFFFFF' }
     case 'vote': return { Icon: VoteIcon, color: n.side === 'b' ? TWYK_B : TWYK_A }
     case 'accepted': return { Icon: Check, color: '#6EE7A8' }
     case 'follow': return { Icon: UserPlus, color: '#7DB7FF' }
-    case 'comment': return { Icon: MessageCircle, color: '#E4C79B' }
+    case 'comment': return { Icon: MessageCircle, color: '#FFFFFF' }
     default: return { Icon: Bell, color: '#A1A1AA' }
   }
 }
@@ -92,7 +92,7 @@ export default function NotificationsInbox({ open, onClose }) {
     <div className="fixed inset-0 z-[60] bg-[#0a0a0b] flex flex-col text-white">
       {/* Glow superior sutil */}
       <div className="pointer-events-none absolute inset-x-0 top-0 h-44"
-           style={{ background: 'radial-gradient(60% 100% at 50% 0%, rgba(214,178,122,0.07), transparent 70%)' }} />
+           style={{ background: 'radial-gradient(60% 100% at 50% 0%, rgba(255,255,255,0.07), transparent 70%)' }} />
 
       {/* Header */}
       <div className="relative z-10 flex items-center justify-between px-2 pb-3"
@@ -149,7 +149,7 @@ export default function NotificationsInbox({ open, onClose }) {
         ) : !user ? (
           <div className="flex flex-col items-center justify-center text-center pt-28">
             <div className="w-20 h-20 rounded-full border border-white/10 bg-white/[0.03] flex items-center justify-center mb-6">
-              <Bell className="w-9 h-9" strokeWidth={1.25} style={{ color: '#E4C79B' }} />
+              <Bell className="w-9 h-9" strokeWidth={1.25} style={{ color: '#FFFFFF' }} />
             </div>
             <h2 className="text-white text-[22px] font-semibold tracking-tight">
               Inicia sesión
@@ -161,8 +161,8 @@ export default function NotificationsInbox({ open, onClose }) {
         ) : list.length === 0 ? (
           <div className="flex flex-col items-center justify-center text-center pt-28">
             <div className="w-20 h-20 rounded-full border border-white/10 bg-white/[0.03] flex items-center justify-center mb-6"
-                 style={{ boxShadow: '0 0 48px -14px rgba(214,178,122,0.4)' }}>
-              <Bell className="w-9 h-9" strokeWidth={1.25} style={{ color: '#E4C79B' }} />
+                 style={{ boxShadow: '0 0 48px -14px rgba(255,255,255,0.4)' }}>
+              <Bell className="w-9 h-9" strokeWidth={1.25} style={{ color: '#FFFFFF' }} />
             </div>
             <h2 className="text-white text-[22px] font-semibold tracking-tight">
               {filter === 'all' ? 'Sin notificaciones' : 'Nada por aquí'}
