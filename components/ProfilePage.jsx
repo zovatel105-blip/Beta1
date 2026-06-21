@@ -654,6 +654,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
           loading={followList.loading}
           onClose={() => setFollowList(null)}
           onOpenUser={handleOpenListUser}
+          onSwitch={openFollowList}
         />
       )}
     </div>
@@ -662,8 +663,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
 
 // Modal a pantalla completa con la lista de followers o seguidos. Cada fila
 // es tocable y abre el perfil del usuario correspondiente.
-const FollowListModal = ({ type, users, loading, onClose, onOpenUser }) => {
-  const title = type === 'followers' ? 'Followers' : 'Following'
+const FollowListModal = ({ type, users, loading, onClose, onOpenUser, onSwitch }) => {
   return (
     <div className="fixed inset-0 z-[80] bg-[#0a0a0b] flex flex-col">
       {/* Header */}
@@ -673,7 +673,25 @@ const FollowListModal = ({ type, users, loading, onClose, onOpenUser }) => {
           <button aria-label="cerrar" onClick={onClose} className="p-2 -ml-1 text-white active:scale-90 transition">
             <ArrowLeft strokeWidth={1.9} className="w-[24px] h-[24px]" />
           </button>
-          <span className="text-white font-semibold text-[15px]">{title}</span>
+          {/* Conmutador Followers / Following */}
+          <div className="flex items-center gap-1 bg-white/[0.06] rounded-full p-0.5">
+            <button
+              onClick={() => type !== 'followers' && onSwitch?.('followers')}
+              className={`px-4 h-8 rounded-full text-[13px] font-semibold tracking-tight transition-all ${
+                type === 'followers' ? 'bg-white text-black' : 'text-zinc-300 hover:text-white'
+              }`}
+            >
+              Followers
+            </button>
+            <button
+              onClick={() => type !== 'following' && onSwitch?.('following')}
+              className={`px-4 h-8 rounded-full text-[13px] font-semibold tracking-tight transition-all ${
+                type === 'following' ? 'bg-white text-black' : 'text-zinc-300 hover:text-white'
+              }`}
+            >
+              Following
+            </button>
+          </div>
           <button aria-label="cerrar" onClick={onClose} className="p-2 -mr-1 text-white/70 active:scale-90 transition">
             <X strokeWidth={1.9} className="w-[22px] h-[22px]" />
           </button>
