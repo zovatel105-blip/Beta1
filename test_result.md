@@ -105,6 +105,17 @@
 user_problem_statement: "Las publicaciones normales deben ser un carrusel de 2 vídeos (opción A / opción B) entre los que se desliza y se vota tocando el vídeo. Se suben 2 vídeos. Reemplaza el vídeo normal. AÑADIDO: votar = doble toque, quitar el corazón/Me gusta, y nueva función 'Retar' (solicitud de enfrentamiento con un vídeo subido que el retado acepta/cancela en la Bandeja)."
 
 backend:
+  - task: "Notificaciones de reto, reto aceptado, comentario y seguidor (faltaban; solo llegaban las de voto)"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js, lib/db.js, components/CarouselSlide.jsx, components/DuetSlide.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "main"
+        -comment: "BUG FIX (usuario: 'solo me llegan notificaciones de votos pero no de retos, seguidores y comentarios'). CAUSAS: (1) handleCreateChallenge NO creaba notificación al retado. (2) handleAcceptChallenge NO creaba notificación 'accepted' al retador. (3) Comentarios: createCommentDB solo notifica si el post está en MongoDB POSTS, pero las publicaciones subidas viven en _meta.json -> nunca notificaba. (4) Seguidores: toggleFollowByUsername (db.js) SÍ creaba la notificación, pero el botón 'Seguir' de las TARJETAS del feed (CarouselSlide/DuetSlide) solo cambiaba estado local y NUNCA llamaba a /api/users/:u/follow -> seguir desde el feed no persistía ni notificaba. FIXES: handleCreateChallenge crea type='challenge' a targetAuthor.id; handleAcceptChallenge crea type='accepted' a c.from.id (fromUser=c.to); handleCreateComment crea type='comment' al autor del post de _meta.json (excluyente con la ruta MongoDB, sin duplicar); botones Seguir del feed ahora hacen POST optimista a /api/users/:u/follow. Se evitó duplicar follow (se quitó el añadido en handleFollow porque db.js ya lo crea). VERIFICADO MANUALMENTE con curl (sin agente de testing, petición del usuario): B sigue+comenta+reta a A -> A recibe 1 follow, 1 comment, 1 challenge (sin duplicados). A reta a B y B acepta con vídeo -> A recibe 1 'accepted'. Lint limpio en route.js, db.js y ambas tarjetas."
   - task: "Notificación de VOTO en publicaciones subidas (versus/1vs1) guardadas en _meta.json"
     implemented: true
     working: true

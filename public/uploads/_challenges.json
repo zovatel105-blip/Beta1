@@ -1,5 +1,65 @@
 [
   {
+    "id": "challenge_74d6bcc3dd55f647",
+    "status": "pending",
+    "from": {
+      "id": "0d451c7a-c2c5-4e6f-989f-3870e55906f3",
+      "username": "actor_951",
+      "name": "actor_951",
+      "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=actor_951",
+      "verified": false
+    },
+    "to": {
+      "id": "a5edd628-ac4a-49f4-b20b-244c0e216639",
+      "username": "autor_951",
+      "name": "autor_951",
+      "avatarUrl": "x"
+    },
+    "challengerVideoUrl": "/uploads/192b83c4b133df42.mp4",
+    "targetVideoUrl": null,
+    "targetAuthor": {
+      "id": "a5edd628-ac4a-49f4-b20b-244c0e216639",
+      "username": "autor_951",
+      "name": "autor_951",
+      "avatarUrl": "x"
+    },
+    "targetDescription": "",
+    "targetMusic": "",
+    "message": "te reto",
+    "createdAt": "2026-06-21T02:34:00.625Z"
+  },
+  {
+    "id": "challenge_00e14ec1b9573f46",
+    "status": "pending",
+    "from": {
+      "id": "cf7309fc-f97d-471e-91ff-331302d4696c",
+      "username": "Coco",
+      "name": "Coco",
+      "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=Coco",
+      "verified": false
+    },
+    "to": {
+      "id": "941856eb-f713-46ab-84e1-23e956438d07",
+      "username": "Nec",
+      "name": "Nec",
+      "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=Nec",
+      "verified": false
+    },
+    "challengerVideoUrl": "/uploads/b68fc80e174944ea.mp4",
+    "targetVideoUrl": "/uploads/301717157c6dbc07.mp4",
+    "targetAuthor": {
+      "id": "941856eb-f713-46ab-84e1-23e956438d07",
+      "username": "Nec",
+      "name": "Nec",
+      "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=Nec",
+      "verified": false
+    },
+    "targetDescription": "¿Cuál prefieres? 🅰️🆚🅱️",
+    "targetMusic": "Opción A",
+    "message": "",
+    "createdAt": "2026-06-21T02:22:49.164Z"
+  },
+  {
     "id": "challenge_68d4630219cf4bc4",
     "status": "pending",
     "from": {

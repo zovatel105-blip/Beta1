@@ -1,5 +1,115 @@
 [
   {
+    "id": "versus_ch_25dfa613545d296a",
+    "type": "versus",
+    "layout": "carousel",
+    "sideA": {
+      "videoUrl": "/uploads/4b74164a1e2b8fe7.mp4",
+      "posterUrl": "/uploads/4b74164a1e2b8fe7.jpg",
+      "author": {
+        "id": "d16beac4-8698-4cc0-a6b2-8e32424a1640",
+        "username": "chr_17817",
+        "name": "chr_17817",
+        "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=chr_17817",
+        "verified": false
+      },
+      "description": "acepta",
+      "music": "Reto"
+    },
+    "sideB": {
+      "videoUrl": "/uploads/0c21c5f08b6d2903.mp4",
+      "posterUrl": "/uploads/0c21c5f08b6d2903.jpg",
+      "author": {
+        "id": "c0c119f8-96ca-4160-80b2-088783919ad8",
+        "username": "cht_17817",
+        "name": "cht_17817",
+        "avatarUrl": "x"
+      },
+      "description": "",
+      "music": ""
+    },
+    "author": {
+      "id": "d16beac4-8698-4cc0-a6b2-8e32424a1640",
+      "username": "chr_17817",
+      "name": "chr_17817",
+      "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=chr_17817",
+      "verified": false
+    },
+    "description": "acepta",
+    "music": "Reto aceptado",
+    "videoUrl": "/uploads/4b74164a1e2b8fe7.mp4",
+    "posterUrl": "/uploads/4b74164a1e2b8fe7.jpg",
+    "thumbnailUrl": "/uploads/4b74164a1e2b8fe7.jpg",
+    "stats": {
+      "likes": 0,
+      "comments": 0,
+      "shares": 0,
+      "saves": 0
+    },
+    "votes": {
+      "a": 0,
+      "b": 0
+    },
+    "duration": 0,
+    "uploadedAt": "2026-06-21T02:35:23.429Z",
+    "isChallenge": true
+  },
+  {
+    "id": "versus_up_2ba3c43f7c6965ea",
+    "type": "versus",
+    "layout": "carousel",
+    "sideA": {
+      "videoUrl": "/uploads/adcde7a65588f820.mp4",
+      "posterUrl": "/uploads/adcde7a65588f820.jpg",
+      "author": {
+        "id": "a5edd628-ac4a-49f4-b20b-244c0e216639",
+        "username": "autor_951",
+        "name": "autor_951",
+        "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=autor_951",
+        "verified": false
+      },
+      "description": "hola",
+      "music": "Opción A"
+    },
+    "sideB": {
+      "videoUrl": "/uploads/a7bf4aa281dc8134.mp4",
+      "posterUrl": "/uploads/a7bf4aa281dc8134.jpg",
+      "author": {
+        "id": "a5edd628-ac4a-49f4-b20b-244c0e216639",
+        "username": "autor_951",
+        "name": "autor_951",
+        "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=autor_951",
+        "verified": false
+      },
+      "description": "hola",
+      "music": "Opción B"
+    },
+    "author": {
+      "id": "a5edd628-ac4a-49f4-b20b-244c0e216639",
+      "username": "autor_951",
+      "name": "autor_951",
+      "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=autor_951",
+      "verified": false
+    },
+    "description": "hola",
+    "music": "Tu versus original",
+    "videoUrl": "/uploads/adcde7a65588f820.mp4",
+    "posterUrl": "/uploads/adcde7a65588f820.jpg",
+    "thumbnailUrl": "/uploads/adcde7a65588f820.jpg",
+    "stats": {
+      "likes": 0,
+      "comments": 0,
+      "shares": 0,
+      "saves": 0
+    },
+    "votes": {
+      "a": 0,
+      "b": 0
+    },
+    "duration": 0,
+    "uploadedAt": "2026-06-21T02:34:00.112Z"
+  },
+  {
     "id": "versus_up_1efa7d1c0d894bfa",
     "type": "versus",
     "layout": "carousel",

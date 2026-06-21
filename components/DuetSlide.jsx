@@ -603,7 +603,13 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
                 setAuthModalOpen(true);
                 return;
               }
+              const target = headAuthor?.username;
+              if (!target || target === user?.username) return;
               setFollowing((f) => !f);
+              fetch(`/api/users/${encodeURIComponent(target)}/follow`, { method: 'POST' })
+                .then((r) => (r.ok ? r.json() : null))
+                .then((d) => { if (d && typeof d.following === 'boolean') setFollowing(d.following); })
+                .catch(() => setFollowing((f) => !f));
             }}
             aria-label="seguir"
             className={cn(

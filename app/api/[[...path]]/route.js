@@ -651,6 +651,8 @@ async function handleFollow(username, request) {
       return NextResponse.json({ error: 'cannot_follow_yourself' }, { status: 400 })
     }
     const result = await toggleFollowByUsername(currentUser.id, targetUsername)
+    // La notificación de 'follow' la crea toggleFollowByUsername (db.js) al
+    // empezar a seguir; no la dupliquemos aquí.
     return NextResponse.json({ ok: true, ...result })
   } catch (err) {
     console.error('[follow] error:', err)
@@ -966,6 +968,22 @@ async function handleCreateChallenge(request) {
     const list = await readChallenges()
     list.unshift(challenge)
     await writeChallenges(list)
+
+    // Notificar al usuario retado.
+    try {
+      const recipientId = targetAuthor?.id
+      if (recipientId && recipientId !== 'anonymous' && recipientId !== currentUser.id) {
+        await createNotification({
+          userId: recipientId,
+          type: 'challenge',
+          fromUserId: currentUser.id,
+          text: message || null,
+        })
+      }
+    } catch (notifErr) {
+      console.error('challenge notification error', notifErr)
+    }
+
     return NextResponse.json({ ok: true, challenge })
   } catch (err) {
     console.error('create challenge error', err)
@@ -1021,6 +1039,22 @@ async function handleAcceptChallenge(cid, request) {
     await writeUploadMeta(meta)
     list.splice(idx, 1)
     await writeChallenges(list)
+
+    // Notificar al RETADOR (c.from) que su reto fue aceptado. El que acepta es
+    // el retado (c.to).
+    try {
+      const challengerId = c.from?.id
+      if (challengerId && challengerId !== 'anonymous') {
+        await createNotification({
+          userId: challengerId,
+          type: 'accepted',
+          fromUserId: c.to?.id || null,
+          postId: post.id,
+        })
+      }
+    } catch (notifErr) {
+      console.error('accept notification error', notifErr)
+    }
     // Renditions ABR DESACTIVADAS (ver nota en el flujo versus): servimos el
     // original con faststart -> mejor calidad y fluidez.
     // processPostRenditions(post.id, c.challengerVideoUrl, responseVideoUrl)
@@ -1199,6 +1233,30 @@ async function handleCreateComment(request) {
       text: text.trim(),
       votedSide: votedSide === 'a' || votedSide === 'b' ? votedSide : null,
     })
+
+    // createCommentDB solo crea notificación si el post existe en la colección
+    // MongoDB POSTS. Las publicaciones subidas viven en _meta.json, así que aquí
+    // notificamos al autor del post subido (evita duplicado: son excluyentes).
+    try {
+      const meta = await readUploadMeta()
+      const p = meta.find((x) => x.id === postId)
+      if (p) {
+        const recipientId = p.author?.id || p.sideA?.author?.id
+        if (recipientId && recipientId !== 'anonymous' && recipientId !== currentUser.id) {
+          const t = text.trim()
+          await createNotification({
+            userId: recipientId,
+            type: 'comment',
+            fromUserId: currentUser.id,
+            postId,
+            commentId: comment.id,
+            text: t.length > 50 ? t.substring(0, 47) + '...' : t,
+          })
+        }
+      }
+    } catch (notifErr) {
+      console.error('comment notification error', notifErr)
+    }
 
     // Formatear para el frontend
     const formattedComment = {
