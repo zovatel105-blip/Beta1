@@ -514,15 +514,23 @@ export async function GET(request, { params }) {
     return NextResponse.json({ comments })
   }
 
-  // GET /api/saves - Obtener posts guardados del usuario
+  // GET /api/saves - Obtener posts guardados del usuario (objetos completos)
   if (path === '/saves') {
     const currentUser = await getCurrentUser(request)
     if (!currentUser) {
       return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
     }
     
-    const saves = await getSavesByUserId(currentUser.id)
-    return NextResponse.json({ saves })
+    const saves = await getSavesByUserId(currentUser.id) // ids (más reciente primero)
+    // Resolver cada id a su post completo: uploads (_meta.json) + posts demo.
+    const meta = await readUploadMeta()
+    const store = await readVotesStore()
+    const demo = makePosts(0, 40).map((p) => ({ ...p, votes: store[p.id] || seedVotes(p.id) }))
+    const byId = new Map()
+    for (const p of meta) byId.set(p.id, p)
+    for (const p of demo) if (!byId.has(p.id)) byId.set(p.id, p)
+    const posts = saves.map((id) => byId.get(id)).filter(Boolean)
+    return NextResponse.json({ saves, posts })
   }
 
   // GET /api/auth/me - Obtener usuario actual

@@ -253,6 +253,8 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
   const [followers, setFollowers] = useState(null)  // contador real de followers
   const [followBusy, setFollowBusy] = useState(false)
   const [openPost, setOpenPost] = useState(null) // publicación abierta en el visor
+  const [savedPosts, setSavedPosts] = useState([]) // publicaciones guardadas (pestaña 'saved')
+  const [savedLoading, setSavedLoading] = useState(false)
 
   // ¿Es mi propio perfil? (sin username, o coincide con el usuario autenticado)
   const isOwn = !username || username === user?.username
@@ -297,6 +299,25 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
     })()
     return () => { cancelled = true }
   }, [open, targetUsername])
+
+  // Cargar publicaciones GUARDADAS al abrir la pestaña 'saved' (solo perfil propio).
+  useEffect(() => {
+    if (!open || activeTab !== 'saved' || !isOwn || !user) return
+    let cancelled = false
+    setSavedLoading(true)
+    ;(async () => {
+      try {
+        const res = await fetch('/api/saves', { cache: 'no-store' })
+        const data = await res.json()
+        if (!cancelled) setSavedPosts(data?.posts || [])
+      } catch {
+        if (!cancelled) setSavedPosts([])
+      } finally {
+        if (!cancelled) setSavedLoading(false)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [open, activeTab, isOwn, user])
 
   // Seguir / dejar de seguir (persistente en backend). Optimista con rollback.
   const handleToggleFollow = async () => {
@@ -375,6 +396,34 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
       return (
         <div className="grid grid-cols-3 gap-1">
           {myPosts.map((p) => <GridItem key={p.id} post={p} onOpen={setOpenPost} />)}
+        </div>
+      )
+    }
+
+    if (activeTab === 'saved') {
+      if (savedLoading) {
+        return (
+          <div className="flex justify-center items-center py-20">
+            <div className="w-8 h-8 rounded-full border-2 border-white/10 border-t-[#E4C79B] animate-spin" />
+          </div>
+        )
+      }
+      if (savedPosts.length === 0) {
+        return (
+          <div className="text-center py-16 space-y-4 px-4">
+            <div className="w-16 h-16 bg-white/[0.04] border border-white/10 rounded-full flex items-center justify-center mx-auto text-zinc-500">
+              <Bookmark className="w-7 h-7" strokeWidth={1.5} />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-base font-semibold text-white">No hay guardados</h3>
+              <p className="text-zinc-500 text-sm">Guarda vídeos para verlos luego</p>
+            </div>
+          </div>
+        )
+      }
+      return (
+        <div className="grid grid-cols-3 gap-1">
+          {savedPosts.map((p) => <GridItem key={p.id} post={p} onOpen={setOpenPost} />)}
         </div>
       )
     }
@@ -564,7 +613,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
       {/* Visor de publicaciones (feed deslizable del perfil) */}
       {openPost && (
         <PostViewer
-          posts={myPosts}
+          posts={activeTab === 'saved' ? savedPosts : myPosts}
           startId={openPost.id}
           onClose={() => setOpenPost(null)}
           onChallenge={onChallenge}

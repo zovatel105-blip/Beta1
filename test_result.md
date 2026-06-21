@@ -105,6 +105,17 @@
 user_problem_statement: "Las publicaciones normales deben ser un carrusel de 2 vídeos (opción A / opción B) entre los que se desliza y se vota tocando el vídeo. Se suben 2 vídeos. Reemplaza el vídeo normal. AÑADIDO: votar = doble toque, quitar el corazón/Me gusta, y nueva función 'Retar' (solicitud de enfrentamiento con un vídeo subido que el retado acepta/cancela en la Bandeja)."
 
 backend:
+  - task: "GET /api/saves devuelve los posts guardados COMPLETOS (no solo ids) para el perfil"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "main"
+        -comment: "BUG FIX (usuario: 'cuando guardo una publicación no aparece en el perfil'). El endpoint /api/saves devolvía solo {saves:[ids]}, y la pestaña 'Guardados' del perfil ni siquiera lo consumía. FIX backend: /api/saves ahora resuelve cada id guardado a su post COMPLETO (uploads de _meta.json + posts demo de makePosts con votos del store), preservando el orden (más reciente primero) y devuelve {saves:[ids], posts:[...]}. VERIFICADO MANUALMENTE con curl (sin agente de testing): usuario nuevo, saves vacío; POST /api/save {postId:'versus_0'} -> {ok:true,saved:true}; GET /api/saves -> {saves:['versus_0'], posts:[{id:'versus_0',type:'versus',...}]}."
   - task: "Notificaciones de reto, reto aceptado, comentario y seguidor (faltaban; solo llegaban las de voto)"
     implemented: true
     working: true
