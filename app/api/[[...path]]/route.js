@@ -31,6 +31,9 @@ import {
   toggleFollowByUsername,
   isFollowingByUsername,
   getFollowersCountByUsername,
+  getFollowingCountByUsername,
+  getFollowersByUsername,
+  getFollowingByUsername,
 } from '@/lib/db'
 
 export const runtime = 'nodejs'
@@ -439,6 +442,32 @@ export async function GET(request, { params }) {
     }
   }
 
+  // Lista de followers de un usuario. GET /api/users/:username/followers
+  if (segs[0] === 'users' && segs[1] && segs[2] === 'followers') {
+    const username = decodeURIComponent(segs[1])
+    try {
+      const currentUser = await getCurrentUser(request)
+      const list = await getFollowersByUsername(username, currentUser?.id || null)
+      return NextResponse.json({ users: list })
+    } catch (err) {
+      console.error('[followers] error:', err)
+      return NextResponse.json({ users: [] })
+    }
+  }
+
+  // Lista de seguidos de un usuario. GET /api/users/:username/following
+  if (segs[0] === 'users' && segs[1] && segs[2] === 'following') {
+    const username = decodeURIComponent(segs[1])
+    try {
+      const currentUser = await getCurrentUser(request)
+      const list = await getFollowingByUsername(username, currentUser?.id || null)
+      return NextResponse.json({ users: list })
+    } catch (err) {
+      console.error('[following] error:', err)
+      return NextResponse.json({ users: [] })
+    }
+  }
+
   // Perfil PÚBLICO de un usuario (propio o ajeno): info + sus publicaciones.
   // GET /api/users/:username
   if (segs[0] === 'users' && segs[1]) {
@@ -475,6 +504,7 @@ export async function GET(request, { params }) {
     try {
       const currentUser = await getCurrentUser(request)
       info.followers = await getFollowersCountByUsername(username)
+      info.following = await getFollowingCountByUsername(username)
       info.isFollowing = currentUser ? await isFollowingByUsername(currentUser.id, username) : false
     } catch {
       info.isFollowing = false

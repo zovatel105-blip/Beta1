@@ -2,7 +2,7 @@
 /* eslint-disable react-hooks/set-state-in-effect -- setState dentro de fetch async en efecto de carga; falso positivo de la regla experimental. */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Menu, Bookmark, Swords, Users, UserPlus, ArrowLeft } from 'lucide-react'
+import { Menu, Bookmark, Swords, Users, UserPlus, ArrowLeft, X } from 'lucide-react'
 import VoteIcon from './icons/VoteIcon'
 import { useAuth } from '@/contexts/AuthContext'
 import Avatar from './Avatar'
@@ -255,6 +255,8 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
   const [openPost, setOpenPost] = useState(null) // publicación abierta en el visor
   const [savedPosts, setSavedPosts] = useState([]) // publicaciones guardadas (pestaña 'saved')
   const [savedLoading, setSavedLoading] = useState(false)
+  // Lista de followers/following: { type: 'followers'|'following', users: [], loading }
+  const [followList, setFollowList] = useState(null)
 
   // ¿Es mi propio perfil? (sin username, o coincide con el usuario autenticado)
   const isOwn = !username || username === user?.username
@@ -358,6 +360,29 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
       music: '',
     }
     onChallenge?.(target)
+  }
+
+  // Abrir la lista de followers / following del perfil mostrado.
+  const openFollowList = async (type) => {
+    if (!targetUsername) return
+    setFollowList({ type, users: [], loading: true })
+    try {
+      const res = await fetch(
+        `/api/users/${encodeURIComponent(targetUsername)}/${type}`,
+        { cache: 'no-store' }
+      )
+      const data = await res.json()
+      setFollowList({ type, users: data?.users || [], loading: false })
+    } catch {
+      setFollowList({ type, users: [], loading: false })
+    }
+  }
+
+  // Tocar un usuario de la lista -> abrir su perfil.
+  const handleOpenListUser = (uname) => {
+    if (!uname) return
+    setFollowList(null)
+    onOpenProfile?.(uname)
   }
 
   // Publicaciones del perfil (ya vienen filtradas por el endpoint).
@@ -512,7 +537,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
             <div />
 
             {/* Followers - inferior izquierda */}
-            <button className="flex items-center gap-2 text-left active:opacity-60 transition">
+            <button onClick={() => openFollowList('followers')} className="flex items-center gap-2 text-left active:opacity-60 transition">
               <span className="shrink-0 flex items-center justify-center">
                 <Users className="w-7 h-7 text-white" strokeWidth={1.2} />
               </span>
@@ -523,7 +548,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
             </button>
             <div />
             {/* Following - inferior derecha */}
-            <button className="flex items-center gap-2 justify-end text-right active:opacity-60 transition">
+            <button onClick={() => openFollowList('following')} className="flex items-center gap-2 justify-end text-right active:opacity-60 transition">
               <span className="min-w-0 order-1">
                 <p className="text-[17px] font-bold text-white leading-none tabular-nums">{formatNumber(me.following)}</p>
                 <p className="text-[11px] text-zinc-400 mt-1 font-medium">Following</p>
@@ -620,6 +645,88 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
           onOpenProfile={onOpenProfile}
         />
       )}
+
+      {/* Lista de followers / following */}
+      {followList && (
+        <FollowListModal
+          type={followList.type}
+          users={followList.users}
+          loading={followList.loading}
+          onClose={() => setFollowList(null)}
+          onOpenUser={handleOpenListUser}
+        />
+      )}
+    </div>
+  )
+}
+
+// Modal a pantalla completa con la lista de followers o seguidos. Cada fila
+// es tocable y abre el perfil del usuario correspondiente.
+const FollowListModal = ({ type, users, loading, onClose, onOpenUser }) => {
+  const title = type === 'followers' ? 'Followers' : 'Following'
+  return (
+    <div className="fixed inset-0 z-[80] bg-[#0a0a0b] flex flex-col">
+      {/* Header */}
+      <div className="sticky top-0 z-10 bg-[#0a0a0b]/80 backdrop-blur-xl border-b border-white/[0.06]"
+           style={{ paddingTop: 'max(env(safe-area-inset-top), 8px)' }}>
+        <div className="flex items-center justify-between px-2 sm:px-4 h-14 max-w-md mx-auto w-full">
+          <button aria-label="cerrar" onClick={onClose} className="p-2 -ml-1 text-white active:scale-90 transition">
+            <ArrowLeft strokeWidth={1.9} className="w-[24px] h-[24px]" />
+          </button>
+          <span className="text-white font-semibold text-[15px]">{title}</span>
+          <button aria-label="cerrar" onClick={onClose} className="p-2 -mr-1 text-white/70 active:scale-90 transition">
+            <X strokeWidth={1.9} className="w-[22px] h-[22px]" />
+          </button>
+        </div>
+      </div>
+
+      {/* Lista */}
+      <div className="flex-1 overflow-y-auto overscroll-contain max-w-md mx-auto w-full px-2 py-2">
+        {loading ? (
+          <div className="flex justify-center items-center py-20">
+            <div className="w-8 h-8 rounded-full border-2 border-white/10 border-t-[#E4C79B] animate-spin" />
+          </div>
+        ) : users.length === 0 ? (
+          <div className="text-center py-16 space-y-4 px-4">
+            <div className="w-16 h-16 bg-white/[0.04] border border-white/10 rounded-full flex items-center justify-center mx-auto text-zinc-500">
+              <Users className="w-7 h-7" strokeWidth={1.5} />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-base font-semibold text-white">
+                {type === 'followers' ? 'Sin followers todavía' : 'No sigue a nadie todavía'}
+              </h3>
+              <p className="text-zinc-500 text-sm">
+                {type === 'followers' ? 'Cuando alguien le siga aparecerá aquí' : 'Los usuarios que siga aparecerán aquí'}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <ul className="divide-y divide-white/[0.05]">
+            {users.map((u) => (
+              <li key={u.username}>
+                <button
+                  type="button"
+                  onClick={() => onOpenUser(u.username)}
+                  className="w-full flex items-center gap-3 py-2.5 px-2 rounded-xl hover:bg-white/[0.04] active:bg-white/[0.06] transition text-left"
+                >
+                  <div className="w-11 h-11 rounded-full overflow-hidden bg-zinc-900 ring-1 ring-white/10 shrink-0">
+                    <Avatar src={u.avatarUrl} alt={u.username} className="w-full h-full rounded-full" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-white font-semibold text-[14px] leading-tight truncate">{u.name || u.username}</p>
+                    <p className="text-zinc-400 text-[12px] leading-tight truncate">@{u.username}</p>
+                  </div>
+                  {u.isFollowing && (
+                    <span className="shrink-0 text-[11px] text-zinc-400 border border-white/15 rounded-full px-2.5 py-1">
+                      Siguiendo
+                    </span>
+                  )}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   )
 }
