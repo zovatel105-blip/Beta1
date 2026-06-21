@@ -257,7 +257,15 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
       })
       if (res.ok) {
         const data = await res.json()
-        if (data?.votes) setVotes(data.votes)
+        if (data?.votes) {
+          // No sobrescribir el conteo optimista con un total MENOR (evita que el
+          // número "parpadee" a 0/placeholder si el servidor devolviera menos).
+          const srvTotal = (data.votes.a || 0) + (data.votes.b || 0)
+          setVotes((cur) => {
+            const curTotal = (cur.a || 0) + (cur.b || 0)
+            return srvTotal >= curTotal ? data.votes : cur
+          })
+        }
       }
     } catch { /* ignore */ } finally {
       setVoting(false)
