@@ -321,6 +321,17 @@ backend:
         -comment: "VERIFICADO MANUALMENTE (el usuario pidió NO usar agente de testing). Registrados follower1/target1. (B) POST /api/users/target1/follow sin sesión -> 401 {error:unauthorized}. (C) con sesión -> 200 {ok:true,following:true,followers:1}. (D) toggle -> {following:false,followers:0}; de nuevo -> {following:true,followers:1}. (E) seguirse a sí mismo -> 400 {error:cannot_follow_yourself}. (F) GET /api/users/target1 sin sesión -> isFollowing=false, followers=1. (G) GET con sesión -> isFollowing=true, followers=1. (H) seguir autor demo 'wanderlust' (sin documento de usuario) -> 200 {following:true,followers:1}. Regresión: /api/feed y /api/users 200. Datos de prueba limpiados."
 
 frontend:
+  - task: "Botones sociales con ancho fijo (no se reacomodan/encogen al pasar de título a número)"
+    implemented: true
+    working: true
+    file: "components/CarouselSlide.jsx, components/DuetSlide.jsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "main"
+        -comment: "FIX UI (usuario: 'los botones sociales se hacen pequeños cuando tienen interacción'). CAUSA: cada botón usaba ancho automático -> con palabra larga ('Compartir' ~48px) el botón era ancho, y al cambiar a un número ('1' ~6px) se encogía; como la columna está anclada a la derecha y centrada, los iconos se desplazaban/reacomodaban (sensación de que se hacen pequeños). FIX: añadido ancho fijo w-14 (56px) a los 5 botones sociales (Votar/Retar/Comentar/Compartir/Guardar) en CarouselSlide y DuetSlide -> la columna ya no reflowa al pasar de título a número. VERIFICADO en navegador: antes de interactuar todos los botones miden 56px y x=1860 (alineados); tras guardar, la etiqueta pasa a '1' y el botón sigue alineado (el ancho base se mantiene; el ligero cambio observado es solo el hover:scale-110 por el cursor). Lint limpio."
   - task: "Botones sociales (Retar/Comentar/Compartir/Guardar): mostrar NÚMERO tras la acción, título solo si no se ha interactuado"
     implemented: true
     working: true
