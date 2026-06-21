@@ -2,7 +2,7 @@
 /* eslint-disable react-hooks/set-state-in-effect -- setState dentro de fetch async en efecto de carga; falso positivo de la regla experimental. */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Menu, Bookmark, Swords, Users, UserPlus, ArrowLeft, X } from 'lucide-react'
+import { Menu, Bookmark, Swords, Users, UserPlus, ArrowLeft } from 'lucide-react'
 import VoteIcon from './icons/VoteIcon'
 import { useAuth } from '@/contexts/AuthContext'
 import Avatar from './Avatar'
@@ -692,9 +692,7 @@ const FollowListModal = ({ type, users, loading, onClose, onOpenUser, onSwitch }
               Following
             </button>
           </div>
-          <button aria-label="cerrar" onClick={onClose} className="p-2 -mr-1 text-white/70 active:scale-90 transition">
-            <X strokeWidth={1.9} className="w-[22px] h-[22px]" />
-          </button>
+          <span className="w-9" />
         </div>
       </div>
 
