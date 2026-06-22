@@ -41,16 +41,16 @@ const EmptyCompletedState = ({ onOpenUpload, onOpenActive, onOpenProfile }) => {
     <div className="relative w-full h-full overflow-y-auto bg-[#0a0a0b]">
       {/* Glow superior cálido y muy sutil */}
       <div className="pointer-events-none absolute inset-x-0 top-0 h-80"
-           style={{ background: 'radial-gradient(60% 100% at 50% 0%, rgba(214,178,122,0.10), transparent 70%)' }} />
+           style={{ background: 'radial-gradient(60% 100% at 50% 0%, rgba(255,255,255,0.10), transparent 70%)' }} />
 
       <div className="relative z-10 px-6 pt-28 pb-32 max-w-md mx-auto">
         {/* Hero — emblema + título + acciones */}
         <div className="flex flex-col items-center text-center">
           <div
             className="w-20 h-20 rounded-full border border-white/10 bg-white/[0.03] flex items-center justify-center mb-6"
-            style={{ boxShadow: '0 0 48px -14px rgba(214,178,122,0.45)' }}
+            style={{ boxShadow: '0 0 48px -14px rgba(255,255,255,0.45)' }}
           >
-            <Trophy className="w-9 h-9" strokeWidth={1.25} style={{ color: '#E4C79B' }} />
+            <Trophy className="w-9 h-9" strokeWidth={1.25} style={{ color: '#FFFFFF' }} />
           </div>
           <h1 className="text-white text-[26px] font-semibold tracking-tight leading-snug">
             Aún no hay retos completados

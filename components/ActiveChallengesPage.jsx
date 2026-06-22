@@ -16,7 +16,7 @@ import Avatar from './Avatar'
  *
  * props: open, onClose, onAccepted(post), onChanged()
  */
-const GOLD = '#E4C79B'
+const GOLD = '#FFFFFF'
 
 // Avatar SIN anillo que usa el MISMO componente <Avatar> del perfil/feed -> los
 // avatares autogenerados (dicebear/pravatar) se muestran como la silueta gris,
@@ -295,7 +295,7 @@ export default function ActiveChallengesPage({ open, onClose, onAccepted, onChan
       ) : list.length === 0 ? (
         <div className="w-full h-full flex flex-col items-center justify-center text-center px-6">
           <div className="w-20 h-20 rounded-full border border-white/10 bg-white/[0.03] flex items-center justify-center mb-6"
-               style={{ boxShadow: '0 0 48px -14px rgba(214,178,122,0.42)' }}>
+               style={{ boxShadow: '0 0 48px -14px rgba(255,255,255,0.42)' }}>
             <Swords className="w-9 h-9" strokeWidth={1.25} style={{ color: GOLD }} />
           </div>
           <h2 className="text-white text-[22px] font-semibold tracking-tight">Sin retos activos</h2>
