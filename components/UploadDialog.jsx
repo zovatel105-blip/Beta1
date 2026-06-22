@@ -10,7 +10,7 @@ import Avatar from './Avatar'
  * (2 vídeos A/B), 1vs1 (2 vídeos A/B con formato) o Reto (tu vídeo + elegir a quién retar).
  * Diseño premium minimalista (móvil) con vista previa a pantalla completa.
  */
-const GOLD = '#E4C79B'
+const GOLD = '#FFFFFF'
 
 export default function UploadDialog({ open, onClose, onUploaded, onChallengeCreated }) {
   const inputRef = useRef(null)
@@ -174,7 +174,7 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
     <div className="fixed inset-0 z-[60] bg-[#0a0a0b] flex flex-col text-white">
       {/* Glow superior sutil */}
       <div className="pointer-events-none absolute inset-x-0 top-0 h-44"
-           style={{ background: 'radial-gradient(60% 100% at 50% 0%, rgba(214,178,122,0.07), transparent 70%)' }} />
+           style={{ background: 'radial-gradient(60% 100% at 50% 0%, rgba(255,255,255,0.07), transparent 70%)' }} />
 
       {/* Header */}
       <div className="relative z-10 flex items-center justify-between px-4 pb-3"
@@ -233,7 +233,7 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
             <div className="flex-1 flex flex-col items-center justify-center text-center py-4">
               <div
                 className="w-24 h-24 rounded-[28px] bg-white/[0.04] border border-white/10 flex items-center justify-center mb-7"
-                style={{ boxShadow: '0 0 60px -14px rgba(214,178,122,0.45)' }}
+                style={{ boxShadow: '0 0 60px -14px rgba(255,255,255,0.45)' }}
               >
                 {selected === 'versus' && <Film className="w-11 h-11" strokeWidth={1.25} style={{ color: GOLD }} />}
                 {selected === 'duet' && <Users className="w-11 h-11" strokeWidth={1.25} style={{ color: GOLD }} />}
@@ -499,7 +499,7 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
         {step === 'uploading' && (
           <div className="max-w-xs mx-auto flex flex-col items-center justify-center pt-28 gap-5 text-center">
             <div className="w-16 h-16 rounded-full border border-white/10 bg-white/[0.03] flex items-center justify-center"
-                 style={{ boxShadow: '0 0 48px -14px rgba(214,178,122,0.45)' }}>
+                 style={{ boxShadow: '0 0 48px -14px rgba(255,255,255,0.45)' }}>
               <Loader2 size={28} className="animate-spin" style={{ color: GOLD }} />
             </div>
             <div className="text-2xl font-semibold tracking-tight">{progress}%</div>
