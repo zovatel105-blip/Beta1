@@ -401,7 +401,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
       if (loading) {
         return (
           <div className="flex justify-center items-center py-20">
-            <div className="w-8 h-8 rounded-full border-2 border-white/10 border-t-[#E4C79B] animate-spin" />
+            <div className="w-8 h-8 rounded-full border-2 border-white/10 border-t-white animate-spin" />
           </div>
         )
       }
@@ -429,7 +429,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
       if (savedLoading) {
         return (
           <div className="flex justify-center items-center py-20">
-            <div className="w-8 h-8 rounded-full border-2 border-white/10 border-t-[#E4C79B] animate-spin" />
+            <div className="w-8 h-8 rounded-full border-2 border-white/10 border-t-white animate-spin" />
           </div>
         )
       }
@@ -474,7 +474,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
     <div className="fixed inset-0 z-40 bg-[#0a0a0b] overflow-y-auto overscroll-contain">
       {/* Glow superior cálido (mismo tono dorado que la página de retos) */}
       <div className="pointer-events-none absolute inset-x-0 top-0 h-80 z-0"
-           style={{ background: 'radial-gradient(60% 100% at 50% 0%, rgba(214,178,122,0.10), transparent 70%)' }} />
+           style={{ background: 'radial-gradient(60% 100% at 50% 0%, rgba(255,255,255,0.10), transparent 70%)' }} />
 
       {/* Header: atrás (perfil ajeno) o menú (perfil propio) */}
       <div className="sticky top-0 z-20 bg-[#0a0a0b]/70 backdrop-blur-xl border-b border-white/[0.06]"
@@ -700,7 +700,7 @@ const FollowListModal = ({ type, users, loading, onClose, onOpenUser, onSwitch }
       <div className="flex-1 overflow-y-auto overscroll-contain max-w-md mx-auto w-full px-2 py-2">
         {loading ? (
           <div className="flex justify-center items-center py-20">
-            <div className="w-8 h-8 rounded-full border-2 border-white/10 border-t-[#E4C79B] animate-spin" />
+            <div className="w-8 h-8 rounded-full border-2 border-white/10 border-t-white animate-spin" />
           </div>
         ) : users.length === 0 ? (
           <div className="text-center py-16 space-y-4 px-4">
