@@ -11,6 +11,7 @@ import {
   deleteSession,
   getUserById,
   getUserByUsername,
+  getCurrentUsersByUsernames,
   updateUserProfile,
   getAllUsers,
   createComment as createCommentDB,
@@ -377,7 +378,28 @@ export async function GET(request, { params }) {
       const b = p.sideB?.author?.username
       return a === uname || b === uname
     })
-    return NextResponse.json({ posts })
+    // Refrescar avatares de los autores con los datos ACTUALES (el post guarda
+    // un snapshot del avatar que queda obsoleto si el usuario cambia su foto).
+    const unames = []
+    for (const p of posts) {
+      if (p.author?.username) unames.push(p.author.username)
+      if (p.sideA?.author?.username) unames.push(p.sideA.author.username)
+      if (p.sideB?.author?.username) unames.push(p.sideB.author.username)
+    }
+    const freshC = await getCurrentUsersByUsernames(unames)
+    const refresh = (a) => {
+      if (!a || !a.username) return a
+      const f = freshC[a.username]
+      if (!f) return a
+      return { ...a, avatarUrl: f.avatarUrl || a.avatarUrl, name: f.name || a.name, verified: f.verified }
+    }
+    const enrichedPosts = posts.map((p) => ({
+      ...p,
+      author: refresh(p.author),
+      sideA: p.sideA ? { ...p.sideA, author: refresh(p.sideA.author) } : p.sideA,
+      sideB: p.sideB ? { ...p.sideB, author: refresh(p.sideB.author) } : p.sideB,
+    }))
+    return NextResponse.json({ posts: enrichedPosts })
   }
 
   // Lista de retos (solicitudes de enfrentamiento) pendientes DEL USUARIO ACTUAL.
@@ -400,7 +422,28 @@ export async function GET(request, { params }) {
       if (role === 'all') return isTo || isFrom
       return isTo
     })
-    return NextResponse.json({ challenges: filtered })
+    // Refrescar avatares (y nombre/verificado) con los datos ACTUALES del
+    // usuario: el reto guarda un snapshot del avatar al crearse, que queda
+    // obsoleto cuando el participante cambia su foto de perfil.
+    const usernames = []
+    for (const c of filtered) {
+      if (c.from?.username) usernames.push(c.from.username)
+      if (c.to?.username) usernames.push(c.to.username)
+    }
+    const fresh = await getCurrentUsersByUsernames(usernames)
+    const refreshAuthor = (a) => {
+      if (!a || !a.username) return a
+      const f = fresh[a.username]
+      if (!f) return a
+      return { ...a, avatarUrl: f.avatarUrl || a.avatarUrl, name: f.name || a.name, verified: f.verified }
+    }
+    const enriched = filtered.map((c) => ({
+      ...c,
+      from: refreshAuthor(c.from),
+      to: refreshAuthor(c.to),
+      targetAuthor: refreshAuthor(c.targetAuthor),
+    }))
+    return NextResponse.json({ challenges: enriched })
   }
 
   // Catálogo de vídeos disponibles para emparejar en un 1vs1.

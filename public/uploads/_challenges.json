@@ -1,5 +1,34 @@
 [
   {
+    "id": "challenge_4d89c8a4f19d3b93",
+    "status": "pending",
+    "from": {
+      "id": "dc1da853-3e9b-4833-bd27-f14e3d3b08a6",
+      "username": "bob_1782242417",
+      "name": "bob_1782242417",
+      "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=bob_1782242417",
+      "verified": false
+    },
+    "to": {
+      "id": "dfd11068-17bc-4e0d-bf6f-b08e271b05ee",
+      "username": "alice_1782242417",
+      "name": "Alice",
+      "avatarUrl": "https://i.pravatar.cc/120?img=1"
+    },
+    "challengerVideoUrl": "/uploads/4aef2bffeb341c3d.mp4",
+    "targetVideoUrl": null,
+    "targetAuthor": {
+      "id": "dfd11068-17bc-4e0d-bf6f-b08e271b05ee",
+      "username": "alice_1782242417",
+      "name": "Alice",
+      "avatarUrl": "https://i.pravatar.cc/120?img=1"
+    },
+    "targetDescription": "",
+    "targetMusic": "",
+    "message": "reto",
+    "createdAt": "2026-06-23T19:20:17.127Z"
+  },
+  {
     "id": "challenge_a51859fda71b6b3c",
     "status": "pending",
     "from": {
