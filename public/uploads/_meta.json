@@ -1,5 +1,60 @@
 [
   {
+    "id": "versus_up_d970f40534b4e6bf",
+    "type": "versus",
+    "layout": "carousel",
+    "sideA": {
+      "videoUrl": "/uploads/d7cbc58e8e21bd44.mp4",
+      "posterUrl": "/uploads/d7cbc58e8e21bd44.jpg",
+      "author": {
+        "id": "84dfa621-c70a-43b9-b2ef-19fc37439204",
+        "username": "Nex",
+        "name": "Nex",
+        "avatarUrl": "/uploads/avatar_27c68dba7121dccf.jpg",
+        "verified": false
+      },
+      "description": "¿Cuál prefieres? 🅰️🆚🅱️",
+      "music": "Opción A"
+    },
+    "sideB": {
+      "videoUrl": "/uploads/508ba14bfaadc8a5.mp4",
+      "posterUrl": "/uploads/508ba14bfaadc8a5.jpg",
+      "author": {
+        "id": "84dfa621-c70a-43b9-b2ef-19fc37439204",
+        "username": "Nex",
+        "name": "Nex",
+        "avatarUrl": "/uploads/avatar_27c68dba7121dccf.jpg",
+        "verified": false
+      },
+      "description": "¿Cuál prefieres? 🅰️🆚🅱️",
+      "music": "Opción B"
+    },
+    "author": {
+      "id": "84dfa621-c70a-43b9-b2ef-19fc37439204",
+      "username": "Nex",
+      "name": "Nex",
+      "avatarUrl": "/uploads/avatar_27c68dba7121dccf.jpg",
+      "verified": false
+    },
+    "description": "¿Cuál prefieres? 🅰️🆚🅱️",
+    "music": "Tu versus original",
+    "videoUrl": "/uploads/d7cbc58e8e21bd44.mp4",
+    "posterUrl": "/uploads/d7cbc58e8e21bd44.jpg",
+    "thumbnailUrl": "/uploads/d7cbc58e8e21bd44.jpg",
+    "stats": {
+      "likes": 0,
+      "comments": 0,
+      "shares": 0,
+      "saves": 0
+    },
+    "votes": {
+      "a": 1,
+      "b": 1
+    },
+    "duration": 0,
+    "uploadedAt": "2026-06-23T18:02:54.555Z"
+  },
+  {
     "id": "versus_ch_25dfa613545d296a",
     "type": "versus",
     "layout": "carousel",

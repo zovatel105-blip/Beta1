@@ -2,8 +2,12 @@
 /* eslint-disable react-hooks/set-state-in-effect -- reseteo de estado al cerrar; falso positivo de la regla experimental. */
 
 import { useEffect, useRef, useState } from 'react'
-import { X, Film, Check, Swords } from 'lucide-react'
+import { X, Film, Check, Swords, Upload } from 'lucide-react'
 import Avatar from './Avatar'
+
+// Colores de marca para la identidad "versus" (mismos de la votación A/B).
+const PURPLE = '#A855F7' // tu lado
+const BLUE = '#3B82F6'   // lado rival
 
 /**
  * ChallengeDialog — "Retar" un contenido (rediseño premium minimalista).
@@ -59,23 +63,25 @@ export default function ChallengeDialog({ open, onClose, target, onSubmit }) {
         className="relative w-full sm:max-w-md sm:rounded-3xl rounded-t-3xl bg-[#0a0a0b] border border-white/10 max-h-[92vh] overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Glow superior sutil */}
+        {/* Glow superior con gradiente de marca (morado -> azul) */}
         <div className="pointer-events-none absolute inset-x-0 top-0 h-72 z-0"
-             style={{ background: 'radial-gradient(60% 100% at 50% 0%, rgba(255,255,255,0.06), transparent 70%)' }} />
+             style={{ background: 'radial-gradient(70% 100% at 20% 0%, rgba(168,85,247,0.18), transparent 60%), radial-gradient(70% 100% at 80% 0%, rgba(59,130,246,0.18), transparent 60%)' }} />
 
         {/* Asa de arrastre (móvil) */}
         <div className="relative z-10 mx-auto mt-3 h-1 w-10 rounded-full bg-white/15 sm:hidden" />
 
-        {/* Header minimalista */}
+        {/* Header */}
         <div className="relative z-10 flex items-center gap-3 px-5 pt-4 pb-4">
-          <div className="w-8 h-8 rounded-full p-[1.5px] bg-gradient-to-br from-white/15 to-white/[0.03] shrink-0">
-            <div className="w-full h-full rounded-full overflow-hidden bg-zinc-900 ring-1 ring-white/10 flex items-center justify-center">
+          <div className="w-9 h-9 rounded-full p-[2px] shrink-0" style={{ background: `linear-gradient(135deg, ${PURPLE}, ${BLUE})` }}>
+            <div className="w-full h-full rounded-full overflow-hidden bg-zinc-900 flex items-center justify-center">
               <Avatar src={target?.author?.avatarUrl} alt={username} className="w-full h-full rounded-full" />
             </div>
           </div>
           <div className="min-w-0">
-            <p className="text-[10px] uppercase tracking-[0.16em] font-medium text-zinc-400">Reto</p>
-            <h2 className="text-white text-[14px] font-semibold tracking-tight leading-tight truncate">Retar a @{username}</h2>
+            <p className="text-[10px] uppercase tracking-[0.18em] font-semibold text-zinc-400 flex items-center gap-1">
+              <Swords size={11} strokeWidth={2.4} /> Reto
+            </p>
+            <h2 className="text-white text-[15px] font-bold tracking-tight leading-tight truncate">Retar a @{username}</h2>
           </div>
           <button
             onClick={onClose}
@@ -90,52 +96,70 @@ export default function ChallengeDialog({ open, onClose, target, onSubmit }) {
         <div className="relative z-10 flex-1 overflow-y-auto px-5 pb-7 space-y-5"
              style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 28px)' }}>
           <>
-              {/* Enfrentamiento: tu vídeo (A) vs el contenido retado (B) */}
-              <div className="relative grid grid-cols-2 gap-3">
+              {/* Enfrentamiento: tu vídeo (A, morado) vs el contenido retado (B, azul) */}
+              <div className="relative grid grid-cols-2 gap-3.5">
                 <input ref={inputRef} type="file" accept="video/*" className="hidden" onChange={handleFileChange} />
 
                 {/* Tu vídeo */}
                 <button
                   onClick={pickFile}
-                  className={`relative w-full aspect-[9/16] rounded-2xl overflow-hidden border bg-white/[0.04] hover:bg-white/[0.06] active:scale-[0.99] transition flex flex-col items-center justify-center gap-2 ${file ? 'border-transparent ring-2' : 'border-white/10'}`}
-                  style={file ? { '--tw-ring-color': '#ffffff' } : undefined}
+                  className="group relative w-full aspect-[4/5] rounded-2xl overflow-hidden transition active:scale-[0.98]"
+                  style={{
+                    background: file ? '#000' : 'linear-gradient(160deg, rgba(168,85,247,0.16), rgba(168,85,247,0.04))',
+                    boxShadow: file ? `0 0 0 2px ${PURPLE}` : `inset 0 0 0 1.5px rgba(168,85,247,0.45)`,
+                  }}
                 >
-                  <span className="absolute top-2 left-2 z-10 text-[10px] font-bold rounded-full px-2 py-0.5 bg-black/55 backdrop-blur text-white">Tú</span>
+                  <span className="absolute top-2 left-2 z-20 text-[10px] font-bold rounded-full px-2.5 py-0.5 text-white" style={{ background: PURPLE }}>Tú</span>
                   {file ? (
                     <>
                       <video src={URL.createObjectURL(file)} muted playsInline className="absolute inset-0 w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-black/45 flex flex-col items-center justify-center gap-1">
-                        <span className="w-9 h-9 rounded-full flex items-center justify-center bg-white">
-                          <Check size={20} className="text-black" strokeWidth={2.5} />
+                      <div className="absolute inset-0 bg-black/45 flex flex-col items-center justify-center gap-1.5">
+                        <span className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: PURPLE }}>
+                          <Check size={20} className="text-white" strokeWidth={2.6} />
                         </span>
-                        <span className="text-[11px] text-white/80 mt-1 underline underline-offset-2">Cambiar</span>
+                        <span className="text-[11px] text-white/90 underline underline-offset-2">Cambiar vídeo</span>
                       </div>
                     </>
                   ) : (
-                    <>
-                      <Film size={24} className="text-zinc-500" strokeWidth={1.5} />
-                      <span className="text-[11px] font-medium text-center px-2 text-zinc-300 leading-tight">Grabar o subir tu vídeo</span>
-                    </>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-3">
+                      <span className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(168,85,247,0.2)' }}>
+                        <Upload size={22} style={{ color: PURPLE }} strokeWidth={2} />
+                      </span>
+                      <div className="text-center leading-tight">
+                        <p className="text-[12px] font-semibold text-white">Sube tu vídeo</p>
+                        <p className="text-[10.5px] text-zinc-400 mt-0.5">Graba o elige uno</p>
+                      </div>
+                    </div>
                   )}
                 </button>
 
                 {/* Vídeo retado */}
-                <div className="relative w-full aspect-[9/16] rounded-2xl overflow-hidden bg-zinc-900 border border-white/10">
-                  <span className="absolute top-2 left-2 z-10 text-[10px] font-bold rounded-full px-2 py-0.5 bg-black/55 backdrop-blur text-white">@{username}</span>
+                <div
+                  className="relative w-full aspect-[4/5] rounded-2xl overflow-hidden"
+                  style={{
+                    background: target?.videoUrl ? '#000' : 'linear-gradient(160deg, rgba(59,130,246,0.16), rgba(59,130,246,0.04))',
+                    boxShadow: `inset 0 0 0 1.5px rgba(59,130,246,0.4)`,
+                  }}
+                >
+                  <span className="absolute top-2 left-2 z-20 text-[10px] font-bold rounded-full px-2.5 py-0.5 text-white truncate max-w-[80%]" style={{ background: BLUE }}>@{username}</span>
                   {target?.videoUrl ? (
                     <video src={target.videoUrl + '#t=0.2'} muted playsInline preload="metadata" className="absolute inset-0 w-full h-full object-cover" />
                   ) : (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-2 text-center">
-                      <Film size={24} className="text-white/30" />
-                      <span className="text-[11px] text-white/55 leading-tight">Subirá su vídeo al aceptar el reto</span>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-3 text-center">
+                      <span className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(59,130,246,0.18)' }}>
+                        <Film size={22} style={{ color: BLUE }} strokeWidth={1.8} />
+                      </span>
+                      <p className="text-[10.5px] text-zinc-400 leading-tight">Subirá su vídeo<br />al aceptar el reto</p>
                     </div>
                   )}
                 </div>
 
-                {/* Insignia VS al centro */}
-                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-none">
-                  <div className="w-10 h-10 rounded-full bg-[#0a0a0b] border border-white/15 flex items-center justify-center shadow-[0_6px_20px_rgba(0,0,0,0.6)]">
-                    <span className="text-white font-black text-[12px] tracking-wide">VS</span>
+                {/* Insignia VS al centro con anillo de gradiente */}
+                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-30 pointer-events-none">
+                  <div className="w-12 h-12 rounded-full p-[2px]" style={{ background: `linear-gradient(135deg, ${PURPLE}, ${BLUE})`, boxShadow: '0 8px 24px rgba(0,0,0,0.6)' }}>
+                    <div className="w-full h-full rounded-full bg-[#0a0a0b] flex items-center justify-center">
+                      <span className="text-white font-black text-[13px] tracking-wide italic">VS</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -158,9 +182,12 @@ export default function ChallengeDialog({ open, onClose, target, onSubmit }) {
               <button
                 onClick={doSend}
                 disabled={!file}
-                className="w-full h-12 rounded-full bg-white text-black font-semibold text-[15px] flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-zinc-100 active:scale-[0.99] transition"
+                className="w-full h-12 rounded-full text-white font-bold text-[15px] flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.99] transition"
+                style={file
+                  ? { background: `linear-gradient(135deg, ${PURPLE}, ${BLUE})`, boxShadow: '0 10px 30px -8px rgba(99,102,241,0.6)' }
+                  : { background: 'rgba(255,255,255,0.1)' }}
               >
-                <Swords className="w-[18px] h-[18px]" strokeWidth={2} />
+                <Swords className="w-[18px] h-[18px]" strokeWidth={2.2} />
                 Enviar reto
               </button>
           </>
