@@ -11,6 +11,7 @@ import {
   deleteSession,
   getUserById,
   getUserByUsername,
+  updateUserProfile,
   getAllUsers,
   createComment as createCommentDB,
   getCommentsByPostId,
@@ -649,6 +650,11 @@ export async function POST(request, { params }) {
     return handleLogout(request)
   }
 
+  // POST /api/profile - Actualizar perfil (nombre, bio, avatar)
+  if (path === '/profile') {
+    return handleUpdateProfile(request)
+  }
+
   // POST /api/notifications/read - Marcar notificaciones como leídas
   if (path === '/notifications/read') {
     return handleMarkNotificationsRead(request)
@@ -938,6 +944,63 @@ async function saveUploadedVideo(file) {
   // Poster del primer fotograma para carga instantánea.
   makePoster(filePath, nodePath.join(UPLOAD_DIR, `${id}.jpg`))
   return `/uploads/${filename}`
+}
+
+// Guarda una imagen subida (avatar) en /public/uploads y devuelve su URL.
+async function saveUploadedImage(file) {
+  const arrayBuffer = await file.arrayBuffer()
+  const bytes = Buffer.from(arrayBuffer)
+  const id = crypto.randomBytes(8).toString('hex')
+  const name = file.name || 'image.jpg'
+  const ext = name.includes('.') ? name.split('.').pop().toLowerCase() : 'jpg'
+  const safeExt = ['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext) ? ext : 'jpg'
+  const filename = `avatar_${id}.${safeExt}`
+  await ensureUploadDir()
+  const filePath = nodePath.join(UPLOAD_DIR, filename)
+  await fs.writeFile(filePath, bytes)
+  return `/uploads/${filename}`
+}
+
+// POST /api/profile
+//   FormData: name?, bio?, avatar? (archivo de imagen)
+//   Actualiza el perfil del usuario autenticado.
+async function handleUpdateProfile(request) {
+  try {
+    const currentUser = await getCurrentUser(request)
+    if (!currentUser) {
+      return NextResponse.json({ error: 'unauthorized', message: 'Debes iniciar sesión' }, { status: 401 })
+    }
+    const formData = await request.formData()
+    const nameRaw = formData.get('name')
+    const bioRaw = formData.get('bio')
+    const avatarFile = formData.get('avatar')
+
+    const updates = {}
+    if (typeof nameRaw === 'string') updates.name = nameRaw
+    if (typeof bioRaw === 'string') updates.bio = bioRaw
+
+    // Imagen opcional de avatar.
+    if (avatarFile && typeof avatarFile !== 'string') {
+      const type = avatarFile.type || ''
+      if (!type.startsWith('image/')) {
+        return NextResponse.json({ error: 'invalid_image' }, { status: 400 })
+      }
+      // Límite ~6MB para avatares.
+      if (avatarFile.size && avatarFile.size > 6 * 1024 * 1024) {
+        return NextResponse.json({ error: 'image_too_large' }, { status: 400 })
+      }
+      updates.avatarUrl = await saveUploadedImage(avatarFile)
+    }
+
+    const updated = await updateUserProfile(currentUser.id, updates)
+    if (!updated) {
+      return NextResponse.json({ error: 'update_failed' }, { status: 500 })
+    }
+    return NextResponse.json({ ok: true, user: updated })
+  } catch (err) {
+    console.error('[profile] update error:', err)
+    return NextResponse.json({ error: 'update_failed', detail: String(err?.message || err) }, { status: 500 })
+  }
 }
 
 // POST /api/challenges

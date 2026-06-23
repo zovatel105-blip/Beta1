@@ -2,7 +2,7 @@
 /* eslint-disable react-hooks/set-state-in-effect -- setState dentro de fetch async en efecto de carga; falso positivo de la regla experimental. */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Menu, Bookmark, Swords, Users, UserPlus, ArrowLeft } from 'lucide-react'
+import { Menu, Bookmark, Swords, Users, UserPlus, ArrowLeft, LogOut, Camera, Loader2, X, Pencil } from 'lucide-react'
 import VoteIcon from './icons/VoteIcon'
 import { useAuth } from '@/contexts/AuthContext'
 import Avatar from './Avatar'
@@ -244,7 +244,7 @@ const TABS = [
 ]
 
 export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, onRequireAuth, onOpenProfile, username = null }) {
-  const { user } = useAuth()
+  const { user, updateUser, logout } = useAuth()
   const [profile, setProfile] = useState(null) // { user, posts } del endpoint
   const [posts, setPosts] = useState([])
   const [loading, setLoading] = useState(true)
@@ -257,6 +257,8 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
   const [savedLoading, setSavedLoading] = useState(false)
   // Lista de followers/following: { type: 'followers'|'following', users: [], loading }
   const [followList, setFollowList] = useState(null)
+  const [editOpen, setEditOpen] = useState(false)   // modal de editar perfil
+  const [menuOpen, setMenuOpen] = useState(false)    // menú (cerrar sesión)
 
   // ¿Es mi propio perfil? (sin username, o coincide con el usuario autenticado)
   const isOwn = !username || username === user?.username
@@ -272,6 +274,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
     name: src?.name || src?.username || 'Usuario',
     handle: src?.username ? `@${src.username}` : '@usuario',
     avatarUrl: src?.avatarUrl || '',
+    bio: src?.bio || '',
     followers: followers != null ? followers : (src?.followers || 0),
     following: src?.following || 0,
   }
@@ -385,6 +388,21 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
     onOpenProfile?.(uname)
   }
 
+  // Tras guardar el perfil: refrescar estado local (cabecera) y contexto auth.
+  const handleProfileUpdated = (updatedUser) => {
+    if (!updatedUser) return
+    setProfile((prev) => ({ ...(prev || {}), user: { ...(prev?.user || {}), ...updatedUser } }))
+    updateUser?.(updatedUser)
+    setEditOpen(false)
+  }
+
+  // Cerrar sesión: limpia la sesión y vuelve al feed.
+  const handleLogout = async () => {
+    setMenuOpen(false)
+    try { await logout?.() } catch { /* ignore */ }
+    onClose?.()
+  }
+
   // Publicaciones del perfil (ya vienen filtradas por el endpoint).
   const myPosts = posts
 
@@ -490,7 +508,11 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
           {!isOwn && (
             <span className="text-white font-semibold text-[15px] truncate max-w-[60%]">{me.username}</span>
           )}
-          <button aria-label="menú" className="p-2 -mr-2 text-white active:scale-90 transition">
+          <button
+            aria-label="menú"
+            onClick={() => { if (isOwn) setMenuOpen(true) }}
+            className="p-2 -mr-2 text-white active:scale-90 transition"
+          >
             <Menu strokeWidth={1.9} className="w-[24px] h-[24px]" />
           </button>
         </div>
@@ -564,13 +586,16 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
         <div className="text-center mt-6 space-y-0.5">
           <h2 className="text-[20px] font-bold tracking-tight text-white leading-tight">{me.name}</h2>
           <p className="text-[13px] text-zinc-400 font-medium">{me.handle}</p>
+          {me.bio && (
+            <p className="text-[13px] text-zinc-300 leading-snug max-w-[300px] mx-auto pt-1.5 whitespace-pre-line">{me.bio}</p>
+          )}
         </div>
 
         {/* Botones de acción - propios vs ajenos */}
         <div className="mt-5 flex items-center justify-center gap-2">
           {isOwn ? (
             <>
-              <button className="h-9 px-6 rounded-full bg-white hover:bg-zinc-100 text-black font-semibold text-[13px] tracking-tight active:scale-[0.97] transition-all">
+              <button onClick={() => setEditOpen(true)} className="h-9 px-6 rounded-full bg-white hover:bg-zinc-100 text-black font-semibold text-[13px] tracking-tight active:scale-[0.97] transition-all">
                 Editar perfil
               </button>
               <button className="h-9 px-6 rounded-full border border-white/15 hover:bg-white/[0.06] text-white font-semibold text-[13px] tracking-tight active:scale-[0.97] transition-all">
@@ -657,6 +682,77 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
           onSwitch={openFollowList}
         />
       )}
+
+      {/* Editar perfil (solo perfil propio) */}
+      {editOpen && isOwn && (
+        <EditProfileModal
+          initial={{ name: me.name, bio: me.bio, avatarUrl: me.avatarUrl }}
+          onClose={() => setEditOpen(false)}
+          onSaved={handleProfileUpdated}
+        />
+      )}
+
+      {/* Menú / Ajustes: drawer lateral que entra de derecha a izquierda */}
+      {isOwn && (
+        <SettingsDrawer
+          open={menuOpen}
+          onClose={() => setMenuOpen(false)}
+          onEdit={() => { setMenuOpen(false); setEditOpen(true) }}
+          onLogout={handleLogout}
+        />
+      )}
+    </div>
+  )
+}
+
+// Drawer de ajustes que se desliza desde el borde derecho (estilo panel lateral).
+// Permanece montado para poder animar la entrada y la salida con translateX.
+const SettingsDrawer = ({ open, onClose, onEdit, onLogout }) => {
+  return (
+    <div className={`fixed inset-0 z-[85] ${open ? '' : 'pointer-events-none'}`}>
+      {/* Backdrop */}
+      <div
+        onClick={onClose}
+        className={`absolute inset-0 bg-black/50 backdrop-blur-[2px] transition-opacity duration-300 ${
+          open ? 'opacity-100' : 'opacity-0'
+        }`}
+      />
+      {/* Panel lateral derecho */}
+      <div
+        className={`absolute top-0 right-0 h-full w-[82%] max-w-sm bg-[#121214] border-l border-white/[0.08] shadow-2xl flex flex-col text-white transition-transform duration-300 ease-out ${
+          open ? 'translate-x-0' : 'translate-x-full'
+        }`}
+      >
+        {/* Header */}
+        <div className="border-b border-white/[0.06]" style={{ paddingTop: 'max(env(safe-area-inset-top), 8px)' }}>
+          <div className="flex items-center px-3 h-14 w-full">
+            <button aria-label="cerrar" onClick={onClose} className="p-2 -ml-1 text-white active:scale-90 transition">
+              <X strokeWidth={1.9} className="w-[22px] h-[22px]" />
+            </button>
+            <span className="text-white font-semibold text-[15px] ml-1">Ajustes</span>
+          </div>
+        </div>
+
+        {/* Opciones */}
+        <div className="flex-1 overflow-y-auto px-3 py-3">
+          <div className="rounded-2xl bg-white/[0.04] border border-white/[0.07] divide-y divide-white/[0.06] overflow-hidden">
+            <button
+              onClick={onEdit}
+              className="w-full flex items-center gap-3 px-4 py-4 text-white hover:bg-white/5 active:bg-white/10 transition text-[15px] font-medium"
+            >
+              <Pencil className="w-[19px] h-[19px]" strokeWidth={1.8} />
+              Editar perfil
+            </button>
+            <button
+              onClick={onLogout}
+              className="w-full flex items-center gap-3 px-4 py-4 text-red-400 hover:bg-red-500/10 active:bg-red-500/15 transition text-[15px] font-medium"
+            >
+              <LogOut className="w-[19px] h-[19px]" strokeWidth={1.8} />
+              Cerrar sesión
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
@@ -742,6 +838,128 @@ const FollowListModal = ({ type, users, loading, onClose, onOpenUser, onSwitch }
             ))}
           </ul>
         )}
+      </div>
+    </div>
+  )
+}
+
+
+// Modal para editar el perfil propio: avatar (subida de imagen), nombre y bio.
+const EditProfileModal = ({ initial, onClose, onSaved }) => {
+  const [name, setName] = useState(initial?.name || '')
+  const [bio, setBio] = useState(initial?.bio || '')
+  const [avatarUrl, setAvatarUrl] = useState(initial?.avatarUrl || '')
+  const [avatarFile, setAvatarFile] = useState(null)
+  const [preview, setPreview] = useState(initial?.avatarUrl || '')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const fileRef = useRef(null)
+
+  const onPickFile = (e) => {
+    const f = e.target.files?.[0]
+    if (!f) return
+    if (!f.type.startsWith('image/')) { setError('El archivo debe ser una imagen'); return }
+    if (f.size > 6 * 1024 * 1024) { setError('La imagen supera el límite de 6MB'); return }
+    setError('')
+    setAvatarFile(f)
+    const url = URL.createObjectURL(f)
+    setPreview(url)
+  }
+
+  const handleSave = async () => {
+    if (saving) return
+    setSaving(true)
+    setError('')
+    try {
+      const fd = new FormData()
+      fd.append('name', name)
+      fd.append('bio', bio)
+      if (avatarFile) fd.append('avatar', avatarFile)
+      const token = (typeof window !== 'undefined' && localStorage.getItem('twyk_token')) || ''
+      const res = await fetch('/api/profile', {
+        method: 'POST',
+        body: fd,
+        cache: 'no-store',
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      })
+      if (!res.ok) throw new Error('save_failed')
+      const data = await res.json()
+      onSaved?.(data?.user || { name, bio, avatarUrl })
+    } catch {
+      setError('No se pudo guardar. Inténtalo de nuevo.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[82] bg-[#0a0a0b] flex flex-col text-white">
+      {/* Header */}
+      <div className="sticky top-0 z-10 bg-[#0a0a0b]/80 backdrop-blur-xl border-b border-white/[0.06]"
+           style={{ paddingTop: 'max(env(safe-area-inset-top), 8px)' }}>
+        <div className="flex items-center justify-between px-2 sm:px-4 h-14 max-w-md mx-auto w-full">
+          <button aria-label="cancelar" onClick={onClose} className="p-2 -ml-1 text-white active:scale-90 transition">
+            <X strokeWidth={1.9} className="w-[22px] h-[22px]" />
+          </button>
+          <span className="text-white font-semibold text-[15px]">Editar perfil</span>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="text-[14px] font-semibold text-[#0a0a0b] bg-white rounded-full px-4 h-8 disabled:opacity-60 active:scale-95 transition flex items-center gap-1.5"
+          >
+            {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+            Guardar
+          </button>
+        </div>
+      </div>
+
+      {/* Cuerpo */}
+      <div className="flex-1 overflow-y-auto max-w-md mx-auto w-full px-5 py-6">
+        {/* Avatar */}
+        <div className="flex flex-col items-center gap-3">
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            className="relative w-[104px] h-[104px] rounded-full overflow-hidden bg-zinc-900 ring-2 ring-white/10 active:scale-95 transition"
+          >
+            <Avatar src={preview} alt={name} className="w-full h-full rounded-full" />
+            <span className="absolute inset-0 bg-black/40 flex items-center justify-center">
+              <Camera className="w-6 h-6 text-white" strokeWidth={1.8} />
+            </span>
+          </button>
+          <button type="button" onClick={() => fileRef.current?.click()} className="text-[13px] font-semibold text-white/90 hover:text-white">
+            Cambiar foto
+          </button>
+          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onPickFile} />
+        </div>
+
+        {/* Nombre */}
+        <div className="mt-7 space-y-1.5">
+          <label className="text-[12px] font-medium text-zinc-400 px-1">Nombre</label>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            maxLength={60}
+            placeholder="Tu nombre"
+            className="w-full h-11 rounded-xl bg-white/[0.05] border border-white/10 px-4 text-[15px] text-white placeholder:text-zinc-500 outline-none focus:border-white/30 transition"
+          />
+        </div>
+
+        {/* Bio */}
+        <div className="mt-5 space-y-1.5">
+          <label className="text-[12px] font-medium text-zinc-400 px-1">Biografía</label>
+          <textarea
+            value={bio}
+            onChange={(e) => setBio(e.target.value)}
+            maxLength={300}
+            rows={4}
+            placeholder="Cuéntale al mundo quién eres"
+            className="w-full rounded-xl bg-white/[0.05] border border-white/10 px-4 py-3 text-[15px] text-white placeholder:text-zinc-500 outline-none focus:border-white/30 transition resize-none"
+          />
+          <p className="text-[11px] text-zinc-500 text-right px-1">{bio.length}/300</p>
+        </div>
+
+        {error && <p className="mt-4 text-[13px] text-red-400 text-center">{error}</p>}
       </div>
     </div>
   )

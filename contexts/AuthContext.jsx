@@ -125,8 +125,18 @@ export function AuthProvider({ children }) {
     } catch { /* ignore */ }
   }
 
+  // Actualiza el usuario en memoria y en localStorage (tras editar el perfil).
+  const updateUser = (next) => {
+    manualAuthRef.current = true
+    setUser((prev) => {
+      const merged = { ...(prev || {}), ...(next || {}) }
+      try { localStorage.setItem('twyk_user', JSON.stringify(merged)) } catch { /* ignore */ }
+      return merged
+    })
+  }
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   )
