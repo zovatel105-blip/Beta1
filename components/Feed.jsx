@@ -2,6 +2,7 @@
 /* eslint-disable react-hooks/set-state-in-effect -- setState dirigido por IntersectionObserver y handlers (no por píxel de scroll). */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Check, X } from 'lucide-react'
 import DuetSlide from './DuetSlide'
 import CarouselSlide from './CarouselSlide'
 import BottomNav from './BottomNav'
@@ -98,6 +99,8 @@ export default function Feed() {
   const [activeChallengesOpen, setActiveChallengesOpen] = useState(false)
   const [battlesRefresh, setBattlesRefresh] = useState(0)
   const [pendingCount, setPendingCount] = useState(0)
+  // Subida de reto en segundo plano: { status:'uploading'|'done'|'error', progress, username }
+  const [challengeUpload, setChallengeUpload] = useState(null)
 
   const containerRef = useRef(null)
   const slotRefs = useRef([])
@@ -116,6 +119,52 @@ export default function Feed() {
   }, [])
 
   useEffect(() => { refreshChallenges() }, [refreshChallenges])
+
+  // Sube un reto EN SEGUNDO PLANO. El modal se cierra al instante (lo hace el
+  // ChallengeDialog) y aquí mantenemos la subida viva con un banner de estado,
+  // para que el usuario pueda seguir descubriendo contenido.
+  const sendChallengeInBackground = useCallback(({ file, target, message }) => {
+    if (!file || !target) return
+    const username = target?.author?.username || 'rival'
+    setChallengeUpload({ status: 'uploading', progress: 0, username })
+
+    const token = (typeof window !== 'undefined' && localStorage.getItem('twyk_token')) || ''
+    const xhr = new XMLHttpRequest()
+    xhr.upload.onprogress = (ev) => {
+      if (ev.lengthComputable) {
+        const p = Math.round((ev.loaded / ev.total) * 100)
+        setChallengeUpload((prev) => (prev ? { ...prev, progress: p } : prev))
+      }
+    }
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        setChallengeUpload({ status: 'done', progress: 100, username })
+        refreshChallenges()
+        if (target?.postId) {
+          try { window.dispatchEvent(new CustomEvent('twyk:challenged', { detail: { postId: target.postId } })) } catch { /* ignore */ }
+        }
+        // Ocultar el banner tras unos segundos.
+        setTimeout(() => setChallengeUpload((prev) => (prev?.status === 'done' ? null : prev)), 4000)
+      } else {
+        setChallengeUpload({ status: 'error', progress: 0, username })
+        setTimeout(() => setChallengeUpload((prev) => (prev?.status === 'error' ? null : prev)), 5000)
+      }
+    }
+    xhr.onerror = () => {
+      setChallengeUpload({ status: 'error', progress: 0, username })
+      setTimeout(() => setChallengeUpload((prev) => (prev?.status === 'error' ? null : prev)), 5000)
+    }
+    xhr.open('POST', '/api/challenges')
+    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+    const fd = new FormData()
+    fd.append('file', file)
+    fd.append('targetVideoUrl', target.videoUrl || '')
+    fd.append('targetAuthor', JSON.stringify(target.author || {}))
+    fd.append('targetDescription', target.description || '')
+    fd.append('targetMusic', target.music || '')
+    fd.append('message', message || '')
+    xhr.send(fd)
+  }, [refreshChallenges])
 
   // Abrir el perfil (ajeno) de un autor al tocar su avatar/nombre en el feed.
   const openAuthorProfile = useCallback((uname) => {
@@ -386,13 +435,7 @@ export default function Feed() {
         open={challengeOpen}
         onClose={() => setChallengeOpen(false)}
         target={challengeTarget}
-        onCreated={() => {
-          refreshChallenges()
-          // Notifica a la tarjeta de origen para incrementar su contador "Retar".
-          if (challengeTarget?.postId) {
-            try { window.dispatchEvent(new CustomEvent('twyk:challenged', { detail: { postId: challengeTarget.postId } })) } catch { /* ignore */ }
-          }
-        }}
+        onSubmit={sendChallengeInBackground}
       />
       <NotificationsInbox
         open={inboxOpen}
@@ -417,6 +460,52 @@ export default function Feed() {
         open={showGuestPrompt}
         onClose={dismissPrompt}
       />
+
+      {/* Banner de subida de reto en segundo plano */}
+      {challengeUpload && (
+        <div className="fixed left-1/2 -translate-x-1/2 z-[90] w-[calc(100%-24px)] max-w-sm"
+             style={{ top: 'max(env(safe-area-inset-top), 12px)' }}>
+          <div className="rounded-2xl bg-[#161618]/95 backdrop-blur-xl border border-white/10 shadow-2xl px-4 py-3 flex items-center gap-3">
+            {challengeUpload.status === 'uploading' && (
+              <>
+                <div className="w-9 h-9 rounded-full border-2 border-white/15 border-t-white animate-spin shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-white text-[13px] font-semibold leading-tight truncate">Enviando reto a @{challengeUpload.username}</p>
+                  <div className="mt-1.5 h-1 rounded-full bg-white/10 overflow-hidden">
+                    <div className="h-full bg-white rounded-full transition-all" style={{ width: `${challengeUpload.progress}%` }} />
+                  </div>
+                </div>
+                <span className="text-white/70 text-[12px] tabular-nums shrink-0">{challengeUpload.progress}%</span>
+              </>
+            )}
+            {challengeUpload.status === 'done' && (
+              <>
+                <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center shrink-0">
+                  <Check size={18} className="text-black" strokeWidth={2.6} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-white text-[13px] font-semibold leading-tight truncate">Reto enviado a @{challengeUpload.username}</p>
+                  <p className="text-zinc-400 text-[12px] leading-tight">Te avisaremos cuando lo acepte</p>
+                </div>
+              </>
+            )}
+            {challengeUpload.status === 'error' && (
+              <>
+                <div className="w-9 h-9 rounded-full bg-rose-500/20 flex items-center justify-center shrink-0">
+                  <X size={18} className="text-rose-400" strokeWidth={2.4} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-white text-[13px] font-semibold leading-tight">No se pudo enviar el reto</p>
+                  <p className="text-zinc-400 text-[12px] leading-tight">Inténtalo de nuevo</p>
+                </div>
+                <button onClick={() => setChallengeUpload(null)} className="text-zinc-400 hover:text-white shrink-0 p-1">
+                  <X size={16} />
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

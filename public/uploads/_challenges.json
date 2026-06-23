@@ -1,5 +1,63 @@
 [
   {
+    "id": "challenge_a51859fda71b6b3c",
+    "status": "pending",
+    "from": {
+      "id": "f21cca2d-e458-45e2-8dcd-d134e1baa0f7",
+      "username": "carlos23",
+      "name": "carlos23",
+      "avatarUrl": "https://i.pravatar.cc/120?img=1",
+      "verified": false
+    },
+    "to": {
+      "username": "maria_lopez",
+      "name": "maria_lopez",
+      "avatarUrl": "https://i.pravatar.cc/120?img=5"
+    },
+    "challengerVideoUrl": "/uploads/24eef77b325264ec.mp4",
+    "targetVideoUrl": null,
+    "targetAuthor": {
+      "username": "maria_lopez",
+      "name": "maria_lopez",
+      "avatarUrl": "https://i.pravatar.cc/120?img=5"
+    },
+    "targetDescription": "",
+    "targetMusic": "",
+    "message": "",
+    "createdAt": "2026-06-23T17:58:15.112Z"
+  },
+  {
+    "id": "challenge_e30c5022bea783fe",
+    "status": "pending",
+    "from": {
+      "id": "84dfa621-c70a-43b9-b2ef-19fc37439204",
+      "username": "Nex",
+      "name": "Nex",
+      "avatarUrl": "/uploads/avatar_27c68dba7121dccf.jpg",
+      "verified": false
+    },
+    "to": {
+      "id": "941856eb-f713-46ab-84e1-23e956438d07",
+      "username": "Nec",
+      "name": "Nec",
+      "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=Nec",
+      "verified": false
+    },
+    "challengerVideoUrl": "/uploads/bf21cfff296b827d.mp4",
+    "targetVideoUrl": "/uploads/301717157c6dbc07.mp4",
+    "targetAuthor": {
+      "id": "941856eb-f713-46ab-84e1-23e956438d07",
+      "username": "Nec",
+      "name": "Nec",
+      "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=Nec",
+      "verified": false
+    },
+    "targetDescription": "¿Cuál prefieres? 🅰️🆚🅱️",
+    "targetMusic": "Opción A",
+    "message": "",
+    "createdAt": "2026-06-23T17:46:02.866Z"
+  },
+  {
     "id": "challenge_3cdeb5d7c3885414",
     "status": "pending",
     "from": {

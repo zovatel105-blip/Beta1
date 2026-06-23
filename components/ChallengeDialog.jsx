@@ -2,7 +2,7 @@
 /* eslint-disable react-hooks/set-state-in-effect -- reseteo de estado al cerrar; falso positivo de la regla experimental. */
 
 import { useEffect, useRef, useState } from 'react'
-import { X, Film, Check, Loader2, Swords } from 'lucide-react'
+import { X, Film, Check, Swords } from 'lucide-react'
 import Avatar from './Avatar'
 
 /**
@@ -17,19 +17,15 @@ import Avatar from './Avatar'
  *   target    { videoUrl, author, description, music }
  *   onCreated (challenge) => void
  */
-const GOLD = '#E4C79B'
-
-export default function ChallengeDialog({ open, onClose, target, onCreated }) {
+export default function ChallengeDialog({ open, onClose, target, onSubmit }) {
   const inputRef = useRef(null)
   const [file, setFile] = useState(null)
   const [message, setMessage] = useState('')
-  const [progress, setProgress] = useState(0)
-  const [uploading, setUploading] = useState(false)
   const [error, setError] = useState(null)
 
   useEffect(() => {
     if (!open) {
-      setFile(null); setMessage(''); setProgress(0); setUploading(false); setError(null)
+      setFile(null); setMessage(''); setError(null)
     }
   }, [open])
 
@@ -46,40 +42,13 @@ export default function ChallengeDialog({ open, onClose, target, onCreated }) {
     setFile(f)
   }
 
-  const doSend = async () => {
+  // Enviar el reto: delega la SUBIDA al contenedor (Feed) para que ocurra en
+  // segundo plano. El modal se cierra al instante y el usuario puede seguir
+  // descubriendo contenido mientras se envía.
+  const doSend = () => {
     if (!file || !target) { setError('Sube tu vídeo para retar'); return }
-    setUploading(true)
-    setProgress(0)
-    try {
-      const xhr = new XMLHttpRequest()
-      const promise = new Promise((resolve, reject) => {
-        xhr.upload.onprogress = (ev) => {
-          if (ev.lengthComputable) setProgress(Math.round((ev.loaded / ev.total) * 100))
-        }
-        xhr.onload = () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            try { resolve(JSON.parse(xhr.responseText)) } catch (err) { reject(err) }
-          } else reject(new Error('challenge failed ' + xhr.status))
-        }
-        xhr.onerror = () => reject(new Error('network'))
-      })
-      xhr.open('POST', '/api/challenges')
-      const fd = new FormData()
-      fd.append('file', file)
-      fd.append('targetVideoUrl', target.videoUrl || '')
-      fd.append('targetAuthor', JSON.stringify(target.author || {}))
-      fd.append('targetDescription', target.description || '')
-      fd.append('targetMusic', target.music || '')
-      fd.append('message', message || '')
-      xhr.send(fd)
-      const data = await promise
-      if (onCreated && data?.challenge) onCreated(data.challenge)
-      onClose()
-    } catch (err) {
-      console.error(err)
-      setError('Error al enviar el reto')
-      setUploading(false)
-    }
+    onSubmit?.({ file, target, message })
+    onClose()
   }
 
   const username = target?.author?.username || 'rival'
@@ -90,9 +59,9 @@ export default function ChallengeDialog({ open, onClose, target, onCreated }) {
         className="relative w-full sm:max-w-md sm:rounded-3xl rounded-t-3xl bg-[#0a0a0b] border border-white/10 max-h-[92vh] overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Glow superior cálido dorado (mismo del perfil / retos) */}
+        {/* Glow superior sutil */}
         <div className="pointer-events-none absolute inset-x-0 top-0 h-72 z-0"
-             style={{ background: 'radial-gradient(60% 100% at 50% 0%, rgba(214,178,122,0.12), transparent 70%)' }} />
+             style={{ background: 'radial-gradient(60% 100% at 50% 0%, rgba(255,255,255,0.06), transparent 70%)' }} />
 
         {/* Asa de arrastre (móvil) */}
         <div className="relative z-10 mx-auto mt-3 h-1 w-10 rounded-full bg-white/15 sm:hidden" />
@@ -105,8 +74,8 @@ export default function ChallengeDialog({ open, onClose, target, onCreated }) {
             </div>
           </div>
           <div className="min-w-0">
-            <p className="text-[10px] uppercase tracking-[0.16em] font-medium" style={{ color: GOLD }}>Reto</p>
-            <h2 className="text-white text-[13px] font-semibold tracking-tight leading-tight truncate">@{username}</h2>
+            <p className="text-[10px] uppercase tracking-[0.16em] font-medium text-zinc-400">Reto</p>
+            <h2 className="text-white text-[14px] font-semibold tracking-tight leading-tight truncate">Retar a @{username}</h2>
           </div>
           <button
             onClick={onClose}
@@ -120,17 +89,7 @@ export default function ChallengeDialog({ open, onClose, target, onCreated }) {
         {/* Body */}
         <div className="relative z-10 flex-1 overflow-y-auto px-5 pb-7 space-y-5"
              style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 28px)' }}>
-          {uploading ? (
-            <div className="flex flex-col items-center justify-center py-14 gap-5">
-              <Loader2 size={34} className="animate-spin" style={{ color: GOLD }} />
-              <div className="text-2xl font-semibold text-white tabular-nums">{progress}%</div>
-              <div className="w-full h-1.5 rounded-full bg-white/[0.08] overflow-hidden">
-                <div className="h-full rounded-full transition-all" style={{ width: `${progress}%`, background: GOLD }} />
-              </div>
-              <div className="text-[13px] text-zinc-400">Enviando tu reto…</div>
-            </div>
-          ) : (
-            <>
+          <>
               {/* Enfrentamiento: tu vídeo (A) vs el contenido retado (B) */}
               <div className="relative grid grid-cols-2 gap-3">
                 <input ref={inputRef} type="file" accept="video/*" className="hidden" onChange={handleFileChange} />
@@ -139,14 +98,14 @@ export default function ChallengeDialog({ open, onClose, target, onCreated }) {
                 <button
                   onClick={pickFile}
                   className={`relative w-full aspect-[9/16] rounded-2xl overflow-hidden border bg-white/[0.04] hover:bg-white/[0.06] active:scale-[0.99] transition flex flex-col items-center justify-center gap-2 ${file ? 'border-transparent ring-2' : 'border-white/10'}`}
-                  style={file ? { '--tw-ring-color': GOLD } : undefined}
+                  style={file ? { '--tw-ring-color': '#ffffff' } : undefined}
                 >
-                  <span className="absolute top-2 left-2 z-10 text-[10px] font-bold rounded-full px-2 py-0.5 bg-black/55 backdrop-blur" style={{ color: GOLD }}>Tú</span>
+                  <span className="absolute top-2 left-2 z-10 text-[10px] font-bold rounded-full px-2 py-0.5 bg-black/55 backdrop-blur text-white">Tú</span>
                   {file ? (
                     <>
                       <video src={URL.createObjectURL(file)} muted playsInline className="absolute inset-0 w-full h-full object-cover" />
                       <div className="absolute inset-0 bg-black/45 flex flex-col items-center justify-center gap-1">
-                        <span className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: GOLD }}>
+                        <span className="w-9 h-9 rounded-full flex items-center justify-center bg-white">
                           <Check size={20} className="text-black" strokeWidth={2.5} />
                         </span>
                         <span className="text-[11px] text-white/80 mt-1 underline underline-offset-2">Cambiar</span>
@@ -204,8 +163,7 @@ export default function ChallengeDialog({ open, onClose, target, onCreated }) {
                 <Swords className="w-[18px] h-[18px]" strokeWidth={2} />
                 Enviar reto
               </button>
-            </>
-          )}
+          </>
         </div>
       </div>
     </div>
