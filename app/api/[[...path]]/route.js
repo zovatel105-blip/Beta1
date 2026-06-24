@@ -481,7 +481,7 @@ export async function GET(request, { params }) {
   if (path === '/feed-options') {
     const uploads = await readUploadMeta()
     // No anidamos duets como opción de emparejamiento.
-    const userOptions = uploads
+    const userOptions = await refreshPostAvatars(uploads
       .filter((p) => p.type !== 'duet')
       .map((p) => ({
         id: p.id,
@@ -490,7 +490,7 @@ export async function GET(request, { params }) {
         description: p.description,
         music: p.music,
         source: 'upload',
-      }))
+      })))
     const builtin = VIDEOS.map((vd, i) => ({
       id: `builtin_${i}`,
       videoUrl: vd.url,
@@ -602,7 +602,7 @@ export async function GET(request, { params }) {
       return true
     })
 
-    return NextResponse.json({ user: info, posts })
+    return NextResponse.json({ user: info, posts: await refreshPostAvatars(posts) })
   }
 
   // GET /api/comments?postId=xxx - Obtener comentarios de un post
@@ -634,7 +634,7 @@ export async function GET(request, { params }) {
     for (const p of meta) byId.set(p.id, p)
     for (const p of demo) if (!byId.has(p.id)) byId.set(p.id, p)
     const posts = saves.map((id) => byId.get(id)).filter(Boolean)
-    return NextResponse.json({ saves, posts })
+    return NextResponse.json({ saves, posts: await refreshPostAvatars(posts) })
   }
 
   // GET /api/auth/me - Obtener usuario actual
@@ -657,7 +657,16 @@ export async function GET(request, { params }) {
     const filter = searchParams.get('filter') || 'all'
     
     const notifications = await getNotificationsDB(currentUser.id, { filter })
-    return NextResponse.json({ notifications })
+    // Refrescar el avatar/nombre de quien generó la notificación con los datos
+    // ACTUALES (la notificación guarda un snapshot al crearse).
+    const unames = notifications.map((n) => n.user?.username).filter(Boolean)
+    const fresh = await getCurrentUsersByUsernames(unames)
+    const enriched = notifications.map((n) => {
+      const f = n.user?.username ? fresh[n.user.username] : null
+      if (!f) return n
+      return { ...n, user: { ...n.user, avatarUrl: f.avatarUrl || n.user.avatarUrl, name: f.name || n.user.name } }
+    })
+    return NextResponse.json({ notifications: enriched })
   }
 
   // GET /api/notifications/unread - Contador de notificaciones no leídas

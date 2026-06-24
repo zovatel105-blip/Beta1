@@ -116,6 +116,10 @@ backend:
         -working: "NA"
         -agent: "main"
         -comment: "BUG FIX (usuario: 'En el feed no se actualizó la foto de perfil'). Misma causa raíz que en retos: los posts del feed guardan un SNAPSHOT denormalizado de author/sideA.author/sideB.author. FIX BACKEND: nuevo helper refreshPostAvatars(posts) (usa getCurrentUsersByUsernames de lib/db.js) aplicado en GET /api/uploads y en GET /api/feed (rama MongoDB) -> el avatar/nombre del autor se devuelve siempre actualizado. FIX FRONTEND (actualización instantánea sin recargar): useFeed expone patchAuthorAvatar(username,avatarUrl,name) que reescribe en memoria el avatar del autor en todas las tarjetas; Feed.jsx lo invoca en un effect cuando cambia user.avatarUrl/name (ProfilePage ya llama updateUser tras POST /api/profile). NOTA: por indicación del usuario NO se ejecuta el agente de testing; verificado manualmente (compila, lint limpio). Pendiente de validación del usuario en la app."
+        -working: "NA"
+        -agent: "main"
+        -comment: "AMPLIACIÓN (usuario: 'En las demás páginas también'). Se aplicó refreshPostAvatars / enriquecimiento de avatar ACTUAL en TODOS los endpoints que devolvían snapshot: GET /api/users/:username (posts del perfil propio y ajeno), GET /api/saves (pestaña Guardados), GET /api/feed-options (opciones para retar), y enriquecimiento de n.user en GET /api/notifications (avatar de quien notifica). Ya eran frescos (sin cambios): GET /api/comments (getCommentsByPostId lee author de la colección users), GET /api/users/:u/followers y /following, GET /api/users, y la cabecera de /api/users/:username. Todas estas vistas recargan al abrir (cache:'no-store'), así que muestran el avatar nuevo al reabrir. Lint limpio. NO se ejecuta agente de testing por indicación del usuario; pendiente de validación del usuario."
+
 
     implemented: true
     working: true
