@@ -10,6 +10,7 @@ import VSContentCard from './VSContentCard'
 import CommentsModal from './CommentsModal'
 import ShareModal from './ShareModal'
 import OptionsModal from './OptionsModal'
+import BottomSheet from './BottomSheet'
 import AuthModal from './AuthModal'
 import Avatar, { isGeneratedAvatar } from './Avatar'
 import { useAuth } from '@/contexts/AuthContext'
@@ -718,61 +719,60 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
         onClose={() => setMenuOpen(false)}
       />
 
-      {/* Selector de reto — elige explícitamente la opción A o B a la que retar */}
-      {challengePickOpen && (
-        <div className="absolute inset-0 z-40 flex items-end pointer-events-auto" onClick={(e) => { e.stopPropagation(); setChallengePickOpen(false) }}>
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
-          <div className="relative w-full bg-white rounded-t-3xl pt-2 pb-7 px-5 overflow-hidden" onClick={(e) => e.stopPropagation()}>
-            {/* Flecha para cerrar (igual que el modal de Compartir) */}
-            <button
-              type="button"
-              onClick={() => setChallengePickOpen(false)}
-              aria-label="cerrar"
-              className="relative z-10 flex justify-center items-center w-full pt-1 pb-2 active:scale-90 transition"
-            >
-              <ChevronDown className="w-5 h-5 text-zinc-500" strokeWidth={2.2} />
-            </button>
-            <h3 className="relative z-10 text-zinc-900 text-[16px] font-semibold tracking-tight text-center">¿A quién quieres retar?</h3>
-            <p className="relative z-10 text-zinc-500 text-[12px] text-center mb-4">Elige la opción de este 1vs1</p>
+      {/* Selector de reto — elige explícitamente la opción A o B a la que retar.
+          Se renderiza con BottomSheet (portal a body) para aparecer SIEMPRE por
+          encima de todo, incluida la barra de navegación inferior. */}
+      <BottomSheet open={challengePickOpen} onClose={() => setChallengePickOpen(false)} hideHandle>
+        {/* Flecha para cerrar (igual que el modal de Compartir) */}
+        <button
+          type="button"
+          onClick={() => setChallengePickOpen(false)}
+          aria-label="cerrar"
+          className="flex justify-center items-center w-full pt-2 pb-1 shrink-0 active:scale-90 transition"
+        >
+          <ChevronDown className="w-5 h-5 text-zinc-500" strokeWidth={2.2} />
+        </button>
+        <div className="px-5 pb-7">
+          <h3 className="text-zinc-900 text-[16px] font-semibold tracking-tight text-center">¿A quién quieres retar?</h3>
+          <p className="text-zinc-500 text-[12px] text-center mb-4">Elige la opción de este 1vs1</p>
 
-            <div className="relative z-10 grid grid-cols-2 gap-3">
-              {[
-                { key: 'a', sd: sideA, ring: 'ring-purple-500', dot: '#A855F7', label: 'Opción A' },
-                { key: 'b', sd: sideB, ring: 'ring-blue-500', dot: '#3B82F6', label: 'Opción B' },
-              ].map(({ key, sd, ring, dot, label }) => (
-                <button
-                  key={key}
-                  onClick={() => {
-                    setChallengePickOpen(false)
-                    onChallenge?.({
-                      postId: post.id,
-                      videoUrl: sd.videoUrl,
-                      author: sd.author || headAuthor,
-                      description: sd.description || post.description,
-                      music: sd.music,
-                    })
-                  }}
-                  className="group flex flex-col items-center gap-2.5 active:scale-[0.98] transition-all"
-                >
-                  <div className={cn('relative w-full aspect-[9/16] rounded-2xl overflow-hidden bg-zinc-100 border border-zinc-200 ring-2 ring-offset-2 ring-offset-white', ring)}>
-                    {sd.posterUrl && (
-                      <img src={sd.posterUrl} alt="" aria-hidden className="absolute inset-0 w-full h-full object-cover" draggable={false} />
-                    )}
-                    {sd.videoUrl && (
-                      <video src={sd.videoUrl + '#t=0.3'} muted autoPlay loop playsInline preload="metadata" poster={sd.posterUrl || undefined} className="absolute inset-0 w-full h-full object-cover" />
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent" />
-                    <span className="absolute top-2 left-2 z-10 text-[10px] font-bold rounded-full px-2 py-0.5 bg-black/55 backdrop-blur" style={{ color: dot }}>{label}</span>
-                  </div>
-                  <span className="text-zinc-900 text-[13px] font-semibold leading-tight text-center line-clamp-1">
-                    {sd.author?.name || (sd.author?.username ? `@${sd.author.username}` : label)}
-                  </span>
-                </button>
-              ))}
-            </div>
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { key: 'a', sd: sideA, ring: 'ring-purple-500', dot: '#A855F7', label: 'Opción A' },
+              { key: 'b', sd: sideB, ring: 'ring-blue-500', dot: '#3B82F6', label: 'Opción B' },
+            ].map(({ key, sd, ring, dot, label }) => (
+              <button
+                key={key}
+                onClick={() => {
+                  setChallengePickOpen(false)
+                  onChallenge?.({
+                    postId: post.id,
+                    videoUrl: sd.videoUrl,
+                    author: sd.author || headAuthor,
+                    description: sd.description || post.description,
+                    music: sd.music,
+                  })
+                }}
+                className="group flex flex-col items-center gap-2.5 active:scale-[0.98] transition-all"
+              >
+                <div className={cn('relative w-full aspect-[9/16] rounded-2xl overflow-hidden bg-zinc-100 border border-zinc-200 ring-2 ring-offset-2 ring-offset-white', ring)}>
+                  {sd.posterUrl && (
+                    <img src={sd.posterUrl} alt="" aria-hidden className="absolute inset-0 w-full h-full object-cover" draggable={false} />
+                  )}
+                  {sd.videoUrl && (
+                    <video src={sd.videoUrl + '#t=0.3'} muted autoPlay loop playsInline preload="metadata" poster={sd.posterUrl || undefined} className="absolute inset-0 w-full h-full object-cover" />
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent" />
+                  <span className="absolute top-2 left-2 z-10 text-[10px] font-bold rounded-full px-2 py-0.5 bg-black/55 backdrop-blur" style={{ color: dot }}>{label}</span>
+                </div>
+                <span className="text-zinc-900 text-[13px] font-semibold leading-tight text-center line-clamp-1">
+                  {sd.author?.name || (sd.author?.username ? `@${sd.author.username}` : label)}
+                </span>
+              </button>
+            ))}
           </div>
         </div>
-      )}
+      </BottomSheet>
 
       {/* progress bar */}
       <div className="absolute left-0 right-0 bottom-16 z-20 h-[2px] bg-white/15">
