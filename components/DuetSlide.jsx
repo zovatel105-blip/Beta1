@@ -1,7 +1,7 @@
 'use client'
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { MessageCircle, Bookmark, Play, Swords, MoreVertical } from 'lucide-react'
+import { MessageCircle, Bookmark, Play, Swords, MoreVertical, ChevronDown } from 'lucide-react'
 import ShareIcon from './icons/ShareIcon'
 import { cn } from '@/lib/utils'
 import VoteIcon from './icons/VoteIcon'
@@ -727,7 +727,15 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
             <div className="pointer-events-none absolute inset-x-0 top-0 h-40 z-0"
                  style={{ background: 'radial-gradient(60% 100% at 50% 0%, rgba(214,178,122,0.10), transparent 70%)' }} />
 
-            <div className="relative z-10 mx-auto mb-3 h-1 w-10 rounded-full bg-white/15" />
+            {/* Flecha para cerrar (igual que el modal de Compartir) */}
+            <button
+              type="button"
+              onClick={() => setChallengePickOpen(false)}
+              aria-label="cerrar"
+              className="relative z-10 flex justify-center items-center w-full pt-1 pb-2 active:scale-90 transition"
+            >
+              <ChevronDown className="w-5 h-5 text-zinc-400" strokeWidth={2.2} />
+            </button>
             <h3 className="relative z-10 text-white text-[16px] font-semibold tracking-tight text-center">¿A quién quieres retar?</h3>
             <p className="relative z-10 text-zinc-500 text-[12px] text-center mb-4">Elige la opción de este 1vs1</p>
 
@@ -766,10 +774,6 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
                 </button>
               ))}
             </div>
-
-            <button onClick={() => setChallengePickOpen(false)} className="relative z-10 mt-4 w-full h-11 rounded-full border border-white/15 text-white/80 font-medium text-[14px] hover:bg-white/[0.06] active:scale-[0.99] transition">
-              Cancelar
-            </button>
           </div>
         </div>
       )}
