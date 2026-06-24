@@ -60,12 +60,12 @@ export default function ChallengeDialog({ open, onClose, target, onSubmit }) {
   return (
     <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm" onClick={onClose}>
       <div
-        className="relative w-full sm:max-w-md sm:rounded-3xl rounded-t-3xl bg-[#0a0a0b] border border-white/10 max-h-[92vh] overflow-hidden flex flex-col"
+        className="relative w-full sm:max-w-md sm:rounded-3xl rounded-t-3xl bg-white max-h-[92vh] overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Glow superior con gradiente de marca (morado -> azul) */}
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-72 z-0"
-             style={{ background: 'radial-gradient(70% 100% at 20% 0%, rgba(168,85,247,0.18), transparent 60%), radial-gradient(70% 100% at 80% 0%, rgba(59,130,246,0.18), transparent 60%)' }} />
+        {/* Glow superior con gradiente de marca (morado -> azul), suave sobre blanco */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-40 z-0"
+             style={{ background: 'radial-gradient(70% 100% at 20% 0%, rgba(168,85,247,0.10), transparent 60%), radial-gradient(70% 100% at 80% 0%, rgba(59,130,246,0.10), transparent 60%)' }} />
 
         {/* Flecha para cerrar (igual que el modal de Compartir) */}
         <button
@@ -74,21 +74,21 @@ export default function ChallengeDialog({ open, onClose, target, onSubmit }) {
           aria-label="cerrar"
           className="relative z-10 flex justify-center items-center pt-3 pb-1 shrink-0 active:scale-90 transition"
         >
-          <ChevronDown className="w-5 h-5 text-zinc-400" strokeWidth={2.2} />
+          <ChevronDown className="w-5 h-5 text-zinc-500" strokeWidth={2.2} />
         </button>
 
         {/* Header */}
         <div className="relative z-10 flex items-center gap-3 px-5 pt-1 pb-4">
           <div className="w-9 h-9 rounded-full p-[2px] shrink-0" style={{ background: `linear-gradient(135deg, ${PURPLE}, ${BLUE})` }}>
-            <div className="w-full h-full rounded-full overflow-hidden bg-zinc-900 flex items-center justify-center">
+            <div className="w-full h-full rounded-full overflow-hidden bg-zinc-100 flex items-center justify-center">
               <Avatar src={target?.author?.avatarUrl} alt={username} className="w-full h-full rounded-full" />
             </div>
           </div>
           <div className="min-w-0">
-            <p className="text-[10px] uppercase tracking-[0.18em] font-semibold text-zinc-400 flex items-center gap-1">
+            <p className="text-[10px] uppercase tracking-[0.18em] font-semibold text-zinc-500 flex items-center gap-1">
               <Swords size={11} strokeWidth={2.4} /> Reto
             </p>
-            <h2 className="text-white text-[15px] font-bold tracking-tight leading-tight truncate">Retar a @{username}</h2>
+            <h2 className="text-zinc-900 text-[15px] font-bold tracking-tight leading-tight truncate">Retar a @{username}</h2>
           </div>
         </div>
 
@@ -126,8 +126,8 @@ export default function ChallengeDialog({ open, onClose, target, onSubmit }) {
                         <Upload size={22} style={{ color: PURPLE }} strokeWidth={2} />
                       </span>
                       <div className="text-center leading-tight">
-                        <p className="text-[12px] font-semibold text-white">Sube tu vídeo</p>
-                        <p className="text-[10.5px] text-zinc-400 mt-0.5">Graba o elige uno</p>
+                        <p className="text-[12px] font-semibold text-zinc-900">Sube tu vídeo</p>
+                        <p className="text-[10.5px] text-zinc-500 mt-0.5">Graba o elige uno</p>
                       </div>
                     </div>
                   )}
@@ -149,17 +149,15 @@ export default function ChallengeDialog({ open, onClose, target, onSubmit }) {
                       <span className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(59,130,246,0.18)' }}>
                         <Film size={22} style={{ color: BLUE }} strokeWidth={1.8} />
                       </span>
-                      <p className="text-[10.5px] text-zinc-400 leading-tight">Subirá su vídeo<br />al aceptar el reto</p>
+                      <p className="text-[10.5px] text-zinc-500 leading-tight">Subirá su vídeo<br />al aceptar el reto</p>
                     </div>
                   )}
                 </div>
 
                 {/* Insignia VS al centro con anillo de gradiente */}
                 <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-30 pointer-events-none">
-                  <div className="w-12 h-12 rounded-full p-[2px]" style={{ background: `linear-gradient(135deg, ${PURPLE}, ${BLUE})`, boxShadow: '0 8px 24px rgba(0,0,0,0.6)' }}>
-                    <div className="w-full h-full rounded-full bg-[#0a0a0b] flex items-center justify-center">
-                      <span className="text-white font-black text-[13px] tracking-wide italic">VS</span>
-                    </div>
+                  <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${PURPLE}, ${BLUE})`, boxShadow: '0 8px 24px rgba(0,0,0,0.25)' }}>
+                    <span className="text-white font-black text-[13px] tracking-wide italic">VS</span>
                   </div>
                 </div>
               </div>
@@ -170,22 +168,22 @@ export default function ChallengeDialog({ open, onClose, target, onSubmit }) {
                 onChange={(e) => setMessage(e.target.value)}
                 placeholder="Añade un mensaje al reto (opcional)…"
                 rows={2}
-                className="w-full bg-white/[0.04] border border-white/10 rounded-2xl px-4 py-3 text-[14px] text-white placeholder:text-zinc-500 focus:outline-none focus:border-white/25 resize-none transition"
+                className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl px-4 py-3 text-[14px] text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:border-zinc-400 resize-none transition"
               />
 
               <p className="text-[12px] text-zinc-500 leading-relaxed">
-                Se enviará una solicitud de reto a <span className="text-zinc-300">@{username}</span>. Cuando la acepte, se publicará como un versus (tú vs {target?.author?.name || 'rival'}).
+                Se enviará una solicitud de reto a <span className="text-zinc-700 font-medium">@{username}</span>. Cuando la acepte, se publicará como un versus (tú vs {target?.author?.name || 'rival'}).
               </p>
 
-              {error && <div className="text-[12px] text-rose-400">{error}</div>}
+              {error && <div className="text-[12px] text-rose-500">{error}</div>}
 
               <button
                 onClick={doSend}
                 disabled={!file}
-                className="w-full h-12 rounded-full text-white font-bold text-[15px] flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.99] transition"
+                className={`w-full h-12 rounded-full font-bold text-[15px] flex items-center justify-center gap-2 disabled:cursor-not-allowed active:scale-[0.99] transition ${file ? 'text-white' : 'text-zinc-400'}`}
                 style={file
                   ? { background: `linear-gradient(135deg, ${PURPLE}, ${BLUE})`, boxShadow: '0 10px 30px -8px rgba(99,102,241,0.6)' }
-                  : { background: 'rgba(255,255,255,0.1)' }}
+                  : { background: '#e4e4e7' }}
               >
                 <Swords className="w-[18px] h-[18px]" strokeWidth={2.2} />
                 Enviar reto

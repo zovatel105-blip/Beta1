@@ -722,11 +722,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
       {challengePickOpen && (
         <div className="absolute inset-0 z-40 flex items-end pointer-events-auto" onClick={(e) => { e.stopPropagation(); setChallengePickOpen(false) }}>
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
-          <div className="relative w-full bg-[#0a0a0b] border-t border-white/10 rounded-t-3xl pt-2 pb-7 px-5 overflow-hidden" onClick={(e) => e.stopPropagation()}>
-            {/* Glow superior cálido dorado */}
-            <div className="pointer-events-none absolute inset-x-0 top-0 h-40 z-0"
-                 style={{ background: 'radial-gradient(60% 100% at 50% 0%, rgba(214,178,122,0.10), transparent 70%)' }} />
-
+          <div className="relative w-full bg-white rounded-t-3xl pt-2 pb-7 px-5 overflow-hidden" onClick={(e) => e.stopPropagation()}>
             {/* Flecha para cerrar (igual que el modal de Compartir) */}
             <button
               type="button"
@@ -734,9 +730,9 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
               aria-label="cerrar"
               className="relative z-10 flex justify-center items-center w-full pt-1 pb-2 active:scale-90 transition"
             >
-              <ChevronDown className="w-5 h-5 text-zinc-400" strokeWidth={2.2} />
+              <ChevronDown className="w-5 h-5 text-zinc-500" strokeWidth={2.2} />
             </button>
-            <h3 className="relative z-10 text-white text-[16px] font-semibold tracking-tight text-center">¿A quién quieres retar?</h3>
+            <h3 className="relative z-10 text-zinc-900 text-[16px] font-semibold tracking-tight text-center">¿A quién quieres retar?</h3>
             <p className="relative z-10 text-zinc-500 text-[12px] text-center mb-4">Elige la opción de este 1vs1</p>
 
             <div className="relative z-10 grid grid-cols-2 gap-3">
@@ -758,7 +754,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
                   }}
                   className="group flex flex-col items-center gap-2.5 active:scale-[0.98] transition-all"
                 >
-                  <div className={cn('relative w-full aspect-[9/16] rounded-2xl overflow-hidden bg-zinc-900 border border-white/10 ring-2 ring-offset-2 ring-offset-[#0a0a0b]', ring)}>
+                  <div className={cn('relative w-full aspect-[9/16] rounded-2xl overflow-hidden bg-zinc-100 border border-zinc-200 ring-2 ring-offset-2 ring-offset-white', ring)}>
                     {sd.posterUrl && (
                       <img src={sd.posterUrl} alt="" aria-hidden className="absolute inset-0 w-full h-full object-cover" draggable={false} />
                     )}
@@ -768,7 +764,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
                     <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent" />
                     <span className="absolute top-2 left-2 z-10 text-[10px] font-bold rounded-full px-2 py-0.5 bg-black/55 backdrop-blur" style={{ color: dot }}>{label}</span>
                   </div>
-                  <span className="text-white text-[13px] font-semibold leading-tight text-center line-clamp-1">
+                  <span className="text-zinc-900 text-[13px] font-semibold leading-tight text-center line-clamp-1">
                     {sd.author?.name || (sd.author?.username ? `@${sd.author.username}` : label)}
                   </span>
                 </button>
