@@ -74,7 +74,7 @@ const slotPoster = (p) => p && (p.posterUrl || p.sideA?.posterUrl || p.thumbnail
  *  REGLA #2 — la liberación agresiva del decoder vive DENTRO de las tarjetas.
  */
 export default function Feed() {
-  const { posts, ready, loadMore, prependPost } = useFeed()
+  const { posts, ready, loadMore, prependPost, patchAuthorAvatar } = useFeed()
   const { showGuestPrompt, dismissPrompt, trackVideoView, isGuest } = useGuestTracking()
   const { user } = useAuth()
 
@@ -189,6 +189,15 @@ export default function Feed() {
       setUploadOpen(true)
     }
   }, [user, pendingUpload])
+
+  // Al cambiar la foto de perfil (o nombre), refrescar EN MEMORIA el avatar del
+  // usuario en todas sus tarjetas ya cargadas del feed (el feed guarda un
+  // snapshot del avatar al cargar). Así la nueva foto se ve al instante sin
+  // recargar el feed. (El backend ya devuelve el avatar actual en /api/uploads
+  // y /api/feed para futuras cargas.)
+  useEffect(() => {
+    if (user?.username) patchAuthorAvatar(user.username, user.avatarUrl, user.name)
+  }, [user?.username, user?.avatarUrl, user?.name, patchAuthorAvatar])
 
   // Medidor de red (estimación de ancho de banda real para la calidad adaptativa).
   useEffect(() => { startNetworkMonitor() }, [])

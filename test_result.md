@@ -105,7 +105,18 @@
 user_problem_statement: "Las publicaciones normales deben ser un carrusel de 2 vídeos (opción A / opción B) entre los que se desliza y se vota tocando el vídeo. Se suben 2 vídeos. Reemplaza el vídeo normal. AÑADIDO: votar = doble toque, quitar el corazón/Me gusta, y nueva función 'Retar' (solicitud de enfrentamiento con un vídeo subido que el retado acepta/cancela en la Bandeja)."
 
 backend:
-  - task: "Refrescar avatar de participantes en retos (activos y completados) tras cambiar foto de perfil"
+  - task: "Refrescar avatar del autor en el feed (/api/uploads y /api/feed) tras cambiar foto de perfil"
+    implemented: true
+    working: "NA"
+    file: "app/api/[[...path]]/route.js, lib/db.js, hooks/useFeed.js, components/Feed.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "BUG FIX (usuario: 'En el feed no se actualizó la foto de perfil'). Misma causa raíz que en retos: los posts del feed guardan un SNAPSHOT denormalizado de author/sideA.author/sideB.author. FIX BACKEND: nuevo helper refreshPostAvatars(posts) (usa getCurrentUsersByUsernames de lib/db.js) aplicado en GET /api/uploads y en GET /api/feed (rama MongoDB) -> el avatar/nombre del autor se devuelve siempre actualizado. FIX FRONTEND (actualización instantánea sin recargar): useFeed expone patchAuthorAvatar(username,avatarUrl,name) que reescribe en memoria el avatar del autor en todas las tarjetas; Feed.jsx lo invoca en un effect cuando cambia user.avatarUrl/name (ProfilePage ya llama updateUser tras POST /api/profile). NOTA: por indicación del usuario NO se ejecuta el agente de testing; verificado manualmente (compila, lint limpio). Pendiente de validación del usuario en la app."
+
     implemented: true
     working: true
     file: "app/api/[[...path]]/route.js, lib/db.js"

@@ -101,7 +101,26 @@ export function useFeed() {
     setPosts((prev) => [post, ...prev.filter((p) => p.id !== post.id)])
   }, [])
 
-  return { posts, ready, loadMore, prependPost }
+  // Actualiza EN MEMORIA el avatar/nombre de un autor en TODOS los posts del
+  // feed (author + lados A/B). Se usa cuando el usuario cambia su foto de
+  // perfil: el feed ya cargado guarda un snapshot del avatar, así que lo
+  // refrescamos al instante sin recargar todo el feed.
+  const patchAuthorAvatar = useCallback((username, avatarUrl, name) => {
+    if (!username) return
+    setPosts((prev) => prev.map((p) => {
+      const patch = (a) => (a && a.username === username
+        ? { ...a, avatarUrl: avatarUrl || a.avatarUrl, name: name || a.name }
+        : a)
+      return {
+        ...p,
+        author: patch(p.author),
+        sideA: p.sideA ? { ...p.sideA, author: patch(p.sideA.author) } : p.sideA,
+        sideB: p.sideB ? { ...p.sideB, author: patch(p.sideB.author) } : p.sideB,
+      }
+    }))
+  }, [])
+
+  return { posts, ready, loadMore, prependPost, patchAuthorAvatar }
 }
 
 export default useFeed

@@ -315,6 +315,34 @@ function makePosts(start, count) {
   return posts
 }
 
+// Refresca los avatares (y nombre/verificado) denormalizados de una lista de
+// posts con los datos ACTUALES del usuario registrado. Corrige las fotos de
+// perfil obsoletas en el feed: cada post guarda un SNAPSHOT del avatar del
+// autor al publicarse, que queda viejo cuando el autor cambia su foto.
+// Los autores demo (sin documento en la colección users) conservan su snapshot.
+async function refreshPostAvatars(posts) {
+  if (!Array.isArray(posts) || posts.length === 0) return posts
+  const unames = []
+  for (const p of posts) {
+    if (p.author?.username) unames.push(p.author.username)
+    if (p.sideA?.author?.username) unames.push(p.sideA.author.username)
+    if (p.sideB?.author?.username) unames.push(p.sideB.author.username)
+  }
+  const fresh = await getCurrentUsersByUsernames(unames)
+  const refresh = (a) => {
+    if (!a || !a.username) return a
+    const f = fresh[a.username]
+    if (!f) return a
+    return { ...a, avatarUrl: f.avatarUrl || a.avatarUrl, name: f.name || a.name, verified: f.verified }
+  }
+  return posts.map((p) => ({
+    ...p,
+    author: refresh(p.author),
+    sideA: p.sideA ? { ...p.sideA, author: refresh(p.sideA.author) } : p.sideA,
+    sideB: p.sideB ? { ...p.sideB, author: refresh(p.sideB.author) } : p.sideB,
+  }))
+}
+
 export async function GET(request, { params }) {
   const segs = (params?.path) || []
   const path = '/' + segs.join('/')
@@ -328,9 +356,10 @@ export async function GET(request, { params }) {
       // Intentar obtener posts reales de MongoDB
       const result = await getPostsDB({ cursor, limit })
       
-      // Si hay posts reales, devolverlos
+      // Si hay posts reales, devolverlos (refrescando avatares actuales)
       if (result.posts.length > 0) {
-        return NextResponse.json(result)
+        const posts = await refreshPostAvatars(result.posts)
+        return NextResponse.json({ ...result, posts })
       }
       
       // Fallback: Si no hay posts en MongoDB, usar datos de demo
@@ -355,7 +384,8 @@ export async function GET(request, { params }) {
 
   if (path === '/uploads') {
     const meta = await readUploadMeta()
-    return NextResponse.json({ posts: meta })
+    const posts = await refreshPostAvatars(meta)
+    return NextResponse.json({ posts })
   }
 
   // Lista de retos COMPLETADOS (retos aceptados -> publicados como versus).
