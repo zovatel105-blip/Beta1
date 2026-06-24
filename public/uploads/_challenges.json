@@ -1,5 +1,67 @@
 [
   {
+    "id": "challenge_266157cc76a0a7f3",
+    "status": "pending",
+    "from": {
+      "id": "c74ce2c6-c4aa-4fd1-8193-e63881ad685a",
+      "username": "Koko",
+      "name": "Koko",
+      "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=Koko",
+      "verified": false
+    },
+    "to": {
+      "id": "84dfa621-c70a-43b9-b2ef-19fc37439204",
+      "username": "Nex",
+      "name": "Nex",
+      "avatarUrl": "/uploads/avatar_76fcc9c11679f02c.jpg",
+      "verified": false
+    },
+    "challengerVideoUrl": "/uploads/5999980f62c735c8.mp4",
+    "targetVideoUrl": "/uploads/d7cbc58e8e21bd44.mp4",
+    "targetAuthor": {
+      "id": "84dfa621-c70a-43b9-b2ef-19fc37439204",
+      "username": "Nex",
+      "name": "Nex",
+      "avatarUrl": "/uploads/avatar_76fcc9c11679f02c.jpg",
+      "verified": false
+    },
+    "targetDescription": "¿Cuál prefieres? 🅰️🆚🅱️",
+    "targetMusic": "Opción A",
+    "message": "",
+    "createdAt": "2026-06-24T21:07:56.051Z"
+  },
+  {
+    "id": "challenge_d214e8ecafadb226",
+    "status": "pending",
+    "from": {
+      "id": "32e69735-7064-48ed-abf6-d6714ec98e47",
+      "username": "Nex",
+      "name": "Nex",
+      "avatarUrl": "/uploads/avatar_76fcc9c11679f02c.jpg",
+      "verified": false
+    },
+    "to": {
+      "id": "473635c6-56c1-46ad-b897-14e6f42c5385",
+      "username": "Tetk",
+      "name": "Tetk",
+      "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=Tetk",
+      "verified": false
+    },
+    "challengerVideoUrl": "/uploads/bf54fbebfd512b73.mp4",
+    "targetVideoUrl": "/uploads/1ecb3fee0bf8fafc.mp4",
+    "targetAuthor": {
+      "id": "473635c6-56c1-46ad-b897-14e6f42c5385",
+      "username": "Tetk",
+      "name": "Tetk",
+      "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=Tetk",
+      "verified": false
+    },
+    "targetDescription": "Mi reto",
+    "targetMusic": "Reto",
+    "message": "",
+    "createdAt": "2026-06-24T18:51:21.297Z"
+  },
+  {
     "id": "challenge_4d89c8a4f19d3b93",
     "status": "pending",
     "from": {
