@@ -2,7 +2,7 @@
 /* eslint-disable react-hooks/set-state-in-effect -- reseteo de estado al cerrar; falso positivo de la regla experimental. */
 
 import { useEffect, useRef, useState } from 'react'
-import { X, Film, Check, Swords, Upload } from 'lucide-react'
+import { ChevronDown, Film, Check, Swords, Upload } from 'lucide-react'
 import Avatar from './Avatar'
 
 // Colores de marca para la identidad "versus" (mismos de la votación A/B).
@@ -67,11 +67,18 @@ export default function ChallengeDialog({ open, onClose, target, onSubmit }) {
         <div className="pointer-events-none absolute inset-x-0 top-0 h-72 z-0"
              style={{ background: 'radial-gradient(70% 100% at 20% 0%, rgba(168,85,247,0.18), transparent 60%), radial-gradient(70% 100% at 80% 0%, rgba(59,130,246,0.18), transparent 60%)' }} />
 
-        {/* Asa de arrastre (móvil) */}
-        <div className="relative z-10 mx-auto mt-3 h-1 w-10 rounded-full bg-white/15 sm:hidden" />
+        {/* Flecha para cerrar (igual que el modal de Compartir) */}
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="cerrar"
+          className="relative z-10 flex justify-center items-center pt-3 pb-1 shrink-0 active:scale-90 transition"
+        >
+          <ChevronDown className="w-5 h-5 text-zinc-400" strokeWidth={2.2} />
+        </button>
 
         {/* Header */}
-        <div className="relative z-10 flex items-center gap-3 px-5 pt-4 pb-4">
+        <div className="relative z-10 flex items-center gap-3 px-5 pt-1 pb-4">
           <div className="w-9 h-9 rounded-full p-[2px] shrink-0" style={{ background: `linear-gradient(135deg, ${PURPLE}, ${BLUE})` }}>
             <div className="w-full h-full rounded-full overflow-hidden bg-zinc-900 flex items-center justify-center">
               <Avatar src={target?.author?.avatarUrl} alt={username} className="w-full h-full rounded-full" />
@@ -83,13 +90,6 @@ export default function ChallengeDialog({ open, onClose, target, onSubmit }) {
             </p>
             <h2 className="text-white text-[15px] font-bold tracking-tight leading-tight truncate">Retar a @{username}</h2>
           </div>
-          <button
-            onClick={onClose}
-            aria-label="Cerrar"
-            className="ml-auto w-9 h-9 rounded-full bg-white/[0.06] border border-white/10 flex items-center justify-center text-zinc-300 hover:bg-white/10 active:scale-95 transition"
-          >
-            <X size={18} />
-          </button>
         </div>
 
         {/* Body */}
