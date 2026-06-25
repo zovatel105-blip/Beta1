@@ -105,6 +105,28 @@
 user_problem_statement: "Las publicaciones normales deben ser un carrusel de 2 vídeos (opción A / opción B) entre los que se desliza y se vota tocando el vídeo. Se suben 2 vídeos. Reemplaza el vídeo normal. AÑADIDO: votar = doble toque, quitar el corazón/Me gusta, y nueva función 'Retar' (solicitud de enfrentamiento con un vídeo subido que el retado acepta/cancela en la Bandeja)."
 
 backend:
+  - task: "SEGURIDAD: hashing de contraseñas con bcrypt (salt rounds=12) + verificación híbrida con migración transparente desde SHA-256"
+    implemented: true
+    working: true
+    file: "lib/auth.js, lib/db.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "main"
+        -comment: "CAMBIO 1 (seguridad). Reemplazado SHA-256 por bcrypt. lib/auth.js: hashPassword ahora es async -> bcrypt.hash(pwd, 12); verifyPassword devuelve {valid, needsRehash}: si el hash empieza por $2 usa bcrypt.compare; si es un hash SHA-256 antiguo (64 hex) lo verifica con SHA-256 y marca needsRehash. lib/db.js: createUser usa await hashPassword; verifyUserCredentials re-hashea con bcrypt y persiste el nuevo hash cuando needsRehash (migración transparente). Instalado bcrypt@6.0.0 (yarn). VERIFICADO MANUALMENTE con curl (sin agente de testing, petición del usuario): registro nuevo -> hash $2b$12$ (60 chars), login OK, pwd incorrecta -> 401; usuario legacy SHA-256 -> login OK y hash re-hasheado a $2b$12$ tras login. Lint limpio."
+  - task: "PERSISTENCIA: migrar _meta.json/_challenges.json/_votes.json a MongoDB (posts/challenges/votes) con operaciones atómicas"
+    implemented: true
+    working: true
+    file: "lib/stores.js, app/api/[[...path]]/route.js, scripts/migrate-json-to-mongo.mjs"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "main"
+        -comment: "CAMBIO 2 (persistencia). Nuevo lib/stores.js: capa MongoDB para posts(_meta.json)/challenges(_challenges.json)/votes(_votes.json), MISMA estructura y endpoints. Voto ATÓMICO: incrementPostVote (findOneAndUpdate $inc) en uploads; incrementBuiltinVote (pipeline $set+$ifNull+$inc upsert, siembra seedVotes) en feed demo -> elimina race condition. route.js: lecturas delegan en Mongo; ELIMINADA toda escritura a JSON; quitada rama muerta getPostsDB/votePostDB. Script idempotente importó 34 posts + 15 challenges + 10 votes. Restaurado .env (MONGO_URL). VERIFICADO MANUALMENTE con curl/mongosh: /api/uploads=34, feed con votos migrados, votos persisten, ciclo crear/ver/rechazar reto OK. Lint limpio, endpoints 200."
   - task: "Refrescar avatar del autor en el feed (/api/uploads y /api/feed) tras cambiar foto de perfil"
     implemented: true
     working: "NA"

@@ -21,9 +21,6 @@ import {
   toggleSave as toggleSaveDB,
   getSavesByUserId,
   isPostSavedByUser,
-  getPosts as getPostsDB,
-  createPost as createPostDB,
-  votePost as votePostDB,
   incrementPostViews,
   getNotifications as getNotificationsDB,
   createNotification,
@@ -37,12 +34,22 @@ import {
   getFollowersByUsername,
   getFollowingByUsername,
 } from '@/lib/db'
+import {
+  getAllPosts,
+  insertPost,
+  updatePost,
+  incrementPostVote,
+  getAllChallenges,
+  insertChallenge,
+  deleteChallenge,
+  getAllBuiltinVotes,
+  incrementBuiltinVote,
+} from '@/lib/stores'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 const UPLOAD_DIR = nodePath.join(process.cwd(), 'public', 'uploads')
-const UPLOAD_META = nodePath.join(UPLOAD_DIR, '_meta.json')
 
 // ────────────────────────────────────────────────────────────────────────────
 // HELPER: Obtener usuario actual desde token
@@ -158,38 +165,31 @@ async function processPostRenditions(postId, sideAUrl, sideBUrl) {
   try {
     const [qa, qb] = await Promise.all([generateRenditions(sideAUrl), generateRenditions(sideBUrl)])
     if (!qa && !qb) return
-    const meta = await readUploadMeta()
+    const meta = await getAllPosts()
     const p = meta.find((x) => x.id === postId)
     if (!p) return
-    if (qa && p.sideA) p.sideA.qualities = qa
-    if (qb && p.sideB) p.sideB.qualities = qb
-    if (qa) p.qualities = qa
-    await writeUploadMeta(meta)
+    const fields = {}
+    if (qa && p.sideA) fields['sideA.qualities'] = qa
+    if (qb && p.sideB) fields['sideB.qualities'] = qb
+    if (qa) fields.qualities = qa
+    if (Object.keys(fields).length) await updatePost(postId, fields)
   } catch (e) { console.warn('renditions failed', postId, String(e?.message || e)) }
 }
 
 async function ensureUploadDir() {
   await fs.mkdir(UPLOAD_DIR, { recursive: true })
 }
+// Lectura de publicaciones subidas (antes _meta.json). Ahora desde MongoDB
+// (colección `posts`). Devuelve el array con la MISMA forma y orden (más
+// reciente primero) que tenía el JSON.
 async function readUploadMeta() {
-  try {
-    const raw = await fs.readFile(UPLOAD_META, 'utf-8')
-    return JSON.parse(raw)
-  } catch { return [] }
-}
-async function writeUploadMeta(arr) {
-  await ensureUploadDir()
-  await fs.writeFile(UPLOAD_META, JSON.stringify(arr, null, 2))
+  return getAllPosts()
 }
 
-// Votes store for built-in (non-persisted) feed posts, keyed by post id.
-const VOTES_STORE = nodePath.join(UPLOAD_DIR, '_votes.json')
+// Lectura de votos de los posts del feed integrado (antes _votes.json). Ahora
+// desde MongoDB (colección `votes`). Devuelve { [postId]: { a, b } }.
 async function readVotesStore() {
-  try { return JSON.parse(await fs.readFile(VOTES_STORE, 'utf-8')) } catch { return {} }
-}
-async function writeVotesStore(obj) {
-  await ensureUploadDir()
-  await fs.writeFile(VOTES_STORE, JSON.stringify(obj, null, 2))
+  return getAllBuiltinVotes()
 }
 // Deterministic base votes so each built-in versus feels "alive" before voting.
 function seedVotes(id) {
@@ -198,14 +198,10 @@ function seedVotes(id) {
   return { a: 60 + (h % 900), b: 60 + (Math.floor(h / 7) % 900) }
 }
 
-// Retos (challenges) store: solicitudes de enfrentamiento pendientes.
-const CHALLENGES_STORE = nodePath.join(UPLOAD_DIR, '_challenges.json')
+// Lectura de retos pendientes (antes _challenges.json). Ahora desde MongoDB
+// (colección `challenges`). Devuelve el array con la misma forma/orden.
 async function readChallenges() {
-  try { return JSON.parse(await fs.readFile(CHALLENGES_STORE, 'utf-8')) } catch { return [] }
-}
-async function writeChallenges(arr) {
-  await ensureUploadDir()
-  await fs.writeFile(CHALLENGES_STORE, JSON.stringify(arr, null, 2))
+  return getAllChallenges()
 }
 
 const ME_AUTHOR = {
@@ -351,35 +347,17 @@ export async function GET(request, { params }) {
     const { searchParams } = new URL(request.url)
     const cursor = parseInt(searchParams.get('cursor') || '0', 10)
     const limit = Math.min(parseInt(searchParams.get('limit') || '8', 10), 20)
-    
-    try {
-      // Intentar obtener posts reales de MongoDB
-      const result = await getPostsDB({ cursor, limit })
-      
-      // Si hay posts reales, devolverlos (refrescando avatares actuales)
-      if (result.posts.length > 0) {
-        const posts = await refreshPostAvatars(result.posts)
-        return NextResponse.json({ ...result, posts })
-      }
-      
-      // Fallback: Si no hay posts en MongoDB, usar datos de demo
-      console.log('⚠️  No hay posts en MongoDB, usando datos de demo')
-      const store = await readVotesStore()
-      const posts = makePosts(cursor, limit).map((p) => ({
-        ...p,
-        votes: store[p.id] || seedVotes(p.id),
-      }))
-      return NextResponse.json({ posts, nextCursor: cursor + limit, hasMore: true })
-    } catch (err) {
-      console.error('Error fetching posts from MongoDB:', err)
-      // Fallback en caso de error
-      const store = await readVotesStore()
-      const posts = makePosts(cursor, limit).map((p) => ({
-        ...p,
-        votes: store[p.id] || seedVotes(p.id),
-      }))
-      return NextResponse.json({ posts, nextCursor: cursor + limit, hasMore: true })
-    }
+
+    // El feed sirve los posts integrados (demo) con sus votos persistidos en la
+    // colección `votes` (antes _votes.json). Las publicaciones subidas por los
+    // usuarios se entregan por separado vía GET /api/uploads (el frontend
+    // fusiona ambas fuentes), por lo que aquí NO se mezclan.
+    const store = await readVotesStore()
+    const posts = makePosts(cursor, limit).map((p) => ({
+      ...p,
+      votes: store[p.id] || seedVotes(p.id),
+    }))
+    return NextResponse.json({ posts, nextCursor: cursor + limit, hasMore: true })
   }
 
   if (path === '/uploads') {
@@ -845,9 +823,7 @@ async function handleVersusUpload(request) {
       duration: 0,
       uploadedAt: new Date().toISOString(),
     }
-    const meta = await readUploadMeta()
-    meta.unshift(post)
-    await writeUploadMeta(meta)
+    await insertPost(post)
     // Renditions ABR DESACTIVADAS: degradaban la calidad (reescalado) y las
     // versiones 540/720 pesaban más que el original -> menos fluidez. Servimos
     // el original (con faststart) que da mejor calidad Y arranque rápido.
@@ -924,9 +900,7 @@ async function handleDuetUpload(request) {
       duration: 0,
       uploadedAt: new Date().toISOString(),
     }
-    const meta = await readUploadMeta()
-    meta.unshift(post)
-    await writeUploadMeta(meta)
+    await insertPost(post)
     // Renditions ABR DESACTIVADAS (ver nota en el flujo versus): servimos el
     // original con faststart -> mejor calidad y fluidez.
     // processPostRenditions(post.id, urlA, urlB)
@@ -950,30 +924,17 @@ async function handleVote(request) {
     }
 
     const currentUser = await getCurrentUser(request)
-    
-    // 1) Intentar con MongoDB posts primero
-    try {
-      const votes = await votePostDB(id, side, currentUser?.id)
-      return NextResponse.json({ ok: true, votes })
-    } catch (mongoErr) {
-      // Si no existe en MongoDB, continuar con el sistema legacy
-    }
-    
-    // 2) Uploaded posts (duet or versus) -> persist in meta
-    const meta = await readUploadMeta()
-    const idx = meta.findIndex((p) => p.id === id && (p.type === 'duet' || p.type === 'versus'))
-    if (idx !== -1) {
-      const p = meta[idx]
-      p.votes = p.votes || { a: 0, b: 0 }
-      p.votes[side] = (p.votes[side] || 0) + 1
-      meta[idx] = p
-      await writeUploadMeta(meta)
 
+    // 1) Publicaciones subidas (versus/1vs1/reto) -> incremento ATÓMICO en
+    //    MongoDB (colección `posts`). Un único $inc evita la race condition de
+    //    votos simultáneos. Devuelve el post actualizado (o null si no existe).
+    const updated = await incrementPostVote(id, side)
+    if (updated) {
       // Notificar al autor del lado votado (en retos sideA/sideB pueden ser
       // usuarios distintos; en versus/1vs1 normales ambos lados son el mismo autor).
       try {
-        const sideAuthor = side === 'a' ? p.sideA?.author : p.sideB?.author
-        const recipientId = sideAuthor?.id || p.author?.id
+        const sideAuthor = side === 'a' ? updated.sideA?.author : updated.sideB?.author
+        const recipientId = sideAuthor?.id || updated.author?.id
         if (
           recipientId &&
           recipientId !== 'anonymous' &&
@@ -983,7 +944,7 @@ async function handleVote(request) {
             userId: recipientId,
             type: 'vote',
             fromUserId: currentUser?.id || null,
-            postId: p.id,
+            postId: updated.id,
             side,
           })
         }
@@ -991,15 +952,12 @@ async function handleVote(request) {
         console.error('vote notification error', notifErr)
       }
 
-      return NextResponse.json({ ok: true, votes: p.votes })
+      return NextResponse.json({ ok: true, votes: updated.votes })
     }
-    // 3) Built-in feed versus posts -> persist in votes store (seed if first time)
-    const store = await readVotesStore()
-    const base = store[id] || seedVotes(id)
-    base[side] = (base[side] || 0) + 1
-    store[id] = base
-    await writeVotesStore(store)
-    return NextResponse.json({ ok: true, votes: base })
+    // 2) Posts del feed integrado (demo) -> incremento ATÓMICO en `votes`,
+    //    sembrando con seedVotes la primera vez que se vota.
+    const votes = await incrementBuiltinVote(id, side, seedVotes(id))
+    return NextResponse.json({ ok: true, votes })
   } catch (err) {
     return NextResponse.json({ error: 'vote_failed', detail: String(err?.message || err) }, { status: 500 })
   }
@@ -1148,9 +1106,7 @@ async function handleCreateChallenge(request) {
       message,
       createdAt: new Date().toISOString(),
     }
-    const list = await readChallenges()
-    list.unshift(challenge)
-    await writeChallenges(list)
+    await insertChallenge(challenge)
 
     // Notificar al usuario retado.
     try {
@@ -1217,11 +1173,8 @@ async function handleAcceptChallenge(cid, request) {
       uploadedAt: new Date().toISOString(),
       isChallenge: true,
     }
-    const meta = await readUploadMeta()
-    meta.unshift(post)
-    await writeUploadMeta(meta)
-    list.splice(idx, 1)
-    await writeChallenges(list)
+    await insertPost(post)
+    await deleteChallenge(cid)
 
     // Notificar al RETADOR (c.from) que su reto fue aceptado. El que acepta es
     // el retado (c.to).
@@ -1251,9 +1204,7 @@ async function handleAcceptChallenge(cid, request) {
 // POST /api/challenges/{id}/reject -> elimina el reto.
 async function handleRejectChallenge(cid) {
   try {
-    const list = await readChallenges()
-    const next = list.filter((c) => c.id !== cid)
-    await writeChallenges(next)
+    await deleteChallenge(cid)
     return NextResponse.json({ ok: true })
   } catch (err) {
     return NextResponse.json({ error: 'reject_failed', detail: String(err?.message || err) }, { status: 500 })
