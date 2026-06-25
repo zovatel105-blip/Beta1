@@ -625,6 +625,7 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
       <OptionsModal
         open={menuOpen}
         postId={post.id}
+        author={headAuthor}
         onClose={() => setMenuOpen(false)}
       />
 

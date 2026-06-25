@@ -716,6 +716,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
       <OptionsModal
         open={menuOpen}
         postId={post.id}
+        author={headAuthor}
         onClose={() => setMenuOpen(false)}
       />
 

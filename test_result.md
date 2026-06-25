@@ -105,7 +105,18 @@
 user_problem_statement: "Las publicaciones normales deben ser un carrusel de 2 vídeos (opción A / opción B) entre los que se desliza y se vota tocando el vídeo. Se suben 2 vídeos. Reemplaza el vídeo normal. AÑADIDO: votar = doble toque, quitar el corazón/Me gusta, y nueva función 'Retar' (solicitud de enfrentamiento con un vídeo subido que el retado acepta/cancela en la Bandeja)."
 
 backend:
-  - task: "SEGURIDAD: hashing de contraseñas con bcrypt (salt rounds=12) + verificación híbrida con migración transparente desde SHA-256"
+  - task: "MODERACIÓN: reportes (reports), bloqueos (blocks), rol admin/role, suspensión y panel admin"
+    implemented: true
+    working: true
+    file: "lib/db.js, app/api/[[...path]]/route.js, components/OptionsModal.jsx, app/admin/reports/page.js, .env"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "main"
+        -comment: "NUEVA FEATURE moderación real. (1) ROL: createUser asigna role='admin' al PRIMER usuario registrado o si el email está en ADMIN_EMAILS (.env, default twyk.apk@gmail.com); resto 'user'. Campo suspended:false. isAdminEmail() en db.js. (2) REPORTES: colección reports {reporterId,targetType(user/post),targetId,reason,status(pending/reviewed/dismissed),createdAt}. POST /api/reports (auth, valida reason en lista por defecto), GET /api/admin/reports (solo admin, enriquecido con reporter/target/targetUser). (3) BLOQUEOS: colección blocks {blockerId,blockedId,createdAt}. POST /api/users/block y DELETE /api/users/block (resuelven por username). Feed (/api/uploads) oculta posts de usuarios bloqueados (mutuo) vía filterBlockedPosts+getMutualBlockedIds. Bloqueado NO puede ver perfil (GET /api/users/:username -> 403) ni comentar (POST /api/comments -> 403). (4) PANEL: /admin/reports (página Next client, solo admin, si no -> Acceso denegado). POST /api/admin/reports/:id/review (marca reviewed, opcional suspend -> suspendUser del autor) y /dismiss (status dismissed). (5) SUSPENSIÓN: usuario suspendido no puede login (handleLogin -> 403 account_suspended) y getCurrentUser lo trata como no autenticado (sesiones existentes -> 401). VERIFICADO MANUALMENTE con curl/mongosh (sin agente de testing, petición del usuario): 1er user=admin, 2º=user, email admin=admin; report crea/lista (reason inválida 400, no-admin 403); bloqueo oculta post del feed (36->35), perfil y comentario del bloqueado 403, desbloqueo restaura; review+suspend suspende y bloquea login (403) y auth/me (401); dismiss saca de pendientes. UI: /admin/reports muestra 'Acceso denegado' para no-admin y panel con tarjetas (motivo, tipo, fecha, checkbox Suspender, Revisar/Descartar) para admin (confirmado por wait_for_selector). Lint limpio (route.js, db.js, OptionsModal, admin page). Endpoints existentes y estructura intactos (solo se añadió filtrado de bloqueo, que es la conducta pedida)."
+
     implemented: true
     working: true
     file: "lib/auth.js, lib/db.js"

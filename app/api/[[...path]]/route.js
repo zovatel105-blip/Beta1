@@ -33,6 +33,17 @@ import {
   getFollowingCountByUsername,
   getFollowersByUsername,
   getFollowingByUsername,
+  createReport,
+  getPendingReports,
+  getReportById,
+  setReportStatus,
+  resolveReportedUserId,
+  suspendUser,
+  blockUser,
+  unblockUser,
+  getMutualBlockedIds,
+  hasBlocked,
+  REPORT_REASONS,
 } from '@/lib/db'
 import {
   getAllPosts,
@@ -72,6 +83,12 @@ async function getCurrentUser(request) {
     console.log('[getCurrentUser] User:', user ? user.username : 'not found')
     
     if (!user) return null
+
+    // Usuario suspendido: se trata como no autenticado (pierde acceso a la API).
+    if (user.suspended) {
+      console.log('[getCurrentUser] User suspended:', user.username)
+      return null
+    }
     
     const { password: _, ...userWithoutPassword } = user
     return userWithoutPassword
@@ -79,6 +96,11 @@ async function getCurrentUser(request) {
     console.error('Error getting current user:', err)
     return null
   }
+}
+
+// ¿El usuario actual es administrador?
+function isAdmin(user) {
+  return !!user && user.role === 'admin'
 }
 
 function transcodeToWebm(inPath, outPath) {
@@ -339,6 +361,19 @@ async function refreshPostAvatars(posts) {
   }))
 }
 
+// MODERACIÓN: oculta del listado los posts cuyo autor (o autor de cualquiera de
+// los dos lados) esté bloqueado en cualquier sentido respecto al usuario actual
+// (a quién bloqueé + quién me bloqueó). Invitados ven todo.
+async function filterBlockedPosts(posts, currentUser) {
+  if (!currentUser || !Array.isArray(posts)) return posts
+  const blocked = await getMutualBlockedIds(currentUser.id)
+  if (!blocked.size) return posts
+  return posts.filter((p) => {
+    const ids = [p?.author?.id, p?.sideA?.author?.id, p?.sideB?.author?.id].filter(Boolean)
+    return !ids.some((id) => blocked.has(id))
+  })
+}
+
 export async function GET(request, { params }) {
   const segs = (params?.path) || []
   const path = '/' + segs.join('/')
@@ -361,8 +396,10 @@ export async function GET(request, { params }) {
   }
 
   if (path === '/uploads') {
+    const currentUser = await getCurrentUser(request)
     const meta = await readUploadMeta()
-    const posts = await refreshPostAvatars(meta)
+    const visible = await filterBlockedPosts(meta, currentUser)
+    const posts = await refreshPostAvatars(visible)
     return NextResponse.json({ posts })
   }
 
@@ -551,6 +588,16 @@ export async function GET(request, { params }) {
       return NextResponse.json({ error: 'user_not_found' }, { status: 404 })
     }
 
+    // MODERACIÓN: si el dueño del perfil ha bloqueado al usuario actual, este no
+    // puede ver su perfil (los autores demo no tienen documento -> no aplica).
+    try {
+      const owner = await getUserByUsername(username)
+      const viewer = await getCurrentUser(request)
+      if (owner && viewer && (await hasBlocked(owner.id, viewer.id))) {
+        return NextResponse.json({ error: 'blocked', message: 'No puedes ver este perfil' }, { status: 403 })
+      }
+    } catch { /* ignore */ }
+
     // Followers reales (persistentes) derivados de la colección de follows +
     // ¿lo sigo yo? (según la sesión actual, si la hay).
     try {
@@ -658,6 +705,16 @@ export async function GET(request, { params }) {
     return NextResponse.json({ count })
   }
 
+  // Admin: lista de reportes pendientes. GET /api/admin/reports (solo admin).
+  if (path === '/admin/reports') {
+    const currentUser = await getCurrentUser(request)
+    if (!isAdmin(currentUser)) {
+      return NextResponse.json({ error: 'forbidden', message: 'Solo administradores' }, { status: 403 })
+    }
+    const reports = await getPendingReports()
+    return NextResponse.json({ reports })
+  }
+
   if (path === '/' || path === '') {
     return NextResponse.json({ ok: true, service: 'snaptok-api' })
   }
@@ -738,7 +795,122 @@ export async function POST(request, { params }) {
     return handleFollow(segs[1], request)
   }
 
+  // ── MODERACIÓN ──────────────────────────────────────────────────────────
+  // Crear un reporte (usuario o post).
+  if (path === '/reports') {
+    return handleCreateReport(request)
+  }
+  // Bloquear a un usuario.
+  if (path === '/users/block') {
+    return handleBlockUser(request)
+  }
+  // Admin: revisar un reporte (opcionalmente suspende). POST /api/admin/reports/:id/review
+  if (segs[0] === 'admin' && segs[1] === 'reports' && segs[2] && segs[3] === 'review') {
+    return handleReviewReport(segs[2], request)
+  }
+  // Admin: descartar un reporte. POST /api/admin/reports/:id/dismiss
+  if (segs[0] === 'admin' && segs[1] === 'reports' && segs[2] && segs[3] === 'dismiss') {
+    return handleDismissReport(segs[2], request)
+  }
+
   return NextResponse.json({ ok: true })
+}
+
+// ── HANDLERS DE MODERACIÓN ───────────────────────────────────────────────────
+
+// POST /api/reports  body: { targetType: 'user'|'post', targetId, reason }
+async function handleCreateReport(request) {
+  try {
+    const currentUser = await getCurrentUser(request)
+    if (!currentUser) {
+      return NextResponse.json({ error: 'unauthorized', message: 'Debes iniciar sesión' }, { status: 401 })
+    }
+    const body = await request.json().catch(() => ({}))
+    const { targetType, targetId, reason } = body || {}
+    if (!REPORT_REASONS.includes(reason)) {
+      return NextResponse.json({ error: 'invalid_reason', reasons: REPORT_REASONS }, { status: 400 })
+    }
+    if ((targetType !== 'user' && targetType !== 'post') || !targetId) {
+      return NextResponse.json({ error: 'invalid_target' }, { status: 400 })
+    }
+    const report = await createReport({ reporterId: currentUser.id, targetType, targetId, reason })
+    return NextResponse.json({ ok: true, reportId: report.id })
+  } catch (err) {
+    console.error('create report error', err)
+    return NextResponse.json({ error: 'report_failed', detail: String(err?.message || err) }, { status: 500 })
+  }
+}
+
+// POST /api/users/block  body: { username } | { userId }
+async function handleBlockUser(request) {
+  try {
+    const currentUser = await getCurrentUser(request)
+    if (!currentUser) {
+      return NextResponse.json({ error: 'unauthorized', message: 'Debes iniciar sesión' }, { status: 401 })
+    }
+    const body = await request.json().catch(() => ({}))
+    let blockedId = body?.userId || null
+    if (!blockedId && body?.username) {
+      const u = await getUserByUsername(decodeURIComponent(body.username))
+      blockedId = u?.id || null
+    }
+    if (!blockedId) {
+      return NextResponse.json({ error: 'target_not_found', message: 'Usuario a bloquear no encontrado' }, { status: 404 })
+    }
+    if (blockedId === currentUser.id) {
+      return NextResponse.json({ error: 'cannot_block_yourself' }, { status: 400 })
+    }
+    const result = await blockUser(currentUser.id, blockedId)
+    return NextResponse.json(result)
+  } catch (err) {
+    console.error('block user error', err)
+    if (err.message === 'cannot_block_yourself') {
+      return NextResponse.json({ error: 'cannot_block_yourself' }, { status: 400 })
+    }
+    return NextResponse.json({ error: 'block_failed' }, { status: 500 })
+  }
+}
+
+// POST /api/admin/reports/:id/review  body: { suspend?: boolean }
+async function handleReviewReport(reportId, request) {
+  try {
+    const currentUser = await getCurrentUser(request)
+    if (!isAdmin(currentUser)) {
+      return NextResponse.json({ error: 'forbidden', message: 'Solo administradores' }, { status: 403 })
+    }
+    const body = await request.json().catch(() => ({}))
+    const suspend = !!body?.suspend
+    const report = await getReportById(reportId)
+    if (!report) {
+      return NextResponse.json({ error: 'not_found' }, { status: 404 })
+    }
+    let suspendedUserId = null
+    if (suspend) {
+      suspendedUserId = await resolveReportedUserId(report)
+      if (suspendedUserId) await suspendUser(suspendedUserId)
+    }
+    await setReportStatus(reportId, 'reviewed')
+    return NextResponse.json({ ok: true, suspended: suspend ? !!suspendedUserId : false, suspendedUserId })
+  } catch (err) {
+    console.error('review report error', err)
+    return NextResponse.json({ error: 'review_failed' }, { status: 500 })
+  }
+}
+
+// POST /api/admin/reports/:id/dismiss
+async function handleDismissReport(reportId, request) {
+  try {
+    const currentUser = await getCurrentUser(request)
+    if (!isAdmin(currentUser)) {
+      return NextResponse.json({ error: 'forbidden', message: 'Solo administradores' }, { status: 403 })
+    }
+    const ok = await setReportStatus(reportId, 'dismissed')
+    if (!ok) return NextResponse.json({ error: 'not_found' }, { status: 404 })
+    return NextResponse.json({ ok: true })
+  } catch (err) {
+    console.error('dismiss report error', err)
+    return NextResponse.json({ error: 'dismiss_failed' }, { status: 500 })
+  }
 }
 
 async function handleFollow(username, request) {
@@ -1276,6 +1448,11 @@ async function handleLogin(request) {
       return NextResponse.json({ error: 'invalid_credentials', message: 'Usuario o contraseña incorrectos' }, { status: 401 })
     }
 
+    // MODERACIÓN: los usuarios suspendidos no pueden iniciar sesión.
+    if (user.suspended) {
+      return NextResponse.json({ error: 'account_suspended', message: 'Tu cuenta ha sido suspendida' }, { status: 403 })
+    }
+
     const session = await createSession(user.id)
 
     const response = NextResponse.json({ ok: true, user, token: session.token })
@@ -1360,6 +1537,17 @@ async function handleCreateComment(request) {
     if (!postId || !text || typeof text !== 'string' || text.trim().length === 0) {
       return NextResponse.json({ error: 'invalid_data' }, { status: 400 })
     }
+
+    // MODERACIÓN: si el autor del post ha bloqueado al usuario actual, este no
+    // puede comentar en sus publicaciones.
+    try {
+      const meta = await readUploadMeta()
+      const target = meta.find((x) => x.id === postId)
+      const authorId = target?.author?.id || target?.sideA?.author?.id
+      if (authorId && authorId !== currentUser.id && (await hasBlocked(authorId, currentUser.id))) {
+        return NextResponse.json({ error: 'blocked', message: 'No puedes comentar en este contenido' }, { status: 403 })
+      }
+    } catch { /* ignore */ }
 
     const comment = await createCommentDB({ 
       postId, 
@@ -1490,11 +1678,41 @@ async function handleDeleteComment(commentId, request) {
 // Exportar método DELETE
 export async function DELETE(request, { params }) {
   const segs = (params?.path) || []
-  
+  const path = '/' + segs.join('/')
+
   // DELETE /api/comments/{id}
   if (segs[0] === 'comments' && segs[1]) {
-    return handleDeleteComment(segs[1])
+    return handleDeleteComment(segs[1], request)
+  }
+
+  // DELETE /api/users/block - Desbloquear a un usuario.
+  if (path === '/users/block') {
+    return handleUnblockUser(request)
   }
 
   return NextResponse.json({ error: 'not_found' }, { status: 404 })
+}
+
+// DELETE /api/users/block  body: { username } | { userId }
+async function handleUnblockUser(request) {
+  try {
+    const currentUser = await getCurrentUser(request)
+    if (!currentUser) {
+      return NextResponse.json({ error: 'unauthorized', message: 'Debes iniciar sesión' }, { status: 401 })
+    }
+    const body = await request.json().catch(() => ({}))
+    let blockedId = body?.userId || null
+    if (!blockedId && body?.username) {
+      const u = await getUserByUsername(decodeURIComponent(body.username))
+      blockedId = u?.id || null
+    }
+    if (!blockedId) {
+      return NextResponse.json({ error: 'target_not_found' }, { status: 404 })
+    }
+    const result = await unblockUser(currentUser.id, blockedId)
+    return NextResponse.json(result)
+  } catch (err) {
+    console.error('unblock user error', err)
+    return NextResponse.json({ error: 'unblock_failed' }, { status: 500 })
+  }
 }
