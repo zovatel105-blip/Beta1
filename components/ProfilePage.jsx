@@ -2,7 +2,7 @@
 /* eslint-disable react-hooks/set-state-in-effect -- setState dentro de fetch async en efecto de carga; falso positivo de la regla experimental. */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Menu, Bookmark, Swords, Users, UserPlus, ArrowLeft, LogOut, Camera, Loader2, X, Pencil } from 'lucide-react'
+import { Menu, Bookmark, Swords, Users, UserPlus, ArrowLeft, LogOut, Camera, Loader2, X, Pencil, ShieldAlert } from 'lucide-react'
 import VoteIcon from './icons/VoteIcon'
 import { useAuth } from '@/contexts/AuthContext'
 import Avatar from './Avatar'
@@ -699,6 +699,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
           onClose={() => setMenuOpen(false)}
           onEdit={() => { setMenuOpen(false); setEditOpen(true) }}
           onLogout={handleLogout}
+          isAdmin={user?.role === 'admin'}
         />
       )}
     </div>
@@ -707,7 +708,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
 
 // Drawer de ajustes que se desliza desde el borde derecho (estilo panel lateral).
 // Permanece montado para poder animar la entrada y la salida con translateX.
-const SettingsDrawer = ({ open, onClose, onEdit, onLogout }) => {
+const SettingsDrawer = ({ open, onClose, onEdit, onLogout, isAdmin }) => {
   return (
     <div className={`fixed inset-0 z-[85] ${open ? '' : 'pointer-events-none'}`}>
       {/* Backdrop */}
@@ -736,6 +737,15 @@ const SettingsDrawer = ({ open, onClose, onEdit, onLogout }) => {
         {/* Opciones */}
         <div className="flex-1 overflow-y-auto px-3 py-3">
           <div className="rounded-2xl bg-white/[0.04] border border-white/[0.07] divide-y divide-white/[0.06] overflow-hidden">
+            {isAdmin && (
+              <a
+                href="/admin/reports"
+                className="w-full flex items-center gap-3 px-4 py-4 text-amber-300 hover:bg-amber-500/10 active:bg-amber-500/15 transition text-[15px] font-medium"
+              >
+                <ShieldAlert className="w-[19px] h-[19px]" strokeWidth={1.8} />
+                Panel de moderación
+              </a>
+            )}
             <button
               onClick={onEdit}
               className="w-full flex items-center gap-3 px-4 py-4 text-white hover:bg-white/5 active:bg-white/10 transition text-[15px] font-medium"
