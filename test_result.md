@@ -392,11 +392,14 @@ frontend:
     file: "components/ProfilePage.jsx"
     stuck_count: 0
     priority: "high"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
         -working: true
         -agent: "main"
-        -comment: "NUEVA FEATURE (usuario: header colapsable estilo TikTok en perfil propio y ajeno). Sobre el ProfilePage existente SIN cambiar diseño: scrollRef+onScroll calculan collapseProgress (0 expandido -> 1 colapsado) por scrollTop relativo a headerRef.offsetHeight*0.9. La cabecera grande se desvanece y sube (opacity/translateY/scale) al colapsar. La barra sticky revela, pasado el 60% (revealP), mini-perfil: avatar pequeño + username + accion -> Follow/Following en perfil AJENO (handleToggleFollow -> POST /api/users/:u/follow) y Edit en perfil PROPIO. Pestañas ahora sticky (top=safe-area+56px) para que el grid quede accesible. Datos reales ya cableados (GET /api/users/:username; grid thumbnailUrl/posterUrl; abrir post -> PostViewer). VERIFICADO MANUALMENTE con sembrado temporal (demoflow+9 posts, borrado): EXPANDED headerOpacity=1/centerOpacity=0; COLLAPSED headerOpacity=0/centerOpacity=1 (username visible)/Edit visible, pestañas sticky + grid 3col 9:16 (captura confirmada). Lint limpio. NOTA: .env se habia perdido (DB y _meta.json vacios); restaurado MONGO_URL/ADMIN_EMAILS."
+        -comment: "NUEVA FEATURE (usuario: header colapsable estilo TikTok en perfil propio y ajeno). Sobre el ProfilePage existente SIN cambiar diseño: scrollRef+onScroll calculan collapseProgress (0 expandido -> 1 colapsado) por scrollTop relativo a headerRef.offsetHeight*0.9. La cabecera grande se desvanece y sube (opacity/translateY/scale) al colapsar. La barra sticky revela, pasado el 60% (revealP), mini-perfil: avatar pequeño + username + accion -> Follow/Following en perfil AJENO (handleToggleFollow -> POST /api/users/:u/follow) y Edit en perfil PROPIO. Pestañas ahora sticky (top=safe-area+56px) para que el grid quede accesible. AÑADIDO min-height:100dvh al contenedor de contenido para que colapse aunque NO haya publicaciones. Datos reales ya cableados (GET /api/users/:username; grid thumbnailUrl/posterUrl; abrir post -> PostViewer). NOTA: .env se habia perdido (DB y _meta.json vacios); restaurado MONGO_URL/ADMIN_EMAILS."
+        -working: "NA"
+        -agent: "main"
+        -comment: "BUG FIX (usuario: 'Las publicaciones aparecen detrás del header y la tabla de grid'). CAUSA: la barra superior sticky usaba bg-[#0a0a0b]/70 + backdrop-blur (semitransparente) -> al hacer scroll el contenido del perfil y las publicaciones se transparentaban A TRAVÉS de ella. FIX: barra superior ahora bg-[#0a0a0b] SÓLIDO y z-30 (por encima de pestañas z-[15] y grid z-10). Las pestañas ya eran bg-[#0a0a0b] sólido. Verificado por mí visualmente (barra opaca a media altura de scroll y en colapso total; grid pasa limpio por debajo). PENDIENTE verificación del agente de testing frontend."
   - task: "Botones sociales con ancho fijo (no se reacomodan/encogen al pasar de título a número)"
     implemented: true
     working: true
