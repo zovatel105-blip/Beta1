@@ -135,7 +135,7 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
       {/* Hoja inferior alta con esquinas superiores redondeadas, dejando margen arriba */}
-      <div className="relative w-full max-w-[520px] mx-auto bg-[#0a0a0b] text-white rounded-t-3xl border-t border-white/10 shadow-2xl h-[92dvh] flex flex-col overflow-hidden">
+      <div className="relative w-full max-w-[520px] mx-auto bg-[#0a0a0b] text-white rounded-t-3xl border-t border-white/10 shadow-2xl h-[96dvh] flex flex-col overflow-hidden">
       {/* Glow superior de marca */}
       <div className="pointer-events-none absolute inset-x-0 top-0 h-40 z-0"
            style={{ background: 'radial-gradient(70% 100% at 50% 0%, rgba(168,85,247,0.16), transparent 70%)' }} />

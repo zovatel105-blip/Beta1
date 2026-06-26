@@ -12,7 +12,6 @@ import NotificationsInbox from './NotificationsInbox'
 import ProfilePage from './ProfilePage'
 import CompletedBattlesPage from './CompletedBattlesPage'
 import ActiveChallengesPage from './ActiveChallengesPage'
-import GuestPromptModal from './GuestPromptModal'
 import AuthModal from './AuthModal'
 import { useAuth } from '@/contexts/AuthContext'
 import { notificationsUnreadCount } from '@/lib/notifications'
@@ -75,7 +74,7 @@ const slotPoster = (p) => p && (p.posterUrl || p.sideA?.posterUrl || p.thumbnail
  */
 export default function Feed() {
   const { posts, ready, loadMore, prependPost, patchAuthorAvatar } = useFeed()
-  const { showGuestPrompt, dismissPrompt, trackVideoView, isGuest } = useGuestTracking()
+  const { trackVideoView, isGuest } = useGuestTracking()
   const { user } = useAuth()
 
   const [activeIndex, setActiveIndex] = useState(0)
@@ -488,10 +487,6 @@ export default function Feed() {
         onClose={() => setActiveChallengesOpen(false)}
         onAccepted={(post) => { handleUploaded(post); setBattlesRefresh((k) => k + 1) }}
         onChanged={refreshChallenges}
-      />
-      <GuestPromptModal
-        open={showGuestPrompt}
-        onClose={dismissPrompt}
       />
 
       {/* Banner de subida de reto en segundo plano */}
