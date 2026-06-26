@@ -386,6 +386,17 @@ backend:
         -comment: "VERIFICADO MANUALMENTE (el usuario pidió NO usar agente de testing). Registrados follower1/target1. (B) POST /api/users/target1/follow sin sesión -> 401 {error:unauthorized}. (C) con sesión -> 200 {ok:true,following:true,followers:1}. (D) toggle -> {following:false,followers:0}; de nuevo -> {following:true,followers:1}. (E) seguirse a sí mismo -> 400 {error:cannot_follow_yourself}. (F) GET /api/users/target1 sin sesión -> isFollowing=false, followers=1. (G) GET con sesión -> isFollowing=true, followers=1. (H) seguir autor demo 'wanderlust' (sin documento de usuario) -> 200 {following:true,followers:1}. Regresión: /api/feed y /api/users 200. Datos de prueba limpiados."
 
 frontend:
+  - task: "ProfilePage: cabecera colapsable estilo TikTok (perfil propio y ajeno) con mini-perfil revelado al hacer scroll"
+    implemented: true
+    working: true
+    file: "components/ProfilePage.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "main"
+        -comment: "NUEVA FEATURE (usuario: header colapsable estilo TikTok en perfil propio y ajeno). Sobre el ProfilePage existente SIN cambiar diseño: scrollRef+onScroll calculan collapseProgress (0 expandido -> 1 colapsado) por scrollTop relativo a headerRef.offsetHeight*0.9. La cabecera grande se desvanece y sube (opacity/translateY/scale) al colapsar. La barra sticky revela, pasado el 60% (revealP), mini-perfil: avatar pequeño + username + accion -> Follow/Following en perfil AJENO (handleToggleFollow -> POST /api/users/:u/follow) y Edit en perfil PROPIO. Pestañas ahora sticky (top=safe-area+56px) para que el grid quede accesible. Datos reales ya cableados (GET /api/users/:username; grid thumbnailUrl/posterUrl; abrir post -> PostViewer). VERIFICADO MANUALMENTE con sembrado temporal (demoflow+9 posts, borrado): EXPANDED headerOpacity=1/centerOpacity=0; COLLAPSED headerOpacity=0/centerOpacity=1 (username visible)/Edit visible, pestañas sticky + grid 3col 9:16 (captura confirmada). Lint limpio. NOTA: .env se habia perdido (DB y _meta.json vacios); restaurado MONGO_URL/ADMIN_EMAILS."
   - task: "Botones sociales con ancho fijo (no se reacomodan/encogen al pasar de título a número)"
     implemented: true
     working: true

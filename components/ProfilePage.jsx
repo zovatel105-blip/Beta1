@@ -1,5 +1,4 @@
 'use client'
-/* eslint-disable react-hooks/set-state-in-effect -- setState dentro de fetch async en efecto de carga; falso positivo de la regla experimental. */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Menu, Bookmark, Swords, Users, UserPlus, ArrowLeft, LogOut, Camera, Loader2, X, Pencil, ShieldAlert, LogIn, CircleUserRound } from 'lucide-react'
@@ -261,6 +260,21 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
   const [menuOpen, setMenuOpen] = useState(false)    // menú (cerrar sesión)
   const [guestMenuOpen, setGuestMenuOpen] = useState(false) // menú lateral para invitados
 
+  // ── Cabecera colapsable estilo TikTok ──────────────────────────────────────
+  // collapseProgress: 0 (cabecera expandida) -> 1 (totalmente colapsada). Se
+  // calcula con el scroll del contenedor relativo a la altura de la cabecera.
+  const scrollRef = useRef(null)
+  const headerRef = useRef(null)
+  const [collapseProgress, setCollapseProgress] = useState(0)
+
+  const handleScroll = () => {
+    const el = scrollRef.current
+    if (!el) return
+    const h = headerRef.current?.offsetHeight || 280
+    const p = Math.min(1, Math.max(0, el.scrollTop / (h * 0.9)))
+    setCollapseProgress(p)
+  }
+
   // ¿Es mi propio perfil? (sin username, o coincide con el usuario autenticado)
   const isOwn = !username || username === user?.username
 
@@ -287,6 +301,8 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
     setActiveTab('polls')
     setFollowing(false)
     setFollowers(null)
+    setCollapseProgress(0)
+    if (scrollRef.current) scrollRef.current.scrollTop = 0
     ;(async () => {
       try {
         const res = await fetch(`/api/users/${encodeURIComponent(targetUsername)}`, { cache: 'no-store' })
@@ -555,38 +571,85 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
     )
   }
 
+  // Progreso de revelado del mini-perfil en la barra (aparece pasado el 60%).
+  const revealP = collapseProgress <= 0.6 ? 0 : Math.min(1, (collapseProgress - 0.6) / 0.4)
+
   return (
-    <div className="fixed inset-0 z-40 bg-[#0a0a0b] overflow-y-auto overscroll-contain">
+    <div ref={scrollRef} onScroll={handleScroll} className="fixed inset-0 z-40 bg-[#0a0a0b] overflow-y-auto overscroll-contain">
       {/* Glow superior cálido (mismo tono dorado que la página de retos) */}
       <div className="pointer-events-none absolute inset-x-0 top-0 h-80 z-0"
            style={{ background: 'radial-gradient(60% 100% at 50% 0%, rgba(255,255,255,0.10), transparent 70%)' }} />
 
-      {/* Header: atrás (perfil ajeno) o menú (perfil propio) */}
+      {/* Header sticky: al colapsar (>60%) revela mini-perfil (avatar+usuario) y acción (Seguir/Edit) — estilo TikTok */}
       <div className="sticky top-0 z-20 bg-[#0a0a0b]/70 backdrop-blur-xl border-b border-white/[0.06]"
            style={{ paddingTop: 'max(env(safe-area-inset-top), 8px)' }}>
-        <div className="flex items-center justify-between px-2 sm:px-4 h-14 max-w-md mx-auto w-full">
+        <div className="relative flex items-center px-2 sm:px-4 h-14 max-w-md mx-auto w-full">
+          {/* Izquierda: atrás (perfil ajeno) o espaciador (propio) */}
           {isOwn ? (
-            <span className="w-9" />
+            <span className="w-9 shrink-0" />
           ) : (
-            <button aria-label="back" onClick={onClose} className="p-2 -ml-1 text-white active:scale-90 transition">
+            <button aria-label="back" onClick={onClose} className="relative z-10 p-2 -ml-1 text-white active:scale-90 transition shrink-0">
               <ArrowLeft strokeWidth={1.9} className="w-[24px] h-[24px]" />
             </button>
           )}
-          {!isOwn && (
-            <span className="text-white font-semibold text-[15px] truncate max-w-[60%]">{me.username}</span>
-          )}
-          <button
-            aria-label="menu"
-            onClick={() => { if (isOwn) setMenuOpen(true) }}
-            className="p-2 -mr-2 text-white active:scale-90 transition"
+
+          {/* Centro: mini-perfil (avatar + usuario) que aparece al colapsar */}
+          <div
+            className="absolute inset-x-0 flex items-center justify-center gap-2 px-16 pointer-events-none"
+            style={{ opacity: revealP, transform: `translateY(${(1 - revealP) * 8}px)` }}
           >
-            <Menu strokeWidth={1.9} className="w-[24px] h-[24px]" />
-          </button>
+            <div className="w-7 h-7 rounded-full overflow-hidden bg-zinc-900 ring-1 ring-white/15 shrink-0">
+              <Avatar src={me.avatarUrl} alt={me.username} className="w-full h-full rounded-full" />
+            </div>
+            <span className="text-white font-semibold text-[15px] truncate max-w-[140px]">{me.username}</span>
+          </div>
+
+          {/* Derecha: acción revelada (Seguir / Edit) + menú (propio) */}
+          <div className="relative z-10 ml-auto flex items-center gap-2 shrink-0">
+            {isOwn ? (
+              <button
+                onClick={() => setEditOpen(true)}
+                style={{ opacity: revealP, pointerEvents: revealP > 0.5 ? 'auto' : 'none' }}
+                className="h-7 px-4 rounded-full bg-white text-black font-semibold text-[12px] tracking-tight active:scale-95 transition-transform"
+              >
+                Edit
+              </button>
+            ) : (
+              <button
+                onClick={handleToggleFollow}
+                disabled={followBusy}
+                style={{ opacity: revealP, pointerEvents: revealP > 0.5 ? 'auto' : 'none' }}
+                className={`h-7 px-5 rounded-full font-semibold text-[12px] tracking-tight active:scale-95 transition-transform disabled:opacity-60 ${
+                  following ? 'border border-white/20 text-white' : 'bg-white text-black'
+                }`}
+              >
+                {following ? 'Following' : 'Follow'}
+              </button>
+            )}
+            {isOwn && (
+              <button
+                aria-label="menu"
+                onClick={() => setMenuOpen(true)}
+                className="p-2 -mr-2 text-white active:scale-90 transition"
+              >
+                <Menu strokeWidth={1.9} className="w-[24px] h-[24px]" />
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Cabecera del perfil: stats con iconos alrededor del avatar */}
-      <div className="relative z-10 px-5 sm:px-6 pt-6 pb-5 max-w-md mx-auto w-full">
+      {/* Cabecera del perfil: stats con iconos alrededor del avatar (se desvanece al colapsar) */}
+      <div
+        ref={headerRef}
+        className="relative z-10 px-5 sm:px-6 pt-6 pb-5 max-w-md mx-auto w-full"
+        style={{
+          opacity: 1 - collapseProgress,
+          transform: `translateY(${-collapseProgress * 14}px) scale(${1 - collapseProgress * 0.04})`,
+          transformOrigin: 'top center',
+          pointerEvents: collapseProgress > 0.7 ? 'none' : 'auto',
+        }}
+      >
         <div className="relative mx-auto w-full max-w-[360px]">
           <div className="grid grid-cols-3 items-center gap-y-7">
 
@@ -694,8 +757,11 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
         </div>
       </div>
 
-      {/* Tabs - chips finos a lo ancho (activo solo marco blanco) */}
-      <div className="relative z-10 max-w-md mx-auto w-full mt-7 px-2">
+      {/* Tabs - chips finos a lo ancho (sticky bajo la barra al colapsar) */}
+      <div
+        className="sticky z-[15] bg-[#0a0a0b] max-w-md mx-auto w-full mt-7 px-2 pt-1 pb-2.5"
+        style={{ top: 'calc(max(env(safe-area-inset-top), 8px) + 56px)' }}
+      >
         <div className="flex items-center gap-2.5">
           {(isOwn ? TABS : TABS.filter((t) => t.key === 'polls')).map((tab) => {
             const active = activeTab === tab.key
