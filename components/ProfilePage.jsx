@@ -644,16 +644,26 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
                 Edit
               </button>
             ) : (
-              <button
-                onClick={handleToggleFollow}
-                disabled={followBusy}
-                style={{ opacity: revealP, pointerEvents: revealP > 0.5 ? 'auto' : 'none' }}
-                className={`h-7 px-5 rounded-full font-semibold text-[12px] tracking-tight active:scale-95 transition-transform disabled:opacity-60 ${
-                  following ? 'border border-white/20 text-white' : 'bg-white text-black'
-                }`}
-              >
-                {following ? 'Following' : 'Follow'}
-              </button>
+              <>
+                <button
+                  onClick={handleChallenge}
+                  aria-label="Challenge"
+                  style={{ opacity: revealP, pointerEvents: revealP > 0.5 ? 'auto' : 'none' }}
+                  className="h-7 w-7 rounded-full border border-white/20 text-white flex items-center justify-center active:scale-95 transition-transform"
+                >
+                  <Swords className="w-[15px] h-[15px]" strokeWidth={2} />
+                </button>
+                <button
+                  onClick={handleToggleFollow}
+                  disabled={followBusy}
+                  style={{ opacity: revealP, pointerEvents: revealP > 0.5 ? 'auto' : 'none' }}
+                  className={`h-7 px-5 rounded-full font-semibold text-[12px] tracking-tight active:scale-95 transition-transform disabled:opacity-60 ${
+                    following ? 'border border-white/20 text-white' : 'bg-white text-black'
+                  }`}
+                >
+                  {following ? 'Following' : 'Follow'}
+                </button>
+              </>
             )}
             {isOwn && (
               <button
