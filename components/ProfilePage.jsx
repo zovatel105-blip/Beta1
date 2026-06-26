@@ -261,17 +261,36 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
   const [guestMenuOpen, setGuestMenuOpen] = useState(false) // menú lateral para invitados
 
   // ── Cabecera colapsable estilo TikTok ──────────────────────────────────────
-  // collapseProgress: 0 (cabecera expandida) -> 1 (totalmente colapsada). Se
-  // calcula con el scroll del contenedor relativo a la altura de la cabecera.
+  // collapseProgress: 0 (expandida) -> 1 (colapsada). collapseDistRef = distancia
+  // de scroll necesaria para fijar las pestañas (cabecera totalmente colapsada).
   const scrollRef = useRef(null)
   const headerRef = useRef(null)
+  const barRef = useRef(null)
+  const tabsRef = useRef(null)
+  const collapseDistRef = useRef(280)
   const [collapseProgress, setCollapseProgress] = useState(0)
+  // Altura mínima del contenido: rellena SOLO el área visible bajo las pestañas
+  // fijadas. Así, con POCAS publicaciones el scroll se limita justo a colapsar
+  // (las publicaciones quedan bajo las pestañas, sin desaparecer detrás del
+  // header/pestañas). Con MUCHAS publicaciones esta altura mínima se ignora
+  // (scroll natural y las publicaciones pasan por detrás, que es lo deseado).
+  const [contentMinH, setContentMinH] = useState(undefined)
+
+  const measureCollapse = () => {
+    const scroller = scrollRef.current
+    const bar = barRef.current
+    const tabs = tabsRef.current
+    if (!scroller || !bar || !tabs) return
+    const barH = bar.offsetHeight
+    const tabsH = tabs.offsetHeight
+    collapseDistRef.current = Math.max(1, tabs.offsetTop - barH)
+    setContentMinH(Math.max(0, scroller.clientHeight - barH - tabsH - 16))
+  }
 
   const handleScroll = () => {
     const el = scrollRef.current
     if (!el) return
-    const h = headerRef.current?.offsetHeight || 280
-    const p = Math.min(1, Math.max(0, el.scrollTop / (h * 0.9)))
+    const p = Math.min(1, Math.max(0, el.scrollTop / collapseDistRef.current))
     setCollapseProgress(p)
   }
 
@@ -340,6 +359,16 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
     })()
     return () => { cancelled = true }
   }, [open, activeTab, isOwn, user])
+
+  // Medir distancia de colapso y altura mínima del contenido tras renderizar/
+  // cambiar de pestaña/cargar datos, y al redimensionar la ventana.
+  useEffect(() => {
+    if (!open) return
+    const id = requestAnimationFrame(measureCollapse)
+    const onResize = () => measureCollapse()
+    window.addEventListener('resize', onResize)
+    return () => { cancelAnimationFrame(id); window.removeEventListener('resize', onResize) }
+  }, [open, loading, posts, savedPosts, savedLoading, activeTab])
 
   // Seguir / dejar de seguir (persistente en backend). Optimista con rollback.
   const handleToggleFollow = async () => {
@@ -581,7 +610,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
            style={{ background: 'radial-gradient(60% 100% at 50% 0%, rgba(255,255,255,0.10), transparent 70%)' }} />
 
       {/* Header sticky: al colapsar (>60%) revela mini-perfil (avatar+usuario) y acción (Seguir/Edit) — estilo TikTok */}
-      <div className="sticky top-0 z-30 bg-[#0a0a0b] border-b border-white/[0.06]"
+      <div ref={barRef} className="sticky top-0 z-30 bg-[#0a0a0b] border-b border-white/[0.06]"
            style={{ paddingTop: 'max(env(safe-area-inset-top), 8px)' }}>
         <div className="relative flex items-center px-2 sm:px-4 h-14 max-w-md mx-auto w-full">
           {/* Izquierda: atrás (perfil ajeno) o espaciador (propio) */}
@@ -759,6 +788,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
 
       {/* Tabs - chips finos a lo ancho (sticky bajo la barra al colapsar) */}
       <div
+        ref={tabsRef}
         className="sticky z-[15] bg-[#0a0a0b] max-w-md mx-auto w-full mt-7 px-2 pt-1 pb-2.5"
         style={{ top: 'calc(max(env(safe-area-inset-top), 8px) + 56px)' }}
       >
@@ -787,8 +817,8 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
         </div>
       </div>
 
-      {/* Contenido (min-height para garantizar scroll y colapso del header aunque no haya posts) */}
-      <div className="relative z-10 mt-4 px-2 pb-28 max-w-md mx-auto w-full" style={{ minHeight: '100dvh' }}>
+      {/* Contenido (min-height medido = área visible bajo las pestañas fijadas: limita el scroll a lo justo para colapsar; con pocas/0 publicaciones no quedan detrás del header/pestañas) */}
+      <div className="relative z-10 mt-4 px-2 pb-28 max-w-md mx-auto w-full" style={{ minHeight: contentMinH != null ? `${contentMinH}px` : undefined }}>
         {renderTabContent()}
       </div>
 
