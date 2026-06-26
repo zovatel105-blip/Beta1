@@ -2,7 +2,7 @@
 /* eslint-disable react-hooks/set-state-in-effect -- setState dentro de fetch async en efecto de carga; falso positivo de la regla experimental. */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Menu, Bookmark, Swords, Users, UserPlus, ArrowLeft, LogOut, Camera, Loader2, X, Pencil, ShieldAlert } from 'lucide-react'
+import { Menu, Bookmark, Swords, Users, UserPlus, ArrowLeft, LogOut, Camera, Loader2, X, Pencil, ShieldAlert, LogIn, CircleUserRound } from 'lucide-react'
 import VoteIcon from './icons/VoteIcon'
 import { useAuth } from '@/contexts/AuthContext'
 import Avatar from './Avatar'
@@ -243,7 +243,7 @@ const TABS = [
   },
 ]
 
-export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, onRequireAuth, onOpenProfile, username = null }) {
+export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, onRequireAuth, onRequireLogin, onOpenProfile, username = null }) {
   const { user, updateUser, logout } = useAuth()
   const [profile, setProfile] = useState(null) // { user, posts } del endpoint
   const [posts, setPosts] = useState([])
@@ -259,6 +259,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
   const [followList, setFollowList] = useState(null)
   const [editOpen, setEditOpen] = useState(false)   // modal de editar perfil
   const [menuOpen, setMenuOpen] = useState(false)    // menú (cerrar sesión)
+  const [guestMenuOpen, setGuestMenuOpen] = useState(false) // menú lateral para invitados
 
   // ¿Es mi propio perfil? (sin username, o coincide con el usuario autenticado)
   const isOwn = !username || username === user?.username
@@ -413,6 +414,72 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
   }, [myPosts])
 
   if (!open) return null
+
+  // ── PERFIL DE INVITADO (no autenticado) ────────────────────────────────────
+  // Cuando es "mi perfil" (sin username) pero no hay sesión, mostramos un estado
+  // de "no has iniciado sesión" al estilo Twyk (tema oscuro + acento de marca).
+  if (isOwn && !user) {
+    return (
+      <div className="fixed inset-0 z-40 bg-[#0a0a0b] flex flex-col text-white">
+        {/* Glow superior de marca */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-80 z-0"
+             style={{ background: 'radial-gradient(70% 100% at 50% 0%, rgba(168,85,247,0.14), transparent 70%)' }} />
+
+        {/* Header: título "Perfil" centrado + menú */}
+        <div className="sticky top-0 z-20 bg-[#0a0a0b]/70 backdrop-blur-xl border-b border-white/[0.06]"
+             style={{ paddingTop: 'max(env(safe-area-inset-top), 8px)' }}>
+          <div className="flex items-center justify-between px-2 sm:px-4 h-14 max-w-md mx-auto w-full">
+            <span className="w-9" />
+            <span className="text-white font-bold text-[18px] tracking-tight">Perfil</span>
+            <button
+              aria-label="menú"
+              onClick={() => setGuestMenuOpen(true)}
+              className="p-2 -mr-2 text-white active:scale-90 transition"
+            >
+              <Menu strokeWidth={1.9} className="w-[24px] h-[24px]" />
+            </button>
+          </div>
+        </div>
+
+        {/* Contenido centrado */}
+        <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-8 pb-24 -mt-6">
+          <div className="w-[120px] h-[120px] rounded-full flex items-center justify-center mb-6">
+            <CircleUserRound className="w-[112px] h-[112px] text-zinc-600" strokeWidth={1} />
+          </div>
+
+          <p className="text-zinc-300 text-[16px] font-medium mb-7 text-center">
+            Inicia sesión en tu cuenta de Twyk
+          </p>
+
+          <button
+            onClick={() => (onRequireLogin || onRequireAuth)?.()}
+            className="w-full max-w-[360px] h-[52px] rounded-full text-white font-bold text-[16px] tracking-tight flex items-center justify-center gap-2 active:scale-[0.98] transition-transform shadow-[0_10px_30px_-8px_rgba(168,85,247,0.6)]"
+            style={{ background: 'linear-gradient(90deg, #A855F7 0%, #3B82F6 100%)' }}
+          >
+            <LogIn className="w-5 h-5" strokeWidth={2.2} />
+            Iniciar sesión
+          </button>
+
+          <p className="text-zinc-500 text-[13px] mt-5 text-center">
+            ¿No tienes cuenta?{' '}
+            <button
+              onClick={() => onRequireAuth?.()}
+              className="text-white font-semibold underline-offset-2 hover:underline"
+            >
+              Regístrate
+            </button>
+          </p>
+        </div>
+
+        {/* Menú lateral para invitados: acceso e información legal */}
+        <GuestMenuDrawer
+          open={guestMenuOpen}
+          onClose={() => setGuestMenuOpen(false)}
+          onLogin={() => { setGuestMenuOpen(false); (onRequireLogin || onRequireAuth)?.() }}
+        />
+      </div>
+    )
+  }
 
   const renderTabContent = () => {
     if (activeTab === 'polls') {
@@ -702,6 +769,58 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
           isAdmin={user?.role === 'admin'}
         />
       )}
+    </div>
+  )
+}
+
+// Drawer lateral para INVITADOS: acceso a iniciar sesión y enlaces legales.
+// Mismo patrón visual que SettingsDrawer (se desliza desde la derecha).
+const GuestMenuDrawer = ({ open, onClose, onLogin }) => {
+  return (
+    <div className={`fixed inset-0 z-[85] ${open ? '' : 'pointer-events-none'}`}>
+      <div
+        onClick={onClose}
+        className={`absolute inset-0 bg-black/50 backdrop-blur-[2px] transition-opacity duration-300 ${
+          open ? 'opacity-100' : 'opacity-0'
+        }`}
+      />
+      <div
+        className={`absolute top-0 right-0 h-full w-[82%] max-w-sm bg-[#121214] border-l border-white/[0.08] shadow-2xl flex flex-col text-white transition-transform duration-300 ease-out ${
+          open ? 'translate-x-0' : 'translate-x-full'
+        }`}
+      >
+        <div className="border-b border-white/[0.06]" style={{ paddingTop: 'max(env(safe-area-inset-top), 8px)' }}>
+          <div className="flex items-center px-3 h-14 w-full">
+            <button aria-label="cerrar" onClick={onClose} className="p-2 -ml-1 text-white active:scale-90 transition">
+              <X strokeWidth={1.9} className="w-[22px] h-[22px]" />
+            </button>
+            <span className="text-white font-semibold text-[15px] ml-1">Menú</span>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
+          <button
+            onClick={onLogin}
+            className="w-full flex items-center justify-center gap-2 h-12 rounded-2xl text-white font-bold text-[15px] active:scale-[0.98] transition"
+            style={{ background: 'linear-gradient(90deg, #A855F7 0%, #3B82F6 100%)' }}
+          >
+            <LogIn className="w-[18px] h-[18px]" strokeWidth={2.1} />
+            Iniciar sesión
+          </button>
+
+          <div className="rounded-2xl bg-white/[0.04] border border-white/[0.07] divide-y divide-white/[0.06] overflow-hidden">
+            <a href="/terms" className="w-full flex items-center px-4 py-4 text-white hover:bg-white/5 active:bg-white/10 transition text-[15px] font-medium">
+              Términos de Uso
+            </a>
+            <a href="/privacy" className="w-full flex items-center px-4 py-4 text-white hover:bg-white/5 active:bg-white/10 transition text-[15px] font-medium">
+              Política de Privacidad
+            </a>
+            <a href="/dmca" className="w-full flex items-center px-4 py-4 text-white hover:bg-white/5 active:bg-white/10 transition text-[15px] font-medium">
+              Política DMCA
+            </a>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

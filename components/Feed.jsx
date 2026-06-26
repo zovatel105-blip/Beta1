@@ -88,6 +88,9 @@ export default function Feed() {
   // Si un invitado pulsa "Crear", abrimos el login; tras autenticarse, se abre
   // automáticamente el diálogo de subida (pendingUpload).
   const [authOpen, setAuthOpen] = useState(false)
+  // Pestaña inicial del modal de auth ('register' por defecto; 'login' cuando el
+  // invitado pulsa "Iniciar sesión" desde el perfil).
+  const [authTab, setAuthTab] = useState('register')
   const [pendingUpload, setPendingUpload] = useState(false)
   const [challengeOpen, setChallengeOpen] = useState(false)
   const [challengeTarget, setChallengeTarget] = useState(null)
@@ -436,10 +439,11 @@ export default function Feed() {
         onOpenProfile={openAuthorProfile}
         onOpenUpload={() => { setProfileOpen(false); requestUpload() }}
         onChallenge={openChallenge}
-        onRequireAuth={() => setAuthOpen(true)}
+        onRequireAuth={() => { setAuthTab('register'); setAuthOpen(true) }}
+        onRequireLogin={() => { setAuthTab('login'); setAuthOpen(true) }}
       />
       <UploadDialog open={uploadOpen} onClose={() => setUploadOpen(false)} onUploaded={handleUploaded} onChallengeCreated={refreshChallenges} />
-      <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} defaultTab="register" />
+      <AuthModal key={authTab} open={authOpen} onClose={() => setAuthOpen(false)} defaultTab={authTab} />
       <ChallengeDialog
         open={challengeOpen}
         onClose={() => setChallengeOpen(false)}

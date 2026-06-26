@@ -55,11 +55,9 @@ export default function BottomNav({ onOpenUpload, onOpenInbox, onOpenProfile, on
   }
 
   const handleProfileClick = () => {
-    if (!user) {
-      setShowAuthModal(true)
-    } else {
-      onOpenProfile?.()
-    }
+    // Tanto para invitados como para usuarios autenticados abrimos el perfil.
+    // Si no hay sesión, ProfilePage muestra el estado "Inicia sesión" (estilo Twyk).
+    onOpenProfile?.()
   }
 
   const handleInboxClick = () => {
