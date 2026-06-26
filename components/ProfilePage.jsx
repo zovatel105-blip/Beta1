@@ -787,8 +787,8 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
         </div>
       </div>
 
-      {/* Contenido */}
-      <div className="relative z-10 mt-4 px-2 pb-28 max-w-md mx-auto w-full">
+      {/* Contenido (min-height para garantizar scroll y colapso del header aunque no haya posts) */}
+      <div className="relative z-10 mt-4 px-2 pb-28 max-w-md mx-auto w-full" style={{ minHeight: '100dvh' }}>
         {renderTabContent()}
       </div>
 
