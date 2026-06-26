@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Menu, Bookmark, Swords, Users, UserPlus, ArrowLeft, LogOut, Camera, Loader2, X, Pencil, ShieldAlert, LogIn, CircleUserRound, Share2 } from 'lucide-react'
+import { Menu, Bookmark, Swords, Users, UserPlus, ArrowLeft, LogOut, Camera, Loader2, X, Pencil, ShieldAlert, LogIn, CircleUserRound } from 'lucide-react'
 import VoteIcon from './icons/VoteIcon'
+import ShareIcon from './icons/ShareIcon'
 import { useAuth } from '@/contexts/AuthContext'
 import Avatar from './Avatar'
 import DuetSlide from './DuetSlide'
@@ -664,7 +665,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
                   style={{ opacity: revealP, pointerEvents: revealP > 0.5 ? 'auto' : 'none' }}
                   className="h-7 w-7 rounded-full border border-white/20 text-white flex items-center justify-center active:scale-95 transition-transform"
                 >
-                  <Share2 className="w-[15px] h-[15px]" strokeWidth={2} />
+                  <ShareIcon className="w-[15px] h-[15px]" strokeWidth={1.4} />
                 </button>
               </>
             ) : (
