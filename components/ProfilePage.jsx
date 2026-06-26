@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Menu, Bookmark, Swords, Users, UserPlus, ArrowLeft, LogOut, Camera, Loader2, X, Pencil, ShieldAlert, LogIn, CircleUserRound } from 'lucide-react'
+import { Menu, Bookmark, Swords, Users, UserPlus, ArrowLeft, LogOut, Camera, Loader2, X, Pencil, ShieldAlert, LogIn, CircleUserRound, Share2 } from 'lucide-react'
 import VoteIcon from './icons/VoteIcon'
 import { useAuth } from '@/contexts/AuthContext'
 import Avatar from './Avatar'
@@ -411,6 +411,20 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
     onChallenge?.(target)
   }
 
+  // Compartir el perfil: usa la Web Share API si está disponible; si no, copia
+  // el enlace del perfil al portapapeles.
+  const handleShare = async () => {
+    const base = typeof window !== 'undefined' ? window.location.origin : ''
+    const url = `${base}/?u=${encodeURIComponent(me.username)}`
+    try {
+      if (typeof navigator !== 'undefined' && navigator.share) {
+        await navigator.share({ title: me.name || me.username, text: `${me.handle} en Twyk`, url })
+      } else if (typeof navigator !== 'undefined' && navigator.clipboard) {
+        await navigator.clipboard.writeText(url)
+      }
+    } catch { /* cancelado / sin permiso: ignorar */ }
+  }
+
   // Abrir la lista de followers / following del perfil mostrado.
   const openFollowList = async (type) => {
     if (!targetUsername) return
@@ -636,13 +650,23 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
           {/* Derecha: acción revelada (Seguir / Edit) + menú (propio) */}
           <div className="relative z-10 ml-auto flex items-center gap-2 shrink-0">
             {isOwn ? (
-              <button
-                onClick={() => setEditOpen(true)}
-                style={{ opacity: revealP, pointerEvents: revealP > 0.5 ? 'auto' : 'none' }}
-                className="h-7 px-4 rounded-full bg-white text-black font-semibold text-[12px] tracking-tight active:scale-95 transition-transform"
-              >
-                Edit
-              </button>
+              <>
+                <button
+                  onClick={() => setEditOpen(true)}
+                  style={{ opacity: revealP, pointerEvents: revealP > 0.5 ? 'auto' : 'none' }}
+                  className="h-7 px-4 rounded-full bg-white text-black font-semibold text-[12px] tracking-tight active:scale-95 transition-transform"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={handleShare}
+                  aria-label="Share"
+                  style={{ opacity: revealP, pointerEvents: revealP > 0.5 ? 'auto' : 'none' }}
+                  className="h-7 w-7 rounded-full border border-white/20 text-white flex items-center justify-center active:scale-95 transition-transform"
+                >
+                  <Share2 className="w-[15px] h-[15px]" strokeWidth={2} />
+                </button>
+              </>
             ) : (
               <>
                 <button
@@ -767,7 +791,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
               <button onClick={() => setEditOpen(true)} className="h-9 px-6 rounded-full bg-white hover:bg-zinc-100 text-black font-semibold text-[13px] tracking-tight active:scale-[0.97] transition-all">
                 Edit profile
               </button>
-              <button className="h-9 px-6 rounded-full border border-white/15 hover:bg-white/[0.06] text-white font-semibold text-[13px] tracking-tight active:scale-[0.97] transition-all">
+              <button onClick={handleShare} className="h-9 px-6 rounded-full border border-white/15 hover:bg-white/[0.06] text-white font-semibold text-[13px] tracking-tight active:scale-[0.97] transition-all">
                 Share
               </button>
             </>
