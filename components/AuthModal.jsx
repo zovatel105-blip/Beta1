@@ -1,9 +1,12 @@
 'use client'
 
-import { useState } from 'react'
-import { X, User, Mail, Lock, LogIn, UserPlus, Cake, ShieldAlert } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { X, ChevronLeft, User, Mail, Lock, LogIn, UserPlus, Cake, ShieldAlert, AtSign } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
+
+// Gradiente de marca Twyk (morado -> azul), el mismo del botón "+" de la barra.
+const BRAND_GRADIENT = 'linear-gradient(90deg, #A855F7 0%, #3B82F6 100%)'
 
 // Calcula la edad en años a partir de 'YYYY-MM-DD'. Devuelve null si no es válida.
 function computeAge(birthDate) {
@@ -19,36 +22,58 @@ function computeAge(birthDate) {
 }
 
 /**
- * AuthModal - Modal premium de Login/Registro
+ * AuthModal — Modal de Login/Registro a PANTALLA COMPLETA, estilo Twyk.
+ * Flujo en dos pasos (como el "Regístrate" de apps tipo TikTok):
+ *   1) 'methods' -> pantalla splash con título + subtítulo + el único método que
+ *      tenemos ("Usar correo o usuario").
+ *   2) 'form'    -> formulario real (login o registro) con mis campos actuales.
+ * Mantiene el gating de edad (COPPA) y el footer legal.
  */
-export default function AuthModal({ open, onClose, defaultTab = 'login' }) {
-  const [tab, setTab] = useState(defaultTab)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  // Pantalla de bloqueo por edad (COPPA): menores de 13 años no pueden registrarse.
-  const [ageBlocked, setAgeBlocked] = useState(false)
+export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
   const { login, register } = useAuth()
 
-  // Estados de formularios
+  const [view, setView] = useState(defaultTab)   // 'login' | 'register'
+  const [step, setStep] = useState('methods')    // 'methods' | 'form'
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [ageBlocked, setAgeBlocked] = useState(false)
+
   const [loginData, setLoginData] = useState({ username: '', password: '' })
   const [registerData, setRegisterData] = useState({ username: '', email: '', password: '', birthDate: '' })
+
+  // Al abrir (o cambiar de pestaña por defecto) reseteamos a la pantalla splash.
+  useEffect(() => {
+    if (open) {
+      setView(defaultTab)
+      setStep('methods')
+      setError('')
+      setAgeBlocked(false)
+    }
+  }, [open, defaultTab])
+
+  if (!open) return null
+
+  const isRegister = view === 'register'
+
+  const switchMode = (mode) => {
+    setView(mode)
+    setStep('methods')
+    setError('')
+    setAgeBlocked(false)
+  }
 
   const handleLogin = async (e) => {
     e.preventDefault()
     setError('')
     setLoading(true)
-
     try {
       const result = await login(loginData.username, loginData.password)
       if (result.success) {
-        // SPA: el estado de usuario se actualiza reactivamente (sin recargar la
-        // página). Antes había window.location.reload() que reiniciaba la app y
-        // en frío volvía a mostrar el estado de invitado.
         onClose()
       } else {
         setError(result.error || 'Error al iniciar sesión')
       }
-    } catch (err) {
+    } catch {
       setError('Error al iniciar sesión')
     } finally {
       setLoading(false)
@@ -59,13 +84,11 @@ export default function AuthModal({ open, onClose, defaultTab = 'login' }) {
     e.preventDefault()
     setError('')
 
-    // Validaciones
     if (registerData.password.length < 6) {
       setError('La contraseña debe tener al menos 6 caracteres')
       return
     }
-
-    // GATING DE EDAD (COPPA): fecha obligatoria + mínimo 13 años.
+    // Gating de edad (COPPA): fecha obligatoria + mínimo 13 años.
     if (!registerData.birthDate) {
       setError('Introduce tu fecha de nacimiento')
       return
@@ -81,7 +104,6 @@ export default function AuthModal({ open, onClose, defaultTab = 'login' }) {
     }
 
     setLoading(true)
-
     try {
       const result = await register(
         registerData.username,
@@ -90,281 +112,261 @@ export default function AuthModal({ open, onClose, defaultTab = 'login' }) {
         registerData.birthDate,
       )
       if (result.success) {
-        // SPA: sin recarga. El estado de usuario se propaga por contexto.
         onClose()
+      } else if (result.error && /menores de 13/i.test(result.error)) {
+        setAgeBlocked(true)
       } else {
-        if (result.error && /menores de 13/i.test(result.error)) {
-          setAgeBlocked(true)
-        } else {
-          setError(result.error || 'Error al registrarse')
-        }
+        setError(result.error || 'Error al registrarse')
       }
-    } catch (err) {
+    } catch {
       setError('Error al registrarse')
     } finally {
       setLoading(false)
     }
   }
 
-  if (!open) return null
+  const inputWrap = 'relative'
+  const inputCls =
+    'w-full bg-white/[0.06] text-white placeholder:text-white/30 pl-12 pr-4 py-3.5 rounded-xl text-[15px] outline-none focus:bg-white/[0.1] transition-all border border-white/10 focus:border-white/25'
 
   return (
-    <div
-      className="fixed inset-0 flex items-center justify-center px-4"
-      style={{ zIndex: 10000 }}
-      onClick={onClose}
-    >
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-md" />
+    <div className="fixed inset-0 bg-[#0a0a0b] text-white flex flex-col" style={{ zIndex: 10000 }}>
+      {/* Glow superior de marca */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-72 z-0"
+           style={{ background: 'radial-gradient(70% 100% at 50% 0%, rgba(168,85,247,0.16), transparent 70%)' }} />
 
-      {/* Modal */}
-      <div
-        className="relative w-full max-w-[420px] bg-zinc-900/95 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-white/5">
-          <h3 className="text-white text-[18px] font-semibold tracking-tight">
-            {ageBlocked ? 'Acceso no permitido' : (tab === 'login' ? 'Iniciar sesión' : 'Crear cuenta')}
-          </h3>
-          <button
-            onClick={onClose}
-            className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-white/10 transition-all"
-          >
-            <X className="w-5 h-5 text-white/60" strokeWidth={1.5} />
+      {/* Header: atrás (en el formulario) + cerrar */}
+      <div className="relative z-10 flex items-center justify-between px-3 h-14 shrink-0"
+           style={{ paddingTop: 'max(env(safe-area-inset-top), 6px)' }}>
+        {step === 'form' && !ageBlocked ? (
+          <button aria-label="atrás" onClick={() => { setStep('methods'); setError('') }} className="p-2 -ml-1 text-white active:scale-90 transition">
+            <ChevronLeft strokeWidth={2} className="w-6 h-6" />
           </button>
-        </div>
-
-        {ageBlocked ? (
-          /* PANTALLA DE BLOQUEO POR EDAD (COPPA) */
-          <div className="px-6 py-10 flex flex-col items-center text-center">
-            <div className="w-16 h-16 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-5">
-              <ShieldAlert className="w-8 h-8 text-red-400" strokeWidth={1.7} />
-            </div>
-            <h4 className="text-white text-[17px] font-semibold mb-2">
-              Twyk no está disponible para menores de 13 años
-            </h4>
-            <p className="text-white/50 text-[13px] leading-relaxed max-w-[300px]">
-              De acuerdo con la ley COPPA de EEUU, no permitimos el registro de menores de 13 años.
-              No podemos crear tu cuenta.
-            </p>
-            <button
-              onClick={() => { setAgeBlocked(false); setTab('login'); setError(''); setRegisterData((d) => ({ ...d, birthDate: '' })) }}
-              className="mt-7 w-full py-3.5 rounded-xl bg-white/10 text-white text-[14px] font-medium hover:bg-white/15 active:scale-[0.98] transition-all"
-            >
-              Entendido
-            </button>
-          </div>
         ) : (
-        <>
-        {/* Tabs */}
-        <div className="flex gap-2 px-6 pt-5">
-          <button
-            onClick={() => { setTab('login'); setError('') }}
-            className={cn(
-              'flex-1 py-2.5 rounded-xl text-[14px] font-medium transition-all',
-              tab === 'login'
-                ? 'bg-white text-black'
-                : 'bg-white/5 text-white/60 hover:bg-white/10'
-            )}
-          >
-            Iniciar sesión
-          </button>
-          <button
-            onClick={() => { setTab('register'); setError('') }}
-            className={cn(
-              'flex-1 py-2.5 rounded-xl text-[14px] font-medium transition-all',
-              tab === 'register'
-                ? 'bg-white text-black'
-                : 'bg-white/5 text-white/60 hover:bg-white/10'
-            )}
-          >
-            Registrarse
-          </button>
-        </div>
-
-        {/* Contenido */}
-        <div className="px-6 py-6">
-          {/* Error */}
-          {error && (
-            <div className="mb-4 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20">
-              <p className="text-red-400 text-[13px]">{error}</p>
-            </div>
-          )}
-
-          {/* Login Form */}
-          {tab === 'login' && (
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div>
-                <label className="block text-white/60 text-[12px] uppercase tracking-wide font-medium mb-2">
-                  Usuario
-                </label>
-                <div className="relative">
-                  <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" strokeWidth={1.5} />
-                  <input
-                    type="text"
-                    value={loginData.username}
-                    onChange={(e) => setLoginData({ ...loginData, username: e.target.value })}
-                    placeholder="tu_usuario"
-                    className="w-full bg-white/5 text-white placeholder:text-white/30 pl-12 pr-4 py-3.5 rounded-xl text-[14px] outline-none focus:bg-white/10 transition-all border border-white/5 focus:border-white/20"
-                    required
-                    disabled={loading}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-white/60 text-[12px] uppercase tracking-wide font-medium mb-2">
-                  Contraseña
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" strokeWidth={1.5} />
-                  <input
-                    type="password"
-                    value={loginData.password}
-                    onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
-                    placeholder="••••••••"
-                    className="w-full bg-white/5 text-white placeholder:text-white/30 pl-12 pr-4 py-3.5 rounded-xl text-[14px] outline-none focus:bg-white/10 transition-all border border-white/5 focus:border-white/20"
-                    required
-                    disabled={loading}
-                  />
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className={cn(
-                  'w-full py-3.5 rounded-xl font-medium text-[14px] transition-all flex items-center justify-center gap-2 mt-6',
-                  loading
-                    ? 'bg-white/20 text-white/40 cursor-not-allowed'
-                    : 'bg-white text-black hover:bg-white/90 active:scale-[0.98]'
-                )}
-              >
-                {loading ? (
-                  <div className="w-5 h-5 rounded-full border-2 border-white/20 border-t-white animate-spin" />
-                ) : (
-                  <>
-                    <LogIn className="w-4 h-4" strokeWidth={2.5} />
-                    <span>Iniciar sesión</span>
-                  </>
-                )}
-              </button>
-            </form>
-          )}
-
-          {/* Register Form */}
-          {tab === 'register' && (
-            <form onSubmit={handleRegister} className="space-y-4">
-              <div>
-                <label className="block text-white/60 text-[12px] uppercase tracking-wide font-medium mb-2">
-                  Usuario
-                </label>
-                <div className="relative">
-                  <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" strokeWidth={1.5} />
-                  <input
-                    type="text"
-                    value={registerData.username}
-                    onChange={(e) => setRegisterData({ ...registerData, username: e.target.value })}
-                    placeholder="tu_usuario"
-                    className="w-full bg-white/5 text-white placeholder:text-white/30 pl-12 pr-4 py-3.5 rounded-xl text-[14px] outline-none focus:bg-white/10 transition-all border border-white/5 focus:border-white/20"
-                    required
-                    disabled={loading}
-                    minLength={3}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-white/60 text-[12px] uppercase tracking-wide font-medium mb-2">
-                  Email
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" strokeWidth={1.5} />
-                  <input
-                    type="email"
-                    value={registerData.email}
-                    onChange={(e) => setRegisterData({ ...registerData, email: e.target.value })}
-                    placeholder="tu@email.com"
-                    className="w-full bg-white/5 text-white placeholder:text-white/30 pl-12 pr-4 py-3.5 rounded-xl text-[14px] outline-none focus:bg-white/10 transition-all border border-white/5 focus:border-white/20"
-                    required
-                    disabled={loading}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-white/60 text-[12px] uppercase tracking-wide font-medium mb-2">
-                  Contraseña
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" strokeWidth={1.5} />
-                  <input
-                    type="password"
-                    value={registerData.password}
-                    onChange={(e) => setRegisterData({ ...registerData, password: e.target.value })}
-                    placeholder="••••••••"
-                    className="w-full bg-white/5 text-white placeholder:text-white/30 pl-12 pr-4 py-3.5 rounded-xl text-[14px] outline-none focus:bg-white/10 transition-all border border-white/5 focus:border-white/20"
-                    required
-                    disabled={loading}
-                    minLength={6}
-                  />
-                </div>
-                <p className="text-white/40 text-[11px] mt-1.5">Mínimo 6 caracteres</p>
-              </div>
-
-              <div>
-                <label className="block text-white/60 text-[12px] uppercase tracking-wide font-medium mb-2">
-                  Fecha de nacimiento
-                </label>
-                <div className="relative">
-                  <Cake className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" strokeWidth={1.5} />
-                  <input
-                    type="date"
-                    value={registerData.birthDate}
-                    onChange={(e) => setRegisterData({ ...registerData, birthDate: e.target.value })}
-                    max={new Date().toISOString().split('T')[0]}
-                    className="w-full bg-white/5 text-white placeholder:text-white/30 pl-12 pr-4 py-3.5 rounded-xl text-[14px] outline-none focus:bg-white/10 transition-all border border-white/5 focus:border-white/20 [color-scheme:dark]"
-                    required
-                    disabled={loading}
-                  />
-                </div>
-                <p className="text-white/40 text-[11px] mt-1.5">Debes tener al menos 13 años para usar Twyk</p>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className={cn(
-                  'w-full py-3.5 rounded-xl font-medium text-[14px] transition-all flex items-center justify-center gap-2 mt-6',
-                  loading
-                    ? 'bg-white/20 text-white/40 cursor-not-allowed'
-                    : 'bg-white text-black hover:bg-white/90 active:scale-[0.98]'
-                )}
-              >
-                {loading ? (
-                  <div className="w-5 h-5 rounded-full border-2 border-white/20 border-t-white animate-spin" />
-                ) : (
-                  <>
-                    <UserPlus className="w-4 h-4" strokeWidth={2.5} />
-                    <span>Crear cuenta</span>
-                  </>
-                )}
-              </button>
-            </form>
-          )}
-
-          {/* Footer legal — visible en login y registro */}
-          <p className="mt-5 text-center text-white/40 text-[11px] leading-relaxed">
-            Al registrarte aceptas nuestros{' '}
-            <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-white/70 underline hover:text-white">Términos de Uso</a>
-            {' '}y{' '}
-            <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-white/70 underline hover:text-white">Política de Privacidad</a>
-          </p>
-        </div>
-        </>
+          <span className="w-9" />
         )}
+        <button aria-label="cerrar" onClick={onClose} className="p-2 -mr-1 text-white/80 active:scale-90 transition">
+          <X strokeWidth={2} className="w-6 h-6" />
+        </button>
       </div>
+
+      {/* Contenido */}
+      <div className="relative z-10 flex-1 overflow-y-auto px-6">
+        <div className="max-w-[420px] mx-auto w-full pt-4 pb-6">
+
+          {ageBlocked ? (
+            /* PANTALLA DE BLOQUEO POR EDAD (COPPA) */
+            <div className="flex flex-col items-center text-center pt-10">
+              <div className="w-16 h-16 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-5">
+                <ShieldAlert className="w-8 h-8 text-red-400" strokeWidth={1.7} />
+              </div>
+              <h2 className="text-[19px] font-bold mb-2">Twyk no está disponible para menores de 13 años</h2>
+              <p className="text-white/50 text-[14px] leading-relaxed max-w-[320px]">
+                De acuerdo con la ley COPPA de EEUU, no permitimos el registro de menores de 13 años. No podemos crear tu cuenta.
+              </p>
+              <button
+                onClick={() => { setAgeBlocked(false); switchMode('login') }}
+                className="mt-7 w-full h-12 rounded-full bg-white/10 text-white text-[15px] font-semibold hover:bg-white/15 active:scale-[0.98] transition-all"
+              >
+                Entendido
+              </button>
+            </div>
+          ) : (
+            <>
+              {/* Título + subtítulo */}
+              <div className="text-center pt-6 mb-8">
+                <h1 className="text-[28px] font-extrabold tracking-tight leading-tight">
+                  {isRegister ? 'Regístrate en Twyk' : 'Inicia sesión en Twyk'}
+                </h1>
+                <p className="text-white/50 text-[15px] mt-2 leading-snug max-w-[320px] mx-auto">
+                  {isRegister
+                    ? 'Crea tu perfil, vota retos, sube tus vídeos y reta a otros creadores.'
+                    : 'Accede para votar retos, subir tus vídeos y retar a otros.'}
+                </p>
+              </div>
+
+              {step === 'methods' ? (
+                /* PASO 1: método (único: correo o usuario) */
+                <div className="space-y-3">
+                  <button
+                    onClick={() => { setStep('form'); setError('') }}
+                    className="w-full h-[54px] rounded-full text-white font-bold text-[16px] flex items-center justify-center gap-3 active:scale-[0.98] transition-transform shadow-[0_10px_30px_-8px_rgba(168,85,247,0.55)]"
+                    style={{ background: BRAND_GRADIENT }}
+                  >
+                    {isRegister ? <AtSign className="w-5 h-5" strokeWidth={2.2} /> : <User className="w-5 h-5" strokeWidth={2.2} />}
+                    {isRegister ? 'Usar correo o usuario' : 'Usar usuario y contraseña'}
+                  </button>
+                </div>
+              ) : isRegister ? (
+                /* PASO 2: formulario de REGISTRO */
+                <form onSubmit={handleRegister} className="space-y-4">
+                  {error && (
+                    <div className="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20">
+                      <p className="text-red-400 text-[13px]">{error}</p>
+                    </div>
+                  )}
+
+                  <div className={inputWrap}>
+                    <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" strokeWidth={1.5} />
+                    <input
+                      type="text"
+                      value={registerData.username}
+                      onChange={(e) => setRegisterData({ ...registerData, username: e.target.value })}
+                      placeholder="Usuario"
+                      className={inputCls}
+                      required
+                      minLength={3}
+                      disabled={loading}
+                    />
+                  </div>
+
+                  <div className={inputWrap}>
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" strokeWidth={1.5} />
+                    <input
+                      type="email"
+                      value={registerData.email}
+                      onChange={(e) => setRegisterData({ ...registerData, email: e.target.value })}
+                      placeholder="Email"
+                      className={inputCls}
+                      required
+                      disabled={loading}
+                    />
+                  </div>
+
+                  <div className={inputWrap}>
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" strokeWidth={1.5} />
+                    <input
+                      type="password"
+                      value={registerData.password}
+                      onChange={(e) => setRegisterData({ ...registerData, password: e.target.value })}
+                      placeholder="Contraseña (mín. 6 caracteres)"
+                      className={inputCls}
+                      required
+                      minLength={6}
+                      disabled={loading}
+                    />
+                  </div>
+
+                  <div>
+                    <div className={inputWrap}>
+                      <Cake className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" strokeWidth={1.5} />
+                      <input
+                        type="date"
+                        value={registerData.birthDate}
+                        onChange={(e) => setRegisterData({ ...registerData, birthDate: e.target.value })}
+                        max={new Date().toISOString().split('T')[0]}
+                        className={inputCls + ' [color-scheme:dark]'}
+                        required
+                        disabled={loading}
+                      />
+                    </div>
+                    <p className="text-white/40 text-[11px] mt-1.5 px-1">Debes tener al menos 13 años para usar Twyk</p>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full h-[52px] rounded-full font-bold text-[16px] flex items-center justify-center gap-2 mt-2 active:scale-[0.98] transition-transform disabled:opacity-60 text-white"
+                    style={{ background: BRAND_GRADIENT }}
+                  >
+                    {loading ? (
+                      <div className="w-5 h-5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                    ) : (
+                      <>
+                        <UserPlus className="w-5 h-5" strokeWidth={2.2} />
+                        Crear cuenta
+                      </>
+                    )}
+                  </button>
+                </form>
+              ) : (
+                /* PASO 2: formulario de LOGIN */
+                <form onSubmit={handleLogin} className="space-y-4">
+                  {error && (
+                    <div className="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20">
+                      <p className="text-red-400 text-[13px]">{error}</p>
+                    </div>
+                  )}
+
+                  <div className={inputWrap}>
+                    <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" strokeWidth={1.5} />
+                    <input
+                      type="text"
+                      value={loginData.username}
+                      onChange={(e) => setLoginData({ ...loginData, username: e.target.value })}
+                      placeholder="Usuario"
+                      className={inputCls}
+                      required
+                      disabled={loading}
+                    />
+                  </div>
+
+                  <div className={inputWrap}>
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" strokeWidth={1.5} />
+                    <input
+                      type="password"
+                      value={loginData.password}
+                      onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
+                      placeholder="Contraseña"
+                      className={inputCls}
+                      required
+                      disabled={loading}
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full h-[52px] rounded-full font-bold text-[16px] flex items-center justify-center gap-2 mt-2 active:scale-[0.98] transition-transform disabled:opacity-60 text-white"
+                    style={{ background: BRAND_GRADIENT }}
+                  >
+                    {loading ? (
+                      <div className="w-5 h-5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                    ) : (
+                      <>
+                        <LogIn className="w-5 h-5" strokeWidth={2.2} />
+                        Iniciar sesión
+                      </>
+                    )}
+                  </button>
+                </form>
+              )}
+
+              {/* Footer legal */}
+              {!ageBlocked && (
+                <p className="mt-7 text-center text-white/40 text-[12px] leading-relaxed">
+                  Al continuar aceptas nuestros{' '}
+                  <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-white/70 underline hover:text-white">Términos de Uso</a>
+                  {' '}y{' '}
+                  <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-white/70 underline hover:text-white">Política de Privacidad</a>
+                </p>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Barra inferior: alternar login / registro */}
+      {!ageBlocked && (
+        <div className="relative z-10 border-t border-white/10 px-6 py-4 text-center shrink-0"
+             style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 14px)' }}>
+          {isRegister ? (
+            <p className="text-white/60 text-[14px]">
+              ¿Ya tienes una cuenta?{' '}
+              <button onClick={() => switchMode('login')} className={cn('font-bold bg-clip-text text-transparent')} style={{ backgroundImage: BRAND_GRADIENT }}>
+                Inicia sesión
+              </button>
+            </p>
+          ) : (
+            <p className="text-white/60 text-[14px]">
+              ¿No tienes cuenta?{' '}
+              <button onClick={() => switchMode('register')} className={cn('font-bold bg-clip-text text-transparent')} style={{ backgroundImage: BRAND_GRADIENT }}>
+                Regístrate
+              </button>
+            </p>
+          )}
+        </div>
+      )}
     </div>
   )
 }
