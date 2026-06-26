@@ -1,8 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ChevronDown, ArrowLeft, User, Mail, Lock, Cake, LogIn, ShieldAlert, AtSign } from 'lucide-react'
+import { createPortal } from 'react-dom'
+import { ChevronDown, ArrowLeft, User, Mail, Lock, LogIn, ShieldAlert, AtSign } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
+import DateWheelPicker from './DateWheelPicker'
 
 // Gradiente de marca Twyk (morado -> azul), el mismo del botón "+" de la barra.
 const BRAND_GRADIENT = 'linear-gradient(90deg, #A855F7 0%, #3B82F6 100%)'
@@ -49,6 +51,10 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
   const [loginData, setLoginData] = useState({ username: '', password: '' })
   const [registerData, setRegisterData] = useState({ username: '', email: '', password: '', birthDate: '' })
 
+  // Para el portal: solo renderizamos en cliente (document disponible).
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
+
   // Al abrir (o cambiar de pestaña por defecto) reseteamos al splash.
   useEffect(() => {
     if (open) {
@@ -60,7 +66,7 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
     }
   }, [open, defaultTab])
 
-  if (!open) return null
+  if (!open || !mounted) return null
 
   const isRegister = view === 'register'
 
@@ -154,7 +160,7 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
   const regStepCfg = REG_STEPS[regStep]
   const isLastRegStep = regStep === REG_STEPS.length - 1
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 flex flex-col justify-end" style={{ zIndex: 10000 }}>
       {/* Backdrop: toca fuera para cerrar */}
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
@@ -268,18 +274,10 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
                 <p className="text-white/50 text-[14px] mt-2 mb-7 leading-snug">{regStepCfg.subtitle}</p>
 
                 {regStepCfg.key === 'birthdate' && (
-                  <div className="relative">
-                    <Cake className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" strokeWidth={1.5} />
-                    <input
-                      type="date"
-                      autoFocus
-                      value={registerData.birthDate}
-                      onChange={(e) => setRegisterData({ ...registerData, birthDate: e.target.value })}
-                      max={new Date().toISOString().split('T')[0]}
-                      className={inputWithIcon + ' [color-scheme:dark]'}
-                      required
-                    />
-                  </div>
+                  <DateWheelPicker
+                    value={registerData.birthDate}
+                    onChange={(val) => setRegisterData((prev) => ({ ...prev, birthDate: val }))}
+                  />
                 )}
 
                 {regStepCfg.key === 'email' && (
@@ -413,6 +411,7 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
           </form>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
