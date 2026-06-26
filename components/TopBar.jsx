@@ -13,9 +13,9 @@ export default function TopBar({ muted, onToggleMute }) {
         {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
       </button>
       <div className="flex gap-6 text-[15px] font-semibold pointer-events-auto">
-        <span className="text-white/60">Siguiendo</span>
+        <span className="text-white/60">Following</span>
         <span className="relative">
-          Para ti
+          For You
           <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-5 h-[2px] bg-white rounded-full" />
         </span>
       </div>

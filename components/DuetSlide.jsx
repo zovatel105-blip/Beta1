@@ -528,7 +528,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
         {!userVote && (
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-none flex flex-col items-center gap-2">
             <div className="bg-black/55 backdrop-blur text-white text-[10px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap">
-              Doble toque para votar
+              Double-tap to vote
             </div>
           </div>
         )}
@@ -644,7 +644,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
               following ? 'border-white/40 bg-white/15 text-white' : 'border-white/90 text-white'
             )}
           >
-            {following ? 'Siguiendo' : 'Seguir'}
+            {following ? 'Following' : 'Follow'}
           </button>
         </div>
         {/* Título / descripción */}
@@ -663,7 +663,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
             <VoteIcon className="w-[36px] h-[36px]" strokeWidth={180} filled={!!userVote} />
           </span>
           <span className="text-[10px] font-semibold text-white leading-none">
-            {countLabel(totalVotes, 'Votar')}
+            {countLabel(totalVotes, 'Vote')}
           </span>
         </button>
         {/* Retar — abre un selector A/B para elegir explícitamente a qué opción retar. */}
@@ -677,7 +677,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
             setChallengePickOpen(true);
           }} className="flex flex-col items-center gap-0.5 w-14 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
             <Swords className="w-[25px] h-[25px] text-white" strokeWidth={1.25} />
-            <span className="text-[10px] font-semibold text-white leading-none">{countLabel(challengeCount, 'Retar')}</span>
+            <span className="text-[10px] font-semibold text-white leading-none">{countLabel(challengeCount, 'Challenge')}</span>
           </button>
         )}
         {/* Comentar */}
@@ -690,17 +690,17 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
           setCommentsOpen(true);
         }} className="flex flex-col items-center gap-0.5 w-14 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
           <MessageCircle className="w-[25px] h-[25px] text-white" strokeWidth={1.25} />
-          <span className="text-[10px] font-semibold text-white leading-none">{countLabel(commentCount, 'Comentar')}</span>
+          <span className="text-[10px] font-semibold text-white leading-none">{countLabel(commentCount, 'Comment')}</span>
         </button>
         {/* Compartir */}
         <button aria-label="share" onClick={(e) => { e.stopPropagation(); setShareOpen(true) }} className="flex flex-col items-center gap-0.5 w-14 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
           <ShareIcon className="w-[25px] h-[25px] text-white" strokeWidth={1.1} />
-          <span className="text-[10px] font-semibold text-white leading-none">{countLabel(shareCount, 'Compartir')}</span>
+          <span className="text-[10px] font-semibold text-white leading-none">{countLabel(shareCount, 'Share')}</span>
         </button>
         {/* Guardar */}
         <button aria-label="bookmark" onClick={handleSaveToggle} className="flex flex-col items-center gap-0.5 w-14 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
           <Bookmark className={cn('w-[25px] h-[25px] transition-all duration-200', saved ? 'fill-current text-yellow-400' : 'text-white')} strokeWidth={1.25} />
-          <span className="text-[10px] font-semibold text-white leading-none">{countLabel(saveCount, 'Guardar')}</span>
+          <span className="text-[10px] font-semibold text-white leading-none">{countLabel(saveCount, 'Save')}</span>
         </button>
         {/* Más opciones */}
         <button aria-label="mas-opciones" onClick={(e) => { e.stopPropagation(); setMenuOpen(true) }} className="flex flex-col items-center hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
@@ -734,13 +734,13 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
           <ChevronDown className="w-5 h-5 text-zinc-500" strokeWidth={2.2} />
         </button>
         <div className="px-5 pb-7">
-          <h3 className="text-zinc-900 text-[16px] font-semibold tracking-tight text-center">¿A quién quieres retar?</h3>
-          <p className="text-zinc-500 text-[12px] text-center mb-4">Elige la opción de este 1vs1</p>
+          <h3 className="text-zinc-900 text-[16px] font-semibold tracking-tight text-center">Who do you want to challenge?</h3>
+          <p className="text-zinc-500 text-[12px] text-center mb-4">Choose an option from this 1v1</p>
 
           <div className="grid grid-cols-2 gap-3">
             {[
-              { key: 'a', sd: sideA, ring: 'ring-purple-500', dot: '#A855F7', label: 'Opción A' },
-              { key: 'b', sd: sideB, ring: 'ring-blue-500', dot: '#3B82F6', label: 'Opción B' },
+              { key: 'a', sd: sideA, ring: 'ring-purple-500', dot: '#A855F7', label: 'Option A' },
+              { key: 'b', sd: sideB, ring: 'ring-blue-500', dot: '#3B82F6', label: 'Option B' },
             ].map(({ key, sd, ring, dot, label }) => (
               <button
                 key={key}

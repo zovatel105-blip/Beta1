@@ -8,8 +8,8 @@ const VISIBLE = 5
 const PAD = ITEM_H * Math.floor(VISIBLE / 2) // relleno arriba/abajo para centrar
 
 const MONTHS_ES = [
-  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
 ]
 
 function daysInMonth(year, month /* 1-12 */) {

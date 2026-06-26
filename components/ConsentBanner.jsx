@@ -43,15 +43,15 @@ export default function ConsentBanner() {
         <div className="flex items-start gap-3 flex-1">
           <Cookie className="w-5 h-5 text-white/70 shrink-0 mt-0.5" strokeWidth={1.7} />
           <p className="text-white/75 text-[13px] leading-relaxed">
-            Twyk usa cookies esenciales para funcionar. Al continuar, aceptas nuestra{' '}
-            <Link href="/privacy" className="underline text-white hover:text-white/80">Política de Privacidad</Link>.
+            Twyk uses essential cookies to work. By continuing, you accept our{' '}
+            <Link href="/privacy" className="underline text-white hover:text-white/80">Privacy Policy</Link>.
           </p>
         </div>
         <button
           onClick={accept}
           className="shrink-0 px-5 py-2.5 rounded-full bg-white text-black text-[13px] font-semibold hover:bg-white/90 active:scale-95 transition-all"
         >
-          Entendido
+          Got it
         </button>
       </div>
     </div>

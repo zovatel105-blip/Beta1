@@ -127,12 +127,12 @@ export default function VSWinnerCard({
             <div className="relative z-10 h-full flex flex-col items-center justify-between py-6 px-5 text-center">
               {/* Top */}
               <div className="flex flex-col items-center gap-2.5">
-                <span className="text-white/70 text-[11px] font-bold tracking-[0.4em]">DUELO</span>
+                <span className="text-white/70 text-[11px] font-bold tracking-[0.4em]">DUEL</span>
                 <div
                   className="flex items-center gap-1.5 text-[12px] font-extrabold tracking-wider text-white px-3.5 py-1.5 rounded-full"
                   style={{ background: `${winColor.primary}cc`, boxShadow: `0 0 22px ${winColor.glow}` }}
                 >
-                  <Trophy size={15} className="stroke-[2.5]" /> GANADOR
+                  <Trophy size={15} className="stroke-[2.5]" /> WINNER
                 </div>
               </div>
 
@@ -154,7 +154,7 @@ export default function VSWinnerCard({
                 <div>
                   <div className="flex items-center justify-between text-[11px] font-bold mb-1.5 drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">
                     <span style={{ color: COLORS.a.primary }}>A · {aPct}%</span>
-                    <span className="text-white/60 font-medium">{formatCount(totalVotes)} votos</span>
+                    <span className="text-white/60 font-medium">{formatCount(totalVotes)} votes</span>
                     <span style={{ color: COLORS.b.primary }}>B · {bPct}%</span>
                   </div>
                   <div className="h-2.5 w-full rounded-full overflow-hidden flex bg-white/15">
@@ -172,13 +172,13 @@ export default function VSWinnerCard({
                       onClick={(e) => { e.stopPropagation(); onShare?.(); onClose?.() }}
                       className="flex-1 flex items-center justify-center gap-1.5 bg-white/15 hover:bg-white/25 backdrop-blur text-white font-semibold text-[13px] py-2.5 rounded-xl active:scale-95 transition-all"
                     >
-                      <Share2 size={15} /> Compartir
+                      <Share2 size={15} /> Share
                     </button>
                     <button
                       onClick={(e) => { e.stopPropagation(); onComments?.(); onClose?.() }}
                       className="flex-1 flex items-center justify-center gap-1.5 bg-white/15 hover:bg-white/25 backdrop-blur text-white font-semibold text-[13px] py-2.5 rounded-xl active:scale-95 transition-all"
                     >
-                      <MessageCircle size={15} /> Comentarios
+                      <MessageCircle size={15} /> Comments
                     </button>
                   </div>
                   <button
@@ -186,7 +186,7 @@ export default function VSWinnerCard({
                     className="w-full flex items-center justify-center gap-2 text-white font-bold text-sm py-3 rounded-xl active:scale-95 transition-transform"
                     style={{ background: barGradient, boxShadow: `0 8px 24px -6px ${winColor.glow}` }}
                   >
-                    Siguiente duelo <ChevronDown size={18} className="stroke-[2.5]" />
+                    Next duel <ChevronDown size={18} className="stroke-[2.5]" />
                   </button>
                 </div>
               </div>

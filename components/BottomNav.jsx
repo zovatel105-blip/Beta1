@@ -73,7 +73,7 @@ export default function BottomNav({ onOpenUpload, onOpenInbox, onOpenProfile, on
       <div className="flex items-center justify-around px-4 py-2.5">
         {/* Home */}
         <button
-          aria-label="Inicio"
+          aria-label="Home"
           onClick={() => { onGoHome?.() }}
           className="flex items-center justify-center w-9 h-9 transition-all duration-200 active:scale-90"
         >
@@ -111,7 +111,7 @@ export default function BottomNav({ onOpenUpload, onOpenInbox, onOpenProfile, on
 
         {/* Crear — borde gradiente lila → azul. Abre el diálogo de subida */}
         <button
-          aria-label="Crear"
+          aria-label="Create"
           onClick={onOpenUpload}
           className="flex items-center justify-center w-9 h-9 rounded-xl transition-all duration-200 active:scale-90 relative overflow-hidden flex-shrink-0"
           style={{
@@ -128,7 +128,7 @@ export default function BottomNav({ onOpenUpload, onOpenInbox, onOpenProfile, on
         {/* Mensajes / Inbox */}
         <div className="relative flex items-center justify-center">
           <button
-            aria-label="Bandeja"
+            aria-label="Inbox"
             onClick={handleInboxClick}
             className="flex items-center justify-center w-9 h-9 transition-all duration-200 active:scale-90"
           >
@@ -149,7 +149,7 @@ export default function BottomNav({ onOpenUpload, onOpenInbox, onOpenProfile, on
 
         {/* Perfil */}
         <button
-          aria-label="Perfil"
+          aria-label="Profile"
           onClick={handleProfileClick}
           className="flex items-center justify-center w-9 h-9 transition-all duration-200 active:scale-90"
         >

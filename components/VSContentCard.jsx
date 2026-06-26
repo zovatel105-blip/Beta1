@@ -161,7 +161,7 @@ export default function VSContentCard({
         <button
           onClick={(e) => { e.stopPropagation(); onClose?.() }}
           className="absolute top-3 left-3 z-20 w-9 h-9 rounded-full bg-black/50 backdrop-blur flex items-center justify-center active:scale-95 transition-transform"
-          aria-label="Atrás"
+          aria-label="Back"
         >
           <ArrowLeft className="text-white" size={20} />
         </button>

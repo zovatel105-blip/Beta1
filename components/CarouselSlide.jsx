@@ -456,7 +456,7 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
       {/* Pista para votar */}
       {!userVote && (
         <div className="absolute top-12 left-1/2 -translate-x-1/2 z-20 pointer-events-none bg-black/45 backdrop-blur text-white text-[10px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap">
-          Desliza para comparar · doble toque para votar
+          Swipe to compare · double-tap to vote
         </div>
       )}
 
@@ -563,7 +563,7 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
               following ? 'border-white/40 bg-white/15 text-white' : 'border-white/90 text-white'
             )}
           >
-            {following ? 'Siguiendo' : 'Seguir'}
+            {following ? 'Following' : 'Follow'}
           </button>
         </div>
         <div className="mt-1 pointer-events-auto">
@@ -579,7 +579,7 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
           <span style={{ color: userVote === 'a' ? '#A855F7' : userVote === 'b' ? '#3B82F6' : '#fff', display: 'inline-flex', transition: 'color 200ms' }}>
             <VoteIcon className="w-[36px] h-[36px]" strokeWidth={180} filled={!!userVote} />
           </span>
-          <span className="text-[10px] font-semibold text-white leading-none">{countLabel(totalVotes, 'Votar')}</span>
+          <span className="text-[10px] font-semibold text-white leading-none">{countLabel(totalVotes, 'Vote')}</span>
         </button>
         {!hideChallenge && headAuthor?.username !== user?.username && (
           <button aria-label="retar" onClick={(e) => { 
@@ -591,7 +591,7 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
             onChallenge?.({ postId: post.id, videoUrl: current.videoUrl, author: headAuthor, description: current.description || post.description, music: current.music || post.music });
           }} className="flex flex-col items-center gap-0.5 w-14 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
             <Swords className="w-[25px] h-[25px] text-white" strokeWidth={1.25} />
-            <span className="text-[10px] font-semibold text-white leading-none">{countLabel(challengeCount, 'Retar')}</span>
+            <span className="text-[10px] font-semibold text-white leading-none">{countLabel(challengeCount, 'Challenge')}</span>
           </button>
         )}
         <button aria-label="comments" onClick={(e) => { 
@@ -603,15 +603,15 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
           setCommentsOpen(true);
         }} className="flex flex-col items-center gap-0.5 w-14 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
           <MessageCircle className="w-[25px] h-[25px] text-white" strokeWidth={1.25} />
-          <span className="text-[10px] font-semibold text-white leading-none">{countLabel(commentCount, 'Comentar')}</span>
+          <span className="text-[10px] font-semibold text-white leading-none">{countLabel(commentCount, 'Comment')}</span>
         </button>
         <button aria-label="share" onClick={(e) => { e.stopPropagation(); setShareOpen(true) }} className="flex flex-col items-center gap-0.5 w-14 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
           <ShareIcon className="w-[25px] h-[25px] text-white" strokeWidth={1.1} />
-          <span className="text-[10px] font-semibold text-white leading-none">{countLabel(shareCount, 'Compartir')}</span>
+          <span className="text-[10px] font-semibold text-white leading-none">{countLabel(shareCount, 'Share')}</span>
         </button>
         <button aria-label="bookmark" onClick={handleSaveToggle} className="flex flex-col items-center gap-0.5 w-14 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
           <Bookmark className={cn('w-[25px] h-[25px] transition-all duration-200', saved ? 'fill-current text-yellow-400' : 'text-white')} strokeWidth={1.25} />
-          <span className="text-[10px] font-semibold text-white leading-none">{countLabel(saveCount, 'Guardar')}</span>
+          <span className="text-[10px] font-semibold text-white leading-none">{countLabel(saveCount, 'Save')}</span>
         </button>
         <button aria-label="mas-opciones" onClick={(e) => { e.stopPropagation(); setMenuOpen(true) }} className="flex flex-col items-center hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
           <MoreVertical className="w-[18px] h-[18px] text-white" strokeWidth={1.25} fill="currentColor" />
