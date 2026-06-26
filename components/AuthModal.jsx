@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { X, ChevronLeft, User, Mail, Lock, LogIn, UserPlus, Cake, ShieldAlert, AtSign } from 'lucide-react'
+import { ChevronDown, User, Mail, Lock, LogIn, UserPlus, Cake, ShieldAlert, AtSign } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
 
@@ -135,18 +135,11 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
       <div className="pointer-events-none absolute inset-x-0 top-0 h-72 z-0"
            style={{ background: 'radial-gradient(70% 100% at 50% 0%, rgba(168,85,247,0.16), transparent 70%)' }} />
 
-      {/* Header: atrás (en el formulario) + cerrar */}
-      <div className="relative z-10 flex items-center justify-between px-3 h-14 shrink-0"
+      {/* Header: flecha hacia abajo (cerrar), estilo hoja inferior */}
+      <div className="relative z-10 flex items-center justify-center px-3 h-12 shrink-0"
            style={{ paddingTop: 'max(env(safe-area-inset-top), 6px)' }}>
-        {step === 'form' && !ageBlocked ? (
-          <button aria-label="atrás" onClick={() => { setStep('methods'); setError('') }} className="p-2 -ml-1 text-white active:scale-90 transition">
-            <ChevronLeft strokeWidth={2} className="w-6 h-6" />
-          </button>
-        ) : (
-          <span className="w-9" />
-        )}
-        <button aria-label="cerrar" onClick={onClose} className="p-2 -mr-1 text-white/80 active:scale-90 transition">
-          <X strokeWidth={2} className="w-6 h-6" />
+        <button aria-label="cerrar" onClick={onClose} className="p-2 text-white/70 active:scale-90 transition">
+          <ChevronDown strokeWidth={2.2} className="w-7 h-7" />
         </button>
       </div>
 
