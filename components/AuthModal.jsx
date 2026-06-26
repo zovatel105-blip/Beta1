@@ -130,9 +130,14 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
     'w-full bg-white/[0.06] text-white placeholder:text-white/30 pl-12 pr-4 py-3.5 rounded-xl text-[15px] outline-none focus:bg-white/[0.1] transition-all border border-white/10 focus:border-white/25'
 
   return (
-    <div className="fixed inset-0 bg-[#0a0a0b] text-white flex flex-col" style={{ zIndex: 10000 }}>
+    <div className="fixed inset-0 flex flex-col justify-end" style={{ zIndex: 10000 }}>
+      {/* Backdrop: toca fuera para cerrar */}
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+
+      {/* Hoja inferior con esquinas superiores redondeadas (altura segun contenido) */}
+      <div className="relative w-full max-w-[520px] mx-auto bg-[#0a0a0b] text-white rounded-t-3xl border-t border-white/10 shadow-2xl max-h-[90dvh] flex flex-col overflow-hidden">
       {/* Glow superior de marca */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-72 z-0"
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-40 z-0"
            style={{ background: 'radial-gradient(70% 100% at 50% 0%, rgba(168,85,247,0.16), transparent 70%)' }} />
 
       {/* Header: flecha hacia abajo (cerrar), estilo hoja inferior */}
@@ -144,8 +149,8 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
       </div>
 
       {/* Contenido */}
-      <div className="relative z-10 flex-1 overflow-y-auto px-6">
-        <div className="max-w-[420px] mx-auto w-full pt-4 pb-6">
+      <div className="relative z-10 flex-1 min-h-0 overflow-y-auto px-6">
+        <div className="max-w-[420px] mx-auto w-full pt-1 pb-5">
 
           {ageBlocked ? (
             /* PANTALLA DE BLOQUEO POR EDAD (COPPA) */
@@ -167,7 +172,7 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
           ) : (
             <>
               {/* Título + subtítulo */}
-              <div className="text-center pt-6 mb-8">
+              <div className="text-center pt-3 mb-6">
                 <h1 className="text-[28px] font-extrabold tracking-tight leading-tight">
                   {isRegister ? 'Regístrate en Twyk' : 'Inicia sesión en Twyk'}
                 </h1>
@@ -360,6 +365,7 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
           )}
         </div>
       )}
+      </div>
     </div>
   )
 }
