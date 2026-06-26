@@ -193,6 +193,26 @@ export default function Feed() {
     }
   }, [user, pendingUpload])
 
+  // Gating de Retos y Notificaciones: solo usuarios registrados pueden verlas.
+  // Si un invitado pulsa, mostramos el modal de auth en vez de la página.
+  const requestBattles = useCallback(() => {
+    if (user) {
+      setBattlesOpen(true)
+    } else {
+      setAuthTab('register')
+      setAuthOpen(true)
+    }
+  }, [user])
+
+  const requestInbox = useCallback(() => {
+    if (user) {
+      setInboxOpen(true)
+    } else {
+      setAuthTab('register')
+      setAuthOpen(true)
+    }
+  }, [user])
+
   // Al cambiar la foto de perfil (o nombre), refrescar EN MEMORIA el avatar del
   // usuario en todas sus tarjetas ya cargadas del feed (el feed guarda un
   // snapshot del avatar al cargar). Así la nueva foto se ve al instante sin
@@ -414,7 +434,7 @@ export default function Feed() {
       )}
       <BottomNav
         onOpenUpload={requestUpload}
-        onOpenInbox={() => setInboxOpen(true)}
+        onOpenInbox={requestInbox}
         onOpenProfile={() => { setProfileUsername(null); setProfileOpen(true) }}
         onGoHome={() => {
           setProfileOpen(false)
@@ -422,7 +442,7 @@ export default function Feed() {
           setBattlesOpen(false)
           setActiveChallengesOpen(false)
         }}
-        onOpenBattles={() => setBattlesOpen(true)}
+        onOpenBattles={requestBattles}
         unreadCount={notificationsUnreadCount}
         challengesCount={pendingCount}
         activeTab={
