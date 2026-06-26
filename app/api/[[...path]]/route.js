@@ -1391,11 +1391,25 @@ async function handleRejectChallenge(cid) {
 // HANDLERS DE AUTENTICACIÓN
 // ────────────────────────────────────────────────────────────────────────────
 
+// Calcula la edad en años a partir de una fecha 'YYYY-MM-DD'. Devuelve null si
+// la fecha no es válida o es futura. Se usa para el gating de edad (COPPA).
+function computeAge(birthDate) {
+  if (!birthDate) return null
+  const dob = new Date(birthDate)
+  if (isNaN(dob.getTime())) return null
+  const now = new Date()
+  if (dob > now) return null
+  let age = now.getFullYear() - dob.getFullYear()
+  const m = now.getMonth() - dob.getMonth()
+  if (m < 0 || (m === 0 && now.getDate() < dob.getDate())) age--
+  return age
+}
+
 // POST /api/auth/register - Registrar nuevo usuario
 async function handleRegister(request) {
   try {
     const body = await request.json()
-    const { username, email, password } = body
+    const { username, email, password, birthDate } = body
 
     if (!username || !email || !password) {
       return NextResponse.json({ error: 'missing_fields' }, { status: 400 })
@@ -1405,7 +1419,20 @@ async function handleRegister(request) {
       return NextResponse.json({ error: 'password_too_short' }, { status: 400 })
     }
 
-    const user = await createUser({ username, email, password })
+    // GATING DE EDAD (COPPA): la fecha de nacimiento es obligatoria y el usuario
+    // debe tener al menos 13 años. Validación en servidor (no solo en cliente).
+    if (!birthDate) {
+      return NextResponse.json({ error: 'birthdate_required', message: 'La fecha de nacimiento es obligatoria' }, { status: 400 })
+    }
+    const age = computeAge(birthDate)
+    if (age === null) {
+      return NextResponse.json({ error: 'invalid_birthdate', message: 'Fecha de nacimiento no válida' }, { status: 400 })
+    }
+    if (age < 13) {
+      return NextResponse.json({ error: 'underage', message: 'Twyk no está disponible para menores de 13 años' }, { status: 403 })
+    }
+
+    const user = await createUser({ username, email, password, birthDate })
     const session = await createSession(user.id)
 
     const response = NextResponse.json({ ok: true, user, token: session.token })

@@ -1,9 +1,22 @@
 'use client'
 
 import { useState } from 'react'
-import { X, User, Mail, Lock, LogIn, UserPlus } from 'lucide-react'
+import { X, User, Mail, Lock, LogIn, UserPlus, Cake, ShieldAlert } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
+
+// Calcula la edad en años a partir de 'YYYY-MM-DD'. Devuelve null si no es válida.
+function computeAge(birthDate) {
+  if (!birthDate) return null
+  const dob = new Date(birthDate)
+  if (isNaN(dob.getTime())) return null
+  const now = new Date()
+  if (dob > now) return null
+  let age = now.getFullYear() - dob.getFullYear()
+  const m = now.getMonth() - dob.getMonth()
+  if (m < 0 || (m === 0 && now.getDate() < dob.getDate())) age--
+  return age
+}
 
 /**
  * AuthModal - Modal premium de Login/Registro
@@ -12,11 +25,13 @@ export default function AuthModal({ open, onClose, defaultTab = 'login' }) {
   const [tab, setTab] = useState(defaultTab)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  // Pantalla de bloqueo por edad (COPPA): menores de 13 años no pueden registrarse.
+  const [ageBlocked, setAgeBlocked] = useState(false)
   const { login, register } = useAuth()
 
   // Estados de formularios
   const [loginData, setLoginData] = useState({ username: '', password: '' })
-  const [registerData, setRegisterData] = useState({ username: '', email: '', password: '' })
+  const [registerData, setRegisterData] = useState({ username: '', email: '', password: '', birthDate: '' })
 
   const handleLogin = async (e) => {
     e.preventDefault()
@@ -50,15 +65,39 @@ export default function AuthModal({ open, onClose, defaultTab = 'login' }) {
       return
     }
 
+    // GATING DE EDAD (COPPA): fecha obligatoria + mínimo 13 años.
+    if (!registerData.birthDate) {
+      setError('Introduce tu fecha de nacimiento')
+      return
+    }
+    const age = computeAge(registerData.birthDate)
+    if (age === null) {
+      setError('Fecha de nacimiento no válida')
+      return
+    }
+    if (age < 13) {
+      setAgeBlocked(true)
+      return
+    }
+
     setLoading(true)
 
     try {
-      const result = await register(registerData.username, registerData.email, registerData.password)
+      const result = await register(
+        registerData.username,
+        registerData.email,
+        registerData.password,
+        registerData.birthDate,
+      )
       if (result.success) {
         // SPA: sin recarga. El estado de usuario se propaga por contexto.
         onClose()
       } else {
-        setError(result.error || 'Error al registrarse')
+        if (result.error && /menores de 13/i.test(result.error)) {
+          setAgeBlocked(true)
+        } else {
+          setError(result.error || 'Error al registrarse')
+        }
       }
     } catch (err) {
       setError('Error al registrarse')
@@ -86,7 +125,7 @@ export default function AuthModal({ open, onClose, defaultTab = 'login' }) {
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-white/5">
           <h3 className="text-white text-[18px] font-semibold tracking-tight">
-            {tab === 'login' ? 'Iniciar sesión' : 'Crear cuenta'}
+            {ageBlocked ? 'Acceso no permitido' : (tab === 'login' ? 'Iniciar sesión' : 'Crear cuenta')}
           </h3>
           <button
             onClick={onClose}
@@ -96,6 +135,28 @@ export default function AuthModal({ open, onClose, defaultTab = 'login' }) {
           </button>
         </div>
 
+        {ageBlocked ? (
+          /* PANTALLA DE BLOQUEO POR EDAD (COPPA) */
+          <div className="px-6 py-10 flex flex-col items-center text-center">
+            <div className="w-16 h-16 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-5">
+              <ShieldAlert className="w-8 h-8 text-red-400" strokeWidth={1.7} />
+            </div>
+            <h4 className="text-white text-[17px] font-semibold mb-2">
+              Twyk no está disponible para menores de 13 años
+            </h4>
+            <p className="text-white/50 text-[13px] leading-relaxed max-w-[300px]">
+              De acuerdo con la ley COPPA de EEUU, no permitimos el registro de menores de 13 años.
+              No podemos crear tu cuenta.
+            </p>
+            <button
+              onClick={() => { setAgeBlocked(false); setTab('login'); setError(''); setRegisterData((d) => ({ ...d, birthDate: '' })) }}
+              className="mt-7 w-full py-3.5 rounded-xl bg-white/10 text-white text-[14px] font-medium hover:bg-white/15 active:scale-[0.98] transition-all"
+            >
+              Entendido
+            </button>
+          </div>
+        ) : (
+        <>
         {/* Tabs */}
         <div className="flex gap-2 px-6 pt-5">
           <button
@@ -252,6 +313,25 @@ export default function AuthModal({ open, onClose, defaultTab = 'login' }) {
                 <p className="text-white/40 text-[11px] mt-1.5">Mínimo 6 caracteres</p>
               </div>
 
+              <div>
+                <label className="block text-white/60 text-[12px] uppercase tracking-wide font-medium mb-2">
+                  Fecha de nacimiento
+                </label>
+                <div className="relative">
+                  <Cake className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" strokeWidth={1.5} />
+                  <input
+                    type="date"
+                    value={registerData.birthDate}
+                    onChange={(e) => setRegisterData({ ...registerData, birthDate: e.target.value })}
+                    max={new Date().toISOString().split('T')[0]}
+                    className="w-full bg-white/5 text-white placeholder:text-white/30 pl-12 pr-4 py-3.5 rounded-xl text-[14px] outline-none focus:bg-white/10 transition-all border border-white/5 focus:border-white/20 [color-scheme:dark]"
+                    required
+                    disabled={loading}
+                  />
+                </div>
+                <p className="text-white/40 text-[11px] mt-1.5">Debes tener al menos 13 años para usar Twyk</p>
+              </div>
+
               <button
                 type="submit"
                 disabled={loading}
@@ -273,7 +353,17 @@ export default function AuthModal({ open, onClose, defaultTab = 'login' }) {
               </button>
             </form>
           )}
+
+          {/* Footer legal — visible en login y registro */}
+          <p className="mt-5 text-center text-white/40 text-[11px] leading-relaxed">
+            Al registrarte aceptas nuestros{' '}
+            <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-white/70 underline hover:text-white">Términos de Uso</a>
+            {' '}y{' '}
+            <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-white/70 underline hover:text-white">Política de Privacidad</a>
+          </p>
         </div>
+        </>
+        )}
       </div>
     </div>
   )

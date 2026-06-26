@@ -1,5 +1,6 @@
 import './globals.css'
 import { AuthProvider } from '@/contexts/AuthContext'
+import ConsentBanner from '@/components/ConsentBanner'
 
 export const metadata = {
   title: 'SnapTok — Vídeos cortos verticales',
@@ -19,6 +20,7 @@ export default function RootLayout({ children }) {
       <body className="bg-black text-white antialiased overscroll-none">
         <AuthProvider>
           {children}
+          <ConsentBanner />
         </AuthProvider>
       </body>
     </html>
