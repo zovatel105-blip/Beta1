@@ -430,9 +430,9 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
              style={{ paddingTop: 'max(env(safe-area-inset-top), 8px)' }}>
           <div className="flex items-center justify-between px-2 sm:px-4 h-14 max-w-md mx-auto w-full">
             <span className="w-9" />
-            <span className="text-white font-bold text-[18px] tracking-tight">Perfil</span>
+            <span className="text-white font-bold text-[18px] tracking-tight">Profile</span>
             <button
-              aria-label="menú"
+              aria-label="menu"
               onClick={() => setGuestMenuOpen(true)}
               className="p-2 -mr-2 text-white active:scale-90 transition"
             >
@@ -448,7 +448,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
           </div>
 
           <p className="text-zinc-300 text-[16px] font-medium mb-7 text-center">
-            Inicia sesión en tu cuenta de Twyk
+            Log in to your Twyk account
           </p>
 
           <button
@@ -457,16 +457,16 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
             style={{ background: 'linear-gradient(90deg, #A855F7 0%, #3B82F6 100%)' }}
           >
             <LogIn className="w-5 h-5" strokeWidth={2.2} />
-            Iniciar sesión
+            Log in
           </button>
 
           <p className="text-zinc-500 text-[13px] mt-5 text-center">
-            ¿No tienes cuenta?{' '}
+            Don&apos;t have an account?{' '}
             <button
               onClick={() => onRequireAuth?.()}
               className="text-white font-semibold underline-offset-2 hover:underline"
             >
-              Regístrate
+              Sign up
             </button>
           </p>
         </div>
@@ -497,8 +497,8 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
               <ColumnsIcon className="w-7 h-7 text-zinc-500" />
             </div>
             <div className="space-y-1">
-              <h3 className="text-base font-semibold text-white">Aún no hay publicaciones</h3>
-              <p className="text-zinc-500 text-sm">{isOwn ? 'Empieza a crear contenido' : 'Este usuario aún no ha publicado'}</p>
+              <h3 className="text-base font-semibold text-white">No posts yet</h3>
+              <p className="text-zinc-500 text-sm">{isOwn ? 'Start creating content' : "This user hasn't posted yet"}</p>
             </div>
           </div>
         )
@@ -525,8 +525,8 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
               <Bookmark className="w-7 h-7" strokeWidth={1.5} />
             </div>
             <div className="space-y-1">
-              <h3 className="text-base font-semibold text-white">No hay guardados</h3>
-              <p className="text-zinc-500 text-sm">Guarda vídeos para verlos luego</p>
+              <h3 className="text-base font-semibold text-white">No saved posts</h3>
+              <p className="text-zinc-500 text-sm">Save videos to watch later</p>
             </div>
           </div>
         )
@@ -539,7 +539,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
     }
 
     const emptyMap = {
-      saved: { Icon: Bookmark, title: 'No hay guardados', desc: 'Guarda vídeos para verlos luego' },
+      saved: { Icon: Bookmark, title: 'No saved posts', desc: 'Save videos to watch later' },
     }
     const e = emptyMap[activeTab]
     return (
@@ -568,7 +568,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
           {isOwn ? (
             <span className="w-9" />
           ) : (
-            <button aria-label="atrás" onClick={onClose} className="p-2 -ml-1 text-white active:scale-90 transition">
+            <button aria-label="back" onClick={onClose} className="p-2 -ml-1 text-white active:scale-90 transition">
               <ArrowLeft strokeWidth={1.9} className="w-[24px] h-[24px]" />
             </button>
           )}
@@ -576,7 +576,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
             <span className="text-white font-semibold text-[15px] truncate max-w-[60%]">{me.username}</span>
           )}
           <button
-            aria-label="menú"
+            aria-label="menu"
             onClick={() => { if (isOwn) setMenuOpen(true) }}
             className="p-2 -mr-2 text-white active:scale-90 transition"
           >
@@ -597,7 +597,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
               </span>
               <span className="min-w-0">
                 <p className="text-[17px] font-bold text-white leading-none tabular-nums">{formatNumber(stats.votos)}</p>
-                <p className="text-[11px] text-zinc-400 mt-1 font-medium">Votos</p>
+                <p className="text-[11px] text-zinc-400 mt-1 font-medium">Votes</p>
               </span>
             </button>
             <div />
@@ -605,7 +605,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
             <button className="flex items-center gap-2 justify-end text-right active:opacity-60 transition">
               <span className="min-w-0 order-1">
                 <p className="text-[17px] font-bold text-white leading-none tabular-nums">{formatNumber(stats.retos)}</p>
-                <p className="text-[11px] text-zinc-400 mt-1 font-medium">Retos</p>
+                <p className="text-[11px] text-zinc-400 mt-1 font-medium">Challenges</p>
               </span>
               <span className="order-2 shrink-0 flex items-center justify-center">
                 <Swords className="w-7 h-7 text-white" strokeWidth={1.2} />
@@ -663,10 +663,10 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
           {isOwn ? (
             <>
               <button onClick={() => setEditOpen(true)} className="h-9 px-6 rounded-full bg-white hover:bg-zinc-100 text-black font-semibold text-[13px] tracking-tight active:scale-[0.97] transition-all">
-                Editar perfil
+                Edit profile
               </button>
               <button className="h-9 px-6 rounded-full border border-white/15 hover:bg-white/[0.06] text-white font-semibold text-[13px] tracking-tight active:scale-[0.97] transition-all">
-                Compartir
+                Share
               </button>
             </>
           ) : (
@@ -680,14 +680,14 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
                     : 'bg-white text-black hover:bg-zinc-100'
                 }`}
               >
-                {following ? 'Siguiendo' : 'Seguir'}
+                {following ? 'Following' : 'Follow'}
               </button>
               <button
                 onClick={handleChallenge}
                 className="h-9 px-6 rounded-full border border-white/15 hover:bg-white/[0.06] text-white font-semibold text-[13px] tracking-tight active:scale-[0.97] transition-all flex items-center gap-1.5"
               >
                 <Swords className="w-[15px] h-[15px]" strokeWidth={2} />
-                Retar
+                Challenge
               </button>
             </>
           )}
@@ -750,7 +750,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
         />
       )}
 
-      {/* Editar perfil (solo perfil propio) */}
+      {/* Edit profile (solo perfil propio) */}
       {editOpen && isOwn && (
         <EditProfileModal
           initial={{ name: me.name, bio: me.bio, avatarUrl: me.avatarUrl }}
@@ -791,10 +791,10 @@ const GuestMenuDrawer = ({ open, onClose, onLogin }) => {
       >
         <div className="border-b border-white/[0.06]" style={{ paddingTop: 'max(env(safe-area-inset-top), 8px)' }}>
           <div className="flex items-center px-3 h-14 w-full">
-            <button aria-label="cerrar" onClick={onClose} className="p-2 -ml-1 text-white active:scale-90 transition">
+            <button aria-label="close" onClick={onClose} className="p-2 -ml-1 text-white active:scale-90 transition">
               <X strokeWidth={1.9} className="w-[22px] h-[22px]" />
             </button>
-            <span className="text-white font-semibold text-[15px] ml-1">Menú</span>
+            <span className="text-white font-semibold text-[15px] ml-1">Menu</span>
           </div>
         </div>
 
@@ -805,18 +805,18 @@ const GuestMenuDrawer = ({ open, onClose, onLogin }) => {
             style={{ background: 'linear-gradient(90deg, #A855F7 0%, #3B82F6 100%)' }}
           >
             <LogIn className="w-[18px] h-[18px]" strokeWidth={2.1} />
-            Iniciar sesión
+            Log in
           </button>
 
           <div className="rounded-2xl bg-white/[0.04] border border-white/[0.07] divide-y divide-white/[0.06] overflow-hidden">
             <a href="/terms" className="w-full flex items-center px-4 py-4 text-white hover:bg-white/5 active:bg-white/10 transition text-[15px] font-medium">
-              Términos de Uso
+              Terms of Use
             </a>
             <a href="/privacy" className="w-full flex items-center px-4 py-4 text-white hover:bg-white/5 active:bg-white/10 transition text-[15px] font-medium">
-              Política de Privacidad
+              Privacy Policy
             </a>
             <a href="/dmca" className="w-full flex items-center px-4 py-4 text-white hover:bg-white/5 active:bg-white/10 transition text-[15px] font-medium">
-              Política DMCA
+              DMCA Policy
             </a>
           </div>
         </div>
@@ -846,10 +846,10 @@ const SettingsDrawer = ({ open, onClose, onEdit, onLogout, isAdmin }) => {
         {/* Header */}
         <div className="border-b border-white/[0.06]" style={{ paddingTop: 'max(env(safe-area-inset-top), 8px)' }}>
           <div className="flex items-center px-3 h-14 w-full">
-            <button aria-label="cerrar" onClick={onClose} className="p-2 -ml-1 text-white active:scale-90 transition">
+            <button aria-label="close" onClick={onClose} className="p-2 -ml-1 text-white active:scale-90 transition">
               <X strokeWidth={1.9} className="w-[22px] h-[22px]" />
             </button>
-            <span className="text-white font-semibold text-[15px] ml-1">Ajustes</span>
+            <span className="text-white font-semibold text-[15px] ml-1">Settings</span>
           </div>
         </div>
 
@@ -862,7 +862,7 @@ const SettingsDrawer = ({ open, onClose, onEdit, onLogout, isAdmin }) => {
                 className="w-full flex items-center gap-3 px-4 py-4 text-amber-300 hover:bg-amber-500/10 active:bg-amber-500/15 transition text-[15px] font-medium"
               >
                 <ShieldAlert className="w-[19px] h-[19px]" strokeWidth={1.8} />
-                Panel de moderación
+                Moderation panel
               </a>
             )}
             <button
@@ -870,14 +870,14 @@ const SettingsDrawer = ({ open, onClose, onEdit, onLogout, isAdmin }) => {
               className="w-full flex items-center gap-3 px-4 py-4 text-white hover:bg-white/5 active:bg-white/10 transition text-[15px] font-medium"
             >
               <Pencil className="w-[19px] h-[19px]" strokeWidth={1.8} />
-              Editar perfil
+              Edit profile
             </button>
             <button
               onClick={onLogout}
               className="w-full flex items-center gap-3 px-4 py-4 text-red-400 hover:bg-red-500/10 active:bg-red-500/15 transition text-[15px] font-medium"
             >
               <LogOut className="w-[19px] h-[19px]" strokeWidth={1.8} />
-              Cerrar sesión
+              Log out
             </button>
           </div>
         </div>
@@ -895,7 +895,7 @@ const FollowListModal = ({ type, users, loading, onClose, onOpenUser, onSwitch }
       <div className="sticky top-0 z-10 bg-[#0a0a0b]/80 backdrop-blur-xl border-b border-white/[0.06]"
            style={{ paddingTop: 'max(env(safe-area-inset-top), 8px)' }}>
         <div className="flex items-center justify-between px-2 sm:px-4 h-14 max-w-md mx-auto w-full">
-          <button aria-label="cerrar" onClick={onClose} className="p-2 -ml-1 text-white active:scale-90 transition">
+          <button aria-label="close" onClick={onClose} className="p-2 -ml-1 text-white active:scale-90 transition">
             <ArrowLeft strokeWidth={1.9} className="w-[24px] h-[24px]" />
           </button>
           {/* Conmutador Followers / Following */}
@@ -934,10 +934,10 @@ const FollowListModal = ({ type, users, loading, onClose, onOpenUser, onSwitch }
             </div>
             <div className="space-y-1">
               <h3 className="text-base font-semibold text-white">
-                {type === 'followers' ? 'Sin followers todavía' : 'No sigue a nadie todavía'}
+                {type === 'followers' ? 'No followers yet' : 'Not following anyone yet'}
               </h3>
               <p className="text-zinc-500 text-sm">
-                {type === 'followers' ? 'Cuando alguien le siga aparecerá aquí' : 'Los usuarios que siga aparecerán aquí'}
+                {type === 'followers' ? 'When someone follows them it will appear here' : 'The users they follow will appear here'}
               </p>
             </div>
           </div>
@@ -959,7 +959,7 @@ const FollowListModal = ({ type, users, loading, onClose, onOpenUser, onSwitch }
                   </div>
                   {u.isFollowing && (
                     <span className="shrink-0 text-[11px] text-zinc-400 border border-white/15 rounded-full px-2.5 py-1">
-                      Siguiendo
+                      Following
                     </span>
                   )}
                 </button>
@@ -987,8 +987,8 @@ const EditProfileModal = ({ initial, onClose, onSaved }) => {
   const onPickFile = (e) => {
     const f = e.target.files?.[0]
     if (!f) return
-    if (!f.type.startsWith('image/')) { setError('El archivo debe ser una imagen'); return }
-    if (f.size > 6 * 1024 * 1024) { setError('La imagen supera el límite de 6MB'); return }
+    if (!f.type.startsWith('image/')) { setError('The file must be an image'); return }
+    if (f.size > 6 * 1024 * 1024) { setError('The image exceeds the 6MB limit'); return }
     setError('')
     setAvatarFile(f)
     const url = URL.createObjectURL(f)
@@ -1015,7 +1015,7 @@ const EditProfileModal = ({ initial, onClose, onSaved }) => {
       const data = await res.json()
       onSaved?.(data?.user || { name, bio, avatarUrl })
     } catch {
-      setError('No se pudo guardar. Inténtalo de nuevo.')
+      setError("Couldn't save. Try again.")
     } finally {
       setSaving(false)
     }
@@ -1027,17 +1027,17 @@ const EditProfileModal = ({ initial, onClose, onSaved }) => {
       <div className="sticky top-0 z-10 bg-[#0a0a0b]/80 backdrop-blur-xl border-b border-white/[0.06]"
            style={{ paddingTop: 'max(env(safe-area-inset-top), 8px)' }}>
         <div className="flex items-center justify-between px-2 sm:px-4 h-14 max-w-md mx-auto w-full">
-          <button aria-label="cancelar" onClick={onClose} className="p-2 -ml-1 text-white active:scale-90 transition">
+          <button aria-label="cancel" onClick={onClose} className="p-2 -ml-1 text-white active:scale-90 transition">
             <X strokeWidth={1.9} className="w-[22px] h-[22px]" />
           </button>
-          <span className="text-white font-semibold text-[15px]">Editar perfil</span>
+          <span className="text-white font-semibold text-[15px]">Edit profile</span>
           <button
             onClick={handleSave}
             disabled={saving}
             className="text-[14px] font-semibold text-[#0a0a0b] bg-white rounded-full px-4 h-8 disabled:opacity-60 active:scale-95 transition flex items-center gap-1.5"
           >
             {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-            Guardar
+            Save
           </button>
         </div>
       </div>
@@ -1057,32 +1057,32 @@ const EditProfileModal = ({ initial, onClose, onSaved }) => {
             </span>
           </button>
           <button type="button" onClick={() => fileRef.current?.click()} className="text-[13px] font-semibold text-white/90 hover:text-white">
-            Cambiar foto
+            Change photo
           </button>
           <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onPickFile} />
         </div>
 
         {/* Nombre */}
         <div className="mt-7 space-y-1.5">
-          <label className="text-[12px] font-medium text-zinc-400 px-1">Nombre</label>
+          <label className="text-[12px] font-medium text-zinc-400 px-1">Name</label>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
             maxLength={60}
-            placeholder="Tu nombre"
+            placeholder="Your name"
             className="w-full h-11 rounded-xl bg-white/[0.05] border border-white/10 px-4 text-[15px] text-white placeholder:text-zinc-500 outline-none focus:border-white/30 transition"
           />
         </div>
 
         {/* Bio */}
         <div className="mt-5 space-y-1.5">
-          <label className="text-[12px] font-medium text-zinc-400 px-1">Biografía</label>
+          <label className="text-[12px] font-medium text-zinc-400 px-1">Bio</label>
           <textarea
             value={bio}
             onChange={(e) => setBio(e.target.value)}
             maxLength={300}
             rows={4}
-            placeholder="Cuéntale al mundo quién eres"
+            placeholder="Tell the world who you are"
             className="w-full rounded-xl bg-white/[0.05] border border-white/10 px-4 py-3 text-[15px] text-white placeholder:text-zinc-500 outline-none focus:border-white/30 transition resize-none"
           />
           <p className="text-[11px] text-zinc-500 text-right px-1">{bio.length}/300</p>

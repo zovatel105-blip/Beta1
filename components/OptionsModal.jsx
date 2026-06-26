@@ -14,12 +14,12 @@ import { useAuth } from '@/contexts/AuthContext'
 
 const REPORT_REASONS = [
   'Spam',
-  'Contenido inapropiado',
-  'Acoso',
-  'Violencia',
-  'Desnudez',
-  'Información falsa',
-  'Otro',
+  'Inappropriate content',
+  'Harassment',
+  'Violence',
+  'Nudity',
+  'False information',
+  'Other',
 ]
 
 // Cabecera de autorización por token (respaldo de la cookie httpOnly, necesaria
@@ -63,7 +63,7 @@ export default function OptionsModal({ open, postId, author, onClose }) {
   }
 
   const submitReport = async (reason) => {
-    if (!user) { setDone('Debes iniciar sesión para reportar'); return }
+    if (!user) { setDone('You must log in to report'); return }
     setBusy(true)
     try {
       const res = await fetch('/api/reports', {
@@ -73,23 +73,23 @@ export default function OptionsModal({ open, postId, author, onClose }) {
         body: JSON.stringify({ targetType: 'post', targetId: postId, reason }),
       })
       if (res.ok) {
-        setDone('Gracias. Hemos recibido tu reporte.')
+        setDone("Thanks. We've received your report.")
         setTimeout(() => onClose?.(), 1400)
       } else {
-        setDone('No se pudo enviar el reporte.')
+        setDone("Couldn't send the report.")
       }
     } catch {
-      setDone('No se pudo enviar el reporte.')
+      setDone("Couldn't send the report.")
     } finally {
       setBusy(false)
     }
   }
 
   const blockUser = async () => {
-    if (!user) { setDone('Debes iniciar sesión para bloquear'); return }
+    if (!user) { setDone('You must log in to block'); return }
     const username = author?.username
-    if (!username) { setDone('No se pudo identificar al usuario.'); return }
-    if (username === user.username) { setDone('No puedes bloquearte a ti mismo.'); return }
+    if (!username) { setDone("Couldn't identify the user."); return }
+    if (username === user.username) { setDone("You can't block yourself."); return }
     setBusy(true)
     try {
       const res = await fetch('/api/users/block', {
@@ -112,10 +112,10 @@ export default function OptionsModal({ open, postId, author, onClose }) {
   }
 
   const rows = [
-    { key: 'ni', label: 'No me interesa', icon: <EyeOff className="w-[22px] h-[22px] text-zinc-700" strokeWidth={1.7} />, onClick: () => onClose?.(), danger: false },
-    { key: 'report', label: 'Reportar', icon: <Flag className="w-[22px] h-[22px] text-red-600" strokeWidth={1.7} />, onClick: () => { setDone(''); setView('report') }, danger: true },
-    { key: 'block', label: 'Bloquear usuario', icon: <Ban className="w-[22px] h-[22px] text-red-600" strokeWidth={1.7} />, onClick: blockUser, danger: true },
-    { key: 'copy', label: copied ? 'Enlace copiado' : 'Copiar enlace', icon: copied ? <Check className="w-[22px] h-[22px] text-green-600" strokeWidth={2} /> : <Link2 className="w-[22px] h-[22px] text-zinc-700" strokeWidth={1.7} />, onClick: copyLink, danger: false },
+    { key: 'ni', label: 'Not interested', icon: <EyeOff className="w-[22px] h-[22px] text-zinc-700" strokeWidth={1.7} />, onClick: () => onClose?.(), danger: false },
+    { key: 'report', label: 'Report', icon: <Flag className="w-[22px] h-[22px] text-red-600" strokeWidth={1.7} />, onClick: () => { setDone(''); setView('report') }, danger: true },
+    { key: 'block', label: 'Block user', icon: <Ban className="w-[22px] h-[22px] text-red-600" strokeWidth={1.7} />, onClick: blockUser, danger: true },
+    { key: 'copy', label: copied ? 'Link copied' : 'Copy link', icon: copied ? <Check className="w-[22px] h-[22px] text-green-600" strokeWidth={2} /> : <Link2 className="w-[22px] h-[22px] text-zinc-700" strokeWidth={1.7} />, onClick: copyLink, danger: false },
   ]
 
   return (
@@ -124,17 +124,17 @@ export default function OptionsModal({ open, postId, author, onClose }) {
         <button
           type="button"
           onClick={onClose}
-          aria-label="cerrar"
+          aria-label="close"
           className="flex justify-center items-center pt-1.5 pb-0.5 shrink-0 active:scale-90 transition"
         >
           <ChevronDown className="w-4 h-4 text-zinc-500" strokeWidth={2.2} />
         </button>
       ) : (
         <div className="flex items-center px-2 pt-2 pb-1">
-          <button type="button" onClick={() => setView('menu')} aria-label="volver" className="p-1 active:scale-90 transition">
+          <button type="button" onClick={() => setView('menu')} aria-label="back" className="p-1 active:scale-90 transition">
             <ChevronLeft className="w-5 h-5 text-zinc-700" strokeWidth={2.2} />
           </button>
-          <span className="ml-1 text-[15px] font-semibold text-zinc-900">Reportar publicación</span>
+          <span className="ml-1 text-[15px] font-semibold text-zinc-900">Report post</span>
         </div>
       )}
 
@@ -158,7 +158,7 @@ export default function OptionsModal({ open, postId, author, onClose }) {
         </div>
       ) : (
         <div className="px-2 pb-3">
-          <p className="px-5 py-2 text-[13px] text-zinc-500">¿Por qué reportas esta publicación?</p>
+          <p className="px-5 py-2 text-[13px] text-zinc-500">Why are you reporting this post?</p>
           {REPORT_REASONS.map((reason) => (
             <button
               key={reason}

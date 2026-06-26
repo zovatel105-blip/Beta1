@@ -53,7 +53,7 @@ function InboxChallengeCard({ c, busy, onAccept, onReject }) {
           <Avatar src={c.from?.avatarUrl} className="w-full h-full rounded-full" />
         </div>
         <div className="text-sm text-white">
-          <span className="font-bold">@{c.from?.username}</span> te ha retado
+          <span className="font-bold">@{c.from?.username}</span> challenged you
         </div>
       </div>
 
@@ -72,7 +72,7 @@ function InboxChallengeCard({ c, busy, onAccept, onReject }) {
           ) : (
             <button onClick={pickFile} className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 text-center px-2 active:bg-white/5 transition">
               <Film className="w-6 h-6 text-zinc-400" strokeWidth={1.5} />
-              <span className="text-[11px] font-semibold text-white leading-tight">Sube tu vídeo</span>
+              <span className="text-[11px] font-semibold text-white leading-tight">Upload your video</span>
             </button>
           )}
         </div>
@@ -90,7 +90,7 @@ function InboxChallengeCard({ c, busy, onAccept, onReject }) {
           className="w-full rounded-full py-2.5 mt-3 text-sm font-bold text-white border border-white/20 hover:bg-white/10 active:scale-[0.98] transition disabled:opacity-50 flex items-center justify-center gap-1.5"
         >
           <Film size={15} strokeWidth={2} />
-          {responseFile ? 'Cambiar mi vídeo' : 'Subir mi vídeo'}
+          {responseFile ? 'Change my video' : 'Upload my video'}
         </button>
       )}
 
@@ -100,7 +100,7 @@ function InboxChallengeCard({ c, busy, onAccept, onReject }) {
           disabled={busy}
           className="flex-1 rounded-full py-2.5 text-sm font-bold text-white bg-white/10 hover:bg-white/20 active:scale-[0.98] transition disabled:opacity-50"
         >
-          Cancelar
+          Cancel
         </button>
         <button
           onClick={handleAccept}
@@ -109,7 +109,7 @@ function InboxChallengeCard({ c, busy, onAccept, onReject }) {
           style={{ background: 'linear-gradient(90deg, #A855F7, #3B82F6)' }}
         >
           {busy ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
-          {needsVideo && !responseFile ? 'Subir y aceptar' : 'Aceptar reto'}
+          {needsVideo && !responseFile ? 'Upload & accept' : 'Accept challenge'}
         </button>
       </div>
     </div>
@@ -189,7 +189,7 @@ export default function ChallengesInbox({ open, onClose, onAccepted, onChanged }
             <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #A855F7, #3B82F6)' }}>
               <Swords size={16} className="text-white" />
             </div>
-            <h2 className="font-bold text-base text-white">Retos recibidos</h2>
+            <h2 className="font-bold text-base text-white">Challenges received</h2>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/10 text-white">
             <X size={18} />
@@ -204,8 +204,8 @@ export default function ChallengesInbox({ open, onClose, onAccepted, onChanged }
               <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
                 <Inbox className="w-8 h-8 text-white/40" />
               </div>
-              <p className="text-white font-semibold">No tienes retos pendientes</p>
-              <p className="text-white/50 text-sm mt-1">Cuando alguien te rete, aparecerá aquí.</p>
+              <p className="text-white font-semibold">No pending challenges</p>
+              <p className="text-white/50 text-sm mt-1">When someone challenges you, it will appear here.</p>
             </div>
           ) : (
             <div className="space-y-3">

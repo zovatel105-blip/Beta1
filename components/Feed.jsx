@@ -512,7 +512,7 @@ export default function Feed() {
                   <Check size={18} className="text-black" strokeWidth={2.6} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-white text-[13px] font-semibold leading-tight truncate">Reto enviado a @{challengeUpload.username}</p>
+                  <p className="text-white text-[13px] font-semibold leading-tight truncate">Challenge sent to @{challengeUpload.username}</p>
                   <p className="text-zinc-400 text-[12px] leading-tight">Te avisaremos cuando lo acepte</p>
                 </div>
               </>
@@ -523,8 +523,8 @@ export default function Feed() {
                   <X size={18} className="text-rose-400" strokeWidth={2.4} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-white text-[13px] font-semibold leading-tight">No se pudo enviar el reto</p>
-                  <p className="text-zinc-400 text-[12px] leading-tight">Inténtalo de nuevo</p>
+                  <p className="text-white text-[13px] font-semibold leading-tight">Couldn't send the challenge</p>
+                  <p className="text-zinc-400 text-[12px] leading-tight">Try again</p>
                 </div>
                 <button onClick={() => setChallengeUpload(null)} className="text-zinc-400 hover:text-white shrink-0 p-1">
                   <X size={16} />

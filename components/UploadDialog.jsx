@@ -84,15 +84,15 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
   const handleFileChange = (slot) => (e) => {
     const f = e.target.files?.[0]
     if (!f) return
-    if (!f.type.startsWith('video/')) { setError('Selecciona un vídeo'); return }
-    if (f.size > 80 * 1024 * 1024) { setError('Máximo 80MB'); return }
+    if (!f.type.startsWith('video/')) { setError('Select a video'); return }
+    if (f.size > 80 * 1024 * 1024) { setError('Maximum 80MB'); return }
     setError(null)
     if (slot === 'b') setFileB(f)
     else setFile(f)
   }
 
   const goToTarget = () => {
-    if (!file) { setError('Sube tu vídeo del reto'); return }
+    if (!file) { setError('Upload your challenge video'); return }
     setError(null)
     setStep('target')
   }
@@ -100,10 +100,10 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
   const doUpload = async (targetUser) => {
     const tgt = targetUser || target
     if (mode === 'versus' || mode === 'duet') {
-      if (!file || !fileB) { setError('Sube los 2 vídeos (A y B)'); return }
+      if (!file || !fileB) { setError('Upload both videos (A and B)'); return }
     } else if (mode === 'challenge') {
-      if (!file) { setError('Sube tu vídeo'); return }
-      if (!tgt) { setError('Elige a quién retar'); return }
+      if (!file) { setError('Upload your video'); return }
+      if (!tgt) { setError('Choose who to challenge'); return }
     } else if (!file) {
       return
     }
@@ -129,7 +129,7 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
         fd.append('fileA', file)
         fd.append('fileB', fileB)
         fd.append('layout', layout)
-        fd.append('description', description || '¿Quién gana? 🥊 #1vs1')
+        fd.append('description', description || 'Who wins? 🥊 #1vs1')
       } else if (mode === 'challenge') {
         xhr.open('POST', '/api/challenges')
         fd.append('file', file)
@@ -139,7 +139,7 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
         xhr.open('POST', '/api/versus')
         fd.append('fileA', file)
         fd.append('fileB', fileB)
-        fd.append('description', description || '¿Cuál prefieres? 🅰️🆚🅱️')
+        fd.append('description', description || 'Which do you prefer? 🅰️🆚🅱️')
       }
       // Respaldo por token Bearer (además de la cookie withCredentials): si el
       // navegador bloquea la cookie dentro del iframe, el token autentica igual.
@@ -158,7 +158,7 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
     } catch (err) {
       console.error(err)
       const needsLogin = /\b401\b/.test(err?.message || '')
-      setError(needsLogin ? 'Debes iniciar sesión para publicar' : 'Error al subir')
+      setError(needsLogin ? 'You must sign in to publish' : 'Upload error')
       setStep(mode === 'challenge' ? 'target' : 'file')
     }
   }
@@ -188,14 +188,14 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
             <span className="w-1.5" />
           )}
           <h1 className="text-[17px] font-semibold tracking-tight">
-            {step === 'mode' && 'Crear contenido'}
-            {step === 'layout' && 'Elige el formato'}
-            {step === 'target' && 'Elige a quién retar'}
-            {step === 'file' && (mode === 'versus' ? 'Tus 2 vídeos' : mode === 'challenge' ? 'Tu vídeo del reto' : 'Tu 1vs1')}
-            {step === 'uploading' && (mode === 'challenge' ? 'Enviando reto' : 'Subiendo')}
+            {step === 'mode' && 'Create content'}
+            {step === 'layout' && 'Choose the format'}
+            {step === 'target' && 'Choose who to challenge'}
+            {step === 'file' && (mode === 'versus' ? 'Your 2 videos' : mode === 'challenge' ? 'Your challenge video' : 'Your 1vs1')}
+            {step === 'uploading' && (mode === 'challenge' ? 'Sending challenge' : 'Uploading')}
           </h1>
         </div>
-        <button onClick={onClose} aria-label="Cerrar" className="w-9 h-9 -mr-1.5 rounded-full flex items-center justify-center hover:bg-white/5 active:scale-90 transition text-zinc-400 hover:text-white">
+        <button onClick={onClose} aria-label="Close" className="w-9 h-9 -mr-1.5 rounded-full flex items-center justify-center hover:bg-white/5 active:scale-90 transition text-zinc-400 hover:text-white">
           <X size={20} strokeWidth={1.75} />
         </button>
       </div>
@@ -241,15 +241,15 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
               </div>
 
               <p className="text-zinc-400 text-[15px] max-w-[19rem] leading-relaxed">
-                {selected === 'versus' && 'Sube 2 vídeos (A y B) y deja que la gente vote deslizando entre ellos.'}
-                {selected === 'duet' && 'Sube 2 vídeos (A y B) con el formato que elijas y deja que la gente vote quién gana.'}
-                {selected === 'challenge' && 'Sube tu vídeo y reta a un creador. Aparecerá en sus retos activos para que lo acepte.'}
+                {selected === 'versus' && 'Upload 2 videos (A and B) and let people vote by swiping between them.'}
+                {selected === 'duet' && 'Upload 2 videos (A and B) in the format you choose and let people vote who wins.'}
+                {selected === 'challenge' && 'Upload your video and challenge a creator. It will appear in their active challenges to accept.'}
               </p>
 
               {/* Mini ilustración del formato */}
               {selected === 'challenge' ? (
                 <div className="mt-10 flex items-center gap-4">
-                  <div className="w-20 h-28 rounded-2xl border border-white/[0.08] bg-white/[0.06] flex items-center justify-center text-white/80 text-[12px] font-bold">TÚ</div>
+                  <div className="w-20 h-28 rounded-2xl border border-white/[0.08] bg-white/[0.06] flex items-center justify-center text-white/80 text-[12px] font-bold">YOU</div>
                   <span className="text-white/60 font-black text-base">VS</span>
                   <div className="w-20 h-28 rounded-2xl border border-white/[0.08] bg-white/[0.02] flex items-center justify-center text-white/40 text-[12px] font-bold">RIVAL</div>
                 </div>
@@ -270,7 +270,7 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
               }}
               className="mt-4 mb-2 w-full h-12 rounded-full bg-white text-black font-semibold text-[15px] flex items-center justify-center gap-1.5 hover:bg-zinc-100 active:scale-[0.99] transition"
             >
-              Continuar
+              Continue
               <ChevronRight size={18} strokeWidth={2.5} />
             </button>
           </div>
@@ -287,7 +287,7 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
             : users
           return (
           <div className="max-w-md mx-auto">
-            <p className="text-[13px] text-zinc-500 mb-4">Elige a quién retar. Le aparecerá en sus retos activos para aceptar.</p>
+            <p className="text-[13px] text-zinc-500 mb-4">Choose who to challenge. It will appear in their active challenges to accept.</p>
 
             {/* Buscador de usuarios */}
             <div className="flex items-center gap-2.5 h-11 px-4 rounded-full bg-white/[0.04] border border-white/10 focus-within:border-white/30 transition mb-4">
@@ -296,11 +296,11 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
                 type="text"
                 value={userQuery}
                 onChange={(e) => setUserQuery(e.target.value)}
-                placeholder="Buscar usuario por nombre o @usuario"
+                placeholder="Search user by name or @username"
                 className="flex-1 min-w-0 bg-transparent text-[14px] text-white placeholder:text-zinc-500 focus:outline-none"
               />
               {userQuery && (
-                <button onClick={() => setUserQuery('')} aria-label="Limpiar" className="shrink-0 text-zinc-500 hover:text-white transition">
+                <button onClick={() => setUserQuery('')} aria-label="Clear" className="shrink-0 text-zinc-500 hover:text-white transition">
                   <X className="w-4 h-4" />
                 </button>
               )}
@@ -315,12 +315,12 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
                 <div className="w-14 h-14 rounded-full bg-white/[0.04] border border-white/10 flex items-center justify-center mx-auto mb-4">
                   <Users className="w-6 h-6 text-zinc-500" strokeWidth={1.5} />
                 </div>
-                <p className="text-white font-semibold text-[15px]">Aún no hay usuarios para retar</p>
-                <p className="text-zinc-500 text-[13px] mt-1">Cuando se registren más creadores, aparecerán aquí.</p>
+                <p className="text-white font-semibold text-[15px]">No users to challenge yet</p>
+                <p className="text-zinc-500 text-[13px] mt-1">When more creators sign up, they'll appear here.</p>
               </div>
             ) : filteredUsers.length === 0 ? (
               <div className="text-center py-12 px-4">
-                <p className="text-zinc-400 text-[14px]">Sin resultados para “{userQuery}”.</p>
+                <p className="text-zinc-400 text-[14px]">No results for “{userQuery}”.</p>
               </div>
             ) : (
               <div className="space-y-2">
@@ -338,7 +338,7 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
                       <div className="text-[12px] text-zinc-500 truncate">@{u.username}</div>
                     </div>
                     <span className="ml-auto inline-flex items-center gap-1.5 text-[12px] font-semibold px-3 py-1.5 rounded-full text-black shrink-0" style={{ background: GOLD }}>
-                      <Swords size={13} strokeWidth={2.2} /> Retar
+                      <Swords size={13} strokeWidth={2.2} /> Challenge
                     </span>
                   </button>
                 ))}
@@ -372,7 +372,7 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
                         <div className="w-12 h-12 rounded-xl border border-white/10 bg-white/[0.05] flex items-center justify-center">
                           <Film size={22} strokeWidth={1.5} className="text-zinc-300" />
                         </div>
-                        <span className="text-[13px] font-medium text-zinc-200">Subir vídeo</span>
+                        <span className="text-[13px] font-medium text-zinc-200">Upload video</span>
                         <span className="text-[10px] text-zinc-500">MP4 / WebM · max 80MB</span>
                       </button>
                     )}
@@ -413,7 +413,7 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
                           <div className="w-16 h-16 rounded-2xl border border-white/10 bg-white/[0.05] flex items-center justify-center">
                             <Film size={28} strokeWidth={1.5} className="text-zinc-300" />
                           </div>
-                          <span className="text-[15px] font-medium text-zinc-200">Toca para subir el vídeo</span>
+                          <span className="text-[15px] font-medium text-zinc-200">Tap to upload the video</span>
                           <span className="text-[11px] text-zinc-500">MP4 / WebM · max 80MB</span>
                         </button>
                       )}
@@ -448,7 +448,7 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
                     ) : (
                       <span className="w-9" />
                     )}
-                    <button onClick={onClose} aria-label="Cerrar" className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center bg-black/35 backdrop-blur hover:bg-black/55 active:scale-90 transition text-zinc-200">
+                    <button onClick={onClose} aria-label="Close" className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center bg-black/35 backdrop-blur hover:bg-black/55 active:scale-90 transition text-zinc-200">
                       <X size={20} strokeWidth={1.75} />
                     </button>
                   </div>
@@ -464,7 +464,7 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
                         {[0, 1].map((i) => (
                           <button
                             key={i}
-                            aria-label={`vídeo ${i === 0 ? 'A' : 'B'}`}
+                            aria-label={`video ${i === 0 ? 'A' : 'B'}`}
                             onClick={() => setVersusIdx(i)}
                             className={`rounded-full transition-all duration-200 ${versusIdx === i ? 'w-5 h-1.5 bg-white' : 'w-1.5 h-1.5 bg-white/40'}`}
                           />
@@ -476,7 +476,7 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
                       <textarea
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
-                        placeholder={mode === 'duet' ? '¿Quién gana? 🥊 #1vs1' : mode === 'challenge' ? 'Reto 🔥 ¿Aceptas?' : '¿Cuál prefieres? 🅰️🆚🅱️'}
+                        placeholder={mode === 'duet' ? 'Who wins? 🥊 #1vs1' : mode === 'challenge' ? 'Challenge 🔥 Do you accept?' : 'Which do you prefer? 🅰️🆚🅱️'}
                         rows={1}
                         className="w-full bg-transparent text-[15px] text-zinc-100 placeholder:text-zinc-400 focus:outline-none resize-none"
                       />
@@ -486,7 +486,7 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
                       disabled={isAB ? (!file || !fileB) : !file}
                       className="w-full py-3.5 rounded-full bg-white text-black font-bold text-[16px] disabled:bg-white/20 disabled:text-white/40 active:scale-[0.99] transition"
                     >
-                      {mode === 'duet' ? 'Publicar 1vs1' : mode === 'challenge' ? 'Elegir a quién retar' : 'Publicar versus'}
+                      {mode === 'duet' ? 'Publish 1vs1' : mode === 'challenge' ? 'Choose who to challenge' : 'Publish versus'}
                     </button>
                   </div>
                 </>
@@ -506,7 +506,7 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
             <div className="w-full h-1.5 rounded-full bg-white/10 overflow-hidden">
               <div className="h-full transition-all" style={{ width: `${progress}%`, background: GOLD }} />
             </div>
-            <div className="text-[13px] text-zinc-500">{mode === 'challenge' ? 'Enviando tu reto…' : mode === 'duet' ? 'Creando tu 1vs1…' : 'Subiendo tu versus…'}</div>
+            <div className="text-[13px] text-zinc-500">{mode === 'challenge' ? 'Sending your challenge…' : mode === 'duet' ? 'Creating your 1vs1…' : 'Uploading your versus…'}</div>
           </div>
         )}
       </div>

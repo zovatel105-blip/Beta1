@@ -40,8 +40,8 @@ export default function ChallengeDialog({ open, onClose, target, onSubmit }) {
   const handleFileChange = (e) => {
     const f = e.target.files?.[0]
     if (!f) return
-    if (!f.type.startsWith('video/')) { setError('Selecciona un vídeo'); return }
-    if (f.size > 80 * 1024 * 1024) { setError('Máximo 80MB'); return }
+    if (!f.type.startsWith('video/')) { setError('Select a video'); return }
+    if (f.size > 80 * 1024 * 1024) { setError('Maximum 80MB'); return }
     setError(null)
     setFile(f)
   }
@@ -50,7 +50,7 @@ export default function ChallengeDialog({ open, onClose, target, onSubmit }) {
   // segundo plano. El modal se cierra al instante y el usuario puede seguir
   // descubriendo contenido mientras se envía.
   const doSend = () => {
-    if (!file || !target) { setError('Sube tu vídeo para retar'); return }
+    if (!file || !target) { setError('Upload your video to challenge'); return }
     onSubmit?.({ file, target, message })
     onClose()
   }
@@ -71,7 +71,7 @@ export default function ChallengeDialog({ open, onClose, target, onSubmit }) {
         <button
           type="button"
           onClick={onClose}
-          aria-label="cerrar"
+          aria-label="close"
           className="relative z-10 flex justify-center items-center pt-3 pb-1 shrink-0 active:scale-90 transition"
         >
           <ChevronDown className="w-5 h-5 text-zinc-500" strokeWidth={2.2} />
@@ -86,9 +86,9 @@ export default function ChallengeDialog({ open, onClose, target, onSubmit }) {
           </div>
           <div className="min-w-0">
             <p className="text-[10px] uppercase tracking-[0.18em] font-semibold text-zinc-500 flex items-center gap-1">
-              <Swords size={11} strokeWidth={2.4} /> Reto
+              <Swords size={11} strokeWidth={2.4} /> Challenge
             </p>
-            <h2 className="text-zinc-900 text-[15px] font-bold tracking-tight leading-tight truncate">Retar a @{username}</h2>
+            <h2 className="text-zinc-900 text-[15px] font-bold tracking-tight leading-tight truncate">Challenge @{username}</h2>
           </div>
         </div>
 
@@ -109,7 +109,7 @@ export default function ChallengeDialog({ open, onClose, target, onSubmit }) {
                     boxShadow: file ? `0 0 0 2px ${PURPLE}` : `inset 0 0 0 1.5px rgba(168,85,247,0.45)`,
                   }}
                 >
-                  <span className="absolute top-2 left-2 z-20 text-[10px] font-bold rounded-full px-2.5 py-0.5 text-white" style={{ background: PURPLE }}>Tú</span>
+                  <span className="absolute top-2 left-2 z-20 text-[10px] font-bold rounded-full px-2.5 py-0.5 text-white" style={{ background: PURPLE }}>You</span>
                   {file ? (
                     <>
                       <video src={URL.createObjectURL(file)} muted playsInline className="absolute inset-0 w-full h-full object-cover" />
@@ -117,7 +117,7 @@ export default function ChallengeDialog({ open, onClose, target, onSubmit }) {
                         <span className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: PURPLE }}>
                           <Check size={20} className="text-white" strokeWidth={2.6} />
                         </span>
-                        <span className="text-[11px] text-white/90 underline underline-offset-2">Cambiar vídeo</span>
+                        <span className="text-[11px] text-white/90 underline underline-offset-2">Change video</span>
                       </div>
                     </>
                   ) : (
@@ -126,8 +126,8 @@ export default function ChallengeDialog({ open, onClose, target, onSubmit }) {
                         <Upload size={22} style={{ color: PURPLE }} strokeWidth={2} />
                       </span>
                       <div className="text-center leading-tight">
-                        <p className="text-[12px] font-semibold text-zinc-900">Sube tu vídeo</p>
-                        <p className="text-[10.5px] text-zinc-500 mt-0.5">Graba o elige uno</p>
+                        <p className="text-[12px] font-semibold text-zinc-900">Upload your video</p>
+                        <p className="text-[10.5px] text-zinc-500 mt-0.5">Record or pick one</p>
                       </div>
                     </div>
                   )}
@@ -149,7 +149,7 @@ export default function ChallengeDialog({ open, onClose, target, onSubmit }) {
                       <span className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(59,130,246,0.18)' }}>
                         <Film size={22} style={{ color: BLUE }} strokeWidth={1.8} />
                       </span>
-                      <p className="text-[10.5px] text-zinc-500 leading-tight">Subirá su vídeo<br />al aceptar el reto</p>
+                      <p className="text-[10.5px] text-zinc-500 leading-tight">They'll upload their video<br />when accepting the challenge</p>
                     </div>
                   )}
                 </div>
@@ -166,13 +166,13 @@ export default function ChallengeDialog({ open, onClose, target, onSubmit }) {
               <textarea
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                placeholder="Añade un mensaje al reto (opcional)…"
+                placeholder="Add a message to the challenge (optional)…"
                 rows={2}
                 className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl px-4 py-3 text-[14px] text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:border-zinc-400 resize-none transition"
               />
 
               <p className="text-[12px] text-zinc-500 leading-relaxed">
-                Se enviará una solicitud de reto a <span className="text-zinc-700 font-medium">@{username}</span>. Cuando la acepte, se publicará como un versus (tú vs {target?.author?.name || 'rival'}).
+                A challenge request will be sent to <span className="text-zinc-700 font-medium">@{username}</span>. When they accept it, it will be published as a versus (you vs {target?.author?.name || 'rival'}).
               </p>
 
               {error && <div className="text-[12px] text-rose-500">{error}</div>}
@@ -186,7 +186,7 @@ export default function ChallengeDialog({ open, onClose, target, onSubmit }) {
                   : { background: '#e4e4e7' }}
               >
                 <Swords className="w-[18px] h-[18px]" strokeWidth={2.2} />
-                Enviar reto
+                Send challenge
               </button>
           </>
         </div>

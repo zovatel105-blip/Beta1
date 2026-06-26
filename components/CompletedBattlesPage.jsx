@@ -1,5 +1,5 @@
 'use client'
-/* eslint-disable react-hooks/set-state-in-effect -- carga async al abrir; falso positivo de la regla experimental. */
+/* eslint-disable react-hooks/set-state-in-effect -- async load on open; false positive of the experimental rule. */
 
 import { useEffect, useRef, useState } from 'react'
 import { Swiper, SwiperSlide } from 'swiper/react'
@@ -12,16 +12,16 @@ import CarouselSlide from './CarouselSlide'
 import DuetSlide from './DuetSlide'
 import { notificationsUnreadCount } from '@/lib/notifications'
 
-// Cuentas sugeridas para retar (estado vacío)
+// Suggested accounts to challenge (empty state)
 const suggestedAccounts = [
-  { id: 's1', username: 'creatorpro', name: 'Creator Pro', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop', meta: 'Te sigue' },
-  { id: 's2', username: 'dancequeen', name: 'Dance Queen', avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop', meta: 'Te sigue' },
-  { id: 's3', username: 'gamerx', name: 'Gamer X', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop', meta: 'Sugerido para ti' },
-  { id: 's4', username: 'chefmario', name: 'Chef Mario', avatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&h=150&fit=crop', meta: 'Te sigue' },
-  { id: 's5', username: 'pianomaster', name: 'Piano Master', avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&h=150&fit=crop', meta: 'Sugerido para ti' },
+  { id: 's1', username: 'creatorpro', name: 'Creator Pro', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop', meta: 'Follows you' },
+  { id: 's2', username: 'dancequeen', name: 'Dance Queen', avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop', meta: 'Follows you' },
+  { id: 's3', username: 'gamerx', name: 'Gamer X', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop', meta: 'Suggested for you' },
+  { id: 's4', username: 'chefmario', name: 'Chef Mario', avatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&h=150&fit=crop', meta: 'Follows you' },
+  { id: 's5', username: 'pianomaster', name: 'Piano Master', avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&h=150&fit=crop', meta: 'Suggested for you' },
 ]
 
-// Avatar simple con imagen + fallback de inicial.
+// Simple avatar with image + initial fallback.
 const Avatar = ({ src, alt, className = '', ringClass = '' }) => (
   <div className={cn('rounded-full overflow-hidden bg-gradient-to-br from-zinc-600 to-zinc-700 flex items-center justify-center', ringClass, className)}>
     {src ? (
@@ -32,19 +32,19 @@ const Avatar = ({ src, alt, className = '', ringClass = '' }) => (
   </div>
 )
 
-// Estado vacío de "Retos completados" — diseño premium minimalista.
+// Empty state of "Completed challenges" — premium minimalist design.
 const EmptyCompletedState = ({ onOpenUpload, onOpenActive, onOpenProfile }) => {
   const [dismissed, setDismissed] = useState([])
   const visibleAccounts = suggestedAccounts.filter((a) => !dismissed.includes(a.id))
 
   return (
     <div className="relative w-full h-full overflow-y-auto bg-[#0a0a0b]">
-      {/* Glow superior cálido y muy sutil */}
+      {/* Warm, very subtle top glow */}
       <div className="pointer-events-none absolute inset-x-0 top-0 h-80"
            style={{ background: 'radial-gradient(60% 100% at 50% 0%, rgba(255,255,255,0.10), transparent 70%)' }} />
 
       <div className="relative z-10 px-6 pt-28 pb-32 max-w-md mx-auto">
-        {/* Hero — emblema + título + acciones */}
+        {/* Hero — emblem + title + actions */}
         <div className="flex flex-col items-center text-center">
           <div
             className="w-20 h-20 rounded-full border border-white/10 bg-white/[0.03] flex items-center justify-center mb-6"
@@ -53,10 +53,10 @@ const EmptyCompletedState = ({ onOpenUpload, onOpenActive, onOpenProfile }) => {
             <Trophy className="w-9 h-9" strokeWidth={1.25} style={{ color: '#FFFFFF' }} />
           </div>
           <h1 className="text-white text-[26px] font-semibold tracking-tight leading-snug">
-            Aún no hay retos completados
+            No completed challenges yet
           </h1>
           <p className="text-zinc-400 text-[15px] mt-3 leading-relaxed max-w-[18rem]">
-            Crea tu primer reto y empieza a competir. Los ganadores aparecerán aquí.
+            Create your first challenge and start competing. Winners will appear here.
           </p>
 
           <button
@@ -64,27 +64,27 @@ const EmptyCompletedState = ({ onOpenUpload, onOpenActive, onOpenProfile }) => {
             className="mt-8 w-full h-12 rounded-full bg-white text-black font-semibold text-[15px] flex items-center justify-center gap-2 hover:bg-zinc-100 active:scale-[0.99] transition"
           >
             <Plus className="w-[18px] h-[18px]" strokeWidth={2.5} />
-            Crear un reto
+            Create a challenge
           </button>
           <button
             onClick={onOpenActive}
             className="mt-3 w-full h-12 rounded-full border border-white/15 text-white font-medium text-[15px] flex items-center justify-center gap-2 hover:bg-white/[0.04] active:scale-[0.99] transition"
           >
             <Swords className="w-[18px] h-[18px]" strokeWidth={1.75} />
-            Ver retos activos
+            See active challenges
           </button>
         </div>
 
-        {/* Buscador minimalista */}
+        {/* Minimalist search */}
         <div className="mt-12 flex items-center gap-2.5 h-11 px-4 rounded-full bg-white/[0.04] border border-white/10">
           <Search className="w-4 h-4 text-zinc-500" />
-          <span className="text-zinc-500 text-sm">Buscar creadores</span>
+          <span className="text-zinc-500 text-sm">Search creators</span>
         </div>
 
-        {/* Sugerencias para retar */}
+        {/* Suggestions to challenge */}
         <div className="mt-7">
           <h3 className="text-zinc-400 font-medium text-[12px] uppercase tracking-[0.14em] mb-1">
-            Sugerencias para retar
+            Suggestions to challenge
           </h3>
 
           <div className="divide-y divide-white/[0.05]">
@@ -102,19 +102,19 @@ const EmptyCompletedState = ({ onOpenUpload, onOpenActive, onOpenProfile }) => {
                   className="shrink-0 h-8 px-4 rounded-full border border-white/15 text-white text-[13px] font-medium flex items-center gap-1.5 hover:bg-white/5 active:scale-95 transition"
                 >
                   <Swords className="w-3.5 h-3.5" />
-                  Retar
+                  Challenge
                 </button>
                 <button
                   onClick={() => setDismissed((d) => [...d, acc.id])}
                   className="shrink-0 w-7 h-7 flex items-center justify-center text-zinc-600 hover:text-zinc-300 transition"
-                  aria-label="Descartar"
+                  aria-label="Dismiss"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
             ))}
             {visibleAccounts.length === 0 && (
-              <p className="text-zinc-500 text-sm py-6 text-center">No hay más sugerencias.</p>
+              <p className="text-zinc-500 text-sm py-6 text-center">No more suggestions.</p>
             )}
           </div>
         </div>
@@ -130,8 +130,8 @@ export default function CompletedBattlesPage({ open, onClose, onOpenActive, onOp
   const [muted, setMuted] = useState(true)
   const swiperRef = useRef(null)
 
-  // Carga los retos completados desde el backend cada vez que se abre la página
-  // o cuando se acepta un nuevo reto (refreshKey). Devuelve posts versus reales.
+  // Loads completed challenges from the backend each time the page opens
+  // or when a new challenge is accepted (refreshKey). Returns real versus posts.
   useEffect(() => {
     if (!open) return
     let active = true
@@ -149,50 +149,50 @@ export default function CompletedBattlesPage({ open, onClose, onOpenActive, onOp
 
   const isEmpty = !loading && posts.length === 0
 
-  // Compartir con amigos: usa el menú nativo si existe; si no, copia el enlace.
+  // Share with friends: use the native menu if available; otherwise copy the link.
   const handleShareFriends = async () => {
     const url = typeof window !== 'undefined' ? window.location.href : ''
     try {
       if (typeof navigator !== 'undefined' && navigator.share) {
-        await navigator.share({ title: 'Twyk', text: '¡Únete a mis retos en Twyk! 🥊', url })
+        await navigator.share({ title: 'Twyk', text: 'Join my challenges on Twyk! 🥊', url })
       } else if (typeof navigator !== 'undefined' && navigator.clipboard) {
         await navigator.clipboard.writeText(url)
       }
-    } catch { /* el usuario canceló o no hay soporte */ }
+    } catch { /* user cancelled or no support */ }
   }
 
   return (
     <div className="fixed inset-0 z-[55] bg-black overflow-hidden">
-      {/* Header minimalista — botones laterales + control segmentado central */}
+      {/* Minimalist header — side buttons + central segmented control */}
       <div className="absolute top-0 left-0 right-0 z-40 px-4 pb-4 bg-gradient-to-b from-black/70 to-transparent"
            style={{ paddingTop: 'max(env(safe-area-inset-top), 14px)' }}>
         <div className="flex items-center justify-between gap-2">
-          {/* Izquierda: compartir con amigos */}
+          {/* Left: share with friends */}
           <button
             onClick={handleShareFriends}
-            aria-label="Compartir con amigos"
+            aria-label="Share with friends"
             className="shrink-0 w-9 h-9 rounded-full bg-white/[0.06] border border-white/10 backdrop-blur-md text-white flex items-center justify-center hover:bg-white/10 active:scale-95 transition"
           >
             <UserPlus className="w-[18px] h-[18px]" strokeWidth={1.75} />
           </button>
 
-          {/* Centro: control segmentado */}
+          {/* Center: segmented control */}
           <div className="inline-flex p-1 rounded-full bg-white/[0.06] border border-white/10 backdrop-blur-md">
             <button className="px-4 py-1.5 rounded-full text-[13px] font-semibold bg-white text-black transition">
-              Completados
+              Completed
             </button>
             <button
               onClick={onOpenActive}
               className="px-4 py-1.5 rounded-full text-[13px] font-medium text-zinc-300 hover:text-white transition"
             >
-              Activos
+              Active
             </button>
           </div>
 
-          {/* Derecha: añadir reto */}
+          {/* Right: add challenge */}
           <button
             onClick={onOpenUpload}
-            aria-label="Añadir reto"
+            aria-label="Add challenge"
             className="shrink-0 w-9 h-9 rounded-full bg-white text-black flex items-center justify-center hover:bg-zinc-100 active:scale-95 transition"
           >
             <Plus className="w-[18px] h-[18px]" strokeWidth={2.5} />
@@ -200,7 +200,7 @@ export default function CompletedBattlesPage({ open, onClose, onOpenActive, onOp
         </div>
       </div>
 
-      {/* Contenido: feed vertical de retos completados o estado vacío */}
+      {/* Content: vertical feed of completed challenges or empty state */}
       {loading ? (
         <div className="w-full h-full flex items-center justify-center bg-[#0a0a0b]">
           <Loader2 className="w-7 h-7 animate-spin text-zinc-400" />
@@ -258,7 +258,7 @@ export default function CompletedBattlesPage({ open, onClose, onOpenActive, onOp
         </Swiper>
       )}
 
-      {/* Barra de navegación inferior — la misma del feed */}
+      {/* Bottom navigation bar — same as the feed */}
       <BottomNav
         onGoHome={onClose}
         onOpenBattles={() => {}}

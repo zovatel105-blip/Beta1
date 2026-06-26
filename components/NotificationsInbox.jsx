@@ -25,11 +25,11 @@ const iconFor = (n) => {
 }
 
 const FILTERS = [
-  { key: 'all', label: 'Todo', types: null },
-  { key: 'challenge', label: 'Retos', types: ['challenge', 'accepted'] },
-  { key: 'vote', label: 'Votos', types: ['vote'] },
-  { key: 'follow', label: 'Seguidores', types: ['follow'] },
-  { key: 'comment', label: 'Comentarios', types: ['comment'] },
+  { key: 'all', label: 'All', types: null },
+  { key: 'challenge', label: 'Challenges', types: ['challenge', 'accepted'] },
+  { key: 'vote', label: 'Votes', types: ['vote'] },
+  { key: 'follow', label: 'Followers', types: ['follow'] },
+  { key: 'comment', label: 'Comments', types: ['comment'] },
 ]
 
 export default function NotificationsInbox({ open, onClose }) {
@@ -98,14 +98,14 @@ export default function NotificationsInbox({ open, onClose }) {
       <div className="relative z-10 flex items-center justify-between px-2 pb-3"
            style={{ paddingTop: 'max(env(safe-area-inset-top), 14px)' }}>
         <div className="flex items-center gap-1">
-          <button onClick={onClose} aria-label="Volver" className="w-9 h-9 -ml-1.5 rounded-full flex items-center justify-center hover:bg-white/5 active:scale-90 transition text-white">
+          <button onClick={onClose} aria-label="Back" className="w-9 h-9 -ml-1.5 rounded-full flex items-center justify-center hover:bg-white/5 active:scale-90 transition text-white">
             <ChevronLeft size={22} strokeWidth={1.75} />
           </button>
-          <h1 className="text-[17px] font-semibold tracking-tight">Notificaciones</h1>
+          <h1 className="text-[17px] font-semibold tracking-tight">Notifications</h1>
         </div>
         {hasUnread && (
           <button onClick={markAllRead} className="text-[13px] font-medium text-zinc-400 hover:text-white px-2.5 py-1.5 rounded-full hover:bg-white/5 transition">
-            Marcar leídas
+            Mark as read
           </button>
         )}
       </div>
@@ -152,10 +152,10 @@ export default function NotificationsInbox({ open, onClose }) {
               <Bell className="w-9 h-9" strokeWidth={1.25} style={{ color: '#FFFFFF' }} />
             </div>
             <h2 className="text-white text-[22px] font-semibold tracking-tight">
-              Inicia sesión
+              Log in
             </h2>
             <p className="text-zinc-400 text-[15px] mt-2 max-w-[16rem] leading-relaxed">
-              Necesitas iniciar sesión para ver tus notificaciones
+              You need to log in to see your notifications
             </p>
           </div>
         ) : list.length === 0 ? (
@@ -165,12 +165,12 @@ export default function NotificationsInbox({ open, onClose }) {
               <Bell className="w-9 h-9" strokeWidth={1.25} style={{ color: '#FFFFFF' }} />
             </div>
             <h2 className="text-white text-[22px] font-semibold tracking-tight">
-              {filter === 'all' ? 'Sin notificaciones' : 'Nada por aquí'}
+              {filter === 'all' ? 'No notifications' : 'Nothing here'}
             </h2>
             <p className="text-zinc-400 text-[15px] mt-2 max-w-[16rem] leading-relaxed">
               {filter === 'all'
-                ? 'Cuando haya actividad en tus retos, aparecerá aquí.'
-                : `No tienes notificaciones de tipo "${activeFilter.label}".`}
+                ? "When there's activity on your challenges, it will appear here."
+                : `You have no "${activeFilter.label}" notifications.`}
             </p>
           </div>
         ) : (

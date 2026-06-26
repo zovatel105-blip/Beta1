@@ -2,121 +2,120 @@ import Link from 'next/link'
 import { ArrowLeft, ShieldCheck } from 'lucide-react'
 
 export const metadata = {
-  title: 'Política de Privacidad — Twyk',
-  description: 'Política de Privacidad de Twyk. Cumple COPPA y CalOPPA.',
+  title: 'Privacy Policy — Twyk',
+  description: 'Twyk Privacy Policy. COPPA and CalOPPA compliant.',
 }
 
-const UPDATED = '26 de junio de 2025'
+const UPDATED = 'June 26, 2025'
 
 export default function PrivacyPage() {
   return (
     <div className="min-h-[100dvh] bg-black text-white">
       <div className="max-w-2xl mx-auto px-5 py-8">
         <Link href="/" className="inline-flex items-center gap-2 text-white/60 hover:text-white text-sm mb-8 transition">
-          <ArrowLeft className="w-4 h-4" /> Volver a Twyk
+          <ArrowLeft className="w-4 h-4" /> Back to Twyk
         </Link>
 
         <div className="flex items-center gap-3 mb-2">
           <ShieldCheck className="w-7 h-7 text-white" strokeWidth={1.6} />
-          <h1 className="text-2xl font-bold tracking-tight">Política de Privacidad</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Privacy Policy</h1>
         </div>
-        <p className="text-white/40 text-sm mb-8">Última actualización: {UPDATED}</p>
+        <p className="text-white/40 text-sm mb-8">Last updated: {UPDATED}</p>
 
         <div className="space-y-7 text-[15px] leading-relaxed text-white/75">
           <section>
             <p>
-              Esta Política de Privacidad explica cómo Twyk, la plataforma de retos de vídeo A/B
-              (VS split-screen), recopila, usa y protege tu información. Cumplimos con la
-              Children&apos;s Online Privacy Protection Act (<strong>COPPA</strong>) y con la California
+              This Privacy Policy explains how Twyk, the A/B video challenge platform
+              (split-screen VS), collects, uses and protects your information. We comply with the
+              U.S. Children&apos;s Online Privacy Protection Act (<strong>COPPA</strong>) and with the California
               Online Privacy Protection Act (<strong>CalOPPA</strong>).
             </p>
           </section>
 
           <section>
-            <h2 className="text-white font-semibold text-lg mb-2">1. Datos que recopilamos</h2>
-            <p>Para ofrecerte Twyk recopilamos únicamente los datos necesarios:</p>
+            <h2 className="text-white font-semibold text-lg mb-2">1. Data we collect</h2>
+            <p>To provide Twyk we collect only the data we need:</p>
             <ul className="list-disc pl-5 mt-2 space-y-1">
-              <li><strong>Email</strong> — para tu cuenta y comunicaciones esenciales.</li>
-              <li><strong>Nombre de usuario</strong> — tu identidad pública en la plataforma.</li>
-              <li><strong>Fecha de nacimiento</strong> — para verificar la edad mínima de 13 años (COPPA).</li>
-              <li><strong>Vídeos subidos</strong> — el contenido que publicas en tus retos.</li>
-              <li><strong>Votos</strong> — tus elecciones A/B en los retos.</li>
-              <li><strong>Comentarios</strong> — el texto que publicas en las publicaciones.</li>
+              <li><strong>Email</strong> — for your account and essential communications.</li>
+              <li><strong>Username</strong> — your public identity on the platform.</li>
+              <li><strong>Date of birth</strong> — to verify the minimum age of 13 (COPPA).</li>
+              <li><strong>Uploaded videos</strong> — the content you publish in your challenges.</li>
+              <li><strong>Votes</strong> — your A/B choices in challenges.</li>
+              <li><strong>Comments</strong> — the text you post on publications.</li>
             </ul>
             <p className="mt-3">
-              No recopilamos datos de geolocalización precisa, ni información de pago, ni datos
-              biométricos.
+              We do not collect precise geolocation data, payment information or biometric data.
             </p>
           </section>
 
           <section>
-            <h2 className="text-white font-semibold text-lg mb-2">2. Cómo almacenamos tus datos</h2>
+            <h2 className="text-white font-semibold text-lg mb-2">2. How we store your data</h2>
             <p>
-              Tus datos se almacenan en una base de datos <strong>MongoDB</strong> alojada en
-              <strong> servidores ubicados en los Estados Unidos</strong>. Las contraseñas se guardan
-              cifradas (hash con bcrypt) y nunca en texto plano.
+              Your data is stored in a <strong>MongoDB</strong> database hosted on
+              <strong> servers located in the United States</strong>. Passwords are stored
+              encrypted (hashed with bcrypt) and never in plain text.
             </p>
           </section>
 
           <section>
-            <h2 className="text-white font-semibold text-lg mb-2">3. Cómo usamos tus datos</h2>
+            <h2 className="text-white font-semibold text-lg mb-2">3. How we use your data</h2>
             <p>
-              Usamos tus datos exclusivamente para operar Twyk: autenticarte, mostrar tu contenido y tus
-              retos, contabilizar votos, enviar notificaciones dentro de la app y aplicar la moderación
-              de la comunidad. <strong>No vendemos ni alquilamos tus datos a terceros.</strong>
+              We use your data exclusively to operate Twyk: to authenticate you, show your content and
+              your challenges, count votes, send in-app notifications and apply community moderation.
+              <strong> We do not sell or rent your data to third parties.</strong>
             </p>
           </section>
 
           <section>
-            <h2 className="text-white font-semibold text-lg mb-2">4. Privacidad de menores (COPPA)</h2>
+            <h2 className="text-white font-semibold text-lg mb-2">4. Children&apos;s privacy (COPPA)</h2>
             <p>
-              Twyk no está dirigida a menores de 13 años y <strong>no recopilamos conscientemente datos
-              de menores de 13 años</strong>. Durante el registro verificamos la edad mediante la fecha
-              de nacimiento y bloqueamos a quienes no cumplen la edad mínima. Si crees que un menor de 13
-              años nos ha facilitado datos, contáctanos y los eliminaremos.
+              Twyk is not directed to children under 13 and <strong>we do not knowingly collect data
+              from children under 13</strong>. During registration we verify age using the date of
+              birth and block anyone who does not meet the minimum age. If you believe a child under 13
+              has provided us data, contact us and we will delete it.
             </p>
           </section>
 
           <section>
             <h2 className="text-white font-semibold text-lg mb-2">5. Cookies</h2>
             <p>
-              Usamos <strong>únicamente cookies esenciales</strong> necesarias para mantener tu sesión
-              iniciada y recordar tus preferencias básicas. No utilizamos cookies de publicidad ni de
-              seguimiento de terceros.
+              We use <strong>essential cookies only</strong>, necessary to keep your session signed in
+              and remember your basic preferences. We do not use advertising or third-party tracking
+              cookies.
             </p>
           </section>
 
           <section>
-            <h2 className="text-white font-semibold text-lg mb-2">6. Tus derechos y solicitudes de datos</h2>
+            <h2 className="text-white font-semibold text-lg mb-2">6. Your rights and data requests</h2>
             <p>
-              Puedes solicitar acceder, corregir o eliminar tus datos personales en cualquier momento.
-              Para ejercer estos derechos (incluidos los derechos reconocidos por CalOPPA a los
-              residentes de California), escríbenos a{' '}
+              You can request to access, correct or delete your personal data at any time.
+              To exercise these rights (including the rights granted by CalOPPA to California
+              residents), write to us at{' '}
               <a href="mailto:twyk.apk@gmail.com" className="underline text-white/90 hover:text-white">twyk.apk@gmail.com</a>.
-              Atenderemos tu solicitud en un plazo razonable.
+              We will respond to your request within a reasonable time.
             </p>
           </section>
 
           <section>
-            <h2 className="text-white font-semibold text-lg mb-2">7. Cambios en esta política</h2>
+            <h2 className="text-white font-semibold text-lg mb-2">7. Changes to this policy</h2>
             <p>
-              Podemos actualizar esta Política de Privacidad ocasionalmente. Publicaremos la versión
-              vigente en esta página con su fecha de actualización.
+              We may update this Privacy Policy from time to time. We will post the current version on
+              this page with its update date.
             </p>
           </section>
 
           <section>
-            <h2 className="text-white font-semibold text-lg mb-2">8. Contacto</h2>
+            <h2 className="text-white font-semibold text-lg mb-2">8. Contact</h2>
             <p>
-              Para cualquier consulta sobre privacidad o solicitudes de datos, contáctanos en{' '}
+              For any privacy questions or data requests, contact us at{' '}
               <a href="mailto:twyk.apk@gmail.com" className="underline text-white/90 hover:text-white">twyk.apk@gmail.com</a>.
             </p>
           </section>
         </div>
 
         <div className="mt-10 pt-6 border-t border-white/10 text-sm text-white/50 flex flex-wrap gap-x-5 gap-y-2">
-          <Link href="/terms" className="hover:text-white">Términos de Uso</Link>
-          <Link href="/dmca" className="hover:text-white">Política DMCA</Link>
+          <Link href="/terms" className="hover:text-white">Terms of Use</Link>
+          <Link href="/dmca" className="hover:text-white">DMCA Policy</Link>
         </div>
       </div>
     </div>

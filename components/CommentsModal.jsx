@@ -85,7 +85,7 @@ export default function CommentsModal({ open, postId, onClose, votedSide = null,
     const minutes = Math.floor(diff / 60000)
     const hours = Math.floor(diff / 3600000)
     const days = Math.floor(diff / 86400000)
-    if (minutes < 1) return 'Ahora'
+    if (minutes < 1) return 'Now'
     if (minutes < 60) return `${minutes}min`
     if (hours < 24) return `${hours}h`
     if (days < 7) return `${days}d`
@@ -104,7 +104,7 @@ export default function CommentsModal({ open, postId, onClose, votedSide = null,
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
-          aria-label={expanded ? 'contraer' : 'expandir'}
+          aria-label={expanded ? 'collapse' : 'expand'}
           className="flex justify-center items-center pt-1.5 pb-0.5 shrink-0 active:scale-90 transition"
         >
           {expanded ? (
@@ -117,7 +117,7 @@ export default function CommentsModal({ open, postId, onClose, votedSide = null,
         {/* Header */}
         <div className="px-5 pb-1.5 border-b border-zinc-100 shrink-0">
           <h3 className="text-center text-[12px] font-semibold text-zinc-800">
-            {comments.length} {comments.length === 1 ? 'comentario' : 'comentarios'}
+            {comments.length} {comments.length === 1 ? 'comment' : 'comments'}
           </h3>
         </div>
 
@@ -129,8 +129,8 @@ export default function CommentsModal({ open, postId, onClose, votedSide = null,
             </div>
           ) : comments.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
-              <p className="text-zinc-500 text-[15px] font-medium">Sin comentarios todavia</p>
-              <p className="text-zinc-400 text-[13px] mt-1">Se el primero en comentar</p>
+              <p className="text-zinc-500 text-[15px] font-medium">No comments yet</p>
+              <p className="text-zinc-400 text-[13px] mt-1">Be the first to comment</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -156,7 +156,7 @@ export default function CommentsModal({ open, postId, onClose, votedSide = null,
                           <span className="inline-block w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
                         )}
                         <span className="text-zinc-900 text-[13px] font-semibold truncate">
-                          {c.author?.username || 'Usuario'}
+                          {c.author?.username || 'User'}
                         </span>
                         <span className="text-zinc-400 text-[11px]">{formatTime(c.timestamp)}</span>
                       </div>
@@ -177,7 +177,7 @@ export default function CommentsModal({ open, postId, onClose, votedSide = null,
                 type="text"
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
-                placeholder="Anade un comentario..."
+                placeholder="Add a comment..."
                 className="flex-1 bg-zinc-100 text-zinc-900 placeholder:text-zinc-400 px-4 py-3 rounded-full text-[14px] outline-none focus:bg-zinc-200/70 transition-all"
                 maxLength={500}
                 disabled={submitting}
@@ -186,7 +186,7 @@ export default function CommentsModal({ open, postId, onClose, votedSide = null,
               <button
                 type="submit"
                 disabled={!newComment.trim() || submitting}
-                aria-label="enviar"
+                aria-label="send"
                 className={cn(
                   'w-11 h-11 rounded-full flex items-center justify-center transition-all',
                   newComment.trim() && !submitting
@@ -207,7 +207,7 @@ export default function CommentsModal({ open, postId, onClose, votedSide = null,
               onClick={() => setShowAuthModal(true)}
               className="w-full py-3 rounded-full bg-zinc-900 text-white font-medium text-[14px] hover:bg-zinc-800 transition-all"
             >
-              Inicia sesion para comentar
+              Log in to comment
             </button>
           )}
         </form>

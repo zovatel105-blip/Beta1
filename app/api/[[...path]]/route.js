@@ -228,7 +228,7 @@ async function readChallenges() {
 
 const ME_AUTHOR = {
   username: 'tu_canal',
-  name: 'Tú',
+  name: 'You',
   avatarUrl: 'https://i.pravatar.cc/120?img=68',
 }
 
@@ -272,29 +272,29 @@ function makePoster(inPath, outPath) {
 }
 
 const VIDEOS = [
-  { url: v(51265 - 0), author: { username: 'wanderlust', name: 'Sofía Vela', avatarUrl: 'https://i.pravatar.cc/120?img=47' }, description: 'Atardeceres que detienen el tiempo 🌅 #viajes #naturaleza', music: 'Sofía Vela — Horizonte (original)' },
-  { url: v(4467),  author: { username: 'urbanlife',  name: 'Marco Ruiz',   avatarUrl: 'https://i.pravatar.cc/120?img=12' }, description: 'La ciudad nunca duerme ✨🏙️ #urban #night #vibes', music: 'Marco Ruiz — Neon Lights' },
-  { url: v(39880), author: { username: 'oceanvibes', name: 'Lía Mar',      avatarUrl: 'https://i.pravatar.cc/120?img=32' }, description: 'POV: el mar te llama 🌊 #ocean #blue #relax', music: 'Lía Mar — Olas (original)' },
-  { url: v(51140), author: { username: 'fitfreak',   name: 'Diego Torres', avatarUrl: 'https://i.pravatar.cc/120?img=15' }, description: 'Rutina de hoy 💪 sin excusas. #fitness #gym', music: 'Diego Torres — Push It' },
-  { url: v(50324), author: { username: 'foodie',     name: 'Carla Gómez',  avatarUrl: 'https://i.pravatar.cc/120?img=20' }, description: 'Receta express que rompe 🍝 #foodtok #recetas', music: 'Carla Gómez — Cocina con beats' },
-  { url: v(51261), author: { username: 'dancepro',   name: 'Nina León',    avatarUrl: 'https://i.pravatar.cc/120?img=49' }, description: 'Nuevo paso de baile 🔥 #dancechallenge #trend', music: 'Nina León — Move it' },
-  { url: v(51269), author: { username: 'streetcam',  name: 'Hugo Pérez',   avatarUrl: 'https://i.pravatar.cc/120?img=8'  }, description: 'Tokio en 30 segundos 🇯🇵 #travel #tokio', music: 'Hugo Pérez — Lost in Tokio' },
-  { url: v(1108),  author: { username: 'cosmos',     name: 'Ana Stelar',   avatarUrl: 'https://i.pravatar.cc/120?img=44' }, description: 'El universo desde mi ventana 🌌 #space #aesthetic', music: 'Ana Stelar — Cosmos' },
-  { url: v(51316), author: { username: 'petlover',   name: 'Bruno Cat',    avatarUrl: 'https://i.pravatar.cc/120?img=5'  }, description: 'Mi gato se cree humano 😼 #pets #funny', music: 'Bruno Cat — Meow remix' },
+  { url: v(51265 - 0), author: { username: 'wanderlust', name: 'Sofía Vela', avatarUrl: 'https://i.pravatar.cc/120?img=47' }, description: 'Sunsets that stop time 🌅 #travel #nature', music: 'Sofía Vela — Horizon (original)' },
+  { url: v(4467),  author: { username: 'urbanlife',  name: 'Marco Ruiz',   avatarUrl: 'https://i.pravatar.cc/120?img=12' }, description: 'The city never sleeps ✨🏙️ #urban #night #vibes', music: 'Marco Ruiz — Neon Lights' },
+  { url: v(39880), author: { username: 'oceanvibes', name: 'Lía Mar',      avatarUrl: 'https://i.pravatar.cc/120?img=32' }, description: 'POV: the sea is calling 🌊 #ocean #blue #relax', music: 'Lía Mar — Waves (original)' },
+  { url: v(51140), author: { username: 'fitfreak',   name: 'Diego Torres', avatarUrl: 'https://i.pravatar.cc/120?img=15' }, description: 'My routine today 💪 no excuses. #fitness #gym', music: 'Diego Torres — Push It' },
+  { url: v(50324), author: { username: 'foodie',     name: 'Carla Gómez',  avatarUrl: 'https://i.pravatar.cc/120?img=20' }, description: 'Quick recipe that slaps 🍝 #foodtok #recipes', music: 'Carla Gómez — Cooking with beats' },
+  { url: v(51261), author: { username: 'dancepro',   name: 'Nina León',    avatarUrl: 'https://i.pravatar.cc/120?img=49' }, description: 'New dance move 🔥 #dancechallenge #trend', music: 'Nina León — Move it' },
+  { url: v(51269), author: { username: 'streetcam',  name: 'Hugo Pérez',   avatarUrl: 'https://i.pravatar.cc/120?img=8'  }, description: 'Tokyo in 30 seconds 🇯🇵 #travel #tokyo', music: 'Hugo Pérez — Lost in Tokyo' },
+  { url: v(1108),  author: { username: 'cosmos',     name: 'Ana Stelar',   avatarUrl: 'https://i.pravatar.cc/120?img=44' }, description: 'The universe from my window 🌌 #space #aesthetic', music: 'Ana Stelar — Cosmos' },
+  { url: v(51316), author: { username: 'petlover',   name: 'Bruno Cat',    avatarUrl: 'https://i.pravatar.cc/120?img=5'  }, description: 'My cat acts human 😼 #pets #funny', music: 'Bruno Cat — Meow remix' },
   { url: v(51330), author: { username: 'studyflow',  name: 'Lucía Pen',    avatarUrl: 'https://i.pravatar.cc/120?img=29' }, description: 'Study with me ✍️ 25min focus #study', music: 'Lo-fi Beats — Chill study' },
-  { url: v(51453), author: { username: 'beauty',     name: 'Mía Rosé',     avatarUrl: 'https://i.pravatar.cc/120?img=45' }, description: 'GRWM mañana de verano ☀️ #grwm', music: 'Mía Rosé — Glow' },
-  { url: v(1149),  author: { username: 'gamerzz',    name: 'Tom Pixel',    avatarUrl: 'https://i.pravatar.cc/120?img=11' }, description: 'Combo imposible 🎮 #gaming #plays', music: 'Tom Pixel — Game over' },
-  { url: v(51571), author: { username: 'skylineart', name: 'Cielo Azul',   avatarUrl: 'https://i.pravatar.cc/120?img=38' }, description: 'Time lapse del cielo en 4K 🌤️ #timelapse', music: 'Cielo Azul — Clouds' },
-  { url: v(51580), author: { username: 'coffeeshop', name: 'Café Sur',     avatarUrl: 'https://i.pravatar.cc/120?img=27' }, description: 'Latte art en cámara lenta ☕ #coffee', music: 'Café Sur — Slow morning' },
-  { url: v(51601), author: { username: 'cyclelife',  name: 'Ruta Cleta',   avatarUrl: 'https://i.pravatar.cc/120?img=9'  }, description: 'Pedalear es libertad 🚴 #bike', music: 'Ruta Cleta — Spin' },
-  { url: v(51410), author: { username: 'photopro',   name: 'Foto Click',   avatarUrl: 'https://i.pravatar.cc/120?img=18' }, description: 'Detrás de cámaras 📸 #photo', music: 'Foto Click — Click click' },
+  { url: v(51453), author: { username: 'beauty',     name: 'Mía Rosé',     avatarUrl: 'https://i.pravatar.cc/120?img=45' }, description: 'GRWM summer morning ☀️ #grwm', music: 'Mía Rosé — Glow' },
+  { url: v(1149),  author: { username: 'gamerzz',    name: 'Tom Pixel',    avatarUrl: 'https://i.pravatar.cc/120?img=11' }, description: 'Impossible combo 🎮 #gaming #plays', music: 'Tom Pixel — Game over' },
+  { url: v(51571), author: { username: 'skylineart', name: 'Cielo Azul',   avatarUrl: 'https://i.pravatar.cc/120?img=38' }, description: 'Sky time lapse in 4K 🌤️ #timelapse', music: 'Cielo Azul — Clouds' },
+  { url: v(51580), author: { username: 'coffeeshop', name: 'Café Sur',     avatarUrl: 'https://i.pravatar.cc/120?img=27' }, description: 'Latte art in slow motion ☕ #coffee', music: 'Café Sur — Slow morning' },
+  { url: v(51601), author: { username: 'cyclelife',  name: 'Ruta Cleta',   avatarUrl: 'https://i.pravatar.cc/120?img=9'  }, description: 'Pedaling is freedom 🚴 #bike', music: 'Ruta Cleta — Spin' },
+  { url: v(51410), author: { username: 'photopro',   name: 'Foto Click',   avatarUrl: 'https://i.pravatar.cc/120?img=18' }, description: 'Behind the scenes 📸 #photo', music: 'Foto Click — Click click' },
   { url: v(51365), author: { username: 'sunsetlove', name: 'Sol Oro',      avatarUrl: 'https://i.pravatar.cc/120?img=42' }, description: 'Golden hour magic ✨🌇 #goldenhour', music: 'Sol Oro — Gold' },
-  { url: v(51524), author: { username: 'streetdance',name: 'Cami Beat',    avatarUrl: 'https://i.pravatar.cc/120?img=39' }, description: 'Freestyle en la calle 🕺 #dance', music: 'Cami Beat — Street move' },
-  { url: v(51241), author: { username: 'wavelife',   name: 'Surf Bay',     avatarUrl: 'https://i.pravatar.cc/120?img=33' }, description: 'Tube de hoy 🤙🏄‍♀️ #surf', music: 'Surf Bay — Wave catch' },
-  { url: v(51146), author: { username: 'arteviva',   name: 'Pince Arte',   avatarUrl: 'https://i.pravatar.cc/120?img=25' }, description: 'Pintando con luz 🎨 #art', music: 'Pince Arte — Brush' },
-  { url: v(51142), author: { username: 'foodart',    name: 'Choco Lab',    avatarUrl: 'https://i.pravatar.cc/120?img=21' }, description: 'Chocolate fundido a 1000fps 🍫 #foodporn', music: 'Choco Lab — Melt' },
-  { url: v(51144), author: { username: 'flowyoga',   name: 'Sara Asana',   avatarUrl: 'https://i.pravatar.cc/120?img=46' }, description: 'Saludo al sol matinal 🧘‍♀️ #yoga', music: 'Sara Asana — Breathe' },
-  { url: v(51160), author: { username: 'auto_speed', name: 'Rev Max',      avatarUrl: 'https://i.pravatar.cc/120?img=14' }, description: 'V8 a fondo 🏎️ #cars', music: 'Rev Max — Engine roar' },
+  { url: v(51524), author: { username: 'streetdance',name: 'Cami Beat',    avatarUrl: 'https://i.pravatar.cc/120?img=39' }, description: 'Freestyle in the street 🕺 #dance', music: 'Cami Beat — Street move' },
+  { url: v(51241), author: { username: 'wavelife',   name: 'Surf Bay',     avatarUrl: 'https://i.pravatar.cc/120?img=33' }, description: 'Barrel of the day 🤙🏄‍♀️ #surf', music: 'Surf Bay — Wave catch' },
+  { url: v(51146), author: { username: 'arteviva',   name: 'Pince Arte',   avatarUrl: 'https://i.pravatar.cc/120?img=25' }, description: 'Painting with light 🎨 #art', music: 'Pince Arte — Brush' },
+  { url: v(51142), author: { username: 'foodart',    name: 'Choco Lab',    avatarUrl: 'https://i.pravatar.cc/120?img=21' }, description: 'Melted chocolate at 1000fps 🍫 #foodporn', music: 'Choco Lab — Melt' },
+  { url: v(51144), author: { username: 'flowyoga',   name: 'Sara Asana',   avatarUrl: 'https://i.pravatar.cc/120?img=46' }, description: 'Morning sun salutation 🧘‍♀️ #yoga', music: 'Sara Asana — Breathe' },
+  { url: v(51160), author: { username: 'auto_speed', name: 'Rev Max',      avatarUrl: 'https://i.pravatar.cc/120?img=14' }, description: 'V8 flat out 🏎️ #cars', music: 'Rev Max — Engine roar' },
 ]
 // Replace the first (we don't actually have 51265.mp4, swap to a downloaded id)
 VIDEOS[0].url = v(51330)
@@ -823,7 +823,7 @@ async function handleCreateReport(request) {
   try {
     const currentUser = await getCurrentUser(request)
     if (!currentUser) {
-      return NextResponse.json({ error: 'unauthorized', message: 'Debes iniciar sesión' }, { status: 401 })
+      return NextResponse.json({ error: 'unauthorized', message: 'You must log in' }, { status: 401 })
     }
     const body = await request.json().catch(() => ({}))
     const { targetType, targetId, reason } = body || {}
@@ -846,7 +846,7 @@ async function handleBlockUser(request) {
   try {
     const currentUser = await getCurrentUser(request)
     if (!currentUser) {
-      return NextResponse.json({ error: 'unauthorized', message: 'Debes iniciar sesión' }, { status: 401 })
+      return NextResponse.json({ error: 'unauthorized', message: 'You must log in' }, { status: 401 })
     }
     const body = await request.json().catch(() => ({}))
     let blockedId = body?.userId || null
@@ -942,13 +942,13 @@ async function handleVersusUpload(request) {
     const currentUser = await getCurrentUser(request)
     // Publicar requiere sesión: los invitados NO pueden crear publicaciones.
     if (!currentUser) {
-      return NextResponse.json({ error: 'unauthorized', message: 'Debes iniciar sesión para publicar' }, { status: 401 })
+      return NextResponse.json({ error: 'unauthorized', message: 'You must log in to publish' }, { status: 401 })
     }
 
     const formData = await request.formData()
     const fileA = formData.get('fileA')
     const fileB = formData.get('fileB')
-    const description = (formData.get('description') || '¿Cuál prefieres? 🅰️🆚🅱️').toString()
+    const description = (formData.get('description') || 'Which do you prefer? 🅰️🆚🅱️').toString()
     const captionA = (formData.get('captionA') || '').toString()
     const captionB = (formData.get('captionB') || '').toString()
 
@@ -973,7 +973,7 @@ async function handleVersusUpload(request) {
     } : {
       id: 'anonymous',
       username: 'usuario_anonimo',
-      name: 'Usuario Anónimo',
+      name: 'Anonymous User',
       avatarUrl: 'https://i.pravatar.cc/120?img=68',
       verified: false,
     }
@@ -982,8 +982,8 @@ async function handleVersusUpload(request) {
       id: `versus_up_${id}`,
       type: 'versus',
       layout: 'carousel',
-      sideA: { videoUrl: urlA, posterUrl: posterFor(urlA), author: realAuthor, description: captionA || description, music: 'Opción A' },
-      sideB: { videoUrl: urlB, posterUrl: posterFor(urlB), author: realAuthor, description: captionB || description, music: 'Opción B' },
+      sideA: { videoUrl: urlA, posterUrl: posterFor(urlA), author: realAuthor, description: captionA || description, music: 'Option A' },
+      sideB: { videoUrl: urlB, posterUrl: posterFor(urlB), author: realAuthor, description: captionB || description, music: 'Option B' },
       author: realAuthor,
       description,
       music: 'Tu versus original',
@@ -1021,13 +1021,13 @@ async function handleDuetUpload(request) {
     const currentUser = await getCurrentUser(request)
     // Publicar requiere sesión: los invitados NO pueden crear publicaciones.
     if (!currentUser) {
-      return NextResponse.json({ error: 'unauthorized', message: 'Debes iniciar sesión para publicar' }, { status: 401 })
+      return NextResponse.json({ error: 'unauthorized', message: 'You must log in to publish' }, { status: 401 })
     }
 
     const formData = await request.formData()
     const fileA = formData.get('fileA')
     const fileB = formData.get('fileB')
-    const description = (formData.get('description') || '¿Quién gana? 🥊 #1vs1').toString()
+    const description = (formData.get('description') || 'Who wins? 🥊 #1vs1').toString()
     const layoutRaw = (formData.get('layout') || 'horizontal').toString()
     const layout = layoutRaw === 'vertical' ? 'vertical' : 'horizontal'
 
@@ -1049,7 +1049,7 @@ async function handleDuetUpload(request) {
     } : {
       id: 'anonymous',
       username: 'usuario_anonimo',
-      name: 'Usuario Anónimo',
+      name: 'Anonymous User',
       avatarUrl: 'https://i.pravatar.cc/120?img=68',
       verified: false,
     }
@@ -1059,8 +1059,8 @@ async function handleDuetUpload(request) {
       type: 'duet',
       layout, // 'horizontal' | 'vertical'
       // Ambos lados son contenido propio del usuario.
-      sideA: { videoUrl: urlA, posterUrl: posterFor(urlA), author: realAuthor, description, music: 'Opción A' },
-      sideB: { videoUrl: urlB, posterUrl: posterFor(urlB), author: realAuthor, description, music: 'Opción B' },
+      sideA: { videoUrl: urlA, posterUrl: posterFor(urlA), author: realAuthor, description, music: 'Option A' },
+      sideB: { videoUrl: urlB, posterUrl: posterFor(urlB), author: realAuthor, description, music: 'Option B' },
       author: realAuthor,
       description,
       music: 'Tu 1vs1 original',
@@ -1180,7 +1180,7 @@ async function handleUpdateProfile(request) {
   try {
     const currentUser = await getCurrentUser(request)
     if (!currentUser) {
-      return NextResponse.json({ error: 'unauthorized', message: 'Debes iniciar sesión' }, { status: 401 })
+      return NextResponse.json({ error: 'unauthorized', message: 'You must log in' }, { status: 401 })
     }
     const formData = await request.formData()
     const nameRaw = formData.get('name')
@@ -1224,7 +1224,7 @@ async function handleCreateChallenge(request) {
     const currentUser = await getCurrentUser(request)
     // Retar requiere sesión: los invitados NO pueden crear retos.
     if (!currentUser) {
-      return NextResponse.json({ error: 'unauthorized', message: 'Debes iniciar sesión para retar' }, { status: 401 })
+      return NextResponse.json({ error: 'unauthorized', message: 'You must log in to challenge' }, { status: 401 })
     }
 
     const formData = await request.formData()
@@ -1260,7 +1260,7 @@ async function handleCreateChallenge(request) {
     } : {
       id: 'anonymous',
       username: 'usuario_anonimo',
-      name: 'Usuario Anónimo',
+      name: 'Anonymous User',
       avatarUrl: 'https://i.pravatar.cc/120?img=68',
       verified: false,
     }
@@ -1331,7 +1331,7 @@ async function handleAcceptChallenge(cid, request) {
       id: `versus_ch_${id}`,
       type: 'versus',
       layout: 'carousel',
-      sideA: { videoUrl: c.challengerVideoUrl, posterUrl: posterFor(c.challengerVideoUrl), author: c.from, description: c.message || 'Mi reto', music: 'Reto' },
+      sideA: { videoUrl: c.challengerVideoUrl, posterUrl: posterFor(c.challengerVideoUrl), author: c.from, description: c.message || 'My challenge', music: 'Challenge' },
       sideB: { videoUrl: responseVideoUrl, posterUrl: posterFor(responseVideoUrl), author: c.to, description: c.targetDescription || '', music: c.targetMusic || '' },
       author: c.from,
       description: c.message || `Reto: @${c.from?.username} 🆚 @${c.to?.username} 🥊`,
@@ -1422,14 +1422,14 @@ async function handleRegister(request) {
     // GATING DE EDAD (COPPA): la fecha de nacimiento es obligatoria y el usuario
     // debe tener al menos 13 años. Validación en servidor (no solo en cliente).
     if (!birthDate) {
-      return NextResponse.json({ error: 'birthdate_required', message: 'La fecha de nacimiento es obligatoria' }, { status: 400 })
+      return NextResponse.json({ error: 'birthdate_required', message: 'Date of birth is required' }, { status: 400 })
     }
     const age = computeAge(birthDate)
     if (age === null) {
-      return NextResponse.json({ error: 'invalid_birthdate', message: 'Fecha de nacimiento no válida' }, { status: 400 })
+      return NextResponse.json({ error: 'invalid_birthdate', message: 'Invalid date of birth' }, { status: 400 })
     }
     if (age < 13) {
-      return NextResponse.json({ error: 'underage', message: 'Twyk no está disponible para menores de 13 años' }, { status: 403 })
+      return NextResponse.json({ error: 'underage', message: "Twyk isn't available for users under 13" }, { status: 403 })
     }
 
     const user = await createUser({ username, email, password, birthDate })
@@ -1454,7 +1454,7 @@ async function handleRegister(request) {
       return NextResponse.json({ error: 'username_taken', message: 'El nombre de usuario ya existe' }, { status: 400 })
     }
     if (err.message === 'email_taken') {
-      return NextResponse.json({ error: 'email_taken', message: 'El email ya está registrado' }, { status: 400 })
+      return NextResponse.json({ error: 'email_taken', message: 'This email is already registered' }, { status: 400 })
     }
     return NextResponse.json({ error: 'register_failed' }, { status: 500 })
   }
@@ -1472,7 +1472,7 @@ async function handleLogin(request) {
 
     const user = await verifyUserCredentials(username, password)
     if (!user) {
-      return NextResponse.json({ error: 'invalid_credentials', message: 'Usuario o contraseña incorrectos' }, { status: 401 })
+      return NextResponse.json({ error: 'invalid_credentials', message: 'Wrong username or password' }, { status: 401 })
     }
 
     // MODERACIÓN: los usuarios suspendidos no pueden iniciar sesión.
@@ -1555,7 +1555,7 @@ async function handleCreateComment(request) {
   try {
     const currentUser = await getCurrentUser(request)
     if (!currentUser) {
-      return NextResponse.json({ error: 'unauthorized', message: 'Debes iniciar sesión' }, { status: 401 })
+      return NextResponse.json({ error: 'unauthorized', message: 'You must log in' }, { status: 401 })
     }
 
     const body = await request.json()
@@ -1725,7 +1725,7 @@ async function handleUnblockUser(request) {
   try {
     const currentUser = await getCurrentUser(request)
     if (!currentUser) {
-      return NextResponse.json({ error: 'unauthorized', message: 'Debes iniciar sesión' }, { status: 401 })
+      return NextResponse.json({ error: 'unauthorized', message: 'You must log in' }, { status: 401 })
     }
     const body = await request.json().catch(() => ({}))
     let blockedId = body?.userId || null

@@ -35,8 +35,8 @@ export default function ShareModal({ open, postId, onClose, onShared }) {
   }
 
   const options = [
-    { key: 'dm', label: 'Enviar a', onClick: sendTo, bg: 'bg-zinc-100', icon: <Send className="w-6 h-6 text-zinc-700" strokeWidth={1.6} /> },
-    { key: 'copy', label: copied ? 'Copiado' : 'Copiar enlace', onClick: copyLink, bg: 'bg-zinc-100', icon: copied ? <Check className="w-6 h-6 text-green-600" strokeWidth={2} /> : <Link2 className="w-6 h-6 text-zinc-700" strokeWidth={1.6} /> },
+    { key: 'dm', label: 'Send to', onClick: sendTo, bg: 'bg-zinc-100', icon: <Send className="w-6 h-6 text-zinc-700" strokeWidth={1.6} /> },
+    { key: 'copy', label: copied ? 'Copied' : 'Copy link', onClick: copyLink, bg: 'bg-zinc-100', icon: copied ? <Check className="w-6 h-6 text-green-600" strokeWidth={2} /> : <Link2 className="w-6 h-6 text-zinc-700" strokeWidth={1.6} /> },
     { key: 'ig', label: 'Instagram', onClick: () => openUrl('https://www.instagram.com/'), bg: 'bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600', icon: <Instagram className="w-6 h-6 text-white" strokeWidth={1.8} /> },
     { key: 'wa', label: 'WhatsApp', onClick: () => openUrl(`https://wa.me/?text=${encodeURIComponent(shareUrl)}`), bg: 'bg-[#25D366]', icon: <WhatsAppIcon /> },
     { key: 'x', label: 'X', onClick: () => openUrl(`https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}`), bg: 'bg-black', icon: <span className="text-white text-[20px] font-bold leading-none">X</span> },
@@ -47,13 +47,13 @@ export default function ShareModal({ open, postId, onClose, onShared }) {
       <button
         type="button"
         onClick={onClose}
-        aria-label="cerrar"
+        aria-label="close"
         className="flex justify-center items-center pt-1.5 pb-0.5 shrink-0 active:scale-90 transition"
       >
         <ChevronDown className="w-4 h-4 text-zinc-500" strokeWidth={2.2} />
       </button>
       <div className="px-5 pb-1.5 shrink-0">
-        <h3 className="text-center text-[12px] font-semibold text-zinc-800">Compartir</h3>
+        <h3 className="text-center text-[12px] font-semibold text-zinc-800">Share</h3>
       </div>
       <div className="border-t border-zinc-100 px-4 py-6">
         <div className="grid grid-cols-5 gap-2">

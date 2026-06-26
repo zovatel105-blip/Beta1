@@ -1,5 +1,5 @@
 'use client'
-/* eslint-disable react-hooks/set-state-in-effect -- carga async al abrir; falso positivo de la regla experimental. */
+/* eslint-disable react-hooks/set-state-in-effect -- async load on open; false positive of the experimental rule. */
 
 import { useEffect, useRef, useState } from 'react'
 import { Swiper, SwiperSlide } from 'swiper/react'
@@ -9,18 +9,18 @@ import { Swords, Check, X, Loader2, Film } from 'lucide-react'
 import Avatar from './Avatar'
 
 /**
- * ActiveChallengesPage — Retos activos (premium minimalista, vista completa).
- * Cada reto ocupa la pantalla completa y se desliza VERTICALMENTE entre retos.
- * Dentro de cada reto, se desliza HORIZONTALMENTE entre los 2 vídeos (A = retador,
- * B = retado), tipo carrusel. Aceptar publica el versus; Rechazar lo descarta.
+ * ActiveChallengesPage — Active challenges (premium minimalist, full view).
+ * Each challenge takes the full screen and scrolls VERTICALLY between challenges.
+ * Within each challenge, swipe HORIZONTALLY between the 2 videos (A = challenger,
+ * B = challenged), carousel style. Accept publishes the versus; Reject discards it.
  *
  * props: open, onClose, onAccepted(post), onChanged()
  */
 const GOLD = '#FFFFFF'
 
-// Avatar SIN anillo que usa el MISMO componente <Avatar> del perfil/feed -> los
-// avatares autogenerados (dicebear/pravatar) se muestran como la silueta gris,
-// idéntica a la del perfil.
+// Avatar WITHOUT a ring that uses the SAME <Avatar> component as profile/feed ->
+// auto-generated avatars (dicebear/pravatar) show as the gray silhouette,
+// identical to the profile.
 const RingAvatar = ({ src, size = 'w-11 h-11' }) => (
   <div className={`${size} rounded-full overflow-hidden bg-zinc-800 shrink-0`}>
     <Avatar src={src} className="w-full h-full rounded-full" />
@@ -35,22 +35,22 @@ const ChallengeSlide = ({ c, busy, onAccept, onReject }) => {
   const [responseFile, setResponseFile] = useState(null)
   const [responsePreview, setResponsePreview] = useState(null)
 
-  // Reto "con mención": NO trae vídeo del retado (targetVideoUrl). El retado
-  // debe subir su vídeo de respuesta para poder aceptar.
+  // "Mention" challenge: it does NOT carry the challenged user's video (targetVideoUrl).
+  // The challenged user must upload their response video to be able to accept.
   const needsVideo = !c.targetVideoUrl
 
-  // Limpia el object URL del preview al cambiarlo/desmontar.
+  // Clean up the preview object URL when changing/unmounting.
   useEffect(() => () => { if (responsePreview) URL.revokeObjectURL(responsePreview) }, [responsePreview])
 
   const pickFile = () => fileRef.current?.click()
   const onFileChange = (e) => {
     const f = e.target.files?.[0]
-    e.target.value = '' // permite volver a elegir el mismo archivo
+    e.target.value = '' // allow re-selecting the same file
     if (!f) return
     if (!f.type.startsWith('video/')) return
     setResponseFile(f)
     setResponsePreview((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(f) })
-    // Flujo "después": si pulsaste Aceptar sin vídeo, al elegirlo se envía solo.
+    // "After" flow: if you pressed Accept with no video, selecting it sends automatically.
     if (pendingAcceptRef.current) {
       pendingAcceptRef.current = false
       onAccept(c, f)
@@ -59,17 +59,17 @@ const ChallengeSlide = ({ c, busy, onAccept, onReject }) => {
 
   const handleAccept = () => {
     if (needsVideo && !responseFile) {
-      // Flujo "después": abrir el selector y enviar automáticamente al elegir.
+      // "After" flow: open the picker and send automatically on select.
       pendingAcceptRef.current = true
       pickFile()
       return
     }
-    onAccept(c, responseFile) // file puede ser null si el reto ya trae targetVideoUrl
+    onAccept(c, responseFile) // file can be null if the challenge already carries targetVideoUrl
   }
 
-  // Lado B = vídeo de respuesta: el ya existente (targetVideoUrl) o el preview
-  // del archivo recién elegido. Si es reto con mención y aún no hay vídeo, el
-  // lado B se muestra como zona para subir.
+  // Side B = response video: the existing one (targetVideoUrl) or the preview
+  // of the file just selected. If it's a mention challenge with no video yet,
+  // side B shows as an upload zone.
   const responseUrl = needsVideo ? responsePreview : c.targetVideoUrl
   const videos = [
     { url: c.challengerVideoUrl, author: c.from, tag: 'A', tagColor: GOLD, isResponse: false },
@@ -79,7 +79,7 @@ const ChallengeSlide = ({ c, busy, onAccept, onReject }) => {
   return (
     <div className="relative w-full h-full bg-black overflow-hidden">
       <input ref={fileRef} type="file" accept="video/*" className="hidden" onChange={onFileChange} />
-      {/* Carrusel horizontal de vídeos A / B */}
+      {/* Horizontal carousel of videos A / B */}
       <Swiper
         direction="horizontal"
         nested
@@ -104,25 +104,25 @@ const ChallengeSlide = ({ c, busy, onAccept, onReject }) => {
                     className="absolute inset-0 w-full h-full object-cover"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black via-black/25 to-black/40" />
-                  {/* Etiqueta del lado */}
+                  {/* Side label */}
                   <span
                     className="absolute top-[72px] left-4 z-10 text-[11px] font-bold bg-black/45 backdrop-blur rounded-full px-2.5 py-1"
                     style={{ color: v.tagColor }}
                   >
                     {v.tag} · @{v.author?.username}
                   </span>
-                  {/* Si es mi respuesta recién subida, permitir cambiarla */}
+                  {/* If it's my freshly uploaded response, allow changing it */}
                   {v.isResponse && needsVideo && (
                     <button
                       onClick={pickFile}
                       className="absolute top-[72px] right-4 z-10 text-[11px] font-semibold bg-black/55 backdrop-blur rounded-full px-3 py-1 text-white border border-white/15 hover:bg-black/70 active:scale-95 transition"
                     >
-                      Cambiar vídeo
+                      Change video
                     </button>
                   )}
                 </>
               ) : (
-                // Lado B sin vídeo (reto con mención) -> zona para subir mi respuesta.
+                // Side B with no video (mention challenge) -> zone to upload my response.
                 <button
                   onClick={pickFile}
                   className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-zinc-900 active:bg-zinc-800 transition"
@@ -133,8 +133,8 @@ const ChallengeSlide = ({ c, busy, onAccept, onReject }) => {
                   <div className="w-16 h-16 rounded-full border border-white/15 bg-white/[0.04] flex items-center justify-center">
                     <Film className="w-7 h-7 text-zinc-400" strokeWidth={1.5} />
                   </div>
-                  <span className="text-white font-semibold text-[15px]">Sube tu vídeo de respuesta</span>
-                  <span className="text-zinc-500 text-[13px]">Toca para grabar o elegir</span>
+                  <span className="text-white font-semibold text-[15px]">Upload your response video</span>
+                  <span className="text-zinc-500 text-[13px]">Tap to record or pick</span>
                 </button>
               )}
             </div>
@@ -142,23 +142,23 @@ const ChallengeSlide = ({ c, busy, onAccept, onReject }) => {
         ))}
       </Swiper>
 
-      {/* Pista para deslizar */}
+      {/* Swipe hint */}
       {videos.length > 1 && (
         <div className="absolute top-[72px] left-1/2 -translate-x-1/2 z-10 pointer-events-none bg-black/45 backdrop-blur text-white/90 text-[10px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap">
-          Desliza para ver el otro vídeo
+          Swipe to see the other video
         </div>
       )}
 
-      {/* Panel inferior compacto (fijo, no se mueve con el carrusel) */}
+      {/* Compact bottom panel (fixed, does not move with the carousel) */}
       <div className="absolute inset-x-0 bottom-0 z-20 px-4 pt-8"
            style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 14px)' }}>
-        {/* Puntitos del carrusel */}
+        {/* Carousel dots */}
         {videos.length > 1 && (
           <div className="flex items-center justify-center gap-1.5 mb-2.5">
             {videos.map((_, i) => (
               <button
                 key={i}
-                aria-label={`vídeo ${i + 1}`}
+                aria-label={`video ${i + 1}`}
                 onClick={() => innerRef.current?.slideTo(i)}
                 className={`rounded-full transition-all duration-200 ${idx === i ? 'w-5 h-1.5 bg-white' : 'w-1.5 h-1.5 bg-white/40'}`}
               />
@@ -167,7 +167,7 @@ const ChallengeSlide = ({ c, busy, onAccept, onReject }) => {
         )}
 
         <div className="rounded-2xl border border-white/10 bg-black/40 backdrop-blur-xl px-3 py-2.5">
-          {/* Participantes en una sola línea compacta */}
+          {/* Participants on a single compact line */}
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-2 min-w-0 flex-1">
               <RingAvatar src={c.from?.avatarUrl} size="w-8 h-8" />
@@ -180,7 +180,7 @@ const ChallengeSlide = ({ c, busy, onAccept, onReject }) => {
             </div>
           </div>
 
-          {/* En retos con mención: opción de subir el vídeo ANTES de aceptar. */}
+          {/* For mention challenges: option to upload the video BEFORE accepting. */}
           {needsVideo && (
             <button
               onClick={pickFile}
@@ -188,11 +188,11 @@ const ChallengeSlide = ({ c, busy, onAccept, onReject }) => {
               className="w-full h-10 mt-2.5 rounded-full border border-white/20 text-white font-semibold text-[14px] flex items-center justify-center gap-1.5 hover:bg-white/[0.06] active:scale-[0.99] transition disabled:opacity-50"
             >
               <Film size={16} strokeWidth={2} />
-              {responseFile ? 'Cambiar mi vídeo' : 'Subir mi vídeo'}
+              {responseFile ? 'Change my video' : 'Upload my video'}
             </button>
           )}
 
-          {/* Acciones compactas */}
+          {/* Compact actions */}
           <div className="flex gap-2 mt-2.5">
             <button
               onClick={handleAccept}
@@ -200,13 +200,13 @@ const ChallengeSlide = ({ c, busy, onAccept, onReject }) => {
               className="flex-1 h-10 rounded-full bg-white text-black font-semibold text-[14px] flex items-center justify-center gap-1.5 hover:bg-zinc-100 active:scale-[0.99] transition disabled:opacity-50"
             >
               {busy ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} strokeWidth={2.5} />}
-              {needsVideo && !responseFile ? 'Subir y aceptar' : 'Aceptar reto'}
+              {needsVideo && !responseFile ? 'Upload & accept' : 'Accept challenge'}
             </button>
             <button
               onClick={() => onReject(c)}
               disabled={busy}
               className="shrink-0 w-12 h-10 rounded-full border border-white/20 text-white flex items-center justify-center hover:bg-white/[0.06] active:scale-[0.99] transition disabled:opacity-50"
-              aria-label="Rechazar"
+              aria-label="Reject"
             >
               <X size={18} />
             </button>
@@ -242,12 +242,12 @@ export default function ActiveChallengesPage({ open, onClose, onAccepted, onChan
     try {
       let res
       if (file) {
-        // Reto con mención: subimos el vídeo de respuesta del retado.
+        // Mention challenge: we upload the challenged user's response video.
         const fd = new FormData()
         fd.append('file', file)
         res = await fetch(`/api/challenges/${c.id}/accept`, { method: 'POST', body: fd })
       } else {
-        // Reto a un contenido concreto (ya trae targetVideoUrl).
+        // Challenge to a specific content (already carries targetVideoUrl).
         res = await fetch(`/api/challenges/${c.id}/accept`, { method: 'POST' })
       }
       if (res.ok) {
@@ -272,22 +272,22 @@ export default function ActiveChallengesPage({ open, onClose, onAccepted, onChan
 
   return (
     <div className="fixed inset-0 z-[58] bg-[#0a0a0b] overflow-hidden">
-      {/* Header — control segmentado */}
+      {/* Header — segmented control */}
       <div className="absolute top-0 left-0 right-0 z-40 px-6 pb-4 bg-gradient-to-b from-black/70 to-transparent"
            style={{ paddingTop: 'max(env(safe-area-inset-top), 14px)' }}>
         <div className="flex items-center justify-center">
           <div className="inline-flex p-1 rounded-full bg-black/40 border border-white/15 backdrop-blur-md">
             <button onClick={onClose} className="px-5 py-1.5 rounded-full text-[13px] font-medium text-zinc-200 hover:text-white transition">
-              Completados
+              Completed
             </button>
             <button className="px-5 py-1.5 rounded-full text-[13px] font-semibold bg-white text-black transition">
-              Activos
+              Active
             </button>
           </div>
         </div>
       </div>
 
-      {/* Contenido a pantalla completa */}
+      {/* Full-screen content */}
       {loading ? (
         <div className="w-full h-full flex items-center justify-center">
           <Loader2 className="w-7 h-7 animate-spin text-zinc-400" />
@@ -298,9 +298,9 @@ export default function ActiveChallengesPage({ open, onClose, onAccepted, onChan
                style={{ boxShadow: '0 0 48px -14px rgba(255,255,255,0.42)' }}>
             <Swords className="w-9 h-9" strokeWidth={1.25} style={{ color: GOLD }} />
           </div>
-          <h2 className="text-white text-[22px] font-semibold tracking-tight">Sin retos activos</h2>
+          <h2 className="text-white text-[22px] font-semibold tracking-tight">No active challenges</h2>
           <p className="text-zinc-400 text-[15px] mt-2 max-w-[17rem] leading-relaxed">
-            Cuando alguien te rete, la solicitud aparecerá aquí para aceptarla o rechazarla.
+            When someone challenges you, the request will appear here to accept or reject.
           </p>
         </div>
       ) : (

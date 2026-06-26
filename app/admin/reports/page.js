@@ -15,12 +15,12 @@ function authHeaders() {
 
 const REASON_COLORS = {
   Spam: 'bg-yellow-500/15 text-yellow-300',
-  'Contenido inapropiado': 'bg-orange-500/15 text-orange-300',
-  Acoso: 'bg-red-500/15 text-red-300',
-  Violencia: 'bg-red-600/20 text-red-300',
-  Desnudez: 'bg-pink-500/15 text-pink-300',
-  'Información falsa': 'bg-blue-500/15 text-blue-300',
-  Otro: 'bg-zinc-500/15 text-zinc-300',
+  'Inappropriate content': 'bg-orange-500/15 text-orange-300',
+  Harassment: 'bg-red-500/15 text-red-300',
+  Violence: 'bg-red-600/20 text-red-300',
+  Nudity: 'bg-pink-500/15 text-pink-300',
+  'False information': 'bg-blue-500/15 text-blue-300',
+  Other: 'bg-zinc-500/15 text-zinc-300',
 }
 
 export default function AdminReportsPage() {
@@ -49,10 +49,10 @@ export default function AdminReportsPage() {
         const data = await res.json()
         setReports(data.reports || [])
       } else {
-        setError('Error al cargar reportes')
+        setError('Error loading reports')
       }
     } catch {
-      setError('Error de red')
+      setError('Network error')
     } finally {
       setLoading(false)
     }
@@ -93,7 +93,7 @@ export default function AdminReportsPage() {
     }
   }
 
-  // Estados de pantalla
+  // Screen states
   if (authLoading || loading) {
     return (
       <div className="min-h-[100dvh] bg-black text-white flex items-center justify-center">
@@ -106,9 +106,9 @@ export default function AdminReportsPage() {
     return (
       <div className="min-h-[100dvh] bg-black text-white flex flex-col items-center justify-center gap-3 px-6 text-center">
         <ShieldAlert className="w-12 h-12 text-red-500" />
-        <h1 className="text-xl font-bold">Acceso denegado</h1>
-        <p className="text-white/60 text-sm max-w-xs">Esta página es solo para administradores.</p>
-        <a href="/" className="mt-2 px-4 py-2 rounded-full bg-white text-black text-sm font-semibold">Volver al inicio</a>
+        <h1 className="text-xl font-bold">Access denied</h1>
+        <p className="text-white/60 text-sm max-w-xs">This page is for administrators only.</p>
+        <a href="/" className="mt-2 px-4 py-2 rounded-full bg-white text-black text-sm font-semibold">Back to home</a>
       </div>
     )
   }
@@ -119,10 +119,10 @@ export default function AdminReportsPage() {
         <header className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2">
             <ShieldAlert className="w-6 h-6 text-red-500" />
-            <h1 className="text-xl font-bold">Moderación</h1>
-            <span className="ml-1 text-xs px-2 py-0.5 rounded-full bg-white/10 text-white/70">{reports.length} pendientes</span>
+            <h1 className="text-xl font-bold">Moderation</h1>
+            <span className="ml-1 text-xs px-2 py-0.5 rounded-full bg-white/10 text-white/70">{reports.length} pending</span>
           </div>
-          <button onClick={load} className="p-2 rounded-full hover:bg-white/10 active:scale-90 transition" aria-label="recargar">
+          <button onClick={load} className="p-2 rounded-full hover:bg-white/10 active:scale-90 transition" aria-label="reload">
             <RefreshCw className="w-5 h-5 text-white/70" />
           </button>
         </header>
@@ -134,7 +134,7 @@ export default function AdminReportsPage() {
         {reports.length === 0 ? (
           <div className="text-center py-20 text-white/40">
             <Check className="w-10 h-10 mx-auto mb-3 text-green-500/70" />
-            <p>No hay reportes pendientes.</p>
+            <p>No pending reports.</p>
           </div>
         ) : (
           <ul className="space-y-3">
@@ -151,7 +151,7 @@ export default function AdminReportsPage() {
                         ? <UserIcon className="w-4 h-4 text-white/50" />
                         : <Film className="w-4 h-4 text-white/50" />}
                       <span className="text-[13px] uppercase tracking-wide text-white/50">
-                        {r.targetType === 'user' ? 'Usuario' : 'Publicación'}
+                        {r.targetType === 'user' ? 'User' : 'Post'}
                       </span>
                     </div>
                     <span className={`text-[12px] font-semibold px-2.5 py-1 rounded-full inline-flex items-center gap-1 ${REASON_COLORS[r.reason] || 'bg-zinc-700 text-white'}`}>
@@ -161,16 +161,16 @@ export default function AdminReportsPage() {
 
                   <div className="mt-3 text-sm space-y-1">
                     <p className="text-white/80">
-                      Objetivo: <span className="font-medium">{targetName}</span>
+                      Target: <span className="font-medium">{targetName}</span>
                     </p>
                     {r.reporter?.username && (
-                      <p className="text-white/50 text-[13px]">Reportado por @{r.reporter.username}</p>
+                      <p className="text-white/50 text-[13px]">Reported by @{r.reporter.username}</p>
                     )}
                     <p className="text-white/40 text-[12px]">
-                      {r.createdAt ? new Date(r.createdAt).toLocaleString('es') : ''}
+                      {r.createdAt ? new Date(r.createdAt).toLocaleString('en') : ''}
                     </p>
                     {r.targetUser?.suspended && (
-                      <p className="text-red-400 text-[12px] font-medium">Este usuario ya está suspendido</p>
+                      <p className="text-red-400 text-[12px] font-medium">This user is already suspended</p>
                     )}
                   </div>
 
@@ -183,7 +183,7 @@ export default function AdminReportsPage() {
                         onChange={(e) => setSuspendMap((m) => ({ ...m, [r.id]: e.target.checked }))}
                         className="w-4 h-4 accent-red-500"
                       />
-                      <Ban className="w-4 h-4" /> Suspender usuario
+                      <Ban className="w-4 h-4" /> Suspend user
                     </label>
 
                     <div className="flex items-center gap-2 ml-auto">
@@ -192,14 +192,14 @@ export default function AdminReportsPage() {
                         onClick={() => dismiss(r.id)}
                         className="px-3.5 py-2 rounded-full bg-white/10 hover:bg-white/15 text-white text-[13px] font-semibold inline-flex items-center gap-1.5 disabled:opacity-50"
                       >
-                        <X className="w-4 h-4" /> Descartar
+                        <X className="w-4 h-4" /> Dismiss
                       </button>
                       <button
                         disabled={acting}
                         onClick={() => review(r.id)}
                         className="px-3.5 py-2 rounded-full bg-red-600 hover:bg-red-500 text-white text-[13px] font-semibold inline-flex items-center gap-1.5 disabled:opacity-50"
                       >
-                        {acting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Revisar
+                        {acting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Review
                       </button>
                     </div>
                   </div>

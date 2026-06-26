@@ -638,7 +638,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
                 .then((d) => { if (d && typeof d.following === 'boolean') setFollowing(d.following); })
                 .catch(() => setFollowing((f) => !f));
             }}
-            aria-label="seguir"
+            aria-label="follow"
             className={cn(
               'shrink-0 px-3 py-1 rounded-lg border text-[13px] font-medium transition-all duration-200 active:scale-95',
               following ? 'border-white/40 bg-white/15 text-white' : 'border-white/90 text-white'
@@ -658,7 +658,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
         className="absolute z-20 right-1 bottom-[72px] flex flex-col items-center gap-4 pointer-events-auto"
       >
         {/* Votos */}
-        <button aria-label="votos" onClick={(e) => e.stopPropagation()} className="flex flex-col items-center gap-0.5 w-14 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
+        <button aria-label="votes" onClick={(e) => e.stopPropagation()} className="flex flex-col items-center gap-0.5 w-14 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
           <span style={{ color: userVote === 'a' ? '#A855F7' : userVote === 'b' ? '#3B82F6' : '#fff', display: 'inline-flex', transition: 'color 200ms' }}>
             <VoteIcon className="w-[36px] h-[36px]" strokeWidth={180} filled={!!userVote} />
           </span>
@@ -668,7 +668,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
         </button>
         {/* Retar — abre un selector A/B para elegir explícitamente a qué opción retar. */}
         {!hideChallenge && headAuthor?.username !== user?.username && (
-          <button aria-label="retar" onClick={(e) => { 
+          <button aria-label="challenge" onClick={(e) => { 
             e.stopPropagation(); 
             if (!user) {
               setAuthModalOpen(true);
@@ -728,7 +728,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
         <button
           type="button"
           onClick={() => setChallengePickOpen(false)}
-          aria-label="cerrar"
+          aria-label="close"
           className="flex justify-center items-center w-full pt-2 pb-1 shrink-0 active:scale-90 transition"
         >
           <ChevronDown className="w-5 h-5 text-zinc-500" strokeWidth={2.2} />

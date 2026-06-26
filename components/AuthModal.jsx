@@ -11,10 +11,10 @@ const BRAND_GRADIENT = 'linear-gradient(90deg, #A855F7 0%, #3B82F6 100%)'
 
 // Pasos del registro, en orden (estilo TikTok: uno por pantalla).
 const REG_STEPS = [
-  { key: 'birthdate', title: '¿Cuál es tu fecha de nacimiento?', subtitle: 'Tu fecha de nacimiento no se mostrará públicamente.' },
-  { key: 'email', title: '¿Cuál es tu correo?', subtitle: 'Te enviaremos información importante a este correo.' },
-  { key: 'password', title: 'Crea una contraseña', subtitle: 'Usa al menos 6 caracteres.' },
-  { key: 'username', title: 'Crea tu nombre de usuario', subtitle: 'Así te encontrarán en Twyk. Podrás cambiarlo más adelante.' },
+  { key: 'birthdate', title: "What's your date of birth?", subtitle: "Your date of birth won't be shown publicly." },
+  { key: 'email', title: "What's your email?", subtitle: "We'll send important information to this email." },
+  { key: 'password', title: 'Create a password', subtitle: 'Use at least 6 characters.' },
+  { key: 'username', title: 'Create your username', subtitle: 'This is how people will find you on Twyk. You can change it later.' },
 ]
 
 // Calcula la edad en años a partir de 'YYYY-MM-DD'. Devuelve null si no es válida.
@@ -99,13 +99,13 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
       )
       if (result.success) {
         onClose()
-      } else if (result.error && /menores de 13/i.test(result.error)) {
+      } else if (result.error && /under 13|menores de 13/i.test(result.error)) {
         setAgeBlocked(true)
       } else {
-        setError(result.error || 'Error al registrarse')
+        setError(result.error || 'Sign up error')
       }
     } catch {
-      setError('Error al registrarse')
+      setError('Sign up error')
     } finally {
       setLoading(false)
     }
@@ -118,16 +118,16 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
     const key = REG_STEPS[regStep].key
 
     if (key === 'birthdate') {
-      if (!registerData.birthDate) { setError('Introduce tu fecha de nacimiento'); return }
+      if (!registerData.birthDate) { setError('Enter your date of birth'); return }
       const age = computeAge(registerData.birthDate)
-      if (age === null) { setError('Fecha de nacimiento no válida'); return }
+      if (age === null) { setError('Invalid date of birth'); return }
       if (age < 13) { setAgeBlocked(true); return }
     } else if (key === 'email') {
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(registerData.email)) { setError('Introduce un correo válido'); return }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(registerData.email)) { setError('Enter a valid email'); return }
     } else if (key === 'password') {
-      if (registerData.password.length < 6) { setError('La contraseña debe tener al menos 6 caracteres'); return }
+      if (registerData.password.length < 6) { setError('Password must be at least 6 characters'); return }
     } else if (key === 'username') {
-      if (registerData.username.trim().length < 3) { setError('El usuario debe tener al menos 3 caracteres'); return }
+      if (registerData.username.trim().length < 3) { setError('Username must be at least 3 characters'); return }
       await doRegister()
       return
     }
@@ -141,9 +141,9 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
     try {
       const result = await login(loginData.username, loginData.password)
       if (result.success) onClose()
-      else setError(result.error || 'Error al iniciar sesión')
+      else setError(result.error || 'Sign in error')
     } catch {
-      setError('Error al iniciar sesión')
+      setError('Sign in error')
     } finally {
       setLoading(false)
     }
@@ -175,7 +175,7 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
         <div className="relative z-10 flex items-center h-12 px-3 shrink-0"
              style={{ paddingTop: 'max(env(safe-area-inset-top), 6px)' }}>
           {step === 'methods' || ageBlocked ? (
-            <button aria-label="cerrar" onClick={onClose} className="mx-auto p-2 text-white/70 active:scale-90 transition">
+            <button aria-label="close" onClick={onClose} className="mx-auto p-2 text-white/70 active:scale-90 transition">
               <ChevronDown strokeWidth={2.2} className="w-7 h-7" />
             </button>
           ) : (
@@ -192,15 +192,15 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
               <div className="w-16 h-16 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-5">
                 <ShieldAlert className="w-8 h-8 text-red-400" strokeWidth={1.7} />
               </div>
-              <h2 className="text-[20px] font-bold mb-2">Twyk no está disponible para menores de 13 años</h2>
+              <h2 className="text-[20px] font-bold mb-2">Twyk isn&apos;t available for users under 13</h2>
               <p className="text-white/50 text-[14px] leading-relaxed max-w-[320px]">
-                De acuerdo con la ley COPPA de EEUU, no permitimos el registro de menores de 13 años. No podemos crear tu cuenta.
+                In accordance with the U.S. COPPA law, we don&apos;t allow registration for users under 13. We can&apos;t create your account.
               </p>
               <button
                 onClick={() => { setAgeBlocked(false); switchMode('login') }}
                 className="mt-7 w-full h-12 rounded-full bg-white/10 text-white text-[15px] font-semibold hover:bg-white/15 active:scale-[0.98] transition-all"
               >
-                Entendido
+                Got it
               </button>
             </div>
           </div>
@@ -211,12 +211,12 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
               <div className="max-w-[420px] mx-auto w-full pt-3">
                 <div className="text-center mb-7">
                   <h1 className="text-[28px] font-extrabold tracking-tight leading-tight">
-                    {isRegister ? 'Regístrate en Twyk' : 'Inicia sesión en Twyk'}
+                    {isRegister ? 'Sign up for Twyk' : 'Log in to Twyk'}
                   </h1>
                   <p className="text-white/50 text-[15px] mt-2 leading-snug max-w-[320px] mx-auto">
                     {isRegister
-                      ? 'Crea tu perfil, vota retos, sube tus vídeos y reta a otros creadores.'
-                      : 'Accede para votar retos, subir tus vídeos y retar a otros.'}
+                      ? 'Create your profile, vote on challenges, upload your videos and challenge other creators.'
+                      : 'Log in to vote on challenges, upload your videos and challenge others.'}
                   </p>
                 </div>
                 <button
@@ -225,13 +225,13 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
                   style={{ background: BRAND_GRADIENT }}
                 >
                   {isRegister ? <AtSign className="w-5 h-5" strokeWidth={2.2} /> : <User className="w-5 h-5" strokeWidth={2.2} />}
-                  {isRegister ? 'Usar correo o usuario' : 'Usar usuario y contraseña'}
+                  {isRegister ? 'Use email or username' : 'Use username and password'}
                 </button>
                 <p className="mt-6 text-center text-white/40 text-[12px] leading-relaxed">
-                  Al continuar aceptas nuestros{' '}
-                  <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-white/70 underline hover:text-white">Términos de Uso</a>
-                  {' '}y{' '}
-                  <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-white/70 underline hover:text-white">Política de Privacidad</a>
+                  By continuing you accept our{' '}
+                  <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-white/70 underline hover:text-white">Terms of Use</a>
+                  {' '}and{' '}
+                  <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-white/70 underline hover:text-white">Privacy Policy</a>
                 </p>
               </div>
             </div>
@@ -239,16 +239,16 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
                  style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 14px)' }}>
               {isRegister ? (
                 <p className="text-white/60 text-[14px]">
-                  ¿Ya tienes una cuenta?{' '}
+                  Already have an account?{' '}
                   <button onClick={() => switchMode('login')} className="font-bold bg-clip-text text-transparent" style={{ backgroundImage: BRAND_GRADIENT }}>
-                    Inicia sesión
+                    Log in
                   </button>
                 </p>
               ) : (
                 <p className="text-white/60 text-[14px]">
-                  ¿No tienes cuenta?{' '}
+                  Don&apos;t have an account?{' '}
                   <button onClick={() => switchMode('register')} className="font-bold bg-clip-text text-transparent" style={{ backgroundImage: BRAND_GRADIENT }}>
-                    Regístrate
+                    Sign up
                   </button>
                 </p>
               )}
@@ -288,7 +288,7 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
                       autoFocus
                       value={registerData.email}
                       onChange={(e) => setRegisterData({ ...registerData, email: e.target.value })}
-                      placeholder="tu@correo.com"
+                      placeholder="you@email.com"
                       className={inputWithIcon}
                       required
                     />
@@ -303,7 +303,7 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
                       autoFocus
                       value={registerData.password}
                       onChange={(e) => setRegisterData({ ...registerData, password: e.target.value })}
-                      placeholder="Contraseña"
+                      placeholder="Password"
                       className={inputWithIcon}
                       required
                       minLength={6}
@@ -319,7 +319,7 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
                       autoFocus
                       value={registerData.username}
                       onChange={(e) => setRegisterData({ ...registerData, username: e.target.value })}
-                      placeholder="usuario"
+                      placeholder="username"
                       className={inputWithIcon}
                       required
                       minLength={3}
@@ -331,10 +331,10 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
 
                 {isLastRegStep && (
                   <p className="mt-6 text-white/40 text-[12px] leading-relaxed">
-                    Al crear tu cuenta aceptas nuestros{' '}
-                    <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-white/70 underline hover:text-white">Términos de Uso</a>
-                    {' '}y{' '}
-                    <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-white/70 underline hover:text-white">Política de Privacidad</a>
+                    By creating your account you accept our{' '}
+                    <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-white/70 underline hover:text-white">Terms of Use</a>
+                    {' '}and{' '}
+                    <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-white/70 underline hover:text-white">Privacy Policy</a>
                   </p>
                 )}
               </div>
@@ -346,7 +346,7 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
                 {loading ? (
                   <div className="w-5 h-5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
                 ) : (
-                  isLastRegStep ? 'Crear cuenta' : 'Continuar'
+                  isLastRegStep ? 'Create account' : 'Continue'
                 )}
               </button>
             </div>
@@ -356,8 +356,8 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
           <form onSubmit={handleLogin} className="relative z-10 flex-1 min-h-0 flex flex-col">
             <div className="flex-1 min-h-0 overflow-y-auto px-6">
               <div className="max-w-[420px] mx-auto w-full pt-2">
-                <h1 className="text-[26px] font-extrabold tracking-tight leading-tight mb-1">Inicia sesión</h1>
-                <p className="text-white/50 text-[14px] mb-7">Introduce tu usuario y contraseña.</p>
+                <h1 className="text-[26px] font-extrabold tracking-tight leading-tight mb-1">Log in</h1>
+                <p className="text-white/50 text-[14px] mb-7">Enter your username and password.</p>
 
                 <div className="space-y-4">
                   <div className="relative">
@@ -367,7 +367,7 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
                       autoFocus
                       value={loginData.username}
                       onChange={(e) => setLoginData({ ...loginData, username: e.target.value })}
-                      placeholder="Usuario"
+                      placeholder="Username"
                       className={inputWithIcon}
                       required
                     />
@@ -378,7 +378,7 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
                       type="password"
                       value={loginData.password}
                       onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
-                      placeholder="Contraseña"
+                      placeholder="Password"
                       className={inputWithIcon}
                       required
                     />
@@ -397,14 +397,14 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
                 ) : (
                   <>
                     <LogIn className="w-5 h-5" strokeWidth={2.2} />
-                    Iniciar sesión
+                    Log in
                   </>
                 )}
               </button>
               <p className="text-white/60 text-[14px] text-center mt-4">
-                ¿No tienes cuenta?{' '}
+                Don&apos;t have an account?{' '}
                 <button type="button" onClick={() => switchMode('register')} className="font-bold bg-clip-text text-transparent" style={{ backgroundImage: BRAND_GRADIENT }}>
-                  Regístrate
+                  Sign up
                 </button>
               </p>
             </div>
