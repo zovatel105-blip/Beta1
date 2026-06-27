@@ -342,6 +342,39 @@ export default function Feed() {
     return () => controllers.forEach((c) => { try { c.abort() } catch { /* ignore */ } })
   }, [activeIndex, posts])
 
+  // TWYK Engine — señal de watch-time: al pasar a otra tarjeta, reporta el
+  // tiempo de permanencia del post ANTERIOR a /api/track (alimenta retención y
+  // completion del recomendador). No intrusivo: 1 beacon por cambio de tarjeta.
+  const watchRef = useRef({ id: null, since: Date.now(), duration: 12 })
+  useEffect(() => {
+    const prev = watchRef.current
+    const now = Date.now()
+    const cur = posts[activeIndex]
+    if (prev.id && prev.id !== cur?.id) {
+      const dwellMs = now - prev.since
+      const durMs = Math.max(3, prev.duration || 12) * 1000
+      if (dwellMs > 800) {
+        let auth = {}
+        try { const t = localStorage.getItem('twyk_token'); if (t) auth = { Authorization: `Bearer ${t}` } } catch { /* ignore */ }
+        try {
+          fetch('/api/track', {
+            method: 'POST',
+            credentials: 'include',
+            keepalive: true,
+            headers: { 'Content-Type': 'application/json', ...auth },
+            body: JSON.stringify({
+              id: prev.id, kind: 'watch',
+              watchMs: Math.min(dwellMs, durMs * 3),
+              durationMs: durMs,
+              completed: dwellMs >= durMs * 0.9,
+            }),
+          }).catch(() => {})
+        } catch { /* ignore */ }
+      }
+    }
+    watchRef.current = { id: cur?.id || null, since: now, duration: cur?.duration }
+  }, [activeIndex, posts])
+
   const onFirstInteraction = useCallback(() => setMuted(false), [])
 
   const handleUploaded = useCallback((newPost) => {

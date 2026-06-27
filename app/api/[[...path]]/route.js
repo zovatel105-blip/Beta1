@@ -56,7 +56,7 @@ import {
   getAllBuiltinVotes,
   incrementBuiltinVote,
 } from '@/lib/stores'
-import { rankFeed, recordVote, recordImpressions } from '@/lib/recommender'
+import { rankFeed, recordVote, recordImpressions, recordWatch, computeMetrics } from '@/lib/recommender'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -398,6 +398,21 @@ export async function GET(request, { params }) {
   const segs = (params?.path) || []
   const path = '/' + segs.join('/')
 
+  if (path === '/admin/reco/metrics') {
+    const currentUser = await getCurrentUser(request)
+    if (!isAdmin(currentUser)) {
+      return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+    }
+    try {
+      const { searchParams } = new URL(request.url)
+      const k = Math.min(parseInt(searchParams.get('k') || '10', 10), 50)
+      const metrics = await computeMetrics({ k })
+      return NextResponse.json({ ok: true, metrics })
+    } catch (err) {
+      return NextResponse.json({ error: 'metrics_failed', detail: String(err?.message || err) }, { status: 500 })
+    }
+  }
+
   if (path === '/reco/selftest') {
     // Auto-test del motor: entrena un viewer efímero donde "food" gana siempre
     // y verifica que la personalización lo prioriza claramente.
@@ -474,8 +489,9 @@ export async function GET(request, { params }) {
     // Refresca avatares denormalizados con los datos actuales del autor.
     posts = await refreshPostAvatars(posts)
 
-    // Registra impresiones (anti-fatiga + denominador de engagement). Fire-and-forget.
-    recordImpressions(posts.map((p) => p.id), viewerKey).catch(() => {})
+    // Registra impresiones (anti-fatiga + denominador de engagement + posición
+    // para NDCG). Fire-and-forget.
+    recordImpressions(posts.map((p) => p.id), viewerKey, cursor).catch(() => {})
 
     const payload = { posts, nextCursor: cursor + limit, hasMore: true }
     if (debug) {
@@ -836,6 +852,10 @@ export async function POST(request, { params }) {
     return handleVote(request)
   }
 
+  if (path === '/track') {
+    return handleTrack(request)
+  }
+
   // POST /api/comments - Crear un nuevo comentario
   if (path === '/comments') {
     return handleCreateComment(request)
@@ -1182,6 +1202,45 @@ async function handleDuetUpload(request) {
   }
 }
 
+// POST /api/track  body: { id, kind:'watch', watchMs, durationMs, completed }
+// Señal de watch-time / completion para el TWYK Engine. Reconstruye el post
+// (upload o demo) para poder asociar la señal a sus categorías.
+async function handleTrack(request) {
+  try {
+    const body = await request.json().catch(() => null)
+    const id = body?.id
+    if (!id) return NextResponse.json({ error: 'bad_request' }, { status: 400 })
+    const kind = body?.kind || 'watch'
+    if (kind !== 'watch') return NextResponse.json({ ok: true })
+
+    const currentUser = await getCurrentUser(request)
+    const gid = request.cookies.get('twyk_gid')?.value
+    const viewerKey = currentUser?.id ? `u:${currentUser.id}` : (gid ? `g:${gid}` : null)
+
+    // Reconstruye el post para asociar la visualización a sus categorías.
+    let post = { id }
+    try {
+      if (String(id).startsWith('versus_')) {
+        const n = parseInt(String(id).split('_')[1], 10)
+        if (!isNaN(n)) post = makePosts(n, 1)[0]
+      } else {
+        const meta = await readUploadMeta()
+        const found = (meta || []).find((p) => p.id === id)
+        if (found) post = found
+      }
+    } catch { /* usa { id } */ }
+
+    const watchMs = Math.max(0, Number(body?.watchMs) || 0)
+    const durationMs = Math.max(0, Number(body?.durationMs) || 0)
+    const completed = !!body?.completed
+
+    recordWatch(post, { watchMs, durationMs, completed }, viewerKey, { hour: new Date().getHours() }).catch(() => {})
+    return NextResponse.json({ ok: true })
+  } catch (err) {
+    return NextResponse.json({ error: 'track_failed', detail: String(err?.message || err) }, { status: 500 })
+  }
+}
+
 // POST /api/vote   body: { id, side: 'a'|'b' }
 // Increments the vote counter for that side of a duet/versus post.
 // Uploads persist in _meta.json; built-in feed posts persist in _votes.json.
@@ -1197,14 +1256,19 @@ async function handleVote(request) {
     const currentUser = await getCurrentUser(request)
     const gid = request.cookies.get('twyk_gid')?.value
     const viewerKey = currentUser?.id ? `u:${currentUser.id}` : (gid ? `g:${gid}` : null)
-
+    // Contexto para anti-manipulación: antigüedad de cuenta + tipo de viewer.
+    const voteCtx = {
+      hour: new Date().getHours(),
+      isGuest: !currentUser,
+      accountAgeMin: currentUser?.createdAt ? (Date.now() - new Date(currentUser.createdAt).getTime()) / 60000 : null,
+    }
     // 1) Publicaciones subidas (versus/1vs1/reto) -> incremento ATÓMICO en
     //    MongoDB (colección `posts`). Un único $inc evita la race condition de
     //    votos simultáneos. Devuelve el post actualizado (o null si no existe).
     const updated = await incrementPostVote(id, side)
     if (updated) {
       // TWYK Engine: aprende del voto (velocity trending + BPR pairwise).
-      recordVote(updated, side, viewerKey, { hour: new Date().getHours() }).catch(() => {})
+      recordVote(updated, side, viewerKey, voteCtx).catch(() => {})
       // Notificar al autor del lado votado (en retos sideA/sideB pueden ser
       // usuarios distintos; en versus/1vs1 normales ambos lados son el mismo autor).
       try {
@@ -1237,7 +1301,7 @@ async function handleVote(request) {
       const n = parseInt(String(id).split('_')[1], 10)
       if (!isNaN(n)) {
         const demoPost = makePosts(n, 1)[0]
-        if (demoPost) recordVote(demoPost, side, viewerKey, { hour: new Date().getHours() }).catch(() => {})
+        if (demoPost) recordVote(demoPost, side, viewerKey, voteCtx).catch(() => {})
       }
     } catch { /* ignore */ }
     return NextResponse.json({ ok: true, votes })
