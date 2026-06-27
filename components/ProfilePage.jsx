@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Menu, Bookmark, Swords, Users, UserPlus, ArrowLeft, LogOut, Camera, Loader2, X, Pencil, ShieldAlert, LogIn, CircleUserRound } from 'lucide-react'
+import { Menu, Bookmark, Swords, Users, UserPlus, ArrowLeft, LogOut, Camera, Loader2, X, Pencil, ShieldAlert, LogIn, CircleUserRound, Activity } from 'lucide-react'
 import VoteIcon from './icons/VoteIcon'
 import ShareIcon from './icons/ShareIcon'
 import { useAuth } from '@/contexts/AuthContext'
@@ -994,6 +994,15 @@ const SettingsDrawer = ({ open, onClose, onEdit, onLogout, isAdmin }) => {
               >
                 <ShieldAlert className="w-[19px] h-[19px]" strokeWidth={1.8} />
                 Moderation panel
+              </a>
+            )}
+            {isAdmin && (
+              <a
+                href="/admin/reco"
+                className="w-full flex items-center gap-3 px-4 py-4 text-cyan-300 hover:bg-cyan-500/10 active:bg-cyan-500/15 transition text-[15px] font-medium"
+              >
+                <Activity className="w-[19px] h-[19px]" strokeWidth={1.8} />
+                Engine dashboard
               </a>
             )}
             <button
