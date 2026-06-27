@@ -56,6 +56,7 @@ import {
   getAllBuiltinVotes,
   incrementBuiltinVote,
 } from '@/lib/stores'
+import { rankFeed, recordVote, recordImpressions } from '@/lib/recommender'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -299,12 +300,29 @@ const VIDEOS = [
 // Replace the first (we don't actually have 51265.mp4, swap to a downloaded id)
 VIDEOS[0].url = v(51330)
 
+// PRNG determinista por id: stats estables entre páginas (antes Math.random
+// devolvía números distintos en cada request, haciendo "saltar" los contadores).
+function seededRand(seedStr, salt) {
+  let h = 2166136261
+  const s = seedStr + ':' + salt
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) }
+  h = Math.imul(h ^ (h >>> 15), 2246822519)
+  return ((h >>> 0) / 4294967295)
+}
+
 function makePosts(start, count) {
   const posts = []
+  const L = VIDEOS.length
   for (let i = 0; i < count; i++) {
     const n = start + i
-    const a = VIDEOS[(2 * n) % VIDEOS.length]
-    const b = VIDEOS[(2 * n + 1) % VIDEOS.length]
+    // Emparejamiento determinista PERO diverso: desplaza el segundo lado en cada
+    // ciclo para no repetir el mismo par de vídeos hasta agotar combinaciones
+    // (el feed procedural antiguo repetía contenido cada 11 tarjetas).
+    const ai = (n * 2) % L
+    let bi = (n * 2 + 1 + Math.floor(n / L)) % L
+    if (bi === ai) bi = (bi + 1) % L
+    const a = VIDEOS[ai]
+    const b = VIDEOS[bi]
     const id = `versus_${n}`
     posts.push({
       id,
@@ -321,13 +339,15 @@ function makePosts(start, count) {
       posterUrl: posterFor(a.url),
       thumbnailUrl: posterFor(a.url),
       stats: {
-        likes: 1200 + Math.floor(Math.random() * 90000),
-        comments: 30 + Math.floor(Math.random() * 4000),
-        shares: 10 + Math.floor(Math.random() * 1200),
-        saves: 5 + Math.floor(Math.random() * 800),
+        likes: 1200 + Math.floor(seededRand(id, 'likes') * 90000),
+        comments: 30 + Math.floor(seededRand(id, 'comments') * 4000),
+        shares: 10 + Math.floor(seededRand(id, 'shares') * 1200),
+        saves: 5 + Math.floor(seededRand(id, 'saves') * 800),
       },
       votes: { a: 0, b: 0 },
-      duration: 12 + Math.floor(Math.random() * 30),
+      duration: 12 + Math.floor(seededRand(id, 'dur') * 30),
+      // Timestamp determinista para la señal de recency (n mayor = más antiguo).
+      createdAtMs: Date.now() - n * 18e5,
     })
   }
   return posts
@@ -378,21 +398,100 @@ export async function GET(request, { params }) {
   const segs = (params?.path) || []
   const path = '/' + segs.join('/')
 
+  if (path === '/reco/selftest') {
+    // Auto-test del motor: entrena un viewer efímero donde "food" gana siempre
+    // y verifica que la personalización lo prioriza claramente.
+    const viewer = 'g:selftest-' + Date.now()
+    const FOOD = '/videos/50324.mp4'
+    const FOOD2 = '/videos/51142.mp4'
+    const OTHERS = ['/videos/51140.mp4', '/videos/1149.mp4', '/videos/51160.mp4', '/videos/4467.mp4']
+    for (let i = 0; i < 30; i++) {
+      const loser = OTHERS[i % OTHERS.length]
+      const trainPost = {
+        id: 'st_train_' + i, author: { username: 'foodie' },
+        sideA: { videoUrl: FOOD, description: '#food #recipes', author: { username: 'foodie' } },
+        sideB: { videoUrl: loser, description: '#gaming #cars', author: { username: 'gamerzz' } },
+      }
+      await recordVote(trainPost, 'a', viewer, { hour: 12 })
+    }
+    const candidates = [
+      { id: 'st_food', author: { username: 'foodie' }, votes: { a: 100, b: 100 },
+        sideA: { videoUrl: FOOD, description: '#food', author: { username: 'foodie' } },
+        sideB: { videoUrl: FOOD2, description: '#food', author: { username: 'foodart' } } },
+      { id: 'st_other', author: { username: 'gamerzz' }, votes: { a: 100, b: 100 },
+        sideA: { videoUrl: OTHERS[1], description: '#gaming', author: { username: 'gamerzz' } },
+        sideB: { videoUrl: OTHERS[2], description: '#cars', author: { username: 'auto_speed' } } },
+    ]
+    const { items } = await rankFeed(candidates, { viewerKey: viewer, limit: 2, cursor: 0 })
+    const result = items.map((it) => ({ id: it.post.id, pers: it.dbg.pers, score: +it.score.toFixed(4) }))
+    const food = result.find((r) => r.id === 'st_food')
+    const other = result.find((r) => r.id === 'st_other')
+    const learned = !!(food && other && food.pers > other.pers + 0.05)
+    // Limpieza del viewer de prueba.
+    try {
+      const { getCollection } = await import('@/lib/mongodb')
+      const cols = ['reco_vectors', 'reco_profiles', 'reco_item_stats', 'reco_interactions']
+      for (const cn of cols) { const col = await getCollection(cn); await col.deleteMany({ $or: [{ key: viewer }, { viewerKey: viewer }, { id: { $regex: '^st_train_' } }] }) }
+    } catch { /* ignore */ }
+    return NextResponse.json({ ok: true, learned, viewer, result })
+  }
+
   if (path === '/feed') {
     const { searchParams } = new URL(request.url)
     const cursor = parseInt(searchParams.get('cursor') || '0', 10)
     const limit = Math.min(parseInt(searchParams.get('limit') || '8', 10), 20)
+    const debug = searchParams.get('debug') === '1'
 
-    // El feed sirve los posts integrados (demo) con sus votos persistidos en la
-    // colección `votes` (antes _votes.json). Las publicaciones subidas por los
-    // usuarios se entregan por separado vía GET /api/uploads (el frontend
-    // fusiona ambas fuentes), por lo que aquí NO se mezclan.
+    const currentUser = await getCurrentUser(request)
+
+    // Identidad del "viewer": usuario logueado (u:<id>) o invitado por cookie
+    // de dispositivo (g:<gid>). El invitado obtiene personalización a partir de
+    // su 2ª visita (la 1ª siembra la cookie); cold-start = ranking global.
+    const gid = request.cookies.get('twyk_gid')?.value
+    const viewerKey = currentUser?.id ? `u:${currentUser.id}` : (gid ? `g:${gid}` : null)
+
+    // ── Generación de candidatos: pool del feed integrado + uploads de usuarios.
+    const POOL = 60
     const store = await readVotesStore()
-    const posts = makePosts(cursor, limit).map((p) => ({
+    let candidates = makePosts(0, POOL).map((p) => ({
       ...p,
       votes: store[p.id] || seedVotes(p.id),
     }))
-    return NextResponse.json({ posts, nextCursor: cursor + limit, hasMore: true })
+    try {
+      const meta = await readUploadMeta()
+      const ups = (meta || []).filter((p) => p.type === 'versus' || p.type === 'duet')
+      if (ups.length) candidates = [...ups, ...candidates]
+    } catch { /* ignore */ }
+
+    // Moderación: oculta posts de autores bloqueados (en ambos sentidos).
+    candidates = await filterBlockedPosts(candidates, currentUser)
+
+    // ── Ranking con TWYK Engine (multi-señal + BPR + re-ranking multi-objetivo).
+    const ctx = { hour: new Date().getHours() }
+    const { items } = await rankFeed(candidates, { viewerKey, context: ctx, limit, cursor })
+    let posts = items.filter(Boolean).map((it) => it.post)
+
+    // Refresca avatares denormalizados con los datos actuales del autor.
+    posts = await refreshPostAvatars(posts)
+
+    // Registra impresiones (anti-fatiga + denominador de engagement). Fire-and-forget.
+    recordImpressions(posts.map((p) => p.id), viewerKey).catch(() => {})
+
+    const payload = { posts, nextCursor: cursor + limit, hasMore: true }
+    if (debug) {
+      payload.debug = items.filter(Boolean).map((it) => ({ id: it.post.id, author: it.post.author?.username, score: +it.score.toFixed(4), ...it.dbg }))
+    }
+
+    const res = NextResponse.json(payload)
+    // Siembra la cookie de invitado para personalización en visitas posteriores.
+    if (!currentUser && !gid) {
+      try {
+        res.cookies.set('twyk_gid', crypto.randomUUID(), {
+          httpOnly: true, secure: true, sameSite: 'none', maxAge: 365 * 24 * 60 * 60,
+        })
+      } catch { /* ignore */ }
+    }
+    return res
   }
 
   if (path === '/uploads') {
@@ -1096,12 +1195,16 @@ async function handleVote(request) {
     }
 
     const currentUser = await getCurrentUser(request)
+    const gid = request.cookies.get('twyk_gid')?.value
+    const viewerKey = currentUser?.id ? `u:${currentUser.id}` : (gid ? `g:${gid}` : null)
 
     // 1) Publicaciones subidas (versus/1vs1/reto) -> incremento ATÓMICO en
     //    MongoDB (colección `posts`). Un único $inc evita la race condition de
     //    votos simultáneos. Devuelve el post actualizado (o null si no existe).
     const updated = await incrementPostVote(id, side)
     if (updated) {
+      // TWYK Engine: aprende del voto (velocity trending + BPR pairwise).
+      recordVote(updated, side, viewerKey, { hour: new Date().getHours() }).catch(() => {})
       // Notificar al autor del lado votado (en retos sideA/sideB pueden ser
       // usuarios distintos; en versus/1vs1 normales ambos lados son el mismo autor).
       try {
@@ -1129,6 +1232,14 @@ async function handleVote(request) {
     // 2) Posts del feed integrado (demo) -> incremento ATÓMICO en `votes`,
     //    sembrando con seedVotes la primera vez que se vota.
     const votes = await incrementBuiltinVote(id, side, seedVotes(id))
+    // TWYK Engine: reconstruye el post demo (determinista por id) y aprende.
+    try {
+      const n = parseInt(String(id).split('_')[1], 10)
+      if (!isNaN(n)) {
+        const demoPost = makePosts(n, 1)[0]
+        if (demoPost) recordVote(demoPost, side, viewerKey, { hour: new Date().getHours() }).catch(() => {})
+      }
+    } catch { /* ignore */ }
     return NextResponse.json({ ok: true, votes })
   } catch (err) {
     return NextResponse.json({ error: 'vote_failed', detail: String(err?.message || err) }, { status: 500 })
