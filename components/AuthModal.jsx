@@ -357,7 +357,7 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
             <div className="flex-1 min-h-0 overflow-y-auto px-6">
               <div className="max-w-[420px] mx-auto w-full pt-2">
                 <h1 className="text-[26px] font-extrabold tracking-tight leading-tight mb-1">Log in</h1>
-                <p className="text-white/50 text-[14px] mb-7">Enter your username and password.</p>
+                <p className="text-white/50 text-[14px] mb-7">Enter your username or email and password.</p>
 
                 <div className="space-y-4">
                   <div className="relative">
@@ -367,7 +367,7 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
                       autoFocus
                       value={loginData.username}
                       onChange={(e) => setLoginData({ ...loginData, username: e.target.value })}
-                      placeholder="Username"
+                      placeholder="Username or email"
                       className={inputWithIcon}
                       required
                     />

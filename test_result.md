@@ -105,6 +105,21 @@
 user_problem_statement: "Las publicaciones normales deben ser un carrusel de 2 vídeos (opción A / opción B) entre los que se desliza y se vota tocando el vídeo. Se suben 2 vídeos. Reemplaza el vídeo normal. AÑADIDO: votar = doble toque, quitar el corazón/Me gusta, y nueva función 'Retar' (solicitud de enfrentamiento con un vídeo subido que el retado acepta/cancela en la Bandeja)."
 
 backend:
+  - task: "Login por EMAIL o USERNAME (bug: usuario no podía entrar con su email)"
+    implemented: true
+    working: true
+    file: "lib/db.js, components/AuthModal.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "BUG (usuario: 'aplico los credenciales para iniciar sesión pero no accede'). CAUSA RAÍZ: verifyUserCredentials() en lib/db.js solo buscaba por username (getUserByUsername), de modo que iniciar sesión con el EMAIL (p.ej. twyk.apk@gmail.com) devolvía invalid_credentials aunque la cuenta existía (username='twykadmin'). FIX: nueva getUserByUsernameOrEmail(identifier) que busca primero por username exacto y, si no encuentra y el identificador contiene '@', por email case-insensitive (regex ^...$ /i). verifyUserCredentials ahora la usa. Frontend AuthModal.jsx: placeholder 'Username or email' y subtítulo actualizado. Verificado MANUALMENTE con curl (login por email OK, email en mayúsculas OK, username OK, password incorrecta -> invalid_credentials). PENDIENTE verificación del agente de testing (obligatorio para bug)."
+        -working: true
+        -agent: "testing"
+        -comment: "✅ VERIFIED: Login bug fix working correctly (6/6 scenarios passed). Test file: /app/backend_login_test.py. SCENARIO 1 (CORE FIX): Login by EMAIL (lowercase 'twyk.apk@gmail.com') -> 200 with ok:true, user.role='admin', token present, session_token cookie set ✓✓✓. SCENARIO 2 (CASE-INSENSITIVE): Login by EMAIL (uppercase 'TWYK.APK@Gmail.com') -> 200 with admin role ✓✓✓ (email match is case-insensitive as required). SCENARIO 3 (REGRESSION): Login by USERNAME ('twykadmin') -> 200 with admin role ✓ (username login still works). SCENARIO 4 (VALIDATION): Wrong password ('wrongpass') -> 401 with error='invalid_credentials' ✓. SCENARIO 5 (NEW USER): Registered new user (testuser_esd0n4h2 / test_esd0n4h2@example.com) -> 200; then successfully logged in BOTH by username AND by email -> 200 for both ✓✓✓. SCENARIO 6 (AUTH/ME): GET /api/auth/me with Bearer token -> 200 with user.username='twykadmin', user.role='admin' ✓; GET /api/auth/me with cookie -> 200 ✓. The fix correctly implements getUserByUsernameOrEmail() in lib/db.js: (1) exact username match first, (2) if identifier contains '@' and no username match, case-insensitive email regex match. Users can now log in with EITHER username OR email (case-insensitive). No regression issues. The bug is FIXED and verified."
+
   - task: "MODERACIÓN: reportes (reports), bloqueos (blocks), rol admin/role, suspensión y panel admin"
     implemented: true
     working: true
@@ -554,12 +569,14 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Refrescar avatar de participantes en retos (activos y completados) tras cambiar foto de perfil"
+    - "Login por EMAIL o USERNAME (bug: usuario no podía entrar con su email)"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 
 agent_communication:
+    -agent: "main"
+    -message: "BUG FIX LOGIN (usuario reportó: aplica credenciales y no accede). Probar SOLO BACKEND. CAUSA: el login solo aceptaba username; con email fallaba. FIX en lib/db.js (getUserByUsernameOrEmail + verifyUserCredentials). La cuenta admin EXISTE: username='twykadmin', email='twyk.apk@gmail.com', password='Admin12345' (ver /app/memory/test_credentials.md). Escenarios a verificar en POST /api/auth/login: (1) {username:'twyk.apk@gmail.com', password:'Admin12345'} -> 200 {ok:true, user.role:'admin', token presente}. (2) {username:'TWYK.APK@Gmail.com', password:'Admin12345'} (mayúsculas) -> 200 (email case-insensitive). (3) {username:'twykadmin', password:'Admin12345'} -> 200 (username sigue funcionando). (4) {username:'twyk.apk@gmail.com', password:'incorrecta'} -> 401 invalid_credentials. (5) Regresión: registra un usuario nuevo {username,email,password,birthDate:'1995-05-05'} y verifica que puede loguear tanto por su username como por su email. (6) GET /api/auth/me con la cookie/token devuelto -> 200 {user}. NO modificar el Testing Protocol."
     -agent: "testing"
     -message: "✅ BACKEND TESTING COMPLETE: Avatar refresh fix VERIFIED. All 6 core scenarios passed (register users, create challenge, fetch challenges, change avatar, verify refresh for both 'from' and 'to' participants). The fix correctly uses getCurrentUsersByUsernames() to refresh avatars with current data from MongoDB. Test file: /app/backend_avatar_test_simple.py. CORE FIX VERIFIED: When bob changes his profile photo, alice immediately sees the NEW avatar in the challenge list (not the old snapshot). Reciprocal also works: when alice changes her avatar, bob sees the new one. No major issues found. Main agent should summarize and finish."
     -agent: "main"
