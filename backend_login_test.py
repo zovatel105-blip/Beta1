@@ -23,7 +23,7 @@ import sys
 import os
 
 # Base URL from environment
-BASE_URL = os.getenv('NEXT_PUBLIC_BASE_URL', 'https://aab771e4-d3f3-4317-b572-03d5f9ed4527.preview.emergentagent.com')
+BASE_URL = os.getenv('NEXT_PUBLIC_BASE_URL', 'https://mock-removal-2.preview.emergentagent.com')
 API_BASE = f"{BASE_URL}/api"
 
 print(f"Testing against: {API_BASE}")

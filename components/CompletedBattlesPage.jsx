@@ -5,38 +5,14 @@ import { useEffect, useRef, useState } from 'react'
 import { Swiper, SwiperSlide } from 'swiper/react'
 import { Mousewheel, Keyboard } from 'swiper/modules'
 import 'swiper/css'
-import { Swords, Plus, User, Trophy, X, Search, Loader2, UserPlus } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { Swords, Plus, Trophy, Search, Loader2, UserPlus } from 'lucide-react'
 import BottomNav from './BottomNav'
 import CarouselSlide from './CarouselSlide'
 import DuetSlide from './DuetSlide'
 import { notificationsUnreadCount } from '@/lib/notifications'
 
-// Suggested accounts to challenge (empty state)
-const suggestedAccounts = [
-  { id: 's1', username: 'creatorpro', name: 'Creator Pro', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop', meta: 'Follows you' },
-  { id: 's2', username: 'dancequeen', name: 'Dance Queen', avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop', meta: 'Follows you' },
-  { id: 's3', username: 'gamerx', name: 'Gamer X', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop', meta: 'Suggested for you' },
-  { id: 's4', username: 'chefmario', name: 'Chef Mario', avatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&h=150&fit=crop', meta: 'Follows you' },
-  { id: 's5', username: 'pianomaster', name: 'Piano Master', avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&h=150&fit=crop', meta: 'Suggested for you' },
-]
-
-// Simple avatar with image + initial fallback.
-const Avatar = ({ src, alt, className = '', ringClass = '' }) => (
-  <div className={cn('rounded-full overflow-hidden bg-gradient-to-br from-zinc-600 to-zinc-700 flex items-center justify-center', ringClass, className)}>
-    {src ? (
-      <img src={src} alt={alt} className="w-full h-full object-cover" draggable={false} />
-    ) : (
-      <User className="w-1/2 h-1/2 text-white/80" />
-    )}
-  </div>
-)
-
 // Empty state of "Completed challenges" — premium minimalist design.
-const EmptyCompletedState = ({ onOpenUpload, onOpenActive, onOpenProfile }) => {
-  const [dismissed, setDismissed] = useState([])
-  const visibleAccounts = suggestedAccounts.filter((a) => !dismissed.includes(a.id))
-
+const EmptyCompletedState = ({ onOpenUpload, onOpenActive }) => {
   return (
     <div className="relative w-full h-full overflow-y-auto bg-[#0a0a0b]">
       {/* Warm, very subtle top glow */}
@@ -79,44 +55,6 @@ const EmptyCompletedState = ({ onOpenUpload, onOpenActive, onOpenProfile }) => {
         <div className="mt-12 flex items-center gap-2.5 h-11 px-4 rounded-full bg-white/[0.04] border border-white/10">
           <Search className="w-4 h-4 text-zinc-500" />
           <span className="text-zinc-500 text-sm">Search creators</span>
-        </div>
-
-        {/* Suggestions to challenge */}
-        <div className="mt-7">
-          <h3 className="text-zinc-400 font-medium text-[12px] uppercase tracking-[0.14em] mb-1">
-            Suggestions to challenge
-          </h3>
-
-          <div className="divide-y divide-white/[0.05]">
-            {visibleAccounts.map((acc) => (
-              <div key={acc.id} className="flex items-center gap-3 py-3.5">
-                <button onClick={onOpenProfile} className="shrink-0">
-                  <Avatar src={acc.avatar} alt={acc.name} className="w-11 h-11" ringClass="ring-1 ring-white/10" />
-                </button>
-                <button onClick={onOpenProfile} className="flex-1 min-w-0 text-left">
-                  <p className="text-white font-medium text-[15px] truncate">{acc.name}</p>
-                  <p className="text-zinc-500 text-[13px] truncate">{acc.meta}</p>
-                </button>
-                <button
-                  onClick={onOpenUpload}
-                  className="shrink-0 h-8 px-4 rounded-full border border-white/15 text-white text-[13px] font-medium flex items-center gap-1.5 hover:bg-white/5 active:scale-95 transition"
-                >
-                  <Swords className="w-3.5 h-3.5" />
-                  Challenge
-                </button>
-                <button
-                  onClick={() => setDismissed((d) => [...d, acc.id])}
-                  className="shrink-0 w-7 h-7 flex items-center justify-center text-zinc-600 hover:text-zinc-300 transition"
-                  aria-label="Dismiss"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            ))}
-            {visibleAccounts.length === 0 && (
-              <p className="text-zinc-500 text-sm py-6 text-center">No more suggestions.</p>
-            )}
-          </div>
         </div>
       </div>
     </div>
@@ -209,7 +147,6 @@ export default function CompletedBattlesPage({ open, onClose, onOpenActive, onOp
         <EmptyCompletedState
           onOpenUpload={onOpenUpload}
           onOpenActive={onOpenActive}
-          onOpenProfile={onOpenProfile}
         />
       ) : (
         <Swiper
