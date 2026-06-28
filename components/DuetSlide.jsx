@@ -182,6 +182,11 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
   const authorA = sideA.author || post.author || {}
   const authorB = sideB.author || post.author || {}
 
+  // ¿La publicación es del usuario actual? El dueño se identifica por author.id
+  // (las subidas guardan author.id = user.id) o por userId. Si lo es, el menú de
+  // "tres puntos" muestra opciones de dueño (eliminar) en vez de reportar/bloquear.
+  const isOwner = !!user && ((post?.author?.id && post.author.id === user.id) || (post?.userId && post.userId === user.id))
+
   // FASE 2: calidad adaptativa a la red (fallback al videoUrl si no hay renditions).
   const srcA = useMemo(() => pickQuality(sideA.qualities, sideA.videoUrl), [sideA.qualities, sideA.videoUrl])
   const srcB = useMemo(() => pickQuality(sideB.qualities, sideB.videoUrl), [sideB.qualities, sideB.videoUrl])
@@ -615,7 +620,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
           ) : (
             <>
               {/* Publicación normal: un solo avatar + nombre */}
-              <button onClick={(e) => { e.stopPropagation(); onOpenProfile?.(headAuthor.username) }} className="w-[38px] h-[38px] rounded-full overflow-hidden block shrink-0">
+              <button onClick={(e) => { e.stopPropagation(); onOpenProfile?.(headAuthor.username) }} className="w-[34px] h-[34px] rounded-full overflow-hidden block shrink-0">
                 <Avatar src={headAuthor.avatarUrl} alt={headAuthor.username} className="w-full h-full" />
               </button>
               <span onClick={(e) => { e.stopPropagation(); onOpenProfile?.(headAuthor.username) }} className="text-white font-semibold text-[13px] leading-tight drop-shadow-md truncate max-w-[160px] cursor-pointer">
@@ -717,6 +722,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
         open={menuOpen}
         postId={post.id}
         author={headAuthor}
+        isOwner={isOwner}
         onClose={() => setMenuOpen(false)}
       />
 

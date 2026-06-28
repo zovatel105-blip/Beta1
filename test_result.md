@@ -120,6 +120,18 @@ backend:
         -agent: "testing"
         -comment: "✅ VERIFIED: Login bug fix working correctly (6/6 scenarios passed). Test file: /app/backend_login_test.py. SCENARIO 1 (CORE FIX): Login by EMAIL (lowercase 'twyk.apk@gmail.com') -> 200 with ok:true, user.role='admin', token present, session_token cookie set ✓✓✓. SCENARIO 2 (CASE-INSENSITIVE): Login by EMAIL (uppercase 'TWYK.APK@Gmail.com') -> 200 with admin role ✓✓✓ (email match is case-insensitive as required). SCENARIO 3 (REGRESSION): Login by USERNAME ('twykadmin') -> 200 with admin role ✓ (username login still works). SCENARIO 4 (VALIDATION): Wrong password ('wrongpass') -> 401 with error='invalid_credentials' ✓. SCENARIO 5 (NEW USER): Registered new user (testuser_esd0n4h2 / test_esd0n4h2@example.com) -> 200; then successfully logged in BOTH by username AND by email -> 200 for both ✓✓✓. SCENARIO 6 (AUTH/ME): GET /api/auth/me with Bearer token -> 200 with user.username='twykadmin', user.role='admin' ✓; GET /api/auth/me with cookie -> 200 ✓. The fix correctly implements getUserByUsernameOrEmail() in lib/db.js: (1) exact username match first, (2) if identifier contains '@' and no username match, case-insensitive email regex match. Users can now log in with EITHER username OR email (case-insensitive). No regression issues. The bug is FIXED and verified."
 
+  - task: "Eliminar publicación propia: DELETE /api/posts/{id} (menú de dueño tipo Instagram/TikTok)"
+    implemented: true
+    working: "NA"
+    file: "lib/stores.js, app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "BUG (usuario: al pulsar los tres puntos en MIS publicaciones del perfil aparecían opciones de publicación ajena -reportar/bloquear- en vez de ajustes de dueño). FIX backend: nueva deletePostById(id, ownerId) en lib/stores.js que borra de la colección 'posts' SOLO si el dueño coincide (post.author.id === ownerId, o post.userId), limpia comentarios/saves asociados; ruta DELETE /api/posts/{id} en route.js (401 sin sesión, 404 si no existe, 403 si no es el dueño, 200 {ok:true} si borra). PENDIENTE verificación del agente de testing."
+
   - task: "MODERACIÓN: reportes (reports), bloqueos (blocks), rol admin/role, suspensión y panel admin"
     implemented: true
     working: true

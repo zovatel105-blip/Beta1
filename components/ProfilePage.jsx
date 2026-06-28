@@ -342,6 +342,21 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
     return () => { cancelled = true }
   }, [open, targetUsername])
 
+  // Al eliminar una publicación (desde el menú de "tres puntos" del visor),
+  // se emite el evento global 'twyk:postDeleted'. Aquí la quitamos del listado
+  // del perfil y de guardados, y cerramos el visor si era la abierta.
+  useEffect(() => {
+    const onDeleted = (e) => {
+      const id = e?.detail?.postId
+      if (!id) return
+      setPosts((prev) => prev.filter((p) => p.id !== id))
+      setSavedPosts((prev) => prev.filter((p) => p.id !== id))
+      setOpenPost((prev) => (prev && prev.id === id ? null : prev))
+    }
+    window.addEventListener('twyk:postDeleted', onDeleted)
+    return () => window.removeEventListener('twyk:postDeleted', onDeleted)
+  }, [])
+
   // Cargar publicaciones GUARDADAS al abrir la pestaña 'saved' (solo perfil propio).
   useEffect(() => {
     if (!open || activeTab !== 'saved' || !isOwn || !user) return

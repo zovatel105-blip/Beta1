@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { EyeOff, Flag, Ban, Link2, Check, ChevronDown, ChevronLeft, Loader2 } from 'lucide-react'
+import { EyeOff, Flag, Ban, Link2, Check, ChevronDown, ChevronLeft, Loader2, Trash2 } from 'lucide-react'
 import BottomSheet from './BottomSheet'
 import { useAuth } from '@/contexts/AuthContext'
 
@@ -33,7 +33,7 @@ function authHeaders() {
   }
 }
 
-export default function OptionsModal({ open, postId, author, onClose }) {
+export default function OptionsModal({ open, postId, author, isOwner = false, onClose, onDeleted }) {
   const { user } = useAuth()
   const [copied, setCopied] = useState(false)
   const [view, setView] = useState('menu') // 'menu' | 'report'
@@ -118,6 +118,41 @@ export default function OptionsModal({ open, postId, author, onClose }) {
     { key: 'copy', label: copied ? 'Link copied' : 'Copy link', icon: copied ? <Check className="w-[22px] h-[22px] text-green-600" strokeWidth={2} /> : <Link2 className="w-[22px] h-[22px] text-zinc-700" strokeWidth={1.7} />, onClick: copyLink, danger: false },
   ]
 
+  // Eliminar la publicación (solo el dueño). Llama al backend que valida la
+  // propiedad por author.id y avisa al resto de la app vía evento global para
+  // que la quiten del perfil/feed sin recargar.
+  const deletePost = async () => {
+    setBusy(true)
+    try {
+      const res = await fetch(`/api/posts/${encodeURIComponent(postId)}`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: { ...authHeaders() },
+      })
+      if (res.ok) {
+        try { window.dispatchEvent(new CustomEvent('twyk:postDeleted', { detail: { postId } })) } catch { /* noop */ }
+        onDeleted?.(postId)
+        setDone('Post deleted.')
+        setTimeout(() => onClose?.(), 1000)
+      } else {
+        setDone("Couldn't delete the post.")
+      }
+    } catch {
+      setDone("Couldn't delete the post.")
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  // Menú del DUEÑO de la publicación (estilo Instagram/TikTok): acciones sobre
+  // la propia publicación, no de "reportar/bloquear" como en una ajena.
+  const ownerRows = [
+    { key: 'delete', label: 'Delete', icon: <Trash2 className="w-[22px] h-[22px] text-red-600" strokeWidth={1.7} />, onClick: () => { setDone(''); setView('confirmDelete') }, danger: true },
+    { key: 'copy', label: copied ? 'Link copied' : 'Copy link', icon: copied ? <Check className="w-[22px] h-[22px] text-green-600" strokeWidth={2} /> : <Link2 className="w-[22px] h-[22px] text-zinc-700" strokeWidth={1.7} />, onClick: copyLink, danger: false },
+  ]
+
+  const menuRows = isOwner ? ownerRows : rows
+
   return (
     <BottomSheet open={open} onClose={onClose} hideHandle>
       {view === 'menu' ? (
@@ -134,7 +169,7 @@ export default function OptionsModal({ open, postId, author, onClose }) {
           <button type="button" onClick={() => setView('menu')} aria-label="back" className="p-1 active:scale-90 transition">
             <ChevronLeft className="w-5 h-5 text-zinc-700" strokeWidth={2.2} />
           </button>
-          <span className="ml-1 text-[15px] font-semibold text-zinc-900">Report post</span>
+          <span className="ml-1 text-[15px] font-semibold text-zinc-900">{view === 'confirmDelete' ? 'Delete post' : 'Report post'}</span>
         </div>
       )}
 
@@ -144,7 +179,7 @@ export default function OptionsModal({ open, postId, author, onClose }) {
         </div>
       ) : view === 'menu' ? (
         <div className="px-2 pb-2">
-          {rows.map((r) => (
+          {menuRows.map((r) => (
             <button
               key={r.key}
               disabled={busy}
@@ -155,6 +190,26 @@ export default function OptionsModal({ open, postId, author, onClose }) {
               <span className="text-[15px] font-medium">{r.label}</span>
             </button>
           ))}
+        </div>
+      ) : view === 'confirmDelete' ? (
+        <div className="px-5 pb-4 pt-1">
+          <p className="text-[15px] font-semibold text-zinc-900 text-center">Delete this post?</p>
+          <p className="text-[13px] text-zinc-500 text-center mt-1.5 mb-5">This action can&apos;t be undone. Your post will be removed permanently.</p>
+          <button
+            disabled={busy}
+            onClick={deletePost}
+            className="w-full h-12 rounded-full bg-red-600 text-white font-semibold text-[15px] flex items-center justify-center gap-2 hover:bg-red-700 active:scale-[0.98] transition disabled:opacity-60"
+          >
+            {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <Trash2 className="w-[18px] h-[18px]" strokeWidth={2} />}
+            Delete
+          </button>
+          <button
+            disabled={busy}
+            onClick={() => setView('menu')}
+            className="w-full h-12 mt-2 rounded-full bg-zinc-100 text-zinc-900 font-semibold text-[15px] hover:bg-zinc-200 active:scale-[0.98] transition disabled:opacity-60"
+          >
+            Cancel
+          </button>
         </div>
       ) : (
         <div className="px-2 pb-3">

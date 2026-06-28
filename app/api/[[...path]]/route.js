@@ -49,6 +49,7 @@ import {
   getAllPosts,
   insertPost,
   updatePost,
+  deletePostById,
   incrementPostVote,
   getAllChallenges,
   insertChallenge,
@@ -1877,6 +1878,30 @@ async function handleDeleteComment(commentId, request) {
   }
 }
 
+// DELETE /api/posts/{id} - Eliminar una publicación propia (solo el dueño).
+async function handleDeletePost(postId, request) {
+  try {
+    const currentUser = await getCurrentUser(request)
+    if (!currentUser) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    }
+    if (!postId) {
+      return NextResponse.json({ error: 'missing_postId' }, { status: 400 })
+    }
+    const result = await deletePostById(postId, currentUser.id)
+    if (!result.ok) {
+      if (result.reason === 'not_found') {
+        return NextResponse.json({ error: 'post_not_found' }, { status: 404 })
+      }
+      return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+    }
+    return NextResponse.json({ ok: true })
+  } catch (err) {
+    console.error('delete post error', err)
+    return NextResponse.json({ error: 'delete_failed' }, { status: 500 })
+  }
+}
+
 // Exportar método DELETE
 export async function DELETE(request, { params }) {
   const segs = (params?.path) || []
@@ -1885,6 +1910,11 @@ export async function DELETE(request, { params }) {
   // DELETE /api/comments/{id}
   if (segs[0] === 'comments' && segs[1]) {
     return handleDeleteComment(segs[1], request)
+  }
+
+  // DELETE /api/posts/{id} - Eliminar una publicación propia.
+  if (segs[0] === 'posts' && segs[1]) {
+    return handleDeletePost(decodeURIComponent(segs[1]), request)
   }
 
   // DELETE /api/users/block - Desbloquear a un usuario.
