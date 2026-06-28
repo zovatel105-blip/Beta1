@@ -466,26 +466,33 @@ export async function GET(request, { params }) {
     const gid = request.cookies.get('twyk_gid')?.value
     const viewerKey = currentUser?.id ? `u:${currentUser.id}` : (gid ? `g:${gid}` : null)
 
-    // ── Generación de candidatos: pool del feed integrado + uploads de usuarios.
-    const POOL = 60
-    const store = await readVotesStore()
-    let candidates = makePosts(0, POOL).map((p) => ({
-      ...p,
-      votes: store[p.id] || seedVotes(p.id),
-    }))
+    // ── Candidatos del feed: SOLO publicaciones REALES de usuarios (uploads).
+    // Se eliminaron las publicaciones mock/demo (makePosts) del feed.
+    let candidates = []
     try {
       const meta = await readUploadMeta()
-      const ups = (meta || []).filter((p) => p.type === 'versus' || p.type === 'duet')
-      if (ups.length) candidates = [...ups, ...candidates]
+      candidates = (meta || []).filter((p) => p.type === 'versus' || p.type === 'duet')
     } catch { /* ignore */ }
 
     // Moderación: oculta posts de autores bloqueados (en ambos sentidos).
     candidates = await filterBlockedPosts(candidates, currentUser)
+    const totalCandidates = candidates.length
 
     // ── Ranking con TWYK Engine (multi-señal + BPR + re-ranking multi-objetivo).
     const ctx = { hour: new Date().getHours() }
     const { items } = await rankFeed(candidates, { viewerKey, context: ctx, limit, cursor })
     let posts = items.filter(Boolean).map((it) => it.post)
+
+    // Deduplicar por id: con pocos candidatos reales el ranker puede repetir el
+    // mismo post; cada publicación debe aparecer una sola vez en el feed.
+    {
+      const seen = new Set()
+      posts = posts.filter((p) => {
+        if (!p || seen.has(p.id)) return false
+        seen.add(p.id)
+        return true
+      })
+    }
 
     // Refresca avatares denormalizados con los datos actuales del autor.
     posts = await refreshPostAvatars(posts)
@@ -494,7 +501,7 @@ export async function GET(request, { params }) {
     // para NDCG). Fire-and-forget.
     recordImpressions(posts.map((p) => p.id), viewerKey, cursor).catch(() => {})
 
-    const payload = { posts, nextCursor: cursor + limit, hasMore: true }
+    const payload = { posts, nextCursor: cursor + limit, hasMore: cursor + limit < totalCandidates }
     if (debug) {
       payload.debug = items.filter(Boolean).map((it) => ({ id: it.post.id, author: it.post.author?.username, score: +it.score.toFixed(4), ...it.dbg }))
     }
@@ -725,22 +732,12 @@ export async function GET(request, { params }) {
       info.isFollowing = false
     }
 
-    // 2) Publicaciones del usuario: uploads propios + posts demo del feed.
+    // 2) Publicaciones del usuario: SOLO sus uploads reales (se eliminaron los
+    // posts demo/mock que antes se inyectaban en el perfil).
     const uploads = await readUploadMeta()
-    const mine = uploads.filter((p) => {
+    const posts = uploads.filter((p) => {
       const a = p.author || p.sideA?.author
       return a && a.username === username
-    })
-    const store = await readVotesStore()
-    const demo = makePosts(0, 40)
-      .filter((p) => p.author?.username === username)
-      .map((p) => ({ ...p, votes: store[p.id] || seedVotes(p.id) }))
-
-    const seenIds = new Set()
-    const posts = [...mine, ...demo].filter((p) => {
-      if (seenIds.has(p.id)) return false
-      seenIds.add(p.id)
-      return true
     })
 
     return NextResponse.json({ user: info, posts: await refreshPostAvatars(posts) })
