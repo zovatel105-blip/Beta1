@@ -606,7 +606,7 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
           <span className="text-[10px] font-semibold text-white leading-none">{countLabel(commentCount, 'Comment')}</span>
         </button>
         <button aria-label="share" onClick={(e) => { e.stopPropagation(); setShareOpen(true) }} className="flex flex-col items-center gap-0.5 w-14 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
-          <ShareIcon className="w-[25px] h-[25px] text-white" strokeWidth={1.1} />
+          <ShareIcon className="w-[25px] h-[25px] text-white" strokeWidth={1.25} />
           <span className="text-[10px] font-semibold text-white leading-none">{countLabel(shareCount, 'Share')}</span>
         </button>
         <button aria-label="bookmark" onClick={handleSaveToggle} className="flex flex-col items-center gap-0.5 w-14 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
