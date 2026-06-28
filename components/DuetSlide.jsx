@@ -662,7 +662,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
           <span style={{ color: userVote === 'a' ? '#A855F7' : userVote === 'b' ? '#3B82F6' : '#fff', display: 'inline-flex', transition: 'color 200ms' }}>
             <VoteIcon className="w-[36px] h-[36px]" strokeWidth={180} filled={!!userVote} />
           </span>
-          <span className="text-[8px] font-semibold text-white leading-[1.05] text-center break-words max-w-[26px]">
+          <span className="text-[9px] font-semibold text-white leading-none text-center whitespace-nowrap">
             {countLabel(totalVotes, 'Vote')}
           </span>
         </button>
@@ -676,8 +676,8 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
             }
             setChallengePickOpen(true);
           }} className="flex flex-col items-center gap-0.5 w-14 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
-            <Swords className="w-[25px] h-[25px] text-white" strokeWidth={1.25} />
-            <span className="text-[8px] font-semibold text-white leading-[1.05] text-center break-words max-w-[26px]">{countLabel(challengeCount, 'Challenge')}</span>
+            <Swords className="w-[30px] h-[30px] text-white" strokeWidth={2} />
+            <span className="text-[9px] font-semibold text-white leading-none text-center whitespace-nowrap">{countLabel(challengeCount, 'Challenge')}</span>
           </button>
         )}
         {/* Comentar */}
@@ -689,18 +689,18 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
           }
           setCommentsOpen(true);
         }} className="flex flex-col items-center gap-0.5 w-14 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
-          <MessageCircle className="w-[25px] h-[25px] text-white" strokeWidth={1.25} />
-          <span className="text-[8px] font-semibold text-white leading-[1.05] text-center break-words max-w-[26px]">{countLabel(commentCount, 'Comment')}</span>
+          <MessageCircle className="w-[30px] h-[30px] text-white" strokeWidth={2} />
+          <span className="text-[9px] font-semibold text-white leading-none text-center whitespace-nowrap">{countLabel(commentCount, 'Comment')}</span>
         </button>
         {/* Compartir */}
         <button aria-label="share" onClick={(e) => { e.stopPropagation(); setShareOpen(true) }} className="flex flex-col items-center gap-0.5 w-14 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
-          <ShareIcon className="w-[25px] h-[25px] text-white" strokeWidth={1.25} />
-          <span className="text-[8px] font-semibold text-white leading-[1.05] text-center break-words max-w-[26px]">{countLabel(shareCount, 'Share')}</span>
+          <ShareIcon className="w-[30px] h-[30px] text-white" strokeWidth={2} />
+          <span className="text-[9px] font-semibold text-white leading-none text-center whitespace-nowrap">{countLabel(shareCount, 'Share')}</span>
         </button>
         {/* Guardar */}
         <button aria-label="bookmark" onClick={handleSaveToggle} className="flex flex-col items-center gap-0.5 w-14 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
-          <Bookmark className={cn('w-[25px] h-[25px] transition-all duration-200', saved ? 'fill-current text-yellow-400' : 'text-white')} strokeWidth={1.25} />
-          <span className="text-[8px] font-semibold text-white leading-[1.05] text-center break-words max-w-[26px]">{countLabel(saveCount, 'Save')}</span>
+          <Bookmark className={cn('w-[30px] h-[30px] transition-all duration-200', saved ? 'fill-current text-yellow-400' : 'text-white')} strokeWidth={2} />
+          <span className="text-[9px] font-semibold text-white leading-none text-center whitespace-nowrap">{countLabel(saveCount, 'Save')}</span>
         </button>
         {/* Más opciones */}
         <button aria-label="mas-opciones" onClick={(e) => { e.stopPropagation(); setMenuOpen(true) }} className="flex flex-col items-center hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
