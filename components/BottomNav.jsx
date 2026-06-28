@@ -156,15 +156,15 @@ export default function BottomNav({ onOpenUpload, onOpenInbox, onOpenProfile, on
           {user ? (
             // Usuario registrado: verificar si tiene foto real o es avatar generado
             user.avatarUrl && !user.avatarUrl.includes('dicebear') && !user.avatarUrl.includes('pravatar') ? (
-              // Foto real subida por el usuario (22px)
-              <div className="w-[22px] h-[22px] rounded-full p-[2px] bg-gradient-to-br from-white/15 to-white/[0.03]">
-                <div className="w-full h-full rounded-full overflow-hidden bg-zinc-900 ring-1 ring-white/10">
-                  <img
-                    src={user.avatarUrl}
-                    alt={user.username}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
+              // Foto real subida por el usuario: llena el círculo COMPLETO (22px).
+              // Antes el padding interior (p-[2px]) encogía la imagen a ~18px y
+              // se veía más pequeña que el resto al añadir foto de perfil.
+              <div className="w-[22px] h-[22px] rounded-full overflow-hidden bg-zinc-900 ring-1 ring-white/20">
+                <img
+                  src={user.avatarUrl}
+                  alt={user.username}
+                  className="w-full h-full object-cover"
+                />
               </div>
             ) : (
               // Sin foto actualizada: DefaultAvatar gris (22px)
