@@ -620,7 +620,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
           ) : (
             <>
               {/* Publicación normal: un solo avatar + nombre */}
-              <button onClick={(e) => { e.stopPropagation(); onOpenProfile?.(headAuthor.username) }} className="w-[34px] h-[34px] rounded-full overflow-hidden block shrink-0">
+              <button onClick={(e) => { e.stopPropagation(); onOpenProfile?.(headAuthor.username) }} className="w-[30px] h-[30px] rounded-full overflow-hidden block shrink-0">
                 <Avatar src={headAuthor.avatarUrl} alt={headAuthor.username} className="w-full h-full" />
               </button>
               <span onClick={(e) => { e.stopPropagation(); onOpenProfile?.(headAuthor.username) }} className="text-white font-semibold text-[13px] leading-tight drop-shadow-md truncate max-w-[160px] cursor-pointer">
