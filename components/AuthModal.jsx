@@ -150,9 +150,9 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
   }
 
   const inputCls =
-    'w-full bg-white/[0.06] text-white placeholder:text-white/30 px-4 py-4 rounded-xl text-[16px] outline-none focus:bg-white/[0.1] transition-all border border-white/10 focus:border-white/25'
+    'w-full bg-zinc-50 text-zinc-900 placeholder:text-zinc-400 px-4 py-4 rounded-xl text-[16px] outline-none focus:bg-white transition-all border border-zinc-200 focus:border-zinc-400'
   const inputWithIcon =
-    'w-full bg-white/[0.06] text-white placeholder:text-white/30 pl-12 pr-4 py-4 rounded-xl text-[16px] outline-none focus:bg-white/[0.1] transition-all border border-white/10 focus:border-white/25'
+    'w-full bg-zinc-50 text-zinc-900 placeholder:text-zinc-400 pl-12 pr-4 py-4 rounded-xl text-[16px] outline-none focus:bg-white transition-all border border-zinc-200 focus:border-zinc-400'
 
   const gradientBtn =
     'w-full h-[52px] rounded-full font-bold text-[16px] flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-60 text-white'
@@ -166,20 +166,20 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
       {/* Hoja inferior alta con esquinas superiores redondeadas */}
-      <div className="relative w-full max-w-[520px] mx-auto bg-[#0a0a0b] text-white rounded-t-3xl border-t border-white/10 shadow-2xl h-[96dvh] flex flex-col overflow-hidden">
+      <div className="relative w-full max-w-[520px] mx-auto bg-white text-zinc-900 rounded-t-3xl border-t border-zinc-200 shadow-2xl h-[96dvh] flex flex-col overflow-hidden">
         {/* Glow superior de marca */}
         <div className="pointer-events-none absolute inset-x-0 top-0 h-40 z-0"
-             style={{ background: 'radial-gradient(70% 100% at 50% 0%, rgba(168,85,247,0.16), transparent 70%)' }} />
+             style={{ background: 'radial-gradient(70% 100% at 50% 0%, rgba(168,85,247,0.10), transparent 70%)' }} />
 
         {/* Header: flecha abajo (cerrar) en el splash; flecha atrás en los pasos */}
         <div className="relative z-10 flex items-center h-12 px-3 shrink-0"
              style={{ paddingTop: 'max(env(safe-area-inset-top), 6px)' }}>
           {step === 'methods' || ageBlocked ? (
-            <button aria-label="close" onClick={onClose} className="mx-auto p-2 text-white/70 active:scale-90 transition">
+            <button aria-label="close" onClick={onClose} className="mx-auto p-2 text-zinc-600 active:scale-90 transition">
               <ChevronDown strokeWidth={2.2} className="w-7 h-7" />
             </button>
           ) : (
-            <button aria-label="atrás" onClick={goBack} className="p-2 -ml-1 text-white active:scale-90 transition">
+            <button aria-label="atrás" onClick={goBack} className="p-2 -ml-1 text-zinc-900 active:scale-90 transition">
               <ArrowLeft strokeWidth={2} className="w-6 h-6" />
             </button>
           )}
@@ -190,15 +190,15 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
           <div className="relative z-10 flex-1 min-h-0 overflow-y-auto px-6">
             <div className="max-w-[420px] mx-auto w-full flex flex-col items-center text-center pt-10">
               <div className="w-16 h-16 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-5">
-                <ShieldAlert className="w-8 h-8 text-red-400" strokeWidth={1.7} />
+                <ShieldAlert className="w-8 h-8 text-red-500" strokeWidth={1.7} />
               </div>
               <h2 className="text-[20px] font-bold mb-2">Twyk isn&apos;t available for users under 13</h2>
-              <p className="text-white/50 text-[14px] leading-relaxed max-w-[320px]">
+              <p className="text-zinc-500 text-[14px] leading-relaxed max-w-[320px]">
                 In accordance with the U.S. COPPA law, we don&apos;t allow registration for users under 13. We can&apos;t create your account.
               </p>
               <button
                 onClick={() => { setAgeBlocked(false); switchMode('login') }}
-                className="mt-7 w-full h-12 rounded-full bg-white/10 text-white text-[15px] font-semibold hover:bg-white/15 active:scale-[0.98] transition-all"
+                className="mt-7 w-full h-12 rounded-full bg-zinc-100 text-zinc-900 text-[15px] font-semibold hover:bg-zinc-200 active:scale-[0.98] transition-all"
               >
                 Got it
               </button>
@@ -213,7 +213,7 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
                   <h1 className="text-[28px] font-extrabold tracking-tight leading-tight">
                     {isRegister ? 'Sign up for Twyk' : 'Log in to Twyk'}
                   </h1>
-                  <p className="text-white/50 text-[15px] mt-2 leading-snug max-w-[320px] mx-auto">
+                  <p className="text-zinc-500 text-[15px] mt-2 leading-snug max-w-[320px] mx-auto">
                     {isRegister
                       ? 'Create your profile, vote on challenges, upload your videos and challenge other creators.'
                       : 'Log in to vote on challenges, upload your videos and challenge others.'}
@@ -227,25 +227,25 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
                   {isRegister ? <AtSign className="w-5 h-5" strokeWidth={2.2} /> : <User className="w-5 h-5" strokeWidth={2.2} />}
                   {isRegister ? 'Use email or username' : 'Use username and password'}
                 </button>
-                <p className="mt-6 text-center text-white/40 text-[12px] leading-relaxed">
+                <p className="mt-6 text-center text-zinc-400 text-[12px] leading-relaxed">
                   By continuing you accept our{' '}
-                  <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-white/70 underline hover:text-white">Terms of Use</a>
+                  <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-zinc-600 underline hover:text-zinc-900">Terms of Use</a>
                   {' '}and{' '}
-                  <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-white/70 underline hover:text-white">Privacy Policy</a>
+                  <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-zinc-600 underline hover:text-zinc-900">Privacy Policy</a>
                 </p>
               </div>
             </div>
-            <div className="relative z-10 border-t border-white/10 px-6 py-4 text-center shrink-0"
+            <div className="relative z-10 border-t border-zinc-200 px-6 py-4 text-center shrink-0"
                  style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 14px)' }}>
               {isRegister ? (
-                <p className="text-white/60 text-[14px]">
+                <p className="text-zinc-500 text-[14px]">
                   Already have an account?{' '}
                   <button onClick={() => switchMode('login')} className="font-bold bg-clip-text text-transparent" style={{ backgroundImage: BRAND_GRADIENT }}>
                     Log in
                   </button>
                 </p>
               ) : (
-                <p className="text-white/60 text-[14px]">
+                <p className="text-zinc-500 text-[14px]">
                   Don&apos;t have an account?{' '}
                   <button onClick={() => switchMode('register')} className="font-bold bg-clip-text text-transparent" style={{ backgroundImage: BRAND_GRADIENT }}>
                     Sign up
@@ -259,19 +259,8 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
           <form onSubmit={handleRegisterNext} className="relative z-10 flex-1 min-h-0 flex flex-col">
             <div className="flex-1 min-h-0 overflow-y-auto px-6">
               <div className="max-w-[420px] mx-auto w-full pt-2">
-                {/* Indicador de progreso */}
-                <div className="flex items-center gap-1.5 mb-6">
-                  {REG_STEPS.map((s, i) => (
-                    <div
-                      key={s.key}
-                      className="h-1 flex-1 rounded-full transition-all"
-                      style={{ background: i <= regStep ? BRAND_GRADIENT : 'rgba(255,255,255,0.12)' }}
-                    />
-                  ))}
-                </div>
-
                 <h1 className="text-[26px] font-extrabold tracking-tight leading-tight">{regStepCfg.title}</h1>
-                <p className="text-white/50 text-[14px] mt-2 mb-7 leading-snug">{regStepCfg.subtitle}</p>
+                <p className="text-zinc-500 text-[14px] mt-2 mb-7 leading-snug">{regStepCfg.subtitle}</p>
 
                 {regStepCfg.key === 'birthdate' && (
                   <DateWheelPicker
@@ -282,7 +271,7 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
 
                 {regStepCfg.key === 'email' && (
                   <div className="relative">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" strokeWidth={1.5} />
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" strokeWidth={1.5} />
                     <input
                       type="email"
                       autoFocus
@@ -297,7 +286,7 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
 
                 {regStepCfg.key === 'password' && (
                   <div className="relative">
-                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" strokeWidth={1.5} />
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" strokeWidth={1.5} />
                     <input
                       type="password"
                       autoFocus
@@ -313,7 +302,7 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
 
                 {regStepCfg.key === 'username' && (
                   <div className="relative">
-                    <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" strokeWidth={1.5} />
+                    <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" strokeWidth={1.5} />
                     <input
                       type="text"
                       autoFocus
@@ -327,20 +316,20 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
                   </div>
                 )}
 
-                {error && <p className="text-red-400 text-[13px] mt-3">{error}</p>}
+                {error && <p className="text-red-500 text-[13px] mt-3">{error}</p>}
 
                 {isLastRegStep && (
-                  <p className="mt-6 text-white/40 text-[12px] leading-relaxed">
+                  <p className="mt-6 text-zinc-400 text-[12px] leading-relaxed">
                     By creating your account you accept our{' '}
-                    <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-white/70 underline hover:text-white">Terms of Use</a>
+                    <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-zinc-600 underline hover:text-zinc-900">Terms of Use</a>
                     {' '}and{' '}
-                    <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-white/70 underline hover:text-white">Privacy Policy</a>
+                    <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-zinc-600 underline hover:text-zinc-900">Privacy Policy</a>
                   </p>
                 )}
               </div>
             </div>
 
-            <div className="border-t border-white/10 px-6 py-4 shrink-0"
+            <div className="border-t border-zinc-200 px-6 py-4 shrink-0"
                  style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 14px)' }}>
               <button type="submit" disabled={loading} className={gradientBtn} style={{ background: BRAND_GRADIENT }}>
                 {loading ? (
@@ -357,11 +346,11 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
             <div className="flex-1 min-h-0 overflow-y-auto px-6">
               <div className="max-w-[420px] mx-auto w-full pt-2">
                 <h1 className="text-[26px] font-extrabold tracking-tight leading-tight mb-1">Log in</h1>
-                <p className="text-white/50 text-[14px] mb-7">Enter your username or email and password.</p>
+                <p className="text-zinc-500 text-[14px] mb-7">Enter your username or email and password.</p>
 
                 <div className="space-y-4">
                   <div className="relative">
-                    <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" strokeWidth={1.5} />
+                    <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" strokeWidth={1.5} />
                     <input
                       type="text"
                       autoFocus
@@ -373,7 +362,7 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
                     />
                   </div>
                   <div className="relative">
-                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" strokeWidth={1.5} />
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" strokeWidth={1.5} />
                     <input
                       type="password"
                       value={loginData.password}
@@ -385,11 +374,11 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
                   </div>
                 </div>
 
-                {error && <p className="text-red-400 text-[13px] mt-3">{error}</p>}
+                {error && <p className="text-red-500 text-[13px] mt-3">{error}</p>}
               </div>
             </div>
 
-            <div className="border-t border-white/10 px-6 py-4 shrink-0"
+            <div className="border-t border-zinc-200 px-6 py-4 shrink-0"
                  style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 14px)' }}>
               <button type="submit" disabled={loading} className={gradientBtn} style={{ background: BRAND_GRADIENT }}>
                 {loading ? (
@@ -401,7 +390,7 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
                   </>
                 )}
               </button>
-              <p className="text-white/60 text-[14px] text-center mt-4">
+              <p className="text-zinc-500 text-[14px] text-center mt-4">
                 Don&apos;t have an account?{' '}
                 <button type="button" onClick={() => switchMode('register')} className="font-bold bg-clip-text text-transparent" style={{ backgroundImage: BRAND_GRADIENT }}>
                   Sign up
