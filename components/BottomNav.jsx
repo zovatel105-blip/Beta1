@@ -159,7 +159,7 @@ export default function BottomNav({ onOpenUpload, onOpenInbox, onOpenProfile, on
               // Foto real subida por el usuario: llena el círculo COMPLETO (22px).
               // Antes el padding interior (p-[2px]) encogía la imagen a ~18px y
               // se veía más pequeña que el resto al añadir foto de perfil.
-              <div className="w-[22px] h-[22px] rounded-full overflow-hidden bg-zinc-900 ring-1 ring-white/20">
+              <div className="w-[24px] h-[24px] rounded-full overflow-hidden bg-zinc-900 ring-1 ring-white/20">
                 <img
                   src={user.avatarUrl}
                   alt={user.username}
@@ -168,7 +168,7 @@ export default function BottomNav({ onOpenUpload, onOpenInbox, onOpenProfile, on
               </div>
             ) : (
               // Sin foto actualizada: DefaultAvatar gris (22px)
-              <DefaultAvatar className="w-[22px] h-[22px]" />
+              <DefaultAvatar className="w-[24px] h-[24px]" />
             )
           ) : (
             // Usuario NO registrado: ícono simple (20px)
