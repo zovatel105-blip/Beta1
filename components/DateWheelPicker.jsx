@@ -81,7 +81,7 @@ function WheelColumn({ items, selectedIndex, onChange, width }) {
               style={{
                 fontSize: isSel ? 19 : 17,
                 fontWeight: isSel ? 700 : 500,
-                color: isSel ? '#ffffff' : `rgba(255,255,255,${Math.max(0.18, 0.5 - dist * 0.14)})`,
+                color: isSel ? '#18181b' : `rgba(24,24,27,${Math.max(0.22, 0.55 - dist * 0.15)})`,
               }}
             >
               {item}
@@ -138,17 +138,17 @@ export default function DateWheelPicker({ value, onChange }) {
   const yearItems = years.map((y) => String(y))
 
   return (
-    <div className="relative w-full rounded-2xl bg-white/[0.05] border border-white/10 px-2 py-1 overflow-hidden">
+    <div className="relative w-full rounded-2xl bg-zinc-50 border border-zinc-200 px-2 py-1 overflow-hidden">
       {/* Banda de selección central */}
       <div
-        className="pointer-events-none absolute left-2 right-2 rounded-xl bg-white/[0.08] border-y border-white/15"
+        className="pointer-events-none absolute left-2 right-2 rounded-xl bg-zinc-900/[0.06] border-y border-zinc-300"
         style={{ top: PAD, height: ITEM_H }}
       />
       {/* Degradados superior/inferior para el efecto "rueda" */}
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[60px] z-10"
-           style={{ background: 'linear-gradient(to bottom, #131316 0%, rgba(19,19,22,0) 100%)' }} />
+           style={{ background: 'linear-gradient(to bottom, #fafafa 0%, rgba(250,250,250,0) 100%)' }} />
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[60px] z-10"
-           style={{ background: 'linear-gradient(to top, #131316 0%, rgba(19,19,22,0) 100%)' }} />
+           style={{ background: 'linear-gradient(to top, #fafafa 0%, rgba(250,250,250,0) 100%)' }} />
 
       <div className="relative flex items-stretch justify-center gap-1">
         <WheelColumn
