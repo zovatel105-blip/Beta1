@@ -14,6 +14,7 @@ import {
   getCurrentUsersByUsernames,
   updateUserProfile,
   getAllUsers,
+  getSuggestedUsers,
   createComment as createCommentDB,
   getCommentsByPostId,
   toggleCommentLike as toggleCommentLikeDB,
@@ -657,6 +658,20 @@ export async function GET(request, { params }) {
       return NextResponse.json({ users })
     } catch (err) {
       console.error('[users] error:', err)
+      return NextResponse.json({ users: [] })
+    }
+  }
+
+  // Sugerencias de usuarios ("personas que quizá conozcas / amigos sugeridos").
+  // DEBE ir ANTES del handler genérico /users/:username (si no, 'suggested' se
+  // trataría como un username de perfil).
+  if (segs[0] === 'users' && segs[1] === 'suggested') {
+    try {
+      const currentUser = await getCurrentUser(request)
+      const users = await getSuggestedUsers(currentUser, { limit: 40 })
+      return NextResponse.json({ users })
+    } catch (err) {
+      console.error('[suggested] error:', err)
       return NextResponse.json({ users: [] })
     }
   }

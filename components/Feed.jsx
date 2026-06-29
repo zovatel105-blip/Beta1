@@ -14,6 +14,7 @@ import CompletedBattlesPage from './CompletedBattlesPage'
 import ActiveChallengesPage from './ActiveChallengesPage'
 import AuthModal from './AuthModal'
 import SearchOverlay from './SearchOverlay'
+import SuggestedUsersPage from './SuggestedUsersPage'
 import { useAuth } from '@/contexts/AuthContext'
 import { notificationsUnreadCount } from '@/lib/notifications'
 import { startNetworkMonitor, pickQuality, shouldConserve } from '@/lib/networkQuality'
@@ -101,6 +102,7 @@ export default function Feed() {
   const [battlesOpen, setBattlesOpen] = useState(false)
   const [activeChallengesOpen, setActiveChallengesOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false)
   const [battlesRefresh, setBattlesRefresh] = useState(0)
   const [pendingCount, setPendingCount] = useState(0)
   // Subida de reto en segundo plano: { status:'uploading'|'done'|'error', progress, username }
@@ -522,6 +524,12 @@ export default function Feed() {
         onClose={() => setSearchOpen(false)}
         onOpenProfile={openAuthorProfile}
       />
+      <SuggestedUsersPage
+        open={suggestionsOpen}
+        onClose={() => setSuggestionsOpen(false)}
+        onOpenProfile={openAuthorProfile}
+        onRequireAuth={() => { setAuthTab('register'); setAuthOpen(true) }}
+      />
       <CompletedBattlesPage
         open={battlesOpen}
         refreshKey={battlesRefresh}
@@ -530,7 +538,7 @@ export default function Feed() {
         onOpenUpload={() => { setBattlesOpen(false); requestUpload() }}
         onOpenInbox={() => { setBattlesOpen(false); setInboxOpen(true) }}
         onOpenProfile={() => { setBattlesOpen(false); setProfileOpen(true) }}
-        onOpenSuggestions={() => setSearchOpen(true)}
+        onOpenSuggestions={() => setSuggestionsOpen(true)}
       />
       <ActiveChallengesPage
         open={activeChallengesOpen}
