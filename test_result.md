@@ -107,15 +107,28 @@ user_problem_statement: "Las publicaciones normales deben ser un carrusel de 2 v
 backend:
   - task: "Buscador de usuarios: GET /api/users?q= (búsqueda por username/nombre, incluye al propio usuario)"
     implemented: true
-    working: "NA"
+    working: true
     file: "lib/db.js, app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
-        -working: "NA"
+        -working: true
         -agent: "main"
-        -comment: "NUEVA FEATURE (usuario: 'poner un buscador en la parte superior derecha de la página de inicio'). getAllUsers(lib/db.js) ahora acepta {search, limit}: si search no vacío, filtra por $or [{username regex i},{name regex i}] (escapando caracteres especiales) y limita resultados; sin search mantiene el comportamiento original (excluye al usuario actual, uso de UploadDialog). GET /api/users en route.js: si llega ?q= y no vacío -> getAllUsers({search:q, limit:30}) (INCLUYE al propio usuario para poder encontrarse); sin q -> comportamiento original (excluye al usuario actual). NOTA: el .env (gitignored) se había perdido de nuevo (todas las APIs daban 500); restaurado MONGO_URL=mongodb://localhost:27017/twyk, ADMIN_EMAILS=twyk.apk@gmail.com, NEXT_PUBLIC_BASE_URL (preview), CORS_ORIGINS. BD 'twyk' estaba vacía; re-sembradas cuentas de prueba (ver test_credentials.md): twykadmin/Admin12345 (admin) y lucia/marcos/laura (Test12345). Verificado por curl: q=la -> [laura]; q=twyk -> [twykadmin]; sin q -> 200. Pendiente verificación del agente de testing."
+        -comment: "NUEVA FEATURE (usuario: 'poner un buscador en la parte superior derecha de la página de inicio'). getAllUsers(lib/db.js) ahora acepta {search, limit}: si search no vacío, filtra por $or [{username regex i},{name regex i}] (escapando caracteres especiales) y limita resultados; sin search mantiene el comportamiento original (excluye al usuario actual, uso de UploadDialog). GET /api/users en route.js: si llega ?q= y no vacío -> getAllUsers({search:q, limit:30}) (INCLUYE al propio usuario para poder encontrarse); sin q -> comportamiento original (excluye al usuario actual). NOTA: el .env (gitignored) se había perdido de nuevo (todas las APIs daban 500); restaurado MONGO_URL=mongodb://localhost:27017/twyk, ADMIN_EMAILS=twyk.apk@gmail.com, NEXT_PUBLIC_BASE_URL (preview), CORS_ORIGINS. BD 'twyk' estaba vacía; re-sembradas cuentas de prueba (ver test_credentials.md): twykadmin/Admin12345 (admin) y lucia/marcos/laura (Test12345). VERIFICADO MANUALMENTE con curl (el usuario pidió NO usar el agente de testing): (1) q=la->[laura]; (2) q=LU->[lucia] (case-insensitive); (3) q=twyk->[twykadmin]; (4) q=zzzznoexiste->[]; (5) sin q sin sesión->4 usuarios; sin q con sesión de lucia->excluye lucia; (6) q=lucia con sesión de lucia->incluye lucia; (7) q=.*->200 [] (regex escapada, sin inyección). Lint limpio."
+
+  - task: "Buscador de usuarios (FRONTEND): icono de lupa arriba-derecha del feed + SearchOverlay"
+    implemented: true
+    working: true
+    file: "components/SearchOverlay.jsx, components/Feed.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "main"
+        -comment: "NUEVA FEATURE (usuario: 'buscador en la parte superior derecha de la página de inicio; solo usuarios; icono de lupa que abre overlay; estilo oscuro'). Feed.jsx: botón de lupa fijo arriba-derecha (z-40, fuera del condicional de carga, siempre visible) que abre SearchOverlay (estado searchOpen). SearchOverlay.jsx: overlay oscuro full-screen (z-80) estilo TikTok con flecha de volver + input (autofocus) + botón limpiar; búsqueda en vivo con debounce 250ms contra GET /api/users?q= (sin texto muestra 'Sugerencias' = lista general); resultados con <Avatar> compartido (silueta gris por defecto), nombre, @username y badge verificado; al tocar un resultado cierra el overlay y abre el perfil del usuario (openAuthorProfile, reutiliza ProfilePage del Feed). Estados vacío/cargando. Verificado: lint limpio en SearchOverlay; Feed compila (home 200); Playwright encontró y clicó el botón 'Buscar usuarios' y rellenó el input (overlay interactivo). NOTA: la captura headless solo muestra el spinner del feed (limitación conocida del entorno con el bundle de dev, ya documentada). NO se usa agente de testing (petición del usuario)."
+
 
 
   - task: "Login por EMAIL o USERNAME (bug: usuario no podía entrar con su email)"
