@@ -447,6 +447,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
   const chosenName = chosenSide.author?.name || (chosenSide.author?.username ? `@${chosenSide.author.username}` : '')
   const otherName = otherSide.author?.name || (otherSide.author?.username ? `@${otherSide.author.username}` : '')
   const chosenSrc = chosenKey === 'b' ? srcB : srcA
+  const chosenIsImage = chosenSide.mediaType === 'image'
 
   // Split styles
   const splitWrapperClass = isHorizontal
@@ -464,11 +465,11 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
       {/* split videos */}
       <div className={splitWrapperClass}>
         <div className={cn(halfClass, userVote === 'a' && 'ring-2 ring-purple-500 ring-inset')}>
-          {/* Poster instantáneo (primer fotograma) */}
-          {sideA.posterUrl && (
-            <img src={sideA.posterUrl} alt="" aria-hidden draggable={false} className="absolute inset-0 w-full h-full object-cover" />
+          {/* Póster / imagen instantáneo (foto = contenido final) */}
+          {(sideA.posterUrl || sideA.imageUrl) && (
+            <img src={sideA.posterUrl || sideA.imageUrl} alt="" aria-hidden draggable={false} className="absolute inset-0 w-full h-full object-cover" />
           )}
-          {isNear && (
+          {isNear && sideA.mediaType !== 'image' && (
             <video
               ref={videoARef}
               className="absolute inset-0 w-full h-full object-cover bg-transparent"
@@ -497,11 +498,11 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
         </div>
 
         <div className={cn(halfClass, userVote === 'b' && 'ring-2 ring-blue-500 ring-inset')}>
-          {/* Poster instantáneo (primer fotograma) */}
-          {sideB.posterUrl && (
-            <img src={sideB.posterUrl} alt="" aria-hidden draggable={false} className="absolute inset-0 w-full h-full object-cover" />
+          {/* Póster / imagen instantáneo (foto = contenido final) */}
+          {(sideB.posterUrl || sideB.imageUrl) && (
+            <img src={sideB.posterUrl || sideB.imageUrl} alt="" aria-hidden draggable={false} className="absolute inset-0 w-full h-full object-cover" />
           )}
-          {isNear && (
+          {isNear && sideB.mediaType !== 'image' && (
             <video
               ref={videoBRef}
               className="absolute inset-0 w-full h-full object-cover bg-transparent"
@@ -781,10 +782,12 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
         </div>
       </BottomSheet>
 
-      {/* progress bar */}
-      <div className="absolute left-0 right-0 bottom-16 z-20 h-[2px] bg-white/15">
-        <div className="h-full bg-white/80" style={{ width: `${progress}%`, transform: 'translateZ(0)' }} />
-      </div>
+      {/* progress bar (solo para vídeo) */}
+      {post.mediaType !== 'image' && (
+        <div className="absolute left-0 right-0 bottom-16 z-20 h-[2px] bg-white/15">
+          <div className="h-full bg-white/80" style={{ width: `${progress}%`, transform: 'translateZ(0)' }} />
+        </div>
+      )}
 
       {/* Winner card — aparece automáticamente tras votar */}
       <VSWinnerCard
@@ -792,8 +795,8 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
         winnerSide={chosenKey}
         winnerName={chosenName}
         winnerPercentage={chosenPct}
-        winnerImage={isGeneratedAvatar(chosenSide.author?.avatarUrl) ? null : chosenSide.author?.avatarUrl}
-        winnerVideoUrl={chosenSrc}
+        winnerImage={chosenIsImage ? (chosenSide.posterUrl || chosenSide.imageUrl) : (isGeneratedAvatar(chosenSide.author?.avatarUrl) ? null : chosenSide.author?.avatarUrl)}
+        winnerVideoUrl={chosenIsImage ? null : chosenSrc}
         loserName={otherName}
         loserPercentage={otherPct}
         totalVotes={totalVotes}

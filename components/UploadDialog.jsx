@@ -12,6 +12,14 @@ import Avatar from './Avatar'
  */
 const GOLD = '#FFFFFF'
 
+// Tipo de un archivo seleccionado: 'image' | 'video' | ''.
+const fileKind = (f) => {
+  const t = f && f.type ? f.type : ''
+  if (t.startsWith('image/')) return 'image'
+  if (t.startsWith('video/')) return 'video'
+  return ''
+}
+
 export default function UploadDialog({ open, onClose, onUploaded, onChallengeCreated }) {
   const inputRef = useRef(null)
   const inputBRef = useRef(null)
@@ -84,8 +92,19 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
   const handleFileChange = (slot) => (e) => {
     const f = e.target.files?.[0]
     if (!f) return
-    if (!f.type.startsWith('video/')) { setError('Select a video'); return }
-    if (f.size > 80 * 1024 * 1024) { setError('Maximum 80MB'); return }
+    const kind = fileKind(f)
+    if (kind !== 'image' && kind !== 'video') { setError('Select a video or photo'); return }
+    // Los retos (de momento) solo admiten vídeo.
+    if (mode === 'challenge' && kind === 'image') { setError('Challenges only support videos'); return }
+    // No mezclar: el otro lado debe ser del mismo tipo (2 vídeos o 2 fotos).
+    const other = slot === 'b' ? file : fileB
+    const otherKind = fileKind(other)
+    if (otherKind && otherKind !== kind) {
+      setError('Both must be the same type (2 videos or 2 photos)')
+      return
+    }
+    const maxMB = kind === 'image' ? 15 : 80
+    if (f.size > maxMB * 1024 * 1024) { setError(`Maximum ${maxMB}MB`); return }
     setError(null)
     if (slot === 'b') setFileB(f)
     else setFile(f)
@@ -352,8 +371,8 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
         {/* STEP: file — vista previa a PANTALLA COMPLETA */}
         {step === 'file' && (
           <div className="fixed inset-0 z-30 bg-black flex flex-col">
-            <input ref={inputRef} type="file" accept="video/*" className="hidden" onChange={handleFileChange('a')} />
-            <input ref={inputBRef} type="file" accept="video/*" className="hidden" onChange={handleFileChange('b')} />
+            <input ref={inputRef} type="file" accept={mode === 'challenge' ? 'video/*' : 'video/*,image/*'} className="hidden" onChange={handleFileChange('a')} />
+            <input ref={inputBRef} type="file" accept={mode === 'challenge' ? 'video/*' : 'video/*,image/*'} className="hidden" onChange={handleFileChange('b')} />
 
             {(() => {
               const isAB = mode === 'versus' || mode === 'duet'
@@ -363,22 +382,28 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
                 const url = idx === 0 ? previewA : previewB
                 const pick = idx === 0 ? pickFile : pickFileB
                 const label = idx === 0 ? 'A' : 'B'
+                const slotFile = idx === 0 ? file : fileB
+                const isImg = fileKind(slotFile) === 'image'
                 return (
                   <div className={rootClass}>
                     {url ? (
-                      <video key={label + url} src={url} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" />
+                      isImg ? (
+                        <img key={label + url} src={url} alt="" draggable={false} className="absolute inset-0 w-full h-full object-cover" />
+                      ) : (
+                        <video key={label + url} src={url} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" />
+                      )
                     ) : (
                       <button onClick={pick} className="absolute inset-0 w-full h-full flex flex-col items-center justify-center gap-2 bg-white/[0.02] active:bg-white/[0.06] transition">
                         <div className="w-12 h-12 rounded-xl border border-white/10 bg-white/[0.05] flex items-center justify-center">
                           <Film size={22} strokeWidth={1.5} className="text-zinc-300" />
                         </div>
-                        <span className="text-[13px] font-medium text-zinc-200">Upload video</span>
-                        <span className="text-[10px] text-zinc-500">MP4 / WebM · max 80MB</span>
+                        <span className="text-[13px] font-medium text-zinc-200">Upload photo or video</span>
+                        <span className="text-[10px] text-zinc-500">Video (max 80MB) · Photo (max 15MB)</span>
                       </button>
                     )}
                     {url && (
                       <button onClick={pick} className="absolute top-2 right-2 z-10 text-[11px] font-semibold text-white bg-black/55 hover:bg-black/80 active:scale-95 rounded-full px-2.5 py-1 transition">
-                        Cambiar
+                        Change
                       </button>
                     )}
                   </div>

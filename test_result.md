@@ -105,6 +105,18 @@
 user_problem_statement: "Las publicaciones normales deben ser un carrusel de 2 vídeos (opción A / opción B) entre los que se desliza y se vota tocando el vídeo. Se suben 2 vídeos. Reemplaza el vídeo normal. AÑADIDO: votar = doble toque, quitar el corazón/Me gusta, y nueva función 'Retar' (solicitud de enfrentamiento con un vídeo subido que el retado acepta/cancela en la Bandeja). NUEVO: buscador de usuarios en la esquina superior derecha de la página de inicio (icono de lupa que abre un overlay)."
 
 backend:
+  - task: "Publicar IMÁGENES además de vídeos en versus y 1vs1 (mismo tipo en ambos lados, sin mezclar)"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js, components/UploadDialog.jsx, components/CarouselSlide.jsx, components/DuetSlide.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "main"
+        -comment: "NUEVA FEATURE (usuario: 'solo puedo publicar vídeos, quiero también imágenes como TikTok; la imagen se trata como diapositiva; NO mezclar vídeo con imagen'). BACKEND: helpers mediaKind(file) y saveUploadedMedia(file) -> {url, mediaType, posterUrl} (imagen: media_<id>.<ext>, posterUrl=imagen; vídeo: saveUploadedVideo+póster). handleVersusUpload/handleDuetUpload validan mismo tipo en ambos lados (si no -> 400 'mixed_media_not_allowed'); cada lado guarda mediaType/imageUrl/videoUrl/posterUrl; post.mediaType raíz. FRONTEND: UploadDialog acepta 'video/*,image/*' (retos solo vídeo), valida mismo tipo y tamaño (vídeo 80MB/foto 15MB), preview <img>|<video>. CarouselSlide/DuetSlide: lados imagen NO montan <video> (el <img> de póster es el contenido), ocultan barra de progreso y winner card usa la imagen; voto/doble toque igual. VERIFICADO MANUALMENTE con curl+captura (usuario pidió NO usar agente de testing y confirmó 'Listo todo correcto'): POST /api/versus con 2 PNG -> 200 mediaType=image; mezcla -> 400; imagen servida 200; post primero en /api/uploads; CarouselSlide renderiza versus de 2 imágenes a pantalla completa con UI de votación. Lint sin nuevos problemas."
+
   - task: "Sugerencias de usuarios: GET /api/users/suggested (te sigue / interactuó / os habéis retado / amigos de amigos / popularidad)"
     implemented: true
     working: true

@@ -1095,11 +1095,18 @@ async function handleVersusUpload(request) {
       return NextResponse.json({ error: 'need_two_files' }, { status: 400 })
     }
 
-    const saveOne = async (file) => saveUploadedVideo(file)
+    // No mezclar: ambos lados deben ser del mismo tipo (2 imágenes o 2 vídeos).
+    const kindA = mediaKind(fileA)
+    const kindB = mediaKind(fileB)
+    if (kindA !== kindB) {
+      return NextResponse.json({ error: 'mixed_media_not_allowed', message: 'Both sides must be the same type (2 videos or 2 photos)' }, { status: 400 })
+    }
 
     await ensureUploadDir()
-    const urlA = await saveOne(fileA)
-    const urlB = await saveOne(fileB)
+    const a = await saveUploadedMedia(fileA)
+    const b = await saveUploadedMedia(fileB)
+    const urlA = a.url
+    const urlB = b.url
     const id = crypto.randomBytes(8).toString('hex')
 
     // Usar datos reales del usuario autenticado si está disponible, sino usar fallback
@@ -1121,14 +1128,15 @@ async function handleVersusUpload(request) {
       id: `versus_up_${id}`,
       type: 'versus',
       layout: 'carousel',
-      sideA: { videoUrl: urlA, posterUrl: posterFor(urlA), author: realAuthor, description: captionA || description, music: 'Option A' },
-      sideB: { videoUrl: urlB, posterUrl: posterFor(urlB), author: realAuthor, description: captionB || description, music: 'Option B' },
+      mediaType: a.mediaType, // 'video' | 'image' (ambos lados iguales)
+      sideA: { mediaType: a.mediaType, videoUrl: a.mediaType === 'video' ? urlA : '', imageUrl: a.mediaType === 'image' ? urlA : '', posterUrl: a.posterUrl, author: realAuthor, description: captionA || description, music: 'Option A' },
+      sideB: { mediaType: b.mediaType, videoUrl: b.mediaType === 'video' ? urlB : '', imageUrl: b.mediaType === 'image' ? urlB : '', posterUrl: b.posterUrl, author: realAuthor, description: captionB || description, music: 'Option B' },
       author: realAuthor,
       description,
       music: 'Tu versus original',
-      videoUrl: urlA,
-      posterUrl: posterFor(urlA),
-      thumbnailUrl: posterFor(urlA),
+      videoUrl: a.mediaType === 'video' ? urlA : '',
+      posterUrl: a.posterUrl,
+      thumbnailUrl: a.posterUrl,
       stats: { likes: 0, comments: 0, shares: 0, saves: 0 },
       votes: { a: 0, b: 0 },
       duration: 0,
@@ -1174,8 +1182,17 @@ async function handleDuetUpload(request) {
       return NextResponse.json({ error: 'need_two_files' }, { status: 400 })
     }
 
-    const urlA = await saveUploadedVideo(fileA)
-    const urlB = await saveUploadedVideo(fileB)
+    // No mezclar: ambos lados deben ser del mismo tipo (2 imágenes o 2 vídeos).
+    const kindA = mediaKind(fileA)
+    const kindB = mediaKind(fileB)
+    if (kindA !== kindB) {
+      return NextResponse.json({ error: 'mixed_media_not_allowed', message: 'Both sides must be the same type (2 videos or 2 photos)' }, { status: 400 })
+    }
+
+    const a = await saveUploadedMedia(fileA)
+    const b = await saveUploadedMedia(fileB)
+    const urlA = a.url
+    const urlB = b.url
     const id = crypto.randomBytes(8).toString('hex')
 
     // Usar datos reales del usuario autenticado si está disponible, sino usar fallback
@@ -1197,15 +1214,16 @@ async function handleDuetUpload(request) {
       id: `duet_${id}`,
       type: 'duet',
       layout, // 'horizontal' | 'vertical'
+      mediaType: a.mediaType, // 'video' | 'image'
       // Ambos lados son contenido propio del usuario.
-      sideA: { videoUrl: urlA, posterUrl: posterFor(urlA), author: realAuthor, description, music: 'Option A' },
-      sideB: { videoUrl: urlB, posterUrl: posterFor(urlB), author: realAuthor, description, music: 'Option B' },
+      sideA: { mediaType: a.mediaType, videoUrl: a.mediaType === 'video' ? urlA : '', imageUrl: a.mediaType === 'image' ? urlA : '', posterUrl: a.posterUrl, author: realAuthor, description, music: 'Option A' },
+      sideB: { mediaType: b.mediaType, videoUrl: b.mediaType === 'video' ? urlB : '', imageUrl: b.mediaType === 'image' ? urlB : '', posterUrl: b.posterUrl, author: realAuthor, description, music: 'Option B' },
       author: realAuthor,
       description,
       music: 'Tu 1vs1 original',
-      videoUrl: urlA,
-      posterUrl: posterFor(urlA),
-      thumbnailUrl: posterFor(urlA),
+      videoUrl: a.mediaType === 'video' ? urlA : '',
+      posterUrl: a.posterUrl,
+      thumbnailUrl: a.posterUrl,
       stats: { likes: 0, comments: 0, shares: 0, saves: 0 },
       votes: { a: 0, b: 0 },
       duration: 0,
@@ -1366,6 +1384,40 @@ async function saveUploadedImage(file) {
   const filePath = nodePath.join(UPLOAD_DIR, filename)
   await fs.writeFile(filePath, bytes)
   return `/uploads/${filename}`
+}
+
+// Detecta si el archivo subido es imagen o vídeo (por mime; fallback extensión).
+const IMAGE_EXTS = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'heic', 'heif', 'avif']
+function mediaKind(file) {
+  const t = (file?.type || '').toLowerCase()
+  if (t.startsWith('image/')) return 'image'
+  if (t.startsWith('video/')) return 'video'
+  const name = (file?.name || '').toLowerCase()
+  const ext = name.includes('.') ? name.split('.').pop() : ''
+  if (IMAGE_EXTS.includes(ext)) return 'image'
+  return 'video'
+}
+
+// Guarda media de publicación (imagen O vídeo) y devuelve { url, mediaType, posterUrl }.
+// Para imágenes el "póster" es la propia imagen (se muestra a pantalla completa,
+// como hace TikTok al convertir la foto en diapositiva). Para vídeos reutiliza
+// saveUploadedVideo (faststart + póster del 1er fotograma).
+async function saveUploadedMedia(file) {
+  if (mediaKind(file) === 'image') {
+    const arrayBuffer = await file.arrayBuffer()
+    const bytes = Buffer.from(arrayBuffer)
+    const id = crypto.randomBytes(8).toString('hex')
+    const name = file.name || 'image.jpg'
+    const ext = name.includes('.') ? name.split('.').pop().toLowerCase() : 'jpg'
+    const safeExt = IMAGE_EXTS.includes(ext) ? ext : 'jpg'
+    const filename = `media_${id}.${safeExt}`
+    await ensureUploadDir()
+    await fs.writeFile(nodePath.join(UPLOAD_DIR, filename), bytes)
+    const url = `/uploads/${filename}`
+    return { url, mediaType: 'image', posterUrl: url }
+  }
+  const url = await saveUploadedVideo(file)
+  return { url, mediaType: 'video', posterUrl: posterFor(url) }
 }
 
 // POST /api/profile

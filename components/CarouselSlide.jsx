@@ -398,16 +398,18 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
   const chosenName = chosenSide.author?.name || (chosenSide.author?.username ? `@${chosenSide.author.username}` : '')
   const otherName = otherSide.author?.name || (otherSide.author?.username ? `@${otherSide.author.username}` : '')
   const chosenSrc = chosenKey === 'b' ? srcB : srcA
+  const chosenIsImage = chosenSide.mediaType === 'image'
 
   // El <video> se monta sin src en JSX (preload="none"): el src lo gestiona
   // imperativamente el efecto de acquire/release (Regla #2). El poster se ve
   // al instante y las tarjetas adyacentes solo muestran poster -> 0 decoders.
   const renderVideo = (s, ref, mountVideo) => (
     <div className="relative w-1/2 h-full overflow-hidden bg-black">
-      {/* Poster: primer fotograma -> la publicación se ve al instante. */}
-      {s.posterUrl && (
+      {/* Póster / imagen: se ve al instante. Para publicaciones de FOTO este es
+          el contenido final (no se monta <video>). */}
+      {(s.posterUrl || s.imageUrl) && (
         <img
-          src={s.posterUrl}
+          src={s.posterUrl || s.imageUrl}
           alt=""
           aria-hidden
           draggable={false}
@@ -444,8 +446,8 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
         {/* Ambos lados montan el <video> (sin src) cuando la tarjeta está en la
             ventana: el src se adquiere solo en el lado visible de la activa, así
             deslizar a B es instantáneo sin agotar decodificadores. */}
-        {renderVideo(sideA, videoARef, isNear)}
-        {renderVideo(sideB, videoBRef, isNear)}
+        {renderVideo(sideA, videoARef, isNear && sideA.mediaType !== 'image')}
+        {renderVideo(sideB, videoBRef, isNear && sideB.mediaType !== 'image')}
       </div>
 
       {/* Capa de gestos (swipe + tap) */}
@@ -647,10 +649,12 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
         ))}
       </div>
 
-      {/* progress bar */}
-      <div className="absolute left-0 right-0 bottom-16 z-20 h-[2px] bg-white/15">
-        <div className="h-full bg-white/80" style={{ width: `${progress}%`, transform: 'translateZ(0)' }} />
-      </div>
+      {/* progress bar (solo para vídeo) */}
+      {current.mediaType !== 'image' && (
+        <div className="absolute left-0 right-0 bottom-16 z-20 h-[2px] bg-white/15">
+          <div className="h-full bg-white/80" style={{ width: `${progress}%`, transform: 'translateZ(0)' }} />
+        </div>
+      )}
 
       {/* Winner card — aparece automáticamente tras votar */}
       <VSWinnerCard
@@ -658,8 +662,8 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
         winnerSide={chosenKey}
         winnerName={chosenName}
         winnerPercentage={chosenPct}
-        winnerImage={isGeneratedAvatar(chosenSide.author?.avatarUrl) ? null : chosenSide.author?.avatarUrl}
-        winnerVideoUrl={chosenSrc}
+        winnerImage={chosenIsImage ? (chosenSide.posterUrl || chosenSide.imageUrl) : (isGeneratedAvatar(chosenSide.author?.avatarUrl) ? null : chosenSide.author?.avatarUrl)}
+        winnerVideoUrl={chosenIsImage ? null : chosenSrc}
         loserName={otherName}
         loserPercentage={otherPct}
         totalVotes={totalVotes}
