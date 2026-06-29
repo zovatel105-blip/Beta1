@@ -646,7 +646,14 @@ export async function GET(request, { params }) {
   if (path === '/users') {
     try {
       const currentUser = await getCurrentUser(request)
-      const users = await getAllUsers({ excludeUsername: currentUser?.username || null })
+      const { searchParams } = new URL(request.url)
+      const q = searchParams.get('q')
+      // Con búsqueda (?q=): coincidencias por username/nombre, incluyendo al
+      // propio usuario (puedes encontrarte a ti mismo). Sin búsqueda: lista
+      // completa excluyendo al usuario actual (uso original: elegir a quién retar).
+      const users = q && q.trim()
+        ? await getAllUsers({ search: q, limit: 30 })
+        : await getAllUsers({ excludeUsername: currentUser?.username || null })
       return NextResponse.json({ users })
     } catch (err) {
       console.error('[users] error:', err)

@@ -102,9 +102,22 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Las publicaciones normales deben ser un carrusel de 2 vídeos (opción A / opción B) entre los que se desliza y se vota tocando el vídeo. Se suben 2 vídeos. Reemplaza el vídeo normal. AÑADIDO: votar = doble toque, quitar el corazón/Me gusta, y nueva función 'Retar' (solicitud de enfrentamiento con un vídeo subido que el retado acepta/cancela en la Bandeja)."
+user_problem_statement: "Las publicaciones normales deben ser un carrusel de 2 vídeos (opción A / opción B) entre los que se desliza y se vota tocando el vídeo. Se suben 2 vídeos. Reemplaza el vídeo normal. AÑADIDO: votar = doble toque, quitar el corazón/Me gusta, y nueva función 'Retar' (solicitud de enfrentamiento con un vídeo subido que el retado acepta/cancela en la Bandeja). NUEVO: buscador de usuarios en la esquina superior derecha de la página de inicio (icono de lupa que abre un overlay)."
 
 backend:
+  - task: "Buscador de usuarios: GET /api/users?q= (búsqueda por username/nombre, incluye al propio usuario)"
+    implemented: true
+    working: "NA"
+    file: "lib/db.js, app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "NUEVA FEATURE (usuario: 'poner un buscador en la parte superior derecha de la página de inicio'). getAllUsers(lib/db.js) ahora acepta {search, limit}: si search no vacío, filtra por $or [{username regex i},{name regex i}] (escapando caracteres especiales) y limita resultados; sin search mantiene el comportamiento original (excluye al usuario actual, uso de UploadDialog). GET /api/users en route.js: si llega ?q= y no vacío -> getAllUsers({search:q, limit:30}) (INCLUYE al propio usuario para poder encontrarse); sin q -> comportamiento original (excluye al usuario actual). NOTA: el .env (gitignored) se había perdido de nuevo (todas las APIs daban 500); restaurado MONGO_URL=mongodb://localhost:27017/twyk, ADMIN_EMAILS=twyk.apk@gmail.com, NEXT_PUBLIC_BASE_URL (preview), CORS_ORIGINS. BD 'twyk' estaba vacía; re-sembradas cuentas de prueba (ver test_credentials.md): twykadmin/Admin12345 (admin) y lucia/marcos/laura (Test12345). Verificado por curl: q=la -> [laura]; q=twyk -> [twykadmin]; sin q -> 200. Pendiente verificación del agente de testing."
+
+
   - task: "Login por EMAIL o USERNAME (bug: usuario no podía entrar con su email)"
     implemented: true
     working: true
@@ -581,12 +594,14 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Login por EMAIL o USERNAME (bug: usuario no podía entrar con su email)"
+    - "Buscador de usuarios: GET /api/users?q= (búsqueda por username/nombre, incluye al propio usuario)"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 
 agent_communication:
+    -agent: "main"
+    -message: "NUEVA FEATURE buscador de usuarios. Probar SOLO BACKEND el endpoint GET /api/users?q=. CONTEXTO: el .env se había perdido (restaurado) y la BD estaba vacía; ya se re-sembraron cuentas (ver test_credentials.md): twykadmin/Admin12345 (admin), lucia/marcos/laura con password Test12345. Escenarios: (1) GET /api/users?q=la (sin sesión) -> 200 {users:[...]} y TODOS los usuarios devueltos contienen 'la' (insensible a mayúsculas) en username o name (debe aparecer 'laura'). (2) GET /api/users?q=LU -> 200 e incluye 'lucia' (case-insensitive). (3) GET /api/users?q=twyk -> 200 e incluye 'twykadmin'. (4) GET /api/users?q=zzzznoexiste -> 200 {users:[]}. (5) REGRESIÓN (uso original sin q): GET /api/users SIN sesión -> 200 {users:[...]} con todos los usuarios; GET /api/users CON sesión de 'lucia' (login POST /api/auth/login {username:'lucia',password:'Test12345'} y usar cookie/token) -> 200 y la lista NO debe incluir a 'lucia' (excluye al usuario actual). (6) IMPORTANTE diferencia: con ?q=lucia (con sesión de lucia) SÍ debe poder encontrarse a sí misma (la búsqueda incluye al propio usuario). (7) Inyección regex: GET /api/users?q=.* -> 200 sin error (los caracteres especiales se escapan, no devuelve todo por regex comodín). NO modificar el Testing Protocol."
     -agent: "main"
     -message: "BUG FIX LOGIN (usuario reportó: aplica credenciales y no accede). Probar SOLO BACKEND. CAUSA: el login solo aceptaba username; con email fallaba. FIX en lib/db.js (getUserByUsernameOrEmail + verifyUserCredentials). La cuenta admin EXISTE: username='twykadmin', email='twyk.apk@gmail.com', password='Admin12345' (ver /app/memory/test_credentials.md). Escenarios a verificar en POST /api/auth/login: (1) {username:'twyk.apk@gmail.com', password:'Admin12345'} -> 200 {ok:true, user.role:'admin', token presente}. (2) {username:'TWYK.APK@Gmail.com', password:'Admin12345'} (mayúsculas) -> 200 (email case-insensitive). (3) {username:'twykadmin', password:'Admin12345'} -> 200 (username sigue funcionando). (4) {username:'twyk.apk@gmail.com', password:'incorrecta'} -> 401 invalid_credentials. (5) Regresión: registra un usuario nuevo {username,email,password,birthDate:'1995-05-05'} y verifica que puede loguear tanto por su username como por su email. (6) GET /api/auth/me con la cookie/token devuelto -> 200 {user}. NO modificar el Testing Protocol."
     -agent: "testing"

@@ -2,7 +2,7 @@
 /* eslint-disable react-hooks/set-state-in-effect -- setState dirigido por IntersectionObserver y handlers (no por píxel de scroll). */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Check, X } from 'lucide-react'
+import { Check, X, Search } from 'lucide-react'
 import DuetSlide from './DuetSlide'
 import CarouselSlide from './CarouselSlide'
 import BottomNav from './BottomNav'
@@ -13,6 +13,7 @@ import ProfilePage from './ProfilePage'
 import CompletedBattlesPage from './CompletedBattlesPage'
 import ActiveChallengesPage from './ActiveChallengesPage'
 import AuthModal from './AuthModal'
+import SearchOverlay from './SearchOverlay'
 import { useAuth } from '@/contexts/AuthContext'
 import { notificationsUnreadCount } from '@/lib/notifications'
 import { startNetworkMonitor, pickQuality, shouldConserve } from '@/lib/networkQuality'
@@ -99,6 +100,7 @@ export default function Feed() {
   const [profileUsername, setProfileUsername] = useState(null)
   const [battlesOpen, setBattlesOpen] = useState(false)
   const [activeChallengesOpen, setActiveChallengesOpen] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
   const [battlesRefresh, setBattlesRefresh] = useState(0)
   const [pendingCount, setPendingCount] = useState(0)
   // Subida de reto en segundo plano: { status:'uploading'|'done'|'error', progress, username }
@@ -387,6 +389,15 @@ export default function Feed() {
 
   return (
     <div className="feed-container fixed inset-0 bg-black" onPointerDown={muted ? onFirstInteraction : undefined}>
+      {/* Buscador de usuarios: lupa fija arriba a la derecha (estilo TikTok). */}
+      <button
+        aria-label="Buscar usuarios"
+        onClick={() => setSearchOpen(true)}
+        className="absolute right-3 z-40 w-9 h-9 rounded-full bg-black/35 backdrop-blur-md flex items-center justify-center text-white active:scale-95 transition"
+        style={{ top: 'max(env(safe-area-inset-top), 12px)' }}
+      >
+        <Search size={20} strokeWidth={2.2} />
+      </button>
       {!ready || posts.length === 0 ? (
         <div className="w-full h-full flex items-center justify-center">
           <div className="w-12 h-12 rounded-full border-2 border-white/20 border-t-white animate-spin" />
@@ -505,6 +516,11 @@ export default function Feed() {
       <NotificationsInbox
         open={inboxOpen}
         onClose={() => setInboxOpen(false)}
+      />
+      <SearchOverlay
+        open={searchOpen}
+        onClose={() => setSearchOpen(false)}
+        onOpenProfile={openAuthorProfile}
       />
       <CompletedBattlesPage
         open={battlesOpen}
