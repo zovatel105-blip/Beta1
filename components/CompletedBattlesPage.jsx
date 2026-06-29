@@ -61,7 +61,7 @@ const EmptyCompletedState = ({ onOpenUpload, onOpenActive }) => {
   )
 }
 
-export default function CompletedBattlesPage({ open, onClose, onOpenActive, onOpenUpload, onOpenInbox, onOpenProfile, refreshKey = 0 }) {
+export default function CompletedBattlesPage({ open, onClose, onOpenActive, onOpenUpload, onOpenInbox, onOpenProfile, onOpenSuggestions, refreshKey = 0 }) {
   const [posts, setPosts] = useState([])
   const [loading, setLoading] = useState(false)
   const [activeIndex, setActiveIndex] = useState(0)
@@ -87,28 +87,16 @@ export default function CompletedBattlesPage({ open, onClose, onOpenActive, onOp
 
   const isEmpty = !loading && posts.length === 0
 
-  // Share with friends: use the native menu if available; otherwise copy the link.
-  const handleShareFriends = async () => {
-    const url = typeof window !== 'undefined' ? window.location.href : ''
-    try {
-      if (typeof navigator !== 'undefined' && navigator.share) {
-        await navigator.share({ title: 'Twyk', text: 'Join my challenges on Twyk! 🥊', url })
-      } else if (typeof navigator !== 'undefined' && navigator.clipboard) {
-        await navigator.clipboard.writeText(url)
-      }
-    } catch { /* user cancelled or no support */ }
-  }
-
   return (
     <div className="fixed inset-0 z-[55] bg-black overflow-hidden">
       {/* Minimalist header — side buttons + central segmented control */}
       <div className="absolute top-0 left-0 right-0 z-40 px-4 pb-4 bg-gradient-to-b from-black/70 to-transparent"
            style={{ paddingTop: 'max(env(safe-area-inset-top), 14px)' }}>
         <div className="flex items-center justify-between gap-2">
-          {/* Left: share with friends */}
+          {/* Left: user suggestions */}
           <button
-            onClick={handleShareFriends}
-            aria-label="Share with friends"
+            onClick={onOpenSuggestions}
+            aria-label="User suggestions"
             className="shrink-0 w-9 h-9 rounded-full bg-white/[0.06] border border-white/10 backdrop-blur-md text-white flex items-center justify-center hover:bg-white/10 active:scale-95 transition"
           >
             <UserPlus className="w-[18px] h-[18px]" strokeWidth={1.75} />

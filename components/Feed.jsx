@@ -530,6 +530,7 @@ export default function Feed() {
         onOpenUpload={() => { setBattlesOpen(false); requestUpload() }}
         onOpenInbox={() => { setBattlesOpen(false); setInboxOpen(true) }}
         onOpenProfile={() => { setBattlesOpen(false); setProfileOpen(true) }}
+        onOpenSuggestions={() => setSearchOpen(true)}
       />
       <ActiveChallengesPage
         open={activeChallengesOpen}
