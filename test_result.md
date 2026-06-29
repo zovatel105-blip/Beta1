@@ -105,6 +105,18 @@
 user_problem_statement: "Las publicaciones normales deben ser un carrusel de 2 vídeos (opción A / opción B) entre los que se desliza y se vota tocando el vídeo. Se suben 2 vídeos. Reemplaza el vídeo normal. AÑADIDO: votar = doble toque, quitar el corazón/Me gusta, y nueva función 'Retar' (solicitud de enfrentamiento con un vídeo subido que el retado acepta/cancela en la Bandeja). NUEVO: buscador de usuarios en la esquina superior derecha de la página de inicio (icono de lupa que abre un overlay)."
 
 backend:
+  - task: "Sugerencias de usuarios: GET /api/users/suggested (te sigue / interactuó / os habéis retado / amigos de amigos / popularidad)"
+    implemented: true
+    working: true
+    file: "lib/db.js, app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "main"
+        -comment: "NUEVA FEATURE (usuario: en la página de retos el botón superior izquierdo debe abrir SUGERENCIAS DE USUARIOS -personas que quizá conozcas/amigos- en vez de compartir). getSuggestedUsers(currentUser) en lib/db.js: score por señales reales -> +60 te sigue (y no le sigues), +40 interactuó contigo (notificaciones fromUserId: votos/comentarios/retos/seguir), +35 os habéis retado (colección 'challenges' from/to), +25*N amigos de amigos (le siguen N personas que sigues), + popularidad (nº followers con tope 20). Excluye a quien ya sigues, a ti mismo y a suspendidos. Devuelve {username,name,avatarUrl,verified,isFollowing:false,followers,reason}. Invitado -> populares. GET /api/users/suggested colocado ANTES del handler genérico /users/:username (si no, 'suggested' se trataría como username). VERIFICADO MANUALMENTE con curl (el usuario pidió NO usar agente de testing): marcos+laura siguen a lucia; lucia sigue a marcos -> GET /api/users/suggested (sesión lucia) = [laura 'Te sigue', twykadmin 'Sugerido para ti'] (excluye a marcos ya seguido y a lucia); invitado = populares por followers; /api/users/lucia y /api/users/marcos (perfil) siguen 200 (no se rompió). Lint limpio."
+
   - task: "Buscador de usuarios: GET /api/users?q= (búsqueda por username/nombre, incluye al propio usuario)"
     implemented: true
     working: true
@@ -439,6 +451,28 @@ backend:
         -comment: "VERIFICADO MANUALMENTE (el usuario pidió NO usar agente de testing). Registrados follower1/target1. (B) POST /api/users/target1/follow sin sesión -> 401 {error:unauthorized}. (C) con sesión -> 200 {ok:true,following:true,followers:1}. (D) toggle -> {following:false,followers:0}; de nuevo -> {following:true,followers:1}. (E) seguirse a sí mismo -> 400 {error:cannot_follow_yourself}. (F) GET /api/users/target1 sin sesión -> isFollowing=false, followers=1. (G) GET con sesión -> isFollowing=true, followers=1. (H) seguir autor demo 'wanderlust' (sin documento de usuario) -> 200 {following:true,followers:1}. Regresión: /api/feed y /api/users 200. Datos de prueba limpiados."
 
 frontend:
+  - task: "Página de retos: botón superior izquierdo abre SUGERENCIAS DE USUARIOS (Seguir + Retar), ya no comparte"
+    implemented: true
+    working: true
+    file: "components/SuggestedUsersPage.jsx, components/CompletedBattlesPage.jsx, components/Feed.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "main"
+        -comment: "NUEVA FEATURE (usuario: el botón superior izquierdo de la página de retos NO debe compartir; debe abrir una página de usuarios sugeridos -personas con las que interactúa, amigos de amigos, etc-; ADEMÁS de Seguir, cada usuario debe poder Retar). CompletedBattlesPage: el botón superior izquierdo (antes handleShareFriends/UserPlus 'Share with friends') ahora llama onOpenSuggestions (aria-label 'User suggestions'); eliminada la función de compartir. Nuevo SuggestedUsersPage.jsx (overlay oscuro z-58, encima de retos z-55, debajo de ChallengeDialog z-60 y ProfilePage z-70): cabecera 'Sugerencias para ti / Personas que quizá conozcas', GET /api/users/suggested, cada fila con Avatar (toca -> abre perfil), nombre+@username, MOTIVO de sugerencia, y DOS botones: Seguir (toggle optimista POST /api/users/:u/follow; 401 -> onRequireAuth) y Retar (Swords -> onChallenge con target de mención -> ChallengeDialog del Feed). Feed.jsx: estado suggestionsOpen, render con onOpenProfile=openAuthorProfile y onChallenge=openChallenge. VERIFICADO VISUALMENTE (página de prueba aislada, sin agente de testing): 4 usuarios con avatar, motivo y botones Seguir + Retar. Lint limpio."
+  - task: "Registro: selector de fecha de nacimiento se veía en blanco (texto invisible sobre modal claro)"
+    implemented: true
+    working: true
+    file: "components/DateWheelPicker.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "main"
+        -comment: "BUG FIX (usuario: al registrarse, el paso de fecha de nacimiento aparecía como barras grises/negras sin números). CAUSA: DateWheelPicker estaba estilizado para fondo OSCURO (texto blanco y degradados #131316) pero el AuthModal de registro es de tema CLARO (bg-white) -> texto blanco invisible y degradados oscuros como barras negras. FIX: adaptado a tema claro -> texto zinc-900, contenedor bg-zinc-50/border-zinc-200, banda de selección zinc-900/6, degradados blancos (#fafafa). VERIFICADO VISUALMENTE (página de prueba aislada): números/meses/años visibles en oscuro (01 / January / 2008 en la banda central). Lint limpio."
   - task: "ProfilePage: cabecera colapsable estilo TikTok (perfil propio y ajeno) con mini-perfil revelado al hacer scroll"
     implemented: true
     working: true

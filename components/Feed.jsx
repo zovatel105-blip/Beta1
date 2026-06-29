@@ -528,6 +528,7 @@ export default function Feed() {
         open={suggestionsOpen}
         onClose={() => setSuggestionsOpen(false)}
         onOpenProfile={openAuthorProfile}
+        onChallenge={openChallenge}
         onRequireAuth={() => { setAuthTab('register'); setAuthOpen(true) }}
       />
       <CompletedBattlesPage

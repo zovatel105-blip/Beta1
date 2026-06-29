@@ -8,6 +8,7 @@ export default function DevSuggestPage() {
       open={true}
       onClose={() => {}}
       onOpenProfile={() => {}}
+      onChallenge={() => {}}
       onRequireAuth={() => {}}
     />
   )

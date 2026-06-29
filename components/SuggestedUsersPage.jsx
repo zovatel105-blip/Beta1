@@ -1,14 +1,14 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { ArrowLeft, Check, Loader2, UserRoundPlus, Users } from 'lucide-react'
+import { ArrowLeft, Check, Loader2, UserRoundPlus, Users, Swords } from 'lucide-react'
 import Avatar from './Avatar'
 
 // Página de USUARIOS SUGERIDOS ("personas que quizá conozcas / amigos sugeridos").
 // Se abre desde el botón superior izquierdo de la página de retos. Muestra una
 // lista priorizada por interacción real (te sigue, interactuó contigo, os habéis
-// retado, amigos de amigos, popularidad) con su motivo y un botón Seguir.
-export default function SuggestedUsersPage({ open, onClose, onOpenProfile, onRequireAuth }) {
+// retado, amigos de amigos, popularidad) con su motivo y acciones Seguir / Retar.
+export default function SuggestedUsersPage({ open, onClose, onOpenProfile, onChallenge, onRequireAuth }) {
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(false)
   const [busy, setBusy] = useState({}) // username -> true mientras se procesa el follow
@@ -63,25 +63,36 @@ export default function SuggestedUsersPage({ open, onClose, onOpenProfile, onReq
     }
   }, [busy, onRequireAuth])
 
+  const handleChallenge = useCallback((u) => {
+    // Reto "con mención" (sin vídeo concreto): el usuario retado subirá su vídeo
+    // de respuesta al aceptar. Reutiliza el flujo de ChallengeDialog del Feed.
+    onChallenge?.({
+      videoUrl: '',
+      author: { username: u.username, name: u.name || u.username, avatarUrl: u.avatarUrl || '' },
+      description: '',
+      music: '',
+    })
+  }, [onChallenge])
+
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-[60] bg-[#0a0a0b] flex flex-col">
+    <div className="fixed inset-0 z-[58] bg-[#0a0a0b] flex flex-col">
       {/* Cabecera */}
       <div
         className="flex items-center gap-2 px-3 pb-3 border-b border-white/10"
         style={{ paddingTop: 'max(env(safe-area-inset-top), 12px)' }}
       >
         <button
-          aria-label="cerrar sugerencias"
+          aria-label="close suggestions"
           onClick={onClose}
           className="w-9 h-9 shrink-0 rounded-full flex items-center justify-center text-white/80 hover:bg-white/10 active:scale-95 transition"
         >
           <ArrowLeft size={20} />
         </button>
         <div className="min-w-0">
-          <h1 className="text-white text-[17px] font-bold leading-tight">Sugerencias para ti</h1>
-          <p className="text-white/45 text-[12px] leading-tight">Personas que quizá conozcas</p>
+          <h1 className="text-white text-[17px] font-bold leading-tight">Suggested for you</h1>
+          <p className="text-white/45 text-[12px] leading-tight">People you may know</p>
         </div>
       </div>
 
@@ -96,8 +107,8 @@ export default function SuggestedUsersPage({ open, onClose, onOpenProfile, onReq
             <div className="w-14 h-14 rounded-full bg-white/5 flex items-center justify-center mb-3">
               <Users size={24} className="text-white/30" />
             </div>
-            <p className="text-white/70 text-[15px] font-semibold">Aún no hay sugerencias</p>
-            <p className="text-white/40 text-[13px] mt-1">Interactúa, sigue y reta a otros para ver personas aquí.</p>
+            <p className="text-white/70 text-[15px] font-semibold">No suggestions yet</p>
+            <p className="text-white/40 text-[13px] mt-1">Interact, follow and challenge others to see people here.</p>
           </div>
         ) : (
           <ul className="py-1">
@@ -117,23 +128,31 @@ export default function SuggestedUsersPage({ open, onClose, onOpenProfile, onReq
                     <p className="text-white/40 text-[12px] truncate mt-0.5">{u.reason}</p>
                   </div>
                 </button>
-                <button
-                  onClick={() => toggleFollow(u.username)}
-                  disabled={!!busy[u.username]}
-                  className={`shrink-0 h-9 px-4 rounded-full text-[13px] font-semibold flex items-center justify-center gap-1.5 transition active:scale-95 disabled:opacity-60 ${
-                    u.isFollowing
-                      ? 'bg-white/[0.06] border border-white/15 text-white'
-                      : 'bg-white text-black'
-                  }`}
-                >
-                  {busy[u.username] ? (
-                    <Loader2 size={15} className="animate-spin" />
-                  ) : u.isFollowing ? (
-                    <>Siguiendo</>
-                  ) : (
-                    <><UserRoundPlus size={15} strokeWidth={2.2} /> Seguir</>
-                  )}
-                </button>
+                <div className="shrink-0 flex flex-col gap-1.5 w-[94px]">
+                  <button
+                    onClick={() => toggleFollow(u.username)}
+                    disabled={!!busy[u.username]}
+                    className={`w-full h-8 rounded-full text-[12.5px] font-semibold flex items-center justify-center gap-1.5 transition active:scale-95 disabled:opacity-60 ${
+                      u.isFollowing
+                        ? 'bg-white/[0.06] border border-white/15 text-white'
+                        : 'bg-white text-black'
+                    }`}
+                  >
+                    {busy[u.username] ? (
+                      <Loader2 size={14} className="animate-spin" />
+                    ) : u.isFollowing ? (
+                      <>Following</>
+                    ) : (
+                      <><UserRoundPlus size={14} strokeWidth={2.2} /> Follow</>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => handleChallenge(u)}
+                    className="w-full h-8 rounded-full text-[12.5px] font-semibold flex items-center justify-center gap-1.5 bg-transparent border border-white/15 text-white hover:bg-white/[0.06] active:scale-95 transition"
+                  >
+                    <Swords size={14} strokeWidth={2.1} /> Challenge
+                  </button>
+                </div>
               </li>
             ))}
           </ul>
