@@ -5,6 +5,7 @@ import { MessageCircle, Bookmark, Play, Swords, MoreVertical } from 'lucide-reac
 import ShareIcon from './icons/ShareIcon'
 import { cn } from '@/lib/utils'
 import VoteIcon from './icons/VoteIcon'
+import CaptionText from './CaptionText'
 import VSWinnerCard from './VSWinnerCard'
 import CommentsModal from './CommentsModal'
 import ShareModal from './ShareModal'
@@ -574,7 +575,7 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
           </button>
         </div>
         <div className="mt-1 pointer-events-auto">
-          <h2 className="text-white text-sm leading-tight line-clamp-2">{current.description || post.description}</h2>
+          <CaptionText text={current.description || post.description} className="text-white text-sm leading-tight" />
         </div>
       </div>
 

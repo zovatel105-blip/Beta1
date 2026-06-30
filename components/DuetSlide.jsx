@@ -5,6 +5,7 @@ import { MessageCircle, Bookmark, Play, Swords, MoreVertical, ChevronDown } from
 import ShareIcon from './icons/ShareIcon'
 import { cn } from '@/lib/utils'
 import VoteIcon from './icons/VoteIcon'
+import CaptionText from './CaptionText'
 import VSWinnerCard from './VSWinnerCard'
 import VSContentCard from './VSContentCard'
 import CommentsModal from './CommentsModal'
@@ -655,7 +656,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
         </div>
         {/* Título / descripción */}
         <div className="mt-1 pointer-events-auto">
-          <h2 className="text-white text-sm leading-tight line-clamp-2">{post.description}</h2>
+          <CaptionText text={post.description} className="text-white text-sm leading-tight" />
         </div>
       </div>
 
