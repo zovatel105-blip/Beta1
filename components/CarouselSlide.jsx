@@ -130,6 +130,13 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
   const authorA = sideA.author || post.author || {}
   const authorB = sideB.author || post.author || {}
 
+  // Sincroniza el estado de seguimiento con el dato del servidor
+  // (headAuthor.isFollowing) para que "Following" persista tras recargar y al
+  // reciclarse la tarjeta en la ventana del feed.
+  useEffect(() => {
+    setFollowing(!!headAuthor?.isFollowing)
+  }, [headAuthor?.username, headAuthor?.isFollowing])
+
   // ¿La publicación es del usuario actual? El dueño se identifica por author.id
   // (las subidas guardan author.id = user.id) o por userId. Si lo es, el menú de
   // "tres puntos" muestra opciones de dueño (eliminar) en vez de reportar/bloquear.
@@ -568,7 +575,7 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
             aria-label="follow"
             className={cn(
               'shrink-0 px-3 py-1 rounded-lg border text-[13px] font-medium transition-all duration-200 active:scale-95',
-              following ? 'border-white/40 text-white/80' : 'border-white/90 text-white'
+              following ? 'border-white/90 text-white' : 'border-white/90 text-white'
             )}
           >
             {following ? 'Following' : 'Follow'}

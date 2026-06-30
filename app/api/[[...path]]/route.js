@@ -30,6 +30,7 @@ import {
   getUnreadNotificationsCount,
   toggleFollowByUsername,
   isFollowingByUsername,
+  getFollowingUsernames,
   getFollowersCountByUsername,
   getFollowingCountByUsername,
   getFollowersByUsername,
@@ -497,6 +498,21 @@ export async function GET(request, { params }) {
 
     // Refresca avatares denormalizados con los datos actuales del autor.
     posts = await refreshPostAvatars(posts)
+
+    // Anota el estado isFollowing de cada autor para el usuario logueado (UNA
+    // sola consulta). Así el botón "Following" del feed persiste tras recargar.
+    if (currentUser) {
+      try {
+        const followingSet = new Set(await getFollowingUsernames(currentUser.id))
+        const annotate = (a) => (a && a.username ? { ...a, isFollowing: followingSet.has(a.username) } : a)
+        posts = posts.map((p) => ({
+          ...p,
+          author: annotate(p.author),
+          sideA: p.sideA ? { ...p.sideA, author: annotate(p.sideA.author) } : p.sideA,
+          sideB: p.sideB ? { ...p.sideB, author: annotate(p.sideB.author) } : p.sideB,
+        }))
+      } catch { /* ignore */ }
+    }
 
     // Registra impresiones (anti-fatiga + denominador de engagement + posición
     // para NDCG). Fire-and-forget.
