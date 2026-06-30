@@ -539,7 +539,21 @@ export async function GET(request, { params }) {
     const currentUser = await getCurrentUser(request)
     const meta = await readUploadMeta()
     const visible = await filterBlockedPosts(meta, currentUser)
-    const posts = await refreshPostAvatars(visible)
+    let posts = await refreshPostAvatars(visible)
+    // Anota isFollowing por autor (igual que /feed) para que "Following"
+    // persista: /uploads es la fuente que el feed carga primero.
+    if (currentUser) {
+      try {
+        const followingSet = new Set(await getFollowingUsernames(currentUser.id))
+        const annotate = (a) => (a && a.username ? { ...a, isFollowing: followingSet.has(a.username) } : a)
+        posts = posts.map((p) => ({
+          ...p,
+          author: annotate(p.author),
+          sideA: p.sideA ? { ...p.sideA, author: annotate(p.sideA.author) } : p.sideA,
+          sideB: p.sideB ? { ...p.sideB, author: annotate(p.sideB.author) } : p.sideB,
+        }))
+      } catch { /* ignore */ }
+    }
     return NextResponse.json({ posts })
   }
 
