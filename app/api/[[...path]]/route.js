@@ -1087,7 +1087,7 @@ async function handleVersusUpload(request) {
     const formData = await request.formData()
     const fileA = formData.get('fileA')
     const fileB = formData.get('fileB')
-    const description = (formData.get('description') || 'Which do you prefer? 🅰️🆚🅱️').toString()
+    const description = (formData.get('description') || '').toString().trim()
     const captionA = (formData.get('captionA') || '').toString()
     const captionB = (formData.get('captionB') || '').toString()
 
@@ -1174,7 +1174,7 @@ async function handleDuetUpload(request) {
     const formData = await request.formData()
     const fileA = formData.get('fileA')
     const fileB = formData.get('fileB')
-    const description = (formData.get('description') || 'Who wins? 🥊 #1vs1').toString()
+    const description = (formData.get('description') || '').toString().trim()
     const layoutRaw = (formData.get('layout') || 'horizontal').toString()
     const layout = layoutRaw === 'vertical' ? 'vertical' : 'horizontal'
 

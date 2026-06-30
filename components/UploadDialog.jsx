@@ -148,7 +148,7 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
         fd.append('fileA', file)
         fd.append('fileB', fileB)
         fd.append('layout', layout)
-        fd.append('description', description || 'Who wins? 🥊 #1vs1')
+        fd.append('description', description || '')
       } else if (mode === 'challenge') {
         xhr.open('POST', '/api/challenges')
         fd.append('file', file)
@@ -158,7 +158,7 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
         xhr.open('POST', '/api/versus')
         fd.append('fileA', file)
         fd.append('fileB', fileB)
-        fd.append('description', description || 'Which do you prefer? 🅰️🆚🅱️')
+        fd.append('description', description || '')
       }
       // Respaldo por token Bearer (además de la cookie withCredentials): si el
       // navegador bloquea la cookie dentro del iframe, el token autentica igual.
