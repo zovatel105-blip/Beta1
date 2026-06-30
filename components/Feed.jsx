@@ -395,10 +395,10 @@ export default function Feed() {
       <button
         aria-label="Buscar usuarios"
         onClick={() => setSearchOpen(true)}
-        className="absolute right-3 z-40 w-9 h-9 rounded-full bg-black/35 backdrop-blur-md flex items-center justify-center text-white active:scale-95 transition"
+        className="absolute right-3 z-40 w-9 h-9 flex items-center justify-center text-white active:scale-95 transition drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)]"
         style={{ top: 'max(env(safe-area-inset-top), 12px)' }}
       >
-        <Search size={20} strokeWidth={2.2} />
+        <Search size={24} strokeWidth={2.2} />
       </button>
       {!ready || posts.length === 0 ? (
         <div className="w-full h-full flex items-center justify-center">
