@@ -2,8 +2,9 @@
 /* eslint-disable react-hooks/set-state-in-effect -- setState en efectos de carga/reset async; falso positivo de la regla experimental. */
 
 import { useEffect, useRef, useState } from 'react'
-import { ChevronRight, Loader2, Film, Swords, Users, Rows3, Columns3, ArrowLeft, X, Search } from 'lucide-react'
+import { ChevronRight, Loader2, Film, Swords, Users, Rows3, Columns3, ArrowLeft, X, Search, Music } from 'lucide-react'
 import Avatar from './Avatar'
+import MusicPicker from './MusicPicker'
 
 /**
  * UploadDialog — flujo multi-paso para crear publicaciones de votación: Versus
@@ -37,6 +38,8 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
   const [progress, setProgress] = useState(0)
   const [error, setError] = useState(null)
   const [selected, setSelected] = useState('versus')
+  const [music, setMusic] = useState(null) // track de iTunes seleccionado
+  const [musicOpen, setMusicOpen] = useState(false)
   const [previewA, setPreviewA] = useState(null)
   const [previewB, setPreviewB] = useState(null)
   const [versusIdx, setVersusIdx] = useState(0) // slide activo en la vista previa carrusel (versus)
@@ -59,7 +62,7 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
   const reset = () => {
     setStep('mode'); setMode(null); setLayout('horizontal'); setTarget(null); setUsers([])
     setFile(null); setFileB(null); setDescription(''); setProgress(0); setError(null)
-    setSelected('versus'); setVersusIdx(0)
+    setSelected('versus'); setVersusIdx(0); setMusic(null); setMusicOpen(false)
   }
 
   useEffect(() => {
@@ -94,8 +97,6 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
     if (!f) return
     const kind = fileKind(f)
     if (kind !== 'image' && kind !== 'video') { setError('Select a video or photo'); return }
-    // Los retos (de momento) solo admiten vídeo.
-    if (mode === 'challenge' && kind === 'image') { setError('Challenges only support videos'); return }
     // No mezclar: el otro lado debe ser del mismo tipo (2 vídeos o 2 fotos).
     const other = slot === 'b' ? file : fileB
     const otherKind = fileKind(other)
@@ -111,7 +112,7 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
   }
 
   const goToTarget = () => {
-    if (!file) { setError('Upload your challenge video'); return }
+    if (!file) { setError('Upload your challenge video or photo'); return }
     setError(null)
     setStep('target')
   }
@@ -159,6 +160,14 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
         fd.append('fileA', file)
         fd.append('fileB', fileB)
         fd.append('description', description || '')
+      }
+      // Música seleccionada (iTunes): se adjunta en cualquier modo.
+      if (music?.previewUrl) {
+        fd.append('musicTitle', music.title || '')
+        fd.append('musicArtist', music.artist || '')
+        fd.append('musicArtwork', music.artwork || '')
+        fd.append('musicPreviewUrl', music.previewUrl || '')
+        fd.append('musicTrackId', String(music.id || ''))
       }
       // Respaldo por token Bearer (además de la cookie withCredentials): si el
       // navegador bloquea la cookie dentro del iframe, el token autentica igual.
@@ -210,7 +219,7 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
             {step === 'mode' && 'Create content'}
             {step === 'layout' && 'Choose the format'}
             {step === 'target' && 'Choose who to challenge'}
-            {step === 'file' && (mode === 'versus' ? 'Your 2 videos' : mode === 'challenge' ? 'Your challenge video' : 'Your 1vs1')}
+            {step === 'file' && (mode === 'versus' ? 'Your 2 videos' : mode === 'challenge' ? 'Your challenge' : 'Your 1vs1')}
             {step === 'uploading' && (mode === 'challenge' ? 'Sending challenge' : 'Uploading')}
           </h1>
         </div>
@@ -262,7 +271,7 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
               <p className="text-zinc-400 text-[15px] max-w-[19rem] leading-relaxed">
                 {selected === 'versus' && 'Upload 2 videos (A and B) and let people vote by swiping between them.'}
                 {selected === 'duet' && 'Upload 2 videos (A and B) in the format you choose and let people vote who wins.'}
-                {selected === 'challenge' && 'Upload your video and challenge a creator. It will appear in their active challenges to accept.'}
+                {selected === 'challenge' && 'Upload your video or photo and challenge a creator. It will appear in their active challenges to accept.'}
               </p>
 
               {/* Mini ilustración del formato */}
@@ -371,8 +380,8 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
         {/* STEP: file — vista previa a PANTALLA COMPLETA */}
         {step === 'file' && (
           <div className="fixed inset-0 z-30 bg-black flex flex-col">
-            <input ref={inputRef} type="file" accept={mode === 'challenge' ? 'video/*' : 'video/*,image/*'} className="hidden" onChange={handleFileChange('a')} />
-            <input ref={inputBRef} type="file" accept={mode === 'challenge' ? 'video/*' : 'video/*,image/*'} className="hidden" onChange={handleFileChange('b')} />
+            <input ref={inputRef} type="file" accept="video/*,image/*" className="hidden" onChange={handleFileChange('a')} />
+            <input ref={inputBRef} type="file" accept="video/*,image/*" className="hidden" onChange={handleFileChange('b')} />
 
             {(() => {
               const isAB = mode === 'versus' || mode === 'duet'
@@ -432,14 +441,18 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
                   ) : (
                     <div className="absolute inset-0">
                       {previewA ? (
-                        <video src={previewA} autoPlay loop muted playsInline className="w-full h-full object-cover" />
+                        fileKind(file) === 'image' ? (
+                          <img src={previewA} alt="" draggable={false} className="w-full h-full object-cover" />
+                        ) : (
+                          <video src={previewA} autoPlay loop muted playsInline className="w-full h-full object-cover" />
+                        )
                       ) : (
                         <button onClick={pickFile} className="w-full h-full flex flex-col items-center justify-center gap-3 bg-white/[0.02] active:bg-white/[0.05] transition">
                           <div className="w-16 h-16 rounded-2xl border border-white/10 bg-white/[0.05] flex items-center justify-center">
                             <Film size={28} strokeWidth={1.5} className="text-zinc-300" />
                           </div>
-                          <span className="text-[15px] font-medium text-zinc-200">Tap to upload the video</span>
-                          <span className="text-[11px] text-zinc-500">MP4 / WebM · max 80MB</span>
+                          <span className="text-[15px] font-medium text-zinc-200">Tap to upload your photo or video</span>
+                          <span className="text-[11px] text-zinc-500">Video (max 80MB) · Photo (max 15MB)</span>
                         </button>
                       )}
                     </div>
@@ -506,6 +519,29 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
                         className="w-full bg-transparent text-[15px] text-zinc-100 placeholder:text-zinc-400 focus:outline-none resize-none"
                       />
                     </div>
+                    {/* Añadir música (iTunes) */}
+                    {music ? (
+                      <div className="flex items-center gap-3 rounded-2xl bg-black/45 backdrop-blur-xl border border-white/10 px-3 py-2.5">
+                        <div className="w-10 h-10 rounded-lg overflow-hidden bg-zinc-800 shrink-0">
+                          {music.artwork ? <img src={music.artwork} alt="" className="w-full h-full object-cover" /> : <Music size={18} className="text-zinc-400 m-auto mt-2.5" />}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-white text-[13px] font-semibold truncate">{music.title}</p>
+                          <p className="text-zinc-400 text-[11.5px] truncate">{music.artist}</p>
+                        </div>
+                        <button onClick={() => setMusicOpen(true)} className="text-[12px] font-semibold text-white/80 hover:text-white px-2 shrink-0">Change</button>
+                        <button onClick={() => setMusic(null)} aria-label="Remove music" className="text-zinc-400 hover:text-white shrink-0 p-1">
+                          <X size={16} />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setMusicOpen(true)}
+                        className="w-full flex items-center justify-center gap-2 rounded-2xl bg-black/45 backdrop-blur-xl border border-white/10 px-4 py-3 text-[14px] font-semibold text-white hover:bg-black/60 active:scale-[0.99] transition"
+                      >
+                        <Music size={17} strokeWidth={2} /> Add music
+                      </button>
+                    )}
                     <button
                       onClick={() => (mode === 'challenge' ? goToTarget() : doUpload())}
                       disabled={isAB ? (!file || !fileB) : !file}
@@ -535,6 +571,7 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
           </div>
         )}
       </div>
+      <MusicPicker open={musicOpen} onClose={() => setMusicOpen(false)} onSelect={setMusic} current={music} />
     </div>
   )
 }

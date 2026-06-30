@@ -17,7 +17,7 @@ function InboxChallengeCard({ c, busy, onAccept, onReject }) {
   const [responseFile, setResponseFile] = useState(null)
   const [responsePreview, setResponsePreview] = useState(null)
 
-  const needsVideo = !c.targetVideoUrl
+  const needsVideo = !c.targetVideoUrl && !c.targetImageUrl
 
   useEffect(() => () => { if (responsePreview) URL.revokeObjectURL(responsePreview) }, [responsePreview])
 
@@ -26,7 +26,7 @@ function InboxChallengeCard({ c, busy, onAccept, onReject }) {
     const f = e.target.files?.[0]
     e.target.value = ''
     if (!f) return
-    if (!f.type.startsWith('video/')) return
+    if (!f.type.startsWith('video/') && !f.type.startsWith('image/')) return
     setResponseFile(f)
     setResponsePreview((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(f) })
     if (pendingAcceptRef.current) {
@@ -43,11 +43,17 @@ function InboxChallengeCard({ c, busy, onAccept, onReject }) {
     onAccept(c, responseFile)
   }
 
-  const responseUrl = needsVideo ? responsePreview : c.targetVideoUrl
+  const responseFileIsImage = !!responseFile && responseFile.type?.startsWith('image/')
+  const challengerUrl = c.challengerVideoUrl || c.challengerImageUrl || c.challengerPosterUrl
+  const challengerIsImage = c.challengerMediaType === 'image' || (!c.challengerVideoUrl && !!c.challengerImageUrl)
+  const targetUrl = c.targetVideoUrl || c.targetImageUrl || c.targetPosterUrl
+  const targetIsImage = c.targetMediaType === 'image' || (!c.targetVideoUrl && !!c.targetImageUrl)
+  const responseUrl = needsVideo ? responsePreview : targetUrl
+  const responseIsImage = needsVideo ? responseFileIsImage : targetIsImage
 
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
-      <input ref={fileRef} type="file" accept="video/*" className="hidden" onChange={onFileChange} />
+      <input ref={fileRef} type="file" accept="video/*,image/*" className="hidden" onChange={onFileChange} />
       <div className="flex items-center gap-2 mb-3">
         <div className="w-8 h-8 rounded-full overflow-hidden bg-zinc-800 shrink-0">
           <Avatar src={c.from?.avatarUrl} className="w-full h-full rounded-full" />
@@ -60,19 +66,27 @@ function InboxChallengeCard({ c, busy, onAccept, onReject }) {
       <div className="flex items-stretch gap-2">
         <div className="flex-1 aspect-[9/16] rounded-xl overflow-hidden relative bg-zinc-900">
           <span className="absolute top-1 left-1 z-10 text-[10px] font-bold bg-black/50 rounded-full px-1.5" style={{ color: '#C084FC' }}>@{c.from?.username}</span>
-          {c.challengerVideoUrl && (
-            <video src={c.challengerVideoUrl + '#t=0.2'} muted playsInline preload="metadata" className="absolute inset-0 w-full h-full object-cover" />
+          {challengerUrl && (
+            challengerIsImage ? (
+              <img src={challengerUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
+            ) : (
+              <video src={challengerUrl + '#t=0.2'} muted playsInline preload="metadata" className="absolute inset-0 w-full h-full object-cover" />
+            )
           )}
         </div>
         <div className="flex items-center text-white/60 font-black text-xs">VS</div>
         <div className="flex-1 aspect-[9/16] rounded-xl overflow-hidden relative bg-zinc-900">
           <span className="absolute top-1 left-1 z-10 text-[10px] font-bold bg-black/50 rounded-full px-1.5" style={{ color: '#60A5FA' }}>@{c.to?.username}</span>
           {responseUrl ? (
-            <video src={responseUrl + '#t=0.2'} muted playsInline preload="metadata" className="absolute inset-0 w-full h-full object-cover" />
+            responseIsImage ? (
+              <img src={responseUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
+            ) : (
+              <video src={responseUrl + '#t=0.2'} muted playsInline preload="metadata" className="absolute inset-0 w-full h-full object-cover" />
+            )
           ) : (
             <button onClick={pickFile} className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 text-center px-2 active:bg-white/5 transition">
               <Film className="w-6 h-6 text-zinc-400" strokeWidth={1.5} />
-              <span className="text-[11px] font-semibold text-white leading-tight">Upload your video</span>
+              <span className="text-[11px] font-semibold text-white leading-tight">Upload your media</span>
             </button>
           )}
         </div>
@@ -82,7 +96,7 @@ function InboxChallengeCard({ c, busy, onAccept, onReject }) {
         <p className="text-xs text-white/70 mt-2 italic">“{c.message}”</p>
       )}
 
-      {/* Subir mi vídeo ANTES de aceptar (retos con mención) */}
+      {/* Subir mi media ANTES de aceptar (retos con mención) */}
       {needsVideo && (
         <button
           onClick={pickFile}
@@ -90,7 +104,7 @@ function InboxChallengeCard({ c, busy, onAccept, onReject }) {
           className="w-full rounded-full py-2.5 mt-3 text-sm font-bold text-white border border-white/20 hover:bg-white/10 active:scale-[0.98] transition disabled:opacity-50 flex items-center justify-center gap-1.5"
         >
           <Film size={15} strokeWidth={2} />
-          {responseFile ? 'Change my video' : 'Upload my video'}
+          {responseFile ? 'Change my media' : 'Upload my media'}
         </button>
       )}
 

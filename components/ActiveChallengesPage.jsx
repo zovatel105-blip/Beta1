@@ -37,7 +37,7 @@ const ChallengeSlide = ({ c, busy, onAccept, onReject }) => {
 
   // "Mention" challenge: it does NOT carry the challenged user's video (targetVideoUrl).
   // The challenged user must upload their response video to be able to accept.
-  const needsVideo = !c.targetVideoUrl
+  const needsVideo = !c.targetVideoUrl && !c.targetImageUrl
 
   // Clean up the preview object URL when changing/unmounting.
   useEffect(() => () => { if (responsePreview) URL.revokeObjectURL(responsePreview) }, [responsePreview])
@@ -47,7 +47,7 @@ const ChallengeSlide = ({ c, busy, onAccept, onReject }) => {
     const f = e.target.files?.[0]
     e.target.value = '' // allow re-selecting the same file
     if (!f) return
-    if (!f.type.startsWith('video/')) return
+    if (!f.type.startsWith('video/') && !f.type.startsWith('image/')) return
     setResponseFile(f)
     setResponsePreview((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(f) })
     // "After" flow: if you pressed Accept with no video, selecting it sends automatically.
@@ -67,18 +67,24 @@ const ChallengeSlide = ({ c, busy, onAccept, onReject }) => {
     onAccept(c, responseFile) // file can be null if the challenge already carries targetVideoUrl
   }
 
-  // Side B = response video: the existing one (targetVideoUrl) or the preview
-  // of the file just selected. If it's a mention challenge with no video yet,
-  // side B shows as an upload zone.
-  const responseUrl = needsVideo ? responsePreview : c.targetVideoUrl
+  // Side B = response media: the existing one (target media) or the preview of
+  // the file just selected. If it's a mention challenge with no media yet, side
+  // B shows as an upload zone. Soporta imagen O vídeo.
+  const responseFileIsImage = !!responseFile && responseFile.type?.startsWith('image/')
+  const aUrl = c.challengerVideoUrl || c.challengerImageUrl || c.challengerPosterUrl
+  const aIsImage = c.challengerMediaType === 'image' || (!c.challengerVideoUrl && !!c.challengerImageUrl)
+  const targetUrl = c.targetVideoUrl || c.targetImageUrl || c.targetPosterUrl
+  const targetIsImage = c.targetMediaType === 'image' || (!c.targetVideoUrl && !!c.targetImageUrl)
+  const responseUrl = needsVideo ? responsePreview : targetUrl
+  const responseIsImage = needsVideo ? responseFileIsImage : targetIsImage
   const videos = [
-    { url: c.challengerVideoUrl, author: c.from, tag: 'A', tagColor: GOLD, isResponse: false },
-    { url: responseUrl, author: c.to, tag: 'B', tagColor: '#FFFFFF', isResponse: true },
+    { url: aUrl, isImage: aIsImage, author: c.from, tag: 'A', tagColor: GOLD, isResponse: false },
+    { url: responseUrl, isImage: responseIsImage, author: c.to, tag: 'B', tagColor: '#FFFFFF', isResponse: true },
   ]
 
   return (
     <div className="relative w-full h-full bg-black overflow-hidden">
-      <input ref={fileRef} type="file" accept="video/*" className="hidden" onChange={onFileChange} />
+      <input ref={fileRef} type="file" accept="video/*,image/*" className="hidden" onChange={onFileChange} />
       {/* Horizontal carousel of videos A / B */}
       <Swiper
         direction="horizontal"
@@ -94,15 +100,24 @@ const ChallengeSlide = ({ c, busy, onAccept, onReject }) => {
             <div className="relative w-full h-full bg-black">
               {v.url ? (
                 <>
-                  <video
-                    src={v.url + '#t=0.3'}
-                    muted
-                    playsInline
-                    loop
-                    autoPlay
-                    preload="metadata"
-                    className="absolute inset-0 w-full h-full object-cover"
-                  />
+                  {v.isImage ? (
+                    <img
+                      src={v.url}
+                      alt=""
+                      draggable={false}
+                      className="absolute inset-0 w-full h-full object-cover"
+                    />
+                  ) : (
+                    <video
+                      src={v.url + '#t=0.3'}
+                      muted
+                      playsInline
+                      loop
+                      autoPlay
+                      preload="metadata"
+                      className="absolute inset-0 w-full h-full object-cover"
+                    />
+                  )}
                   <div className="absolute inset-0 bg-gradient-to-t from-black via-black/25 to-black/40" />
                   {/* Side label */}
                   <span
@@ -117,7 +132,7 @@ const ChallengeSlide = ({ c, busy, onAccept, onReject }) => {
                       onClick={pickFile}
                       className="absolute top-[72px] right-4 z-10 text-[11px] font-semibold bg-black/55 backdrop-blur rounded-full px-3 py-1 text-white border border-white/15 hover:bg-black/70 active:scale-95 transition"
                     >
-                      Change video
+                      Change
                     </button>
                   )}
                 </>
@@ -133,8 +148,8 @@ const ChallengeSlide = ({ c, busy, onAccept, onReject }) => {
                   <div className="w-16 h-16 rounded-full border border-white/15 bg-white/[0.04] flex items-center justify-center">
                     <Film className="w-7 h-7 text-zinc-400" strokeWidth={1.5} />
                   </div>
-                  <span className="text-white font-semibold text-[15px]">Upload your response video</span>
-                  <span className="text-zinc-500 text-[13px]">Tap to record or pick</span>
+                  <span className="text-white font-semibold text-[15px]">Upload your response</span>
+                  <span className="text-zinc-500 text-[13px]">Tap to record or pick a video or photo</span>
                 </button>
               )}
             </div>

@@ -1,7 +1,7 @@
 'use client'
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { MessageCircle, Bookmark, Play, Swords, MoreVertical } from 'lucide-react'
+import { MessageCircle, Bookmark, Play, Swords, MoreVertical, Music } from 'lucide-react'
 import ShareIcon from './icons/ShareIcon'
 import { cn } from '@/lib/utils'
 import VoteIcon from './icons/VoteIcon'
@@ -39,6 +39,7 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
   const rafRef = useRef(0)
   const downRef = useRef({ x: 0, y: 0, t: 0 })
   const lastTapRef = useRef(0)
+  const audioRef = useRef(null)
   const swipedRef = useRef(false)
   // Token del estado WARM: invalida el pause() diferido del prime si la tarjeta
   // pasa a activa antes de que resuelva (evita pausar el vídeo ya en reproducción).
@@ -129,6 +130,9 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
   // Reto 1vs1: cabecera con los DOS creadores (avatar + nombre de cada lado)
   const authorA = sideA.author || post.author || {}
   const authorB = sideB.author || post.author || {}
+  // Música adjunta (preview de iTunes, 30s). Si existe, el vídeo va en mute y
+  // suena la música; respeta el toggle global de sonido del feed.
+  const hasMusic = !!post.musicPreviewUrl
 
   // Sincroniza el estado de seguimiento con el dato del servidor
   // (headAuthor.isFollowing) para que "Following" persista tras recargar y al
@@ -223,7 +227,7 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
       warmRef.current = null
       acquire(vis, visSrc)
       if (vis) {
-        vis.muted = globalMuted
+        vis.muted = hasMusic ? true : globalMuted
         if (showWinner) {
           try { vis.pause() } catch { /* ignore */ }
         } else {
@@ -242,6 +246,25 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
       release(vis)
     }
   }, [isActive, playbackEnabled, warm, sideIdx, globalMuted, srcA, srcB, showWinner, acquire, release, primeWarm])
+
+  // Reproducción de la MÚSICA adjunta (preview iTunes). Suena cuando la tarjeta
+  // está activa y el feed no está en mute; en mute o al salir, se pausa. El
+  // navegador solo permite audio audible tras la 1ª interacción del usuario
+  // (igual que el unmute del vídeo), por eso respetamos globalMuted.
+  useEffect(() => {
+    const a = audioRef.current
+    if (!a || !hasMusic) return
+    const shouldPlay = isActive && playbackEnabled && !showWinner && !globalMuted
+    if (shouldPlay) {
+      a.muted = false
+      const p = a.play()
+      if (p && p.catch) p.catch(() => {})
+    } else {
+      try { a.pause() } catch { /* ignore */ }
+      if (!isActive) { try { a.currentTime = 0 } catch { /* ignore */ } }
+    }
+  }, [isActive, playbackEnabled, showWinner, globalMuted, hasMusic])
+
 
   // Cleanup de DESMONTAJE (la tarjeta sale de la ventana de 3) -> liberación
   // garantizada de AMBOS vídeos (Regla #2, "cuando la tarjeta salga del viewport").
@@ -584,7 +607,24 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
         <div className="mt-1 pointer-events-auto">
           <CaptionText text={current.description || post.description} className="text-white text-sm leading-tight" />
         </div>
+        {hasMusic && (
+          <div className="mt-2 flex items-center gap-2 pointer-events-auto max-w-[calc(100%-4rem)]">
+            <span className="w-5 h-5 rounded-md overflow-hidden bg-white/15 shrink-0 flex items-center justify-center">
+              {post.musicArtwork ? (
+                <img src={post.musicArtwork} alt="" className="w-full h-full object-cover" style={{ animation: 'spin 6s linear infinite' }} />
+              ) : (
+                <Music size={12} className="text-white" />
+              )}
+            </span>
+            <span className="text-white text-[12px] font-medium drop-shadow-md truncate">
+              {post.musicTitle} · {post.musicArtist}
+            </span>
+          </div>
+        )}
       </div>
+      {hasMusic && (
+        <audio ref={audioRef} src={post.musicPreviewUrl} loop preload="none" />
+      )}
 
       {/* Columna social derecha — estilo Twyk (abajo) */}
       <div
@@ -603,7 +643,7 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
               setAuthModalOpen(true);
               return;
             }
-            onChallenge?.({ postId: post.id, videoUrl: current.videoUrl, author: headAuthor, description: current.description || post.description, music: current.music || post.music });
+            onChallenge?.({ postId: post.id, mediaType: current.mediaType, videoUrl: current.videoUrl, imageUrl: current.imageUrl, posterUrl: current.posterUrl, author: headAuthor, description: current.description || post.description, music: current.music || post.music });
           }} className="flex flex-col items-center gap-1 w-14 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
             <Swords className="w-[30px] h-[30px] text-white" strokeWidth={1.25} />
             <span className="text-[9px] font-semibold text-white leading-none text-center whitespace-nowrap">{countLabel(challengeCount, 'Challenge')}</span>

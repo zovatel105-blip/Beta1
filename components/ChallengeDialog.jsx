@@ -40,8 +40,11 @@ export default function ChallengeDialog({ open, onClose, target, onSubmit }) {
   const handleFileChange = (e) => {
     const f = e.target.files?.[0]
     if (!f) return
-    if (!f.type.startsWith('video/')) { setError('Select a video'); return }
-    if (f.size > 80 * 1024 * 1024) { setError('Maximum 80MB'); return }
+    const isImg = f.type.startsWith('image/')
+    const isVid = f.type.startsWith('video/')
+    if (!isImg && !isVid) { setError('Select a video or photo'); return }
+    const maxMB = isImg ? 15 : 80
+    if (f.size > maxMB * 1024 * 1024) { setError(`Maximum ${maxMB}MB`); return }
     setError(null)
     setFile(f)
   }
@@ -50,12 +53,15 @@ export default function ChallengeDialog({ open, onClose, target, onSubmit }) {
   // segundo plano. El modal se cierra al instante y el usuario puede seguir
   // descubriendo contenido mientras se envía.
   const doSend = () => {
-    if (!file || !target) { setError('Upload your video to challenge'); return }
+    if (!file || !target) { setError('Upload your video or photo to challenge'); return }
     onSubmit?.({ file, target, message })
     onClose()
   }
 
   const username = target?.author?.username || 'rival'
+  const fileIsImage = !!file && file.type?.startsWith('image/')
+  const targetIsImage = target?.mediaType === 'image'
+  const targetMediaUrl = target?.posterUrl || target?.imageUrl || target?.videoUrl || null
 
   return (
     <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm" onClick={onClose}>
@@ -98,7 +104,7 @@ export default function ChallengeDialog({ open, onClose, target, onSubmit }) {
           <>
               {/* Enfrentamiento: tu vídeo (A, morado) vs el contenido retado (B, azul) */}
               <div className="relative grid grid-cols-2 gap-3.5">
-                <input ref={inputRef} type="file" accept="video/*" className="hidden" onChange={handleFileChange} />
+                <input ref={inputRef} type="file" accept="video/*,image/*" className="hidden" onChange={handleFileChange} />
 
                 {/* Tu vídeo */}
                 <button
@@ -112,12 +118,16 @@ export default function ChallengeDialog({ open, onClose, target, onSubmit }) {
                   <span className="absolute top-2 left-2 z-20 text-[10px] font-bold rounded-full px-2.5 py-0.5 text-white" style={{ background: PURPLE }}>You</span>
                   {file ? (
                     <>
-                      <video src={URL.createObjectURL(file)} muted playsInline className="absolute inset-0 w-full h-full object-cover" />
+                      {fileIsImage ? (
+                        <img src={URL.createObjectURL(file)} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                      ) : (
+                        <video src={URL.createObjectURL(file)} muted playsInline className="absolute inset-0 w-full h-full object-cover" />
+                      )}
                       <div className="absolute inset-0 bg-black/45 flex flex-col items-center justify-center gap-1.5">
                         <span className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: PURPLE }}>
                           <Check size={20} className="text-white" strokeWidth={2.6} />
                         </span>
-                        <span className="text-[11px] text-white/90 underline underline-offset-2">Change video</span>
+                        <span className="text-[11px] text-white/90 underline underline-offset-2">{fileIsImage ? 'Change photo' : 'Change video'}</span>
                       </div>
                     </>
                   ) : (
@@ -126,7 +136,7 @@ export default function ChallengeDialog({ open, onClose, target, onSubmit }) {
                         <Upload size={22} style={{ color: PURPLE }} strokeWidth={2} />
                       </span>
                       <div className="text-center leading-tight">
-                        <p className="text-[12px] font-semibold text-zinc-900">Upload your video</p>
+                        <p className="text-[12px] font-semibold text-zinc-900">Upload your video or photo</p>
                         <p className="text-[10.5px] text-zinc-500 mt-0.5">Record or pick one</p>
                       </div>
                     </div>
@@ -137,19 +147,23 @@ export default function ChallengeDialog({ open, onClose, target, onSubmit }) {
                 <div
                   className="relative w-full aspect-[4/5] rounded-2xl overflow-hidden"
                   style={{
-                    background: target?.videoUrl ? '#000' : 'linear-gradient(160deg, rgba(59,130,246,0.16), rgba(59,130,246,0.04))',
+                    background: targetMediaUrl ? '#000' : 'linear-gradient(160deg, rgba(59,130,246,0.16), rgba(59,130,246,0.04))',
                     boxShadow: `inset 0 0 0 1.5px rgba(59,130,246,0.4)`,
                   }}
                 >
                   <span className="absolute top-2 left-2 z-20 text-[10px] font-bold rounded-full px-2.5 py-0.5 text-white truncate max-w-[80%]" style={{ background: BLUE }}>@{username}</span>
-                  {target?.videoUrl ? (
-                    <video src={target.videoUrl + '#t=0.2'} muted playsInline preload="metadata" className="absolute inset-0 w-full h-full object-cover" />
+                  {targetMediaUrl ? (
+                    targetIsImage ? (
+                      <img src={targetMediaUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                    ) : (
+                      <video src={target.videoUrl + '#t=0.2'} muted playsInline preload="metadata" className="absolute inset-0 w-full h-full object-cover" />
+                    )
                   ) : (
                     <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-3 text-center">
                       <span className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(59,130,246,0.18)' }}>
                         <Film size={22} style={{ color: BLUE }} strokeWidth={1.8} />
                       </span>
-                      <p className="text-[10.5px] text-zinc-500 leading-tight">They'll upload their video<br />when accepting the challenge</p>
+                      <p className="text-[10.5px] text-zinc-500 leading-tight">They&apos;ll upload their media<br />when accepting the challenge</p>
                     </div>
                   )}
                 </div>

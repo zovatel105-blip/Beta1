@@ -454,6 +454,35 @@ export async function GET(request, { params }) {
     return NextResponse.json({ ok: true, learned, viewer, result })
   }
 
+  // Búsqueda de música (proxy a iTunes Search API — gratis, sin clave).
+  // GET /api/music/search?q=...  -> { results: [{ id, title, artist, artwork, previewUrl, duration }] }
+  if (path === '/music/search') {
+    const { searchParams } = new URL(request.url)
+    const q = (searchParams.get('q') || '').trim()
+    if (!q) return NextResponse.json({ results: [] })
+    try {
+      const url = `https://itunes.apple.com/search?term=${encodeURIComponent(q)}&media=music&entity=song&limit=24`
+      const r = await fetch(url, { headers: { 'User-Agent': 'twyk/1.0' } })
+      if (!r.ok) return NextResponse.json({ results: [] })
+      const data = await r.json()
+      const results = (data.results || [])
+        .filter((t) => t.previewUrl) // solo pistas con preview de 30s
+        .map((t) => ({
+          id: String(t.trackId),
+          title: t.trackName,
+          artist: t.artistName,
+          // artworkUrl100 -> 200x200 para mejor nitidez
+          artwork: (t.artworkUrl100 || t.artworkUrl60 || '').replace('100x100', '200x200'),
+          previewUrl: t.previewUrl,
+          duration: 30,
+        }))
+      return NextResponse.json({ results })
+    } catch (err) {
+      console.error('music search error', err)
+      return NextResponse.json({ results: [] })
+    }
+  }
+
   if (path === '/feed') {
     const { searchParams } = new URL(request.url)
     const cursor = parseInt(searchParams.get('cursor') || '0', 10)
@@ -1154,6 +1183,7 @@ async function handleVersusUpload(request) {
       verified: false,
     }
 
+    const music = readMusicFields(formData)
     const post = {
       id: `versus_up_${id}`,
       type: 'versus',
@@ -1163,7 +1193,8 @@ async function handleVersusUpload(request) {
       sideB: { mediaType: b.mediaType, videoUrl: b.mediaType === 'video' ? urlB : '', imageUrl: b.mediaType === 'image' ? urlB : '', posterUrl: b.posterUrl, author: realAuthor, description: captionB || description, music: 'Option B' },
       author: realAuthor,
       description,
-      music: 'Tu versus original',
+      music: music.musicTitle ? `${music.musicTitle} · ${music.musicArtist}` : 'Tu versus original',
+      ...music,
       videoUrl: a.mediaType === 'video' ? urlA : '',
       posterUrl: a.posterUrl,
       thumbnailUrl: a.posterUrl,
@@ -1240,6 +1271,7 @@ async function handleDuetUpload(request) {
       verified: false,
     }
 
+    const music = readMusicFields(formData)
     const post = {
       id: `duet_${id}`,
       type: 'duet',
@@ -1250,7 +1282,8 @@ async function handleDuetUpload(request) {
       sideB: { mediaType: b.mediaType, videoUrl: b.mediaType === 'video' ? urlB : '', imageUrl: b.mediaType === 'image' ? urlB : '', posterUrl: b.posterUrl, author: realAuthor, description, music: 'Option B' },
       author: realAuthor,
       description,
-      music: 'Tu 1vs1 original',
+      music: music.musicTitle ? `${music.musicTitle} · ${music.musicArtist}` : 'Tu 1vs1 original',
+      ...music,
       videoUrl: a.mediaType === 'video' ? urlA : '',
       posterUrl: a.posterUrl,
       thumbnailUrl: a.posterUrl,
@@ -1450,6 +1483,21 @@ async function saveUploadedMedia(file) {
   return { url, mediaType: 'video', posterUrl: posterFor(url) }
 }
 
+// Lee los campos de música (iTunes) del FormData de subida. Devuelve {} si no
+// se seleccionó música. Se guardan en el post para mostrar la etiqueta de
+// sonido y reproducir el preview de 30s en el feed.
+function readMusicFields(formData) {
+  const previewUrl = (formData.get('musicPreviewUrl') || '').toString()
+  if (!previewUrl) return {}
+  return {
+    musicTitle: (formData.get('musicTitle') || '').toString(),
+    musicArtist: (formData.get('musicArtist') || '').toString(),
+    musicArtwork: (formData.get('musicArtwork') || '').toString(),
+    musicPreviewUrl: previewUrl,
+    musicTrackId: (formData.get('musicTrackId') || '').toString(),
+  }
+}
+
 // POST /api/profile
 //   FormData: name?, bio?, avatar? (archivo de imagen)
 //   Actualiza el perfil del usuario autenticado.
@@ -1507,6 +1555,9 @@ async function handleCreateChallenge(request) {
     const formData = await request.formData()
     const file = formData.get('file')
     const targetVideoUrl = (formData.get('targetVideoUrl') || '').toString()
+    const targetImageUrl = (formData.get('targetImageUrl') || '').toString()
+    const targetPosterUrl = (formData.get('targetPosterUrl') || '').toString()
+    let targetMediaType = (formData.get('targetMediaType') || '').toString()
     let targetAuthor = null
     try { targetAuthor = JSON.parse((formData.get('targetAuthor') || 'null').toString()) } catch { /* ignore */ }
     const targetDescription = (formData.get('targetDescription') || '').toString()
@@ -1524,7 +1575,10 @@ async function handleCreateChallenge(request) {
       return NextResponse.json({ error: 'cannot_challenge_yourself', message: 'No puedes retarte a ti mismo' }, { status: 400 })
     }
 
-    const myUrl = await saveUploadedVideo(file)
+    // Media del retador (lado A): imagen O vídeo (auto-detectado).
+    const myMedia = await saveUploadedMedia(file)
+    // Tipo del contenido retado (lado B): si no llega, se infiere de las URLs.
+    if (!targetMediaType) targetMediaType = targetImageUrl ? 'image' : (targetVideoUrl ? 'video' : '')
     const cid = crypto.randomBytes(8).toString('hex')
     
     // Usar datos reales del usuario autenticado si está disponible, sino usar fallback
@@ -1547,12 +1601,21 @@ async function handleCreateChallenge(request) {
       status: 'pending',
       from: realAuthor,
       to: targetAuthor,
-      challengerVideoUrl: myUrl, // lado A = tu vídeo
-      targetVideoUrl: targetVideoUrl || null, // lado B = lo sube el retado al aceptar
+      // Lado A = media del retador (imagen o vídeo)
+      challengerMediaType: myMedia.mediaType,
+      challengerVideoUrl: myMedia.mediaType === 'video' ? myMedia.url : null,
+      challengerImageUrl: myMedia.mediaType === 'image' ? myMedia.url : null,
+      challengerPosterUrl: myMedia.posterUrl,
+      // Lado B = contenido retado (o lo sube el retado al aceptar)
+      targetMediaType: targetMediaType || null,
+      targetVideoUrl: targetMediaType === 'image' ? null : (targetVideoUrl || null),
+      targetImageUrl: targetMediaType === 'image' ? (targetImageUrl || targetVideoUrl || null) : (targetImageUrl || null),
+      targetPosterUrl: targetPosterUrl || null,
       targetAuthor,
       targetDescription,
       targetMusic,
       message,
+      ...readMusicFields(formData),
       createdAt: new Date().toISOString(),
     }
     await insertChallenge(challenge)
@@ -1589,33 +1652,49 @@ async function handleAcceptChallenge(cid, request) {
     if (idx === -1) return NextResponse.json({ error: 'not_found' }, { status: 404 })
     const c = list[idx]
 
-    // Vídeo de respuesta del retado: el subido al aceptar, o el ya conocido.
-    let responseVideoUrl = c.targetVideoUrl || null
+    // Media de respuesta del retado (lado B): la subida al aceptar (imagen o
+    // vídeo, auto-detectada), o la del contenido retado si ya se conocía.
+    let respMediaType = c.targetMediaType || (c.targetVideoUrl ? 'video' : (c.targetImageUrl ? 'image' : null))
+    let respVideoUrl = c.targetVideoUrl || null
+    let respImageUrl = c.targetImageUrl || null
+    let respPosterUrl = c.targetPosterUrl || (respVideoUrl ? posterFor(respVideoUrl) : respImageUrl)
     try {
       const formData = await request.formData()
       const file = formData.get('file')
       if (file && typeof file !== 'string') {
-        responseVideoUrl = await saveUploadedVideo(file)
+        const m = await saveUploadedMedia(file)
+        respMediaType = m.mediaType
+        respVideoUrl = m.mediaType === 'video' ? m.url : null
+        respImageUrl = m.mediaType === 'image' ? m.url : null
+        respPosterUrl = m.posterUrl
       }
-    } catch { /* sin cuerpo multipart, se usa targetVideoUrl si existe */ }
+    } catch { /* sin cuerpo multipart, se usa el media del contenido retado */ }
 
-    if (!responseVideoUrl) {
-      return NextResponse.json({ error: 'no_response_video' }, { status: 400 })
+    if (!respVideoUrl && !respImageUrl) {
+      return NextResponse.json({ error: 'no_response_media' }, { status: 400 })
     }
+
+    // Lado A (retador): tipo guardado o inferido para retos antiguos.
+    const aMediaType = c.challengerMediaType || (c.challengerImageUrl ? 'image' : 'video')
+    const aVideoUrl = aMediaType === 'video' ? (c.challengerVideoUrl || null) : null
+    const aImageUrl = aMediaType === 'image' ? (c.challengerImageUrl || null) : null
+    const aPosterUrl = c.challengerPosterUrl || (aVideoUrl ? posterFor(aVideoUrl) : aImageUrl)
 
     const id = crypto.randomBytes(8).toString('hex')
     const post = {
       id: `versus_ch_${id}`,
       type: 'versus',
       layout: 'carousel',
-      sideA: { videoUrl: c.challengerVideoUrl, posterUrl: posterFor(c.challengerVideoUrl), author: c.from, description: c.message || 'My challenge', music: 'Challenge' },
-      sideB: { videoUrl: responseVideoUrl, posterUrl: posterFor(responseVideoUrl), author: c.to, description: c.targetDescription || '', music: c.targetMusic || '' },
+      mediaType: aMediaType,
+      sideA: { mediaType: aMediaType, videoUrl: aVideoUrl || '', imageUrl: aImageUrl || '', posterUrl: aPosterUrl, author: c.from, description: c.message || 'My challenge', music: 'Challenge' },
+      sideB: { mediaType: respMediaType || 'video', videoUrl: respVideoUrl || '', imageUrl: respImageUrl || '', posterUrl: respPosterUrl, author: c.to, description: c.targetDescription || '', music: c.targetMusic || '' },
       author: c.from,
       description: c.message || `Reto: @${c.from?.username} 🆚 @${c.to?.username} 🥊`,
-      music: 'Reto aceptado',
-      videoUrl: c.challengerVideoUrl,
-      posterUrl: posterFor(c.challengerVideoUrl),
-      thumbnailUrl: posterFor(c.challengerVideoUrl),
+      music: c.musicTitle ? `${c.musicTitle} · ${c.musicArtist}` : 'Reto aceptado',
+      ...(c.musicPreviewUrl ? { musicTitle: c.musicTitle, musicArtist: c.musicArtist, musicArtwork: c.musicArtwork, musicPreviewUrl: c.musicPreviewUrl, musicTrackId: c.musicTrackId } : {}),
+      videoUrl: aVideoUrl || '',
+      posterUrl: aPosterUrl,
+      thumbnailUrl: aPosterUrl,
       stats: { likes: 0, comments: 0, shares: 0, saves: 0 },
       votes: { a: 0, b: 0 },
       duration: 0,

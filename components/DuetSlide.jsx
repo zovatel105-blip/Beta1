@@ -1,7 +1,7 @@
 'use client'
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { MessageCircle, Bookmark, Play, Swords, MoreVertical, ChevronDown } from 'lucide-react'
+import { MessageCircle, Bookmark, Play, Swords, MoreVertical, ChevronDown, Music } from 'lucide-react'
 import ShareIcon from './icons/ShareIcon'
 import { cn } from '@/lib/utils'
 import VoteIcon from './icons/VoteIcon'
@@ -42,6 +42,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
   const videoARef = useRef(null)
   const videoBRef = useRef(null)
   const overlayRef = useRef(null)
+  const audioRef = useRef(null)
   const lastTapRef = useRef({ side: null, t: 0 })
   const tapTimerRef = useRef(null)
   const rafRef = useRef(0)
@@ -179,6 +180,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
 
   // Author principal mostrado en la cabecera (igual que en publicaciones normales)
   const headAuthor = sideA.author || post.author || {}
+  const hasMusic = !!post.musicPreviewUrl
   // Reto 1vs1: cabecera con los DOS creadores (avatar + nombre de cada lado)
   const authorA = sideA.author || post.author || {}
   const authorB = sideB.author || post.author || {}
@@ -296,8 +298,8 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
       acquire(va, srcA)
       acquire(vb, srcB)
       // A suena solo si el audio global está activo Y el lado audible es A.
-      if (va) va.muted = globalMuted || audibleSide !== 'a'
-      if (vb) vb.muted = globalMuted || audibleSide !== 'b'
+      if (va) va.muted = hasMusic ? true : (globalMuted || audibleSide !== 'a')
+      if (vb) vb.muted = hasMusic ? true : (globalMuted || audibleSide !== 'b')
       if (!showWinner && !showContent) {
         startBothAtomically(va, vb)
       } else {
@@ -322,6 +324,21 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
       release(vb)
     }
   }, [isActive, playbackEnabled, warm, globalMuted, audibleSide, showWinner, showContent, srcA, srcB, acquire, release, primeWarm, startBothAtomically])
+
+  // Música adjunta (preview iTunes): suena con la tarjeta activa y feed no-mute.
+  useEffect(() => {
+    const a = audioRef.current
+    if (!a || !hasMusic) return
+    const shouldPlay = isActive && playbackEnabled && !showWinner && !showContent && !globalMuted
+    if (shouldPlay) {
+      a.muted = false
+      const p = a.play()
+      if (p && p.catch) p.catch(() => {})
+    } else {
+      try { a.pause() } catch { /* ignore */ }
+      if (!isActive) { try { a.currentTime = 0 } catch { /* ignore */ } }
+    }
+  }, [isActive, playbackEnabled, showWinner, showContent, globalMuted, hasMusic])
 
   // Cleanup de DESMONTAJE (sale de la ventana de 3) -> liberación garantizada.
   useEffect(() => () => {
@@ -664,7 +681,24 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
         <div className="mt-1 pointer-events-auto">
           <CaptionText text={post.description} className="text-white text-sm leading-tight" />
         </div>
+        {hasMusic && (
+          <div className="mt-2 flex items-center gap-2 pointer-events-auto max-w-[calc(100%-4rem)]">
+            <span className="w-5 h-5 rounded-md overflow-hidden bg-white/15 shrink-0 flex items-center justify-center">
+              {post.musicArtwork ? (
+                <img src={post.musicArtwork} alt="" className="w-full h-full object-cover" style={{ animation: 'spin 6s linear infinite' }} />
+              ) : (
+                <Music size={12} className="text-white" />
+              )}
+            </span>
+            <span className="text-white text-[12px] font-medium drop-shadow-md truncate">
+              {post.musicTitle} · {post.musicArtist}
+            </span>
+          </div>
+        )}
       </div>
+      {hasMusic && (
+        <audio ref={audioRef} src={post.musicPreviewUrl} loop preload="none" />
+      )}
 
       {/* Columna social derecha — estilo Twyk (abajo) */}
       <div
@@ -762,7 +796,10 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
                   setChallengePickOpen(false)
                   onChallenge?.({
                     postId: post.id,
+                    mediaType: sd.mediaType,
                     videoUrl: sd.videoUrl,
+                    imageUrl: sd.imageUrl,
+                    posterUrl: sd.posterUrl,
                     author: sd.author || headAuthor,
                     description: sd.description || post.description,
                     music: sd.music,
