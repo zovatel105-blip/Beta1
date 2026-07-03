@@ -463,7 +463,20 @@ backend:
         -comment: "VERIFICADO MANUALMENTE (el usuario pidió NO usar agente de testing). Registrados follower1/target1. (B) POST /api/users/target1/follow sin sesión -> 401 {error:unauthorized}. (C) con sesión -> 200 {ok:true,following:true,followers:1}. (D) toggle -> {following:false,followers:0}; de nuevo -> {following:true,followers:1}. (E) seguirse a sí mismo -> 400 {error:cannot_follow_yourself}. (F) GET /api/users/target1 sin sesión -> isFollowing=false, followers=1. (G) GET con sesión -> isFollowing=true, followers=1. (H) seguir autor demo 'wanderlust' (sin documento de usuario) -> 200 {following:true,followers:1}. Regresión: /api/feed y /api/users 200. Datos de prueba limpiados."
 
 frontend:
-  - task: "Título/descripción del post: 1 sola línea (no 2) y botón 'more'/'less' en inglés (no español)"
+  - task: "Botón de tres puntos ('mas-opciones'): quitar la sombra oscura alrededor del icono, mostrar solo los tres puntos limpios"
+    implemented: true
+    working: "NA"
+    file: "components/CarouselSlide.jsx, components/DuetSlide.jsx"
+    stuck_count: 0
+    priority: "low"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "Usuario: 'Mostrar solo los tres puntos y alrededor aparece oscuro quitalo'."
+        -working: "NA"
+        -agent: "main"
+        -comment: "CAMBIO UI. El botón 'mas-opciones' (icono MoreVertical de tres puntos, 18px, fill sólido) tenía style={{filter:'drop-shadow(0 2px 4px rgba(0,0,0,0.7))'}} igual que el resto de botones sociales; al ser un icono pequeño con fill sólido (3 puntos), ese drop-shadow generaba un halo oscuro difuminado alrededor perceptible (a diferencia de los iconos de 30px, donde es más sutil). FIX: eliminado el style de drop-shadow en el botón 'mas-opciones' en CarouselSlide.jsx y DuetSlide.jsx; ahora se ven solo los tres puntos blancos, sin sombra/halo oscuro alrededor. Resto de botones sociales (votar, retar, comentar, compartir, guardar) sin cambios. Lint limpio (solo warnings preexistentes no relacionados). NO se usa agente de testing (petición del usuario en cambios anteriores)."
     implemented: true
     working: "NA"
     file: "components/CaptionText.jsx"
