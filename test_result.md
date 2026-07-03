@@ -463,7 +463,20 @@ backend:
         -comment: "VERIFICADO MANUALMENTE (el usuario pidió NO usar agente de testing). Registrados follower1/target1. (B) POST /api/users/target1/follow sin sesión -> 401 {error:unauthorized}. (C) con sesión -> 200 {ok:true,following:true,followers:1}. (D) toggle -> {following:false,followers:0}; de nuevo -> {following:true,followers:1}. (E) seguirse a sí mismo -> 400 {error:cannot_follow_yourself}. (F) GET /api/users/target1 sin sesión -> isFollowing=false, followers=1. (G) GET con sesión -> isFollowing=true, followers=1. (H) seguir autor demo 'wanderlust' (sin documento de usuario) -> 200 {following:true,followers:1}. Regresión: /api/feed y /api/users 200. Datos de prueba limpiados."
 
 frontend:
-  - task: "Disco de música giratorio en la columna social derecha (debajo de los tres puntos), quitado el chip de música bajo el título"
+  - task: "Título/descripción del post: 1 sola línea (no 2) y botón 'more'/'less' en inglés (no español)"
+    implemented: true
+    working: "NA"
+    file: "components/CaptionText.jsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "Usuario: 'El título de la publicación debe tener solo una linea no 2 como Instagram y mostrar más en inglés no en español'."
+        -working: "NA"
+        -agent: "main"
+        -comment: "CAMBIO UI. components/CaptionText.jsx: (1) line-clamp-2 -> line-clamp-1 en el estado colapsado (ahora solo 1 línea visible, igual que Instagram Reels de una sola línea). (2) Textos traducidos a inglés: '…más' -> '…more', 'menos' -> 'less'. Sin cambios de lógica (misma detección de overflow por scrollHeight/clientHeight, mismo comportamiento expandir/colapsar). Tailwind 3.4.1 soporta line-clamp nativamente (sin plugin adicional). Lint limpio. Componente compartido por CarouselSlide.jsx y DuetSlide.jsx (ambos se benefician automáticamente, sin tocarlos). NO se usa agente de testing (petición explícita del usuario en el cambio anterior, se mantiene el mismo criterio)."
     implemented: true
     working: "NA"
     file: "components/CarouselSlide.jsx, components/DuetSlide.jsx"

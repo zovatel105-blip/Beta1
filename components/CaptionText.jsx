@@ -4,9 +4,9 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 
 /**
  * CaptionText — caption del feed estilo Instagram Reels.
- *   - Colapsado: máximo 2 líneas. Si el texto desborda, aparece "…más" al final
- *     de la 2ª línea (sobre un degradado para que se lea bien sobre el vídeo).
- *   - Al tocar "…más" se expande el texto completo y se muestra "menos".
+ *   - Colapsado: máximo 1 línea. Si el texto desborda, aparece "…more" al final
+ *     de la línea (sobre un degradado para que se lea bien sobre el vídeo).
+ *   - Al tocar "…more" se expande el texto completo y se muestra "less".
  *   - Detecta el desbordamiento midiendo scrollHeight vs clientHeight.
  */
 export default function CaptionText({ text, className = '' }) {
@@ -32,7 +32,7 @@ export default function CaptionText({ text, className = '' }) {
   return (
     <div className={className}>
       <div className="relative">
-        <p ref={ref} className={expanded ? 'whitespace-pre-wrap' : 'line-clamp-2'}>
+        <p ref={ref} className={expanded ? 'whitespace-pre-wrap' : 'line-clamp-1'}>
           {text}
           {expanded && (
             <button
@@ -40,7 +40,7 @@ export default function CaptionText({ text, className = '' }) {
               onClick={collapse}
               className="ml-1 font-semibold text-white/60 align-baseline"
             >
-              menos
+              less
             </button>
           )}
         </p>
@@ -50,7 +50,7 @@ export default function CaptionText({ text, className = '' }) {
             onClick={expand}
             className="absolute bottom-0 right-0 pl-6 font-semibold text-white/80 bg-gradient-to-l from-black/70 via-black/60 to-transparent"
           >
-            …más
+            …more
           </button>
         )}
       </div>
