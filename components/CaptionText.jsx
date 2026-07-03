@@ -4,10 +4,10 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 
 /**
  * CaptionText — caption del feed estilo Instagram Reels.
- *   - Colapsado: 1 sola línea. Si el texto desborda, la línea se recorta con
- *     el "…" nativo del navegador (text-ellipsis) y justo después, en la
- *     MISMA línea (sin superposición ni fondo oscuro), aparece "…more".
- *   - Al tocar "…more" se expande el texto completo y se muestra "less".
+ *   - Colapsado: 1 sola línea. Si el texto desborda, se recorta (corte simple,
+ *     sin ellipsis nativo del navegador) y justo después, en la MISMA línea,
+ *     aparece solo "…" (sin la palabra "more") como indicador para expandir.
+ *   - Al tocar "…" se expande el texto completo y se muestra "less".
  *   - Detecta el desbordamiento midiendo scrollWidth vs clientWidth (1 línea).
  */
 export default function CaptionText({ text, className = '' }) {
@@ -49,8 +49,8 @@ export default function CaptionText({ text, className = '' }) {
 
   return (
     <div className={className}>
-      <div className="flex items-baseline gap-1">
-        <p ref={ref} className="min-w-0 flex-1 overflow-hidden whitespace-nowrap text-ellipsis">
+      <div className="flex items-baseline gap-0.5">
+        <p ref={ref} className="min-w-0 flex-1 overflow-hidden whitespace-nowrap">
           {text}
         </p>
         {truncated && (
@@ -59,7 +59,7 @@ export default function CaptionText({ text, className = '' }) {
             onClick={expand}
             className="shrink-0 font-semibold text-white/80"
           >
-            …more
+            …
           </button>
         )}
       </div>
