@@ -463,20 +463,20 @@ backend:
         -comment: "VERIFICADO MANUALMENTE (el usuario pidió NO usar agente de testing). Registrados follower1/target1. (B) POST /api/users/target1/follow sin sesión -> 401 {error:unauthorized}. (C) con sesión -> 200 {ok:true,following:true,followers:1}. (D) toggle -> {following:false,followers:0}; de nuevo -> {following:true,followers:1}. (E) seguirse a sí mismo -> 400 {error:cannot_follow_yourself}. (F) GET /api/users/target1 sin sesión -> isFollowing=false, followers=1. (G) GET con sesión -> isFollowing=true, followers=1. (H) seguir autor demo 'wanderlust' (sin documento de usuario) -> 200 {following:true,followers:1}. Regresión: /api/feed y /api/users 200. Datos de prueba limpiados."
 
 frontend:
-  - task: "Botón de tres puntos ('mas-opciones'): quitar la sombra oscura alrededor del icono, mostrar solo los tres puntos limpios"
+  - task: "Título/post: quitar el fondo oscuro detrás de '…more' (mostrar solo el texto truncado + '…more' en la misma línea, sin caja oscura superpuesta)"
     implemented: true
     working: "NA"
-    file: "components/CarouselSlide.jsx, components/DuetSlide.jsx"
+    file: "components/CaptionText.jsx"
     stuck_count: 0
-    priority: "low"
+    priority: "medium"
     needs_retesting: false
     status_history:
         -working: "NA"
         -agent: "user"
-        -comment: "Usuario: 'Mostrar solo los tres puntos y alrededor aparece oscuro quitalo'."
+        -comment: "Usuario: 'Mostrar solo los tres puntos y alrededor aparece oscuro quitalo' -> aclarado después: 'Me refiero al título' (se refería a los '...' de '…more' del título/descripción del post, NO al botón de tres puntos del menú; ese cambio fue revertido)."
         -working: "NA"
         -agent: "main"
-        -comment: "CAMBIO UI. El botón 'mas-opciones' (icono MoreVertical de tres puntos, 18px, fill sólido) tenía style={{filter:'drop-shadow(0 2px 4px rgba(0,0,0,0.7))'}} igual que el resto de botones sociales; al ser un icono pequeño con fill sólido (3 puntos), ese drop-shadow generaba un halo oscuro difuminado alrededor perceptible (a diferencia de los iconos de 30px, donde es más sutil). FIX: eliminado el style de drop-shadow en el botón 'mas-opciones' en CarouselSlide.jsx y DuetSlide.jsx; ahora se ven solo los tres puntos blancos, sin sombra/halo oscuro alrededor. Resto de botones sociales (votar, retar, comentar, compartir, guardar) sin cambios. Lint limpio (solo warnings preexistentes no relacionados). NO se usa agente de testing (petición del usuario en cambios anteriores)."
+        -comment: "REVERTIDO por error de interpretación: había quitado el drop-shadow del botón 'mas-opciones' (MoreVertical) en CarouselSlide.jsx/DuetSlide.jsx pensando que 'tres puntos' se refería a ese icono; el usuario aclaró que se refería a los tres puntos de la elipsis '…more' del título. Restaurado el drop-shadow original de 'mas-opciones' (sin cambios netos ahí). FIX REAL en components/CaptionText.jsx: antes, el indicador '…more' (colapsado a 1 línea) era un botón absolute posicionado ENCIMA del texto con className bg-gradient-to-l from-black/70 via-black/60 to-transparent -> se veía como una caja/degradado oscuro alrededor de '…more'. Rediseño SIN posición absoluta ni fondo: el párrafo ahora es un flex-item (min-w-0 flex-1 overflow-hidden whitespace-nowrap text-ellipsis, truncado nativo de 1 línea) y el botón '…more' es un SIBLING shrink-0 en el mismo renglón (flex items-baseline gap-1), sin superposición ni fondo oscuro; la detección de desbordamiento cambió de scrollHeight/clientHeight (multi-línea) a scrollWidth/clientWidth (1 línea). Estado expandido ('less') sin cambios de estilo (ya no tenía fondo). Lint limpio. NO se usa agente de testing (petición del usuario)."
     implemented: true
     working: "NA"
     file: "components/CaptionText.jsx"

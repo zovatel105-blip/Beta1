@@ -4,10 +4,11 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 
 /**
  * CaptionText — caption del feed estilo Instagram Reels.
- *   - Colapsado: máximo 1 línea. Si el texto desborda, aparece "…more" al final
- *     de la línea (sobre un degradado para que se lea bien sobre el vídeo).
+ *   - Colapsado: 1 sola línea. Si el texto desborda, la línea se recorta con
+ *     el "…" nativo del navegador (text-ellipsis) y justo después, en la
+ *     MISMA línea (sin superposición ni fondo oscuro), aparece "…more".
  *   - Al tocar "…more" se expande el texto completo y se muestra "less".
- *   - Detecta el desbordamiento midiendo scrollHeight vs clientHeight.
+ *   - Detecta el desbordamiento midiendo scrollWidth vs clientWidth (1 línea).
  */
 export default function CaptionText({ text, className = '' }) {
   const [expanded, setExpanded] = useState(false)
@@ -17,11 +18,11 @@ export default function CaptionText({ text, className = '' }) {
   // Si cambia el texto (otra tarjeta reciclada), volvemos a colapsar.
   useEffect(() => { setExpanded(false) }, [text])
 
-  // Medimos si el texto desborda las 2 líneas (solo en estado colapsado).
+  // Medimos si el texto desborda la línea (solo en estado colapsado).
   useEffect(() => {
     const el = ref.current
     if (!el || expanded) return
-    setTruncated(el.scrollHeight > el.clientHeight + 1)
+    setTruncated(el.scrollWidth > el.clientWidth + 1)
   }, [text, expanded])
 
   const expand = useCallback((e) => { e.stopPropagation(); setExpanded(true) }, [])
@@ -29,26 +30,34 @@ export default function CaptionText({ text, className = '' }) {
 
   if (!text) return null
 
+  if (expanded) {
+    return (
+      <div className={className}>
+        <p className="whitespace-pre-wrap">
+          {text}
+          <button
+            type="button"
+            onClick={collapse}
+            className="ml-1 font-semibold text-white/60 align-baseline"
+          >
+            less
+          </button>
+        </p>
+      </div>
+    )
+  }
+
   return (
     <div className={className}>
-      <div className="relative">
-        <p ref={ref} className={expanded ? 'whitespace-pre-wrap' : 'line-clamp-1'}>
+      <div className="flex items-baseline gap-1">
+        <p ref={ref} className="min-w-0 flex-1 overflow-hidden whitespace-nowrap text-ellipsis">
           {text}
-          {expanded && (
-            <button
-              type="button"
-              onClick={collapse}
-              className="ml-1 font-semibold text-white/60 align-baseline"
-            >
-              less
-            </button>
-          )}
         </p>
-        {!expanded && truncated && (
+        {truncated && (
           <button
             type="button"
             onClick={expand}
-            className="absolute bottom-0 right-0 pl-6 font-semibold text-white/80 bg-gradient-to-l from-black/70 via-black/60 to-transparent"
+            className="shrink-0 font-semibold text-white/80"
           >
             …more
           </button>
