@@ -463,7 +463,20 @@ backend:
         -comment: "VERIFICADO MANUALMENTE (el usuario pidió NO usar agente de testing). Registrados follower1/target1. (B) POST /api/users/target1/follow sin sesión -> 401 {error:unauthorized}. (C) con sesión -> 200 {ok:true,following:true,followers:1}. (D) toggle -> {following:false,followers:0}; de nuevo -> {following:true,followers:1}. (E) seguirse a sí mismo -> 400 {error:cannot_follow_yourself}. (F) GET /api/users/target1 sin sesión -> isFollowing=false, followers=1. (G) GET con sesión -> isFollowing=true, followers=1. (H) seguir autor demo 'wanderlust' (sin documento de usuario) -> 200 {following:true,followers:1}. Regresión: /api/feed y /api/users 200. Datos de prueba limpiados."
 
 frontend:
-  - task: "Página de retos: botón superior izquierdo abre SUGERENCIAS DE USUARIOS (Seguir + Retar), ya no comparte"
+  - task: "Disco de música giratorio en la columna social derecha (debajo de los tres puntos), quitado el chip de música bajo el título"
+    implemented: true
+    working: "NA"
+    file: "components/CarouselSlide.jsx, components/DuetSlide.jsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "Usuario pidió explícitamente NO usar el agente de testing para este cambio."
+        -working: "NA"
+        -agent: "main"
+        -comment: "CAMBIO UI (usuario: 'quiere el reproductor/chip de música en la columna social derecha, debajo de los tres puntos (estilo disco giratorio de TikTok), no bajo el título'). ANTES: el chip de música (icono cuadrado + 'Título · Artista') se mostraba bajo el título/descripción del post (bajo CaptionText), y el disco circular giratorio del final de la columna social derecha SIEMPRE mostraba el avatar del autor (headAuthor.avatarUrl), sin relación con la música. AHORA: (1) eliminado el bloque hasMusic bajo el título en ambos componentes (CarouselSlide.jsx y DuetSlide.jsx); el <audio> de reproducción se mantiene intacto. (2) el disco circular giratorio (ya posicionado debajo del botón 'mas-opciones' de tres puntos, al final de la columna social) ahora es condicional: si el post tiene música (hasMusic) muestra post.musicArtwork (o el icono Music de fallback si no hay carátula) girando estilo TikTok; si NO tiene música, mantiene el comportamiento previo (avatar del autor) para no dejar el disco vacío. Añadido atributo title (tooltip) con 'Título · Artista' para no perder esa información visualmente. Restaurado además el archivo .env (MONGO_URL/ADMIN_EMAILS/NEXT_PUBLIC_BASE_URL/CORS_ORIGINS) que se había perdido de nuevo (toda la API daba 500) y re-sembrados usuarios de prueba (twykadmin/lucia/marcos/laura, ver test_credentials.md) porque la BD 'twyk' estaba vacía. Verificado con curl: creado post versus con musicTitle/musicArtist/musicArtwork vía POST /api/versus (sesión lucia) -> 200 ok. Lint limpio (solo warnings preexistentes no relacionados). NOTA: no se pudo verificar visualmente por captura headless (el chunk dinámico del Feed no monta en el harness de screenshot, limitación conocida del entorno ya documentada varias veces en este archivo); pendiente de test con agente de frontend o validación visual del usuario."
     implemented: true
     working: true
     file: "components/SuggestedUsersPage.jsx, components/CompletedBattlesPage.jsx, components/Feed.jsx"
@@ -653,12 +666,14 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Buscador de usuarios: GET /api/users?q= (búsqueda por username/nombre, incluye al propio usuario)"
+    - "Disco de música giratorio en la columna social derecha (debajo de los tres puntos), quitado el chip de música bajo el título"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 
 agent_communication:
+    -agent: "main"
+    -message: "CAMBIO UI (frontend puro, sin cambios de backend): usuario pidió mover el reproductor/chip de música (que estaba bajo el título/descripción del post) al disco giratorio de la columna social derecha, justo debajo del botón de tres puntos ('mas-opciones'), estilo TikTok. Implementado en components/CarouselSlide.jsx y components/DuetSlide.jsx: (1) eliminado el chip de música bajo CaptionText; (2) el disco circular ya existente al final de la columna social (debajo de 'mas-opciones') ahora muestra post.musicArtwork girando si el post tiene música (hasMusic), o el icono Music de lucide-react si no hay carátula; si el post NO tiene música, sigue mostrando el avatar del autor (comportamiento previo, para no dejar el disco vacío). El <audio> de reproducción no cambió. CONTEXTO IMPORTANTE: el archivo .env había vuelto a perderse (toda la API daba 500); lo restauré con los mismos valores documentados antes (MONGO_URL=mongodb://localhost:27017/twyk, ADMIN_EMAILS=twyk.apk@gmail.com, NEXT_PUBLIC_BASE_URL=preview URL, CORS_ORIGINS=*) y la BD 'twyk' estaba vacía, así que re-registré usuarios de prueba vía POST /api/auth/register (ver /app/memory/test_credentials.md: twykadmin/Admin12345 admin, lucia/marcos/laura con Test12345) y creé un post de prueba (POST /api/versus como lucia) con musicTitle/musicArtist/musicArtwork para poder verificar el cambio. Es un cambio SOLO DE FRONTEND (JSX/estilos), no toca ningún endpoint. Por favor, si se prueba, sería con el agente de FRONTEND (Playwright) para confirmar visualmente: (a) el disco giratorio bajo los tres puntos muestra la carátula/nota musical cuando el post tiene música; (b) ya NO aparece ningún chip de música bajo el título del post; (c) posts sin música siguen mostrando el avatar del autor en ese disco (sin romper nada). NOTA: la captura headless con el tool de screenshot no logra montar el chunk dinámico del Feed (limitación conocida y ya documentada varias veces en este archivo, no relacionada con este cambio)."
     -agent: "main"
     -message: "NUEVA FEATURE buscador de usuarios. Probar SOLO BACKEND el endpoint GET /api/users?q=. CONTEXTO: el .env se había perdido (restaurado) y la BD estaba vacía; ya se re-sembraron cuentas (ver test_credentials.md): twykadmin/Admin12345 (admin), lucia/marcos/laura con password Test12345. Escenarios: (1) GET /api/users?q=la (sin sesión) -> 200 {users:[...]} y TODOS los usuarios devueltos contienen 'la' (insensible a mayúsculas) en username o name (debe aparecer 'laura'). (2) GET /api/users?q=LU -> 200 e incluye 'lucia' (case-insensitive). (3) GET /api/users?q=twyk -> 200 e incluye 'twykadmin'. (4) GET /api/users?q=zzzznoexiste -> 200 {users:[]}. (5) REGRESIÓN (uso original sin q): GET /api/users SIN sesión -> 200 {users:[...]} con todos los usuarios; GET /api/users CON sesión de 'lucia' (login POST /api/auth/login {username:'lucia',password:'Test12345'} y usar cookie/token) -> 200 y la lista NO debe incluir a 'lucia' (excluye al usuario actual). (6) IMPORTANTE diferencia: con ?q=lucia (con sesión de lucia) SÍ debe poder encontrarse a sí misma (la búsqueda incluye al propio usuario). (7) Inyección regex: GET /api/users?q=.* -> 200 sin error (los caracteres especiales se escapan, no devuelve todo por regex comodín). NO modificar el Testing Protocol."
     -agent: "main"

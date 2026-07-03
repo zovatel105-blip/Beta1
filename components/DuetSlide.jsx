@@ -681,20 +681,6 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
         <div className="mt-1 pointer-events-auto">
           <CaptionText text={post.description} className="text-white text-sm leading-tight" />
         </div>
-        {hasMusic && (
-          <div className="mt-2 flex items-center gap-2 pointer-events-auto max-w-[calc(100%-4rem)]">
-            <span className="w-5 h-5 rounded-md overflow-hidden bg-white/15 shrink-0 flex items-center justify-center">
-              {post.musicArtwork ? (
-                <img src={post.musicArtwork} alt="" className="w-full h-full object-cover" style={{ animation: 'spin 6s linear infinite' }} />
-              ) : (
-                <Music size={12} className="text-white" />
-              )}
-            </span>
-            <span className="text-white text-[12px] font-medium drop-shadow-md truncate">
-              {post.musicTitle} · {post.musicArtist}
-            </span>
-          </div>
-        )}
       </div>
       {hasMusic && (
         <audio ref={audioRef} src={post.musicPreviewUrl} loop preload="none" />
@@ -753,9 +739,22 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
         <button aria-label="mas-opciones" onClick={(e) => { e.stopPropagation(); setMenuOpen(true) }} className="flex flex-col items-center hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
           <MoreVertical className="w-[18px] h-[18px] text-white" strokeWidth={1.25} fill="currentColor" />
         </button>
-        {/* Disco de música giratorio */}
-        <div className="mt-1 w-10 h-10 rounded-full overflow-hidden border border-white/30 bg-gradient-to-br from-zinc-700 to-black flex items-center justify-center" style={{ animation: 'spin 6s linear infinite' }}>
-          <Avatar src={headAuthor.avatarUrl} alt="" className="w-6 h-6 rounded-full" />
+        {/* Disco de música giratorio (estilo TikTok) — muestra la carátula de la canción si hay música */}
+        <div
+          aria-label="music"
+          title={hasMusic ? [post.musicTitle, post.musicArtist].filter(Boolean).join(' · ') : undefined}
+          className="mt-1 w-10 h-10 rounded-full overflow-hidden border border-white/30 bg-gradient-to-br from-zinc-700 to-black flex items-center justify-center shrink-0"
+          style={{ animation: 'spin 6s linear infinite' }}
+        >
+          {hasMusic ? (
+            post.musicArtwork ? (
+              <img src={post.musicArtwork} alt="" className="w-full h-full object-cover" />
+            ) : (
+              <Music size={16} className="text-white" />
+            )
+          ) : (
+            <Avatar src={headAuthor.avatarUrl} alt="" className="w-6 h-6 rounded-full" />
+          )}
         </div>
       </div>
 
