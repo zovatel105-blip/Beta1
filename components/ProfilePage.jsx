@@ -768,10 +768,8 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
             <div />
             <div className="flex justify-center">
               <div className="relative">
-                <div className="w-[104px] h-[104px] rounded-full p-[3px] bg-gradient-to-br from-white/15 to-white/[0.03] shadow-[0_8px_30px_-8px_rgba(0,0,0,0.6)]">
-                  <div className="w-full h-full rounded-full overflow-hidden bg-zinc-900 ring-2 ring-white/10">
-                    <Avatar src={me.avatarUrl} alt={me.username} className="w-full h-full rounded-full" />
-                  </div>
+                <div className="w-[104px] h-[104px] rounded-full overflow-hidden bg-zinc-900 shadow-[0_8px_30px_-8px_rgba(0,0,0,0.6)]">
+                  <Avatar src={me.avatarUrl} alt={me.username} className="w-full h-full rounded-full" />
                 </div>
               </div>
             </div>

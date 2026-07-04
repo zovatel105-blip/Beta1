@@ -479,6 +479,18 @@ backend:
         -comment: "VERIFICADO MANUALMENTE (el usuario pidió NO usar agente de testing). Registrados follower1/target1. (B) POST /api/users/target1/follow sin sesión -> 401 {error:unauthorized}. (C) con sesión -> 200 {ok:true,following:true,followers:1}. (D) toggle -> {following:false,followers:0}; de nuevo -> {following:true,followers:1}. (E) seguirse a sí mismo -> 400 {error:cannot_follow_yourself}. (F) GET /api/users/target1 sin sesión -> isFollowing=false, followers=1. (G) GET con sesión -> isFollowing=true, followers=1. (H) seguir autor demo 'wanderlust' (sin documento de usuario) -> 200 {following:true,followers:1}. Regresión: /api/feed y /api/users 200. Datos de prueba limpiados."
 
 frontend:
+  - task: "Eliminar anillo alrededor del avatar principal del perfil"
+    implemented: true
+    working: "NA"
+    file: "components/ProfilePage.jsx"
+    stuck_count: 0
+    priority: "low"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "CAMBIO UI (usuario: 'Elimina el anillo alrededor del avatar del perfil'). El avatar grande (104px) de la cabecera del perfil tenía un doble efecto de anillo: un borde degradado exterior (div wrapper p-[3px] bg-gradient-to-br from-white/15 to-white/[0.03]) + un ring-2 ring-white/10 interior. Se eliminaron ambos, dejando solo el <div> del avatar con la sombra (shadow-[0_8px_30px_-8px_rgba(0,0,0,0.6)]) para mantener profundidad visual sin el anillo. NOTA: además se detectó y corrigió (de nuevo) la pérdida recurrente de /app/.env (documentada en memory/ENV_BACKUP.md) antes de este cambio: .env no existía, nextjs estaba detenido y MongoDB vacío; restaurado .env con la nueva NEXT_PUBLIC_BASE_URL/CORS_ORIGINS (APP_URL actual de supervisor), nextjs reiniciado y re-sembrados twykadmin/lucia/marcos/laura (scripts/seed-core-users.mjs). Lint limpio. NOTA sobre verificación visual: la captura headless de Playwright solo muestra el spinner de carga del feed (limitación conocida y ya documentada varias veces en este archivo, el bundle dinámico no monta en el harness de screenshot); el cambio de CSS es mínimo y se revisó por código. NO se ejecutó agente de testing (cambio puramente visual/CSS, sin lógica ni backend afectado)."
+
   - task: "Título/post: los '…' deben aparecer DESPUÉS de una palabra completa (nunca cortando una palabra a la mitad)"
     implemented: true
     working: "NA"
