@@ -4,12 +4,9 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ArrowLeft } from 'lucide-react'
 
-// Colores del diseño original (TWYK): opción A (arriba) morado, opción B (abajo) azul.
-const TWYK_TOP = { primary: '#A855F7', glow: 'rgba(168,85,247,0.65)' }
-const TWYK_BOTTOM = { primary: '#3B82F6', glow: 'rgba(59,130,246,0.65)' }
-
 /**
  * OptionMedia — muestra el contenido (vídeo/imagen) de una opción del duelo.
+ * Solo el contenido puro: sin nombre de usuario ni título/descripción superpuestos.
  */
 function OptionMedia({ option, active }) {
   const ref = useRef(null)
@@ -42,26 +39,15 @@ function OptionMedia({ option, active }) {
       ) : (
         <div className="w-full h-full bg-gradient-to-br from-zinc-800 to-black" />
       )}
-
-      {(option.author?.username || option.description) && (
-        <div className="absolute bottom-10 left-0 right-0 px-5 text-center pointer-events-none">
-          {option.author?.username && (
-            <p className="text-white font-bold drop-shadow-lg">@{option.author.username}</p>
-          )}
-          {option.description && (
-            <p className="text-white/75 text-sm mt-1 line-clamp-2 drop-shadow-md">{option.description}</p>
-          )}
-        </div>
-      )}
     </div>
   )
 }
 
 /**
  * VSContentCard — tarjeta central que muestra "solo el contenido" de las opciones
- * de un duelo 1vs1. Diseño con glow de color según la opción activa (A morado /
- * B azul), carrusel deslizable horizontalmente entre A y B e indicadores de color.
- * Soporta el botón "atrás" del navegador.
+ * de un duelo 1vs1. Marco blanco sutil con resplandor (mismo estilo que el círculo
+ * de la campana en notificaciones), carrusel deslizable horizontalmente entre A y B
+ * e indicadores neutros (sin color). Soporta el botón "atrás" del navegador.
  */
 export default function VSContentCard({
   visible = false,
@@ -116,7 +102,6 @@ export default function VSContentCard({
   if (typeof document === 'undefined' || !visible) return null
 
   const slides = [optionA, optionB]
-  const activeColor = activeIdx === 0 ? TWYK_TOP : TWYK_BOTTOM
 
   return createPortal(
     <div
@@ -143,7 +128,7 @@ export default function VSContentCard({
           ))}
         </div>
 
-        {/* Indicadores con el color de la opción activa */}
+        {/* Indicadores neutros, sin color (no dependen de la opción activa) */}
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5">
           {slides.map((_, i) => (
             <span
@@ -151,20 +136,20 @@ export default function VSContentCard({
               className="rounded-full transition-all duration-200"
               style={
                 activeIdx === i
-                  ? { width: 16, height: 6, background: activeColor.primary, boxShadow: `0 0 8px ${activeColor.glow}` }
-                  : { width: 6, height: 6, background: 'rgba(255,255,255,0.4)' }
+                  ? { width: 16, height: 6, background: 'rgba(255,255,255,0.9)', boxShadow: '0 0 8px rgba(255,255,255,0.5)' }
+                  : { width: 6, height: 6, background: 'rgba(255,255,255,0.35)' }
               }
             />
           ))}
         </div>
 
-        {/* Botón atrás */}
+        {/* Botón atrás — sin fondo, solo el icono */}
         <button
           onClick={(e) => { e.stopPropagation(); onClose?.() }}
-          className="absolute top-3 left-3 z-20 w-9 h-9 rounded-full bg-black/50 backdrop-blur flex items-center justify-center active:scale-95 transition-transform"
+          className="absolute top-3 left-3 z-20 w-9 h-9 flex items-center justify-center active:scale-90 transition-transform"
           aria-label="Back"
         >
-          <ArrowLeft className="text-white" size={20} />
+          <ArrowLeft className="text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.85)]" size={22} />
         </button>
       </div>
     </div>,
