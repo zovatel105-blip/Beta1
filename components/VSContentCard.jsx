@@ -123,11 +123,12 @@ export default function VSContentCard({
       className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-center justify-center select-none animate-[fadeIn_180ms_ease-out]"
       onClick={(e) => { if (e.target === e.currentTarget) onClose?.() }}
     >
-      {/* Card con glow del color de la opción activa */}
+      {/* Card con marco blanco sutil + resplandor tenue (mismo estilo que el círculo
+          de la campana en el estado vacío de notificaciones) */}
       <div
-        className="vs-content-card-glow relative w-[88vw] max-w-[420px] aspect-[9/16] rounded-3xl overflow-hidden transition-shadow duration-300"
+        className="vs-content-card-glow relative w-[88vw] max-w-[420px] aspect-[9/16] rounded-3xl overflow-hidden border border-white/10 transition-shadow duration-300"
         style={{
-          boxShadow: `0 0 0 2px ${activeColor.primary}, 0 0 40px 6px ${activeColor.glow}`,
+          boxShadow: '0 0 48px -14px rgba(255,255,255,0.4)',
           filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.9))',
         }}
       >
