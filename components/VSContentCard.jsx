@@ -128,7 +128,7 @@ export default function VSContentCard({
       <div
         className="vs-content-card-glow relative w-[88vw] max-w-[420px] aspect-[9/16] rounded-3xl overflow-hidden border border-white/10 transition-shadow duration-300"
         style={{
-          boxShadow: '0 0 48px -14px rgba(255,255,255,0.4)',
+          boxShadow: '0 0 60px 8px rgba(255,255,255,0.35), 0 0 120px 24px rgba(255,255,255,0.15)',
           filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.9))',
         }}
       >
