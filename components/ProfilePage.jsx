@@ -659,7 +659,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
             className="flex items-center min-w-0 pl-2 pointer-events-none"
             style={{ opacity: revealP, maxWidth: 'calc(50% - 34px)' }}
           >
-            <span className="text-white font-semibold text-[15px] truncate">{me.username}</span>
+            <span className="text-white font-semibold text-[15px] truncate">{me.name}</span>
           </div>
 
           {/* Avatar: SIEMPRE centrado en la barra (posición absoluta, independiente

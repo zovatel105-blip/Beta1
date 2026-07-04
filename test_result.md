@@ -684,6 +684,21 @@ frontend:
         -comment: "BUG FIX (usuario: las publicaciones tipo reto solo aparecen con un avatar y un nombre en la app nativa). CAUSA: HeaderOverlay (compartido por CarouselPage y DuetPage) solo pintaba un avatar (post.sideA.author). Los retos son type=versus isChallenge=true con sideA.author y sideB.author distintos (p.ej. Nex vs Kiki, tu_canal vs urbanlife). FIX: añadida rama isChallenge en HeaderOverlay que replica la web (CarouselSlide/DuetSlide): dos avatares solapados (authorB arriba-derecha, authorA abajo-izquierda con anillo negro) + columna 'authorA vs / authorB', cada avatar/nombre clicable a su perfil. Publicación normal mantiene un solo avatar. Requiere rebuild del APK (sin Android SDK aquí). No aplica agente de testing (Kotlin nativo)."
 
 
+  - task: "ProfilePage: cabecera sticky colapsada mostraba el @username en vez del nombre visible"
+    implemented: true
+    working: "NA"
+    file: "components/ProfilePage.jsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "Usuario reportó: 'cuando cambió el nombre de perfil también cambia el nombre de usuario en el perfil'. Aclaración del usuario tras preguntar: 'Lo que sale en el header de perfil debe ser el nombre no el nombre de usuario'."
+        -working: "NA"
+        -agent: "main"
+        -comment: "INVESTIGACIÓN: Verificado backend (POST /api/profile, updateUserProfile en lib/db.js) con petición real: al cambiar 'name' de lucia, el campo 'username' en BD/API (GET /api/users/lucia, GET /api/auth/me) permaneció intacto en todo momento -> NO había bug de backend. La confusión era de UI: la cabecera GRANDE (expandida) del perfil ya mostraba correctamente me.name (título) + me.handle ('@'+username, subtítulo) en líneas separadas (líneas 806-807), pero la barra STICKY/colapsada que aparece al hacer scroll (mini-perfil estilo TikTok) mostraba {me.username} en vez de {me.name} (línea 662) -> al cambiar el nombre, el usuario veía el nombre nuevo en la cabecera grande pero el username sin cambiar en la barra pequeña, dando la sensación de inconsistencia/bug. FIX: cambiado {me.username} -> {me.name} en la barra sticky colapsada (components/ProfilePage.jsx línea 662) para que muestre el NOMBRE visible, igual que la cabecera expandida. Lint limpio. .env se había perdido de nuevo (toda la API daba 500); restaurado (MONGO_URL/ADMIN_EMAILS/NEXT_PUBLIC_BASE_URL/CORS_ORIGINS) y re-sembradas cuentas de prueba (twykadmin/lucia/marcos/laura, ver test_credentials.md). Pendiente de validación visual del usuario en la app (cambio de 1 línea, solo texto)."
+
 metadata:
   created_by: "main_agent"
   version: "1.1"
@@ -692,13 +707,14 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Disco de música giratorio en la columna social derecha (debajo de los tres puntos), quitado el chip de música bajo el título"
+    - "ProfilePage: cabecera sticky colapsada mostraba el @username en vez del nombre visible"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 
 agent_communication:
     -agent: "main"
+    -message: "BUG FIX UI: el usuario reportó que al cambiar el 'nombre de perfil' también parecía cambiar el 'nombre de usuario'. Verificado con petición real al backend que el username NUNCA se toca (solo 'name'). El usuario aclaró: la barra superior colapsada del perfil (al hacer scroll) debe mostrar el NOMBRE, no el @usuario. Cambiado components/ProfilePage.jsx línea 662 de {me.username} a {me.name}. Cambio de 1 línea, solo texto/UI, sin impacto en backend. NOTA: .env había desaparecido de nuevo (toda la API daba 500); restaurado y re-sembradas cuentas de prueba (twykadmin/lucia/marcos/laura, ver test_credentials.md)."
     -message: "CAMBIO UI (frontend puro, sin cambios de backend): usuario pidió mover el reproductor/chip de música (que estaba bajo el título/descripción del post) al disco giratorio de la columna social derecha, justo debajo del botón de tres puntos ('mas-opciones'), estilo TikTok. Implementado en components/CarouselSlide.jsx y components/DuetSlide.jsx: (1) eliminado el chip de música bajo CaptionText; (2) el disco circular ya existente al final de la columna social (debajo de 'mas-opciones') ahora muestra post.musicArtwork girando si el post tiene música (hasMusic), o el icono Music de lucide-react si no hay carátula; si el post NO tiene música, sigue mostrando el avatar del autor (comportamiento previo, para no dejar el disco vacío). El <audio> de reproducción no cambió. CONTEXTO IMPORTANTE: el archivo .env había vuelto a perderse (toda la API daba 500); lo restauré con los mismos valores documentados antes (MONGO_URL=mongodb://localhost:27017/twyk, ADMIN_EMAILS=twyk.apk@gmail.com, NEXT_PUBLIC_BASE_URL=preview URL, CORS_ORIGINS=*) y la BD 'twyk' estaba vacía, así que re-registré usuarios de prueba vía POST /api/auth/register (ver /app/memory/test_credentials.md: twykadmin/Admin12345 admin, lucia/marcos/laura con Test12345) y creé un post de prueba (POST /api/versus como lucia) con musicTitle/musicArtist/musicArtwork para poder verificar el cambio. Es un cambio SOLO DE FRONTEND (JSX/estilos), no toca ningún endpoint. Por favor, si se prueba, sería con el agente de FRONTEND (Playwright) para confirmar visualmente: (a) el disco giratorio bajo los tres puntos muestra la carátula/nota musical cuando el post tiene música; (b) ya NO aparece ningún chip de música bajo el título del post; (c) posts sin música siguen mostrando el avatar del autor en ese disco (sin romper nada). NOTA: la captura headless con el tool de screenshot no logra montar el chunk dinámico del Feed (limitación conocida y ya documentada varias veces en este archivo, no relacionada con este cambio)."
     -agent: "main"
     -message: "NUEVA FEATURE buscador de usuarios. Probar SOLO BACKEND el endpoint GET /api/users?q=. CONTEXTO: el .env se había perdido (restaurado) y la BD estaba vacía; ya se re-sembraron cuentas (ver test_credentials.md): twykadmin/Admin12345 (admin), lucia/marcos/laura con password Test12345. Escenarios: (1) GET /api/users?q=la (sin sesión) -> 200 {users:[...]} y TODOS los usuarios devueltos contienen 'la' (insensible a mayúsculas) en username o name (debe aparecer 'laura'). (2) GET /api/users?q=LU -> 200 e incluye 'lucia' (case-insensitive). (3) GET /api/users?q=twyk -> 200 e incluye 'twykadmin'. (4) GET /api/users?q=zzzznoexiste -> 200 {users:[]}. (5) REGRESIÓN (uso original sin q): GET /api/users SIN sesión -> 200 {users:[...]} con todos los usuarios; GET /api/users CON sesión de 'lucia' (login POST /api/auth/login {username:'lucia',password:'Test12345'} y usar cookie/token) -> 200 y la lista NO debe incluir a 'lucia' (excluye al usuario actual). (6) IMPORTANTE diferencia: con ?q=lucia (con sesión de lucia) SÍ debe poder encontrarse a sí misma (la búsqueda incluye al propio usuario). (7) Inyección regex: GET /api/users?q=.* -> 200 sin error (los caracteres especiales se escapan, no devuelve todo por regex comodín). NO modificar el Testing Protocol."
