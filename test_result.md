@@ -463,7 +463,7 @@ backend:
         -comment: "VERIFICADO MANUALMENTE (el usuario pidió NO usar agente de testing). Registrados follower1/target1. (B) POST /api/users/target1/follow sin sesión -> 401 {error:unauthorized}. (C) con sesión -> 200 {ok:true,following:true,followers:1}. (D) toggle -> {following:false,followers:0}; de nuevo -> {following:true,followers:1}. (E) seguirse a sí mismo -> 400 {error:cannot_follow_yourself}. (F) GET /api/users/target1 sin sesión -> isFollowing=false, followers=1. (G) GET con sesión -> isFollowing=true, followers=1. (H) seguir autor demo 'wanderlust' (sin documento de usuario) -> 200 {following:true,followers:1}. Regresión: /api/feed y /api/users 200. Datos de prueba limpiados."
 
 frontend:
-  - task: "Título/post: indicador de texto truncado = solo '…' (sin la palabra 'more')"
+  - task: "Título/post: los '…' deben aparecer DESPUÉS de una palabra completa (nunca cortando una palabra a la mitad)"
     implemented: true
     working: "NA"
     file: "components/CaptionText.jsx"
@@ -473,10 +473,10 @@ frontend:
     status_history:
         -working: "NA"
         -agent: "user"
-        -comment: "Usuario: 'Dejar solo los tres puntos y quitar el more'."
+        -comment: "Usuario: 'Después de una palabra no antes deben aparecer los tres puntos' (el recorte por CSS/overflow podía cortar el texto a mitad de una palabra, dejando los '…' pegados a un fragmento de palabra en vez de a una palabra completa)."
         -working: "NA"
         -agent: "main"
-        -comment: "CAMBIO UI. components/CaptionText.jsx: el botón indicador de truncado cambia de '…more' a solo '…' (se quita la palabra 'more', queda solo la elipsis como zona clicable para expandir). Para evitar doble elipsis (el navegador dibujaba su propio '…' con text-ellipsis + el nuestro), se quitó la clase 'text-ellipsis' del párrafo (ahora corta el texto limpio con overflow-hidden/whitespace-nowrap sin marcador nativo) dejando SOLO nuestro '…' como único indicador visual, en la misma línea (flex, sin fondo). Estado expandido sigue mostrando 'less' sin cambios. Lint limpio. NO se usa agente de testing (petición del usuario)."
+        -comment: "REESCRITO components/CaptionText.jsx con recorte por PALABRAS COMPLETAS calculado en JS (ya no depende del corte crudo de 'overflow-hidden/whitespace-nowrap', que podía cortar cualquier carácter). Nuevo <span> medidor invisible (ref measureRef, position:absolute + invisible, hereda la misma fuente por estar dentro del mismo div con className) que prueba palabra a palabra (candidate = palabras acumuladas + '…') comparando su scrollWidth contra el ancho real del contenedor visible (pRef.current.clientWidth); se detiene y usa el último conjunto de palabras que SÍ cupo antes de que la siguiente desborde -> '…' queda pegado inmediatamente después de la última palabra completa, nunca a mitad de palabra ni con espacio/salto antes. Si ni la 1ª palabra entra completa, se muestra igual completa (fallback, evita cortarla). Se quita la dependencia de line-clamp/text-ellipsis nativos (que no garantizan corte por palabra). Tocar el texto truncado (cursor-pointer) expande a texto completo con 'less' para volver a colapsar (sin cambios en ese flujo). Lint limpio. NO se usa agente de testing (petición del usuario)."
     implemented: true
     working: "NA"
     file: "components/CaptionText.jsx"

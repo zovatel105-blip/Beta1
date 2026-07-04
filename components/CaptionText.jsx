@@ -4,25 +4,58 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 
 /**
  * CaptionText — caption del feed estilo Instagram Reels.
- *   - Colapsado: 1 sola línea. Si el texto desborda, se recorta (corte simple,
- *     sin ellipsis nativo del navegador) y justo después, en la MISMA línea,
- *     aparece solo "…" (sin la palabra "more") como indicador para expandir.
- *   - Al tocar "…" se expande el texto completo y se muestra "less".
- *   - Detecta el desbordamiento midiendo scrollWidth vs clientWidth (1 línea).
+ *   - Colapsado: 1 sola línea. Si el texto desborda, se recorta SIEMPRE por
+ *     PALABRAS COMPLETAS (nunca a mitad de una palabra) y "…" aparece
+ *     inmediatamente DESPUÉS de la última palabra completa que cupo, nunca
+ *     antes ni separado. Se calcula con un <span> medidor invisible (misma
+ *     fuente) que prueba palabra a palabra hasta que deja de caber.
+ *   - Al tocar el texto truncado (o el "…") se expande el texto completo y
+ *     se muestra "less" para volver a colapsar.
  */
 export default function CaptionText({ text, className = '' }) {
   const [expanded, setExpanded] = useState(false)
   const [truncated, setTruncated] = useState(false)
-  const ref = useRef(null)
+  const [displayText, setDisplayText] = useState(text || '')
+  const pRef = useRef(null)
+  const measureRef = useRef(null)
 
   // Si cambia el texto (otra tarjeta reciclada), volvemos a colapsar.
   useEffect(() => { setExpanded(false) }, [text])
 
-  // Medimos si el texto desborda la línea (solo en estado colapsado).
+  // Calculamos el recorte por palabras completas (solo en estado colapsado).
   useEffect(() => {
-    const el = ref.current
-    if (!el || expanded) return
-    setTruncated(el.scrollWidth > el.clientWidth + 1)
+    if (expanded || !text) return
+    const p = pRef.current
+    const m = measureRef.current
+    if (!p || !m) return
+
+    const containerWidth = p.clientWidth
+    m.textContent = text
+    const fullWidth = m.scrollWidth
+
+    // Cabe entero en la línea: sin recorte.
+    if (fullWidth <= containerWidth + 1) {
+      setTruncated(false)
+      setDisplayText(text)
+      return
+    }
+
+    // No cabe entero: probamos palabra a palabra (con "…" ya incluido en la
+    // prueba) y nos quedamos con el último conjunto de palabras COMPLETAS
+    // que sí cupo, antes de que la siguiente palabra desborde la línea.
+    const words = text.split(/\s+/).filter(Boolean)
+    let result = ''
+    for (let i = 0; i < words.length; i++) {
+      const candidate = result ? `${result} ${words[i]}` : words[i]
+      m.textContent = `${candidate}…`
+      if (m.scrollWidth > containerWidth) {
+        if (!result) result = candidate // ni la 1ª palabra entra entera; la mostramos igual completa
+        break
+      }
+      result = candidate
+    }
+    setDisplayText(`${result}…`)
+    setTruncated(true)
   }, [text, expanded])
 
   const expand = useCallback((e) => { e.stopPropagation(); setExpanded(true) }, [])
@@ -49,20 +82,20 @@ export default function CaptionText({ text, className = '' }) {
 
   return (
     <div className={className}>
-      <div className="flex items-baseline gap-0.5">
-        <p ref={ref} className="min-w-0 flex-1 overflow-hidden whitespace-nowrap">
-          {text}
-        </p>
-        {truncated && (
-          <button
-            type="button"
-            onClick={expand}
-            className="shrink-0 font-semibold text-white/80"
-          >
-            …
-          </button>
-        )}
-      </div>
+      <p
+        ref={pRef}
+        onClick={truncated ? expand : undefined}
+        className={`overflow-hidden whitespace-nowrap ${truncated ? 'cursor-pointer' : ''}`}
+      >
+        {displayText}
+      </p>
+      {/* Medidor invisible (misma fuente heredada) para calcular el recorte por palabras. */}
+      <span
+        ref={measureRef}
+        aria-hidden="true"
+        className="whitespace-nowrap invisible pointer-events-none"
+        style={{ position: 'absolute', top: 0, left: 0, zIndex: -1 }}
+      />
     </div>
   )
 }
