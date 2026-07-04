@@ -635,9 +635,9 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
 
   return (
     <div ref={scrollRef} onScroll={handleScroll} className="fixed inset-0 z-40 bg-[#0a0a0b] overflow-y-auto overscroll-contain">
-      {/* Glow superior cálido (mismo tono dorado que la página de retos) */}
+      {/* Glow superior con el color de marca/tema del perfil (morado), sin blanco */}
       <div className="pointer-events-none absolute inset-x-0 top-0 h-80 z-0"
-           style={{ background: 'radial-gradient(60% 100% at 50% 0%, rgba(255,255,255,0.10), transparent 70%)' }} />
+           style={{ background: 'radial-gradient(60% 100% at 50% 0%, rgba(168,85,247,0.14), transparent 70%)' }} />
 
       {/* Header sticky: al colapsar (>60%) revela mini-perfil (avatar+usuario) y acción (Seguir/Edit) — estilo TikTok */}
       <div ref={barRef} className="sticky top-0 z-30 bg-[#0a0a0b]"
