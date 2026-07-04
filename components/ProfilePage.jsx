@@ -495,7 +495,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
   // de "no has iniciado sesión" al estilo Twyk (tema oscuro + acento de marca).
   if (isOwn && !user) {
     return (
-      <div className="fixed inset-0 z-40 bg-[#0a0a0b] flex flex-col text-white">
+      <div className={`fixed inset-0 ${guestMenuOpen ? 'z-[90]' : 'z-40'} bg-[#0a0a0b] flex flex-col text-white`}>
         {/* Header: título "Perfil" centrado + menú */}
         <div className="sticky top-0 z-20 bg-[#0a0a0b]/70 backdrop-blur-xl"
              style={{ paddingTop: 'max(env(safe-area-inset-top), 8px)' }}>
@@ -630,7 +630,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
   const revealP = collapseProgress <= 0.6 ? 0 : Math.min(1, (collapseProgress - 0.6) / 0.4)
 
   return (
-    <div ref={scrollRef} onScroll={handleScroll} className="fixed inset-0 z-40 bg-[#0a0a0b] overflow-y-auto overscroll-contain">
+    <div ref={scrollRef} onScroll={handleScroll} className={`fixed inset-0 ${(menuOpen || editOpen || followList) ? 'z-[90]' : 'z-40'} bg-[#0a0a0b] overflow-y-auto overscroll-contain`}>
       {/* Sin resplandor: todo el perfil usa el mismo negro grisáceo sólido (#0a0a0b) que la barra del header al solaparse con el contenido al hacer scroll. */}
 
       {/* Header sticky: al colapsar (>60%) revela mini-perfil (avatar+usuario) y acción (Seguir/Edit) — estilo TikTok */}
@@ -987,7 +987,7 @@ const SettingsDrawer = ({ open, onClose, onEdit, onLogout, isAdmin }) => {
       />
       {/* Panel lateral derecho */}
       <div
-        className={`absolute top-0 right-0 h-full w-[82%] max-w-sm bg-[#121214] border-l border-white/[0.08] shadow-2xl flex flex-col text-white transition-transform duration-300 ease-out ${
+        className={`absolute top-0 right-0 h-full w-[82%] max-w-sm bg-[#0a0a0b] border-l border-white/[0.08] shadow-2xl flex flex-col text-white transition-transform duration-300 ease-out ${
           open ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
