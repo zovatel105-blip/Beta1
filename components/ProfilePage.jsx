@@ -652,15 +652,25 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
             </button>
           )}
 
-          {/* Centro: mini-perfil (avatar + usuario) que aparece al colapsar */}
+          {/* Nombre de usuario: a la IZQUIERDA (nunca centrado), acotado para que si es
+              largo se trunque ANTES de llegar al avatar centrado o a los botones de la
+              derecha (nunca aparece por detrás de "Edit"/"Follow"/menú). */}
           <div
-            className="absolute inset-x-0 flex items-center justify-center gap-2 px-16 pointer-events-none"
-            style={{ opacity: revealP, transform: `translateY(${(1 - revealP) * 8}px)` }}
+            className="flex items-center min-w-0 pl-2 pointer-events-none"
+            style={{ opacity: revealP, maxWidth: 'calc(50% - 34px)' }}
+          >
+            <span className="text-white font-semibold text-[15px] truncate">{me.username}</span>
+          </div>
+
+          {/* Avatar: SIEMPRE centrado en la barra (posición absoluta, independiente
+              de cuánto ocupe el nombre a la izquierda). */}
+          <div
+            className="absolute left-1/2 pointer-events-none"
+            style={{ opacity: revealP, transform: `translateX(-50%) translateY(${(1 - revealP) * 8}px)` }}
           >
             <div className="w-7 h-7 rounded-full overflow-hidden bg-zinc-900 ring-1 ring-white/15 shrink-0">
               <Avatar src={me.avatarUrl} alt={me.username} className="w-full h-full rounded-full" />
             </div>
-            <span className="text-white font-semibold text-[15px] truncate max-w-[140px]">{me.username}</span>
           </div>
 
           {/* Derecha: acción revelada (Seguir / Edit) + menú (propio) */}
