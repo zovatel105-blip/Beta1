@@ -372,6 +372,17 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
     // Like eliminado: el doble toque ahora vota (ver handleTapSide).
   }, [])
 
+  // Burst del icono de voto: aparece justo DONDE tocaste (un poco por encima),
+  // con el color del lado (A lila / B azul). Si no hay punto, cae sobre el lado.
+  // Es SOLO la animación visual (estilo TikTok/Instagram): se puede disparar en
+  // cada doble-tap, tanto si es el primer voto como si el usuario ya votó antes.
+  const spawnVoteBurst = useCallback((side, pt) => {
+    const burstColor = side === 'a' ? '#A855F7' : '#3B82F6'
+    const burstId = Math.random().toString(36).slice(2)
+    setVoteBursts((b) => [...b, { id: burstId, color: burstColor, side, x: pt?.x, y: pt?.y }])
+    setTimeout(() => setVoteBursts((b) => b.filter((x) => x.id !== burstId)), 850)
+  }, [])
+
   const submitVote = useCallback(async (side, pt) => {
     // Verificar autenticación
     if (!user) {
@@ -385,12 +396,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
     setUserVote(side)
     setAudibleSide(side)
     setVotes((v) => ({ ...v, [side]: (v[side] || 0) + 1 }))
-    // Burst del icono de voto: aparece justo DONDE tocaste (un poco por encima),
-    // con el color del lado (A lila / B azul). Si no hay punto, cae sobre el lado.
-    const burstColor = side === 'a' ? '#A855F7' : '#3B82F6'
-    const burstId = Math.random().toString(36).slice(2)
-    setVoteBursts((b) => [...b, { id: burstId, color: burstColor, side, x: pt?.x, y: pt?.y }])
-    setTimeout(() => setVoteBursts((b) => b.filter((x) => x.id !== burstId)), 850)
+    spawnVoteBurst(side, pt)
     // Mostrar la tarjeta de ganador después de la animación del icono
     setTimeout(() => setShowWinner(true), 650)
     try { localStorage.setItem(`duet_vote_${post.id}`, side) } catch { /* ignore */ }
@@ -428,11 +434,16 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
     lastTapRef.current = { side, t: now }
     if (isDouble) {
       clearTimeout(tapTimerRef.current)
+      // Punto del toque relativo al contenedor -> la animación sale ahí.
+      const rect = overlayRef.current?.getBoundingClientRect()
+      const pt = rect ? { x: e.clientX - rect.left, y: e.clientY - rect.top } : null
       if (!userVote) {
-        // Punto del toque relativo al contenedor -> la animación sale ahí.
-        const rect = overlayRef.current?.getBoundingClientRect()
-        const pt = rect ? { x: e.clientX - rect.left, y: e.clientY - rect.top } : null
         submitVote(side, pt)
+      } else {
+        // Ya votó antes: el voto es definitivo (no se reenvía ni cambia), pero
+        // la animación del icono debe seguir apareciendo en cada doble-tap,
+        // igual que el corazón de TikTok/Instagram al volver a dar doble toque.
+        spawnVoteBurst(side, pt)
       }
       return
     }
@@ -453,7 +464,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
         vb.pause()
       }
     }, 280)
-  }, [userVote, submitVote, audibleSide])
+  }, [userVote, submitVote, spawnVoteBurst, audibleSide])
 
   const totalVotes = (votes.a || 0) + (votes.b || 0)
   const pctA = totalVotes > 0 ? Math.round(((votes.a || 0) / totalVotes) * 100) : 50

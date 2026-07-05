@@ -295,6 +295,17 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
     // Like eliminado: el doble toque ahora vota (ver onPointerUp).
   }, [])
 
+  // Burst del icono de voto: aparece justo DONDE tocaste (un poco por encima),
+  // con el color del lado (A lila / B azul). Sin punto -> centrado. Es SOLO la
+  // animación visual (estilo TikTok/Instagram): se dispara en cada doble-tap,
+  // tanto si es el primer voto como si el usuario ya votó antes.
+  const spawnVoteBurst = useCallback((s, pt) => {
+    const burstColor = s === 'a' ? '#A855F7' : '#3B82F6'
+    const burstId = Math.random().toString(36).slice(2)
+    setVoteBursts((b) => [...b, { id: burstId, color: burstColor, x: pt?.x, y: pt?.y }])
+    setTimeout(() => setVoteBursts((b) => b.filter((x) => x.id !== burstId)), 850)
+  }, [])
+
   const submitVote = useCallback(async (s, pt) => {
     // Verificar autenticación
     if (!user) {
@@ -306,12 +317,7 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
     setVoting(true)
     setUserVote(s)
     setVotes((v) => ({ ...v, [s]: (v[s] || 0) + 1 }))
-    // Burst del icono de voto: aparece justo DONDE tocaste (un poco por encima),
-    // con el color del lado (A lila / B azul). Sin punto -> centrado.
-    const burstColor = s === 'a' ? '#A855F7' : '#3B82F6'
-    const burstId = Math.random().toString(36).slice(2)
-    setVoteBursts((b) => [...b, { id: burstId, color: burstColor, x: pt?.x, y: pt?.y }])
-    setTimeout(() => setVoteBursts((b) => b.filter((x) => x.id !== burstId)), 850)
+    spawnVoteBurst(s, pt)
     // Mostrar la tarjeta de ganador después de la animación del icono
     setTimeout(() => setShowWinner(true), 650)
     try { localStorage.setItem(`versus_vote_${post.id}`, s) } catch { /* ignore */ }
@@ -394,10 +400,15 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
     const isDouble = now - lastTapRef.current < 300
     lastTapRef.current = now
     if (isDouble) {
+      const rect = overlayRef.current?.getBoundingClientRect()
+      const pt = rect ? { x: e.clientX - rect.left, y: e.clientY - rect.top } : null
       if (!userVote) {
-        const rect = overlayRef.current?.getBoundingClientRect()
-        const pt = rect ? { x: e.clientX - rect.left, y: e.clientY - rect.top } : null
         submitVote(side, pt)
+      } else {
+        // Ya votó antes: el voto es definitivo (no se reenvía ni cambia), pero
+        // la animación del icono debe seguir apareciendo en cada doble-tap,
+        // igual que el corazón de TikTok/Instagram al volver a dar doble toque.
+        spawnVoteBurst(side, pt)
       }
       return
     }
@@ -408,7 +419,7 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
       if (!vis) return
       if (vis.paused) vis.play().catch(() => {}); else vis.pause()
     }, 280)
-  }, [side, userVote, endDrag, doLike, submitVote, getVisible])
+  }, [side, userVote, endDrag, doLike, submitVote, spawnVoteBurst, getVisible])
 
   const onPointerCancel = useCallback(() => {
     endDrag()
