@@ -100,8 +100,8 @@ export default function VSWinnerCard({
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
-      {/* Card 9:16 (misma medida que la VSContentCard). Borde + glow adaptados a la barra. */}
-      <div className="relative w-[88vw] max-w-[420px] aspect-[9/16] animate-[winnerPop_280ms_cubic-bezier(0.16,1,0.3,1)]">
+      {/* Card (misma medida que la VSContentCard). Borde + glow adaptados a la barra. */}
+      <div className="relative w-[90vw] max-w-[440px] aspect-[9/17.5] max-h-[85vh] animate-[winnerPop_280ms_cubic-bezier(0.16,1,0.3,1)]">
         {/* Glow lateral adaptado a la barra (A izquierda / B derecha) */}
         <div
           className="absolute inset-0 rounded-[36px] blur-2xl opacity-75 scale-[1.05] pointer-events-none"

@@ -111,7 +111,7 @@ export default function VSContentCard({
       {/* Card con marco blanco sutil + resplandor tenue (mismo estilo que el círculo
           de la campana en el estado vacío de notificaciones) */}
       <div
-        className="vs-content-card-glow relative w-[88vw] max-w-[420px] aspect-[9/16] rounded-3xl overflow-hidden border border-white/10 transition-shadow duration-300"
+        className="vs-content-card-glow relative w-[90vw] max-w-[440px] aspect-[9/17.5] max-h-[85vh] rounded-3xl overflow-hidden border border-white/10 transition-shadow duration-300"
         style={{
           boxShadow: '0 0 60px 8px rgba(255,255,255,0.35), 0 0 120px 24px rgba(255,255,255,0.15)',
           filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.9))',
