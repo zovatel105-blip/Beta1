@@ -9,7 +9,7 @@ import json
 import sys
 
 # Use the public preview URL from .env
-BASE_URL = "https://04877529-8e87-453b-aa99-064878e009e8.preview.emergentagent.com/api"
+BASE_URL = "https://env-checker-7.preview.emergentagent.com/api"
 
 def test_admin_login():
     """Scenario 1: Admin login with twykadmin/Admin12345"""
