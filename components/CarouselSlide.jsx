@@ -5,6 +5,7 @@ import { MessageCircle, Bookmark, Play, Swords, MoreVertical, Music } from 'luci
 import ShareIcon from './icons/ShareIcon'
 import { cn } from '@/lib/utils'
 import VoteIcon from './icons/VoteIcon'
+import VoteBurstEffect from './VoteBurstEffect'
 import CaptionText from './CaptionText'
 import VSWinnerCard from './VSWinnerCard'
 import CommentsModal from './CommentsModal'
@@ -303,7 +304,7 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
     const burstColor = s === 'a' ? '#A855F7' : '#3B82F6'
     const burstId = Math.random().toString(36).slice(2)
     setVoteBursts((b) => [...b, { id: burstId, color: burstColor, x: pt?.x, y: pt?.y }])
-    setTimeout(() => setVoteBursts((b) => b.filter((x) => x.id !== burstId)), 850)
+    setTimeout(() => setVoteBursts((b) => b.filter((x) => x.id !== burstId)), 900)
   }, [])
 
   const submitVote = useCallback(async (s, pt) => {
@@ -525,17 +526,13 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
           <div
             key={vb.id}
             className="absolute z-30 pointer-events-none"
-            style={{ left: vb.x, top: vb.y, transform: 'translate(-50%, -115%)' }}
+            style={{ left: vb.x, top: vb.y, transform: 'translate(-50%, -60px)' }}
           >
-            <span className="like-pop" style={{ color: vb.color, filter: 'drop-shadow(0 6px 18px rgba(0,0,0,0.55))' }}>
-              <VoteIcon className="w-24 h-24" strokeWidth={320} filled />
-            </span>
+            <VoteBurstEffect color={vb.color} />
           </div>
         ) : (
           <div key={vb.id} className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none">
-            <span className="like-pop" style={{ color: vb.color, filter: 'drop-shadow(0 6px 18px rgba(0,0,0,0.55))' }}>
-              <VoteIcon className="w-24 h-24" strokeWidth={320} filled />
-            </span>
+            <VoteBurstEffect color={vb.color} />
           </div>
         )
       ))}

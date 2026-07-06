@@ -53,6 +53,55 @@ html, body, #__next {
 }
 .like-pop { animation: likePop 800ms ease-out forwards; }
 
+/* Vote burst — animación al votar (doble toque), más elaborada que el
+   "like" clásico de TikTok: halo de brillo + doble onda expansiva + icono
+   con rebote elástico + chispas radiales del color del lado votado. */
+@keyframes voteGlowFlash {
+    0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.3); }
+    30%  { opacity: 0.65; transform: translate(-50%, -50%) scale(1.15); }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(1.75); }
+}
+.vote-glow {
+    position: absolute; top: 0; left: 0; width: 150px; height: 150px;
+    border-radius: 50%; filter: blur(9px); pointer-events: none;
+    animation: voteGlowFlash 550ms ease-out forwards;
+}
+
+@keyframes voteRingPulse {
+    0%   { transform: translate(-50%, -50%) scale(0.35); opacity: 0.9; }
+    100% { transform: translate(-50%, -50%) scale(2.5); opacity: 0; }
+}
+.vote-ring {
+    position: absolute; top: 0; left: 0; width: 84px; height: 84px;
+    border-radius: 50%; border-style: solid; border-width: 2.5px;
+    pointer-events: none;
+    animation: voteRingPulse 700ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes voteIconPop {
+    0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.15) rotate(-18deg); }
+    32%  { opacity: 1; transform: translate(-50%, -50%) scale(1.4) rotate(8deg); }
+    50%  { transform: translate(-50%, -50%) scale(0.92) rotate(-4deg); }
+    70%  { transform: translate(-50%, -50%) scale(1.1) rotate(2deg); }
+    85%  { transform: translate(-50%, -50%) scale(1) rotate(0deg); }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(1.08) rotate(0deg); }
+}
+.vote-icon-pop {
+    position: absolute; top: 0; left: 0; display: inline-flex;
+    animation: voteIconPop 800ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes voteParticleFly {
+    0%   { opacity: 1; transform: translate(-50%, -50%) rotate(var(--angle)) translateX(4px) scale(1); }
+    75%  { opacity: 1; }
+    100% { opacity: 0; transform: translate(-50%, -50%) rotate(var(--angle)) translateX(var(--dist)) scale(0.25); }
+}
+.vote-particle {
+    position: absolute; top: 0; left: 0; border-radius: 50%;
+    pointer-events: none;
+    animation: voteParticleFly 650ms ease-out forwards;
+}
+
 /* Audio wave decorative */
 @keyframes wave1 { 0%,100% { transform: scaleY(0.4) } 50% { transform: scaleY(1) } }
 @keyframes wave2 { 0%,100% { transform: scaleY(0.7) } 50% { transform: scaleY(0.3) } }

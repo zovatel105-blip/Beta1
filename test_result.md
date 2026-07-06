@@ -736,6 +736,18 @@ frontend:
         -agent: "main"
         -comment: "INVESTIGACIÓN: Verificado backend (POST /api/profile, updateUserProfile en lib/db.js) con petición real: al cambiar 'name' de lucia, el campo 'username' en BD/API (GET /api/users/lucia, GET /api/auth/me) permaneció intacto en todo momento -> NO había bug de backend. La confusión era de UI: la cabecera GRANDE (expandida) del perfil ya mostraba correctamente me.name (título) + me.handle ('@'+username, subtítulo) en líneas separadas (líneas 806-807), pero la barra STICKY/colapsada que aparece al hacer scroll (mini-perfil estilo TikTok) mostraba {me.username} en vez de {me.name} (línea 662) -> al cambiar el nombre, el usuario veía el nombre nuevo en la cabecera grande pero el username sin cambiar en la barra pequeña, dando la sensación de inconsistencia/bug. FIX: cambiado {me.username} -> {me.name} en la barra sticky colapsada (components/ProfilePage.jsx línea 662) para que muestre el NOMBRE visible, igual que la cabecera expandida. Lint limpio. .env se había perdido de nuevo (toda la API daba 500); restaurado (MONGO_URL/ADMIN_EMAILS/NEXT_PUBLIC_BASE_URL/CORS_ORIGINS) y re-sembradas cuentas de prueba (twykadmin/lucia/marcos/laura, ver test_credentials.md). Pendiente de validación visual del usuario en la app (cambio de 1 línea, solo texto)."
 
+  - task: "Animación de voto mejorada (doble toque) — VoteBurstEffect"
+    implemented: true
+    working: true
+    file: "components/VoteBurstEffect.jsx, components/CarouselSlide.jsx, components/DuetSlide.jsx, app/globals.css"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "main"
+        -comment: "MEJORA UI (usuario: 'añadir una animación cuando se vote mejor que la de tiktok like'). Se reemplaza el simple 'like-pop' (icono que escala y desaparece, igual al corazón de TikTok) por un nuevo componente components/VoteBurstEffect.jsx reutilizado en CarouselSlide y DuetSlide: (1) halo de brillo (radial-gradient difuminado) detrás de todo; (2) doble onda expansiva (shockwave) con retraso escalonado; (3) icono VoteIcon con rebote ELÁSTICO (overshoot + micro-wobble) en vez de un pop lineal; (4) 8 chispas radiales del color del lado votado (A lila #A855F7 / B azul #3B82F6) que salen disparadas en círculo y se desvanecen, vía la técnica CSS translate(-50%,-50%) rotate(var(--angle)) translateX(var(--dist)) con valores aleatorios por partícula (memoizados con useState lazy init para no recalcular en cada re-render del padre). Nuevos keyframes en globals.css: voteGlowFlash, voteRingPulse, voteIconPop, voteParticleFly. Cambio SOLO DE FRONTEND (JSX/CSS puro), no toca ningún endpoint. Ajustado el setTimeout de limpieza del burst de 850ms a 900ms para no cortar la animación más larga (ring ~810ms). CONTEXTO: al empezar esta tarea el .env volvía a faltar (mismo problema recurrente ya documentado en memory/ENV_BACKUP.md); restaurado con los mismos valores (MONGO_URL, ADMIN_EMAILS, NEXT_PUBLIC_BASE_URL/CORS_ORIGINS con la URL de preview ACTUAL) y re-sembradas las 4 cuentas de prueba con node scripts/seed-core-users.mjs. VERIFICADO VISUALMENTE con Playwright (el usuario pidió explícitamente NO usar el agente de testing): login como lucia, doble-tap sobre un post -> se ve el halo + onda expansiva + icono azul con rebote, y en el frame siguiente las chispas radiales dispersándose en círculo alrededor del punto; el contador de votos subió de 1 a 2 (voto real registrado, no solo la animación). Lint limpio en los 3 archivos JSX tocados (los 2 warnings de eslint-disable no usados en Carousel/DuetSlide son preexistentes, no introducidos por este cambio)."
+
 metadata:
   created_by: "main_agent"
   version: "1.1"
@@ -744,7 +756,7 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Restauración de /app/.env (contenedor recreado, BD efímera vacía)"
+    - "Animación de voto mejorada (doble toque) — VoteBurstEffect"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -800,3 +812,6 @@ agent_communication:
 
     -agent: "testing"
     -message: "SANITY CHECK COMPLETE: Verified POST /api/vote endpoint after frontend changes (DuetSlide.jsx/CarouselSlide.jsx burst animation separation). Test results: ✅ Login working (lucia/Test12345 -> 200 with token). ✅ Feed working (GET /api/feed -> 200, found duet post with votes). ✅ Vote for side 'a' working (votes.a incremented from 0 to 1). ✅ Vote for side 'b' working (votes.b incremented from 0 to 1, votes.a stayed at 1). BEHAVIOR: Backend allows voting for both sides independently (no vote switching) - this is current implementation, not a regression. ✅ No 500 errors. ✅ No regressions in /api/auth/login, /api/feed, /api/vote. Frontend changes did NOT affect backend. All endpoints working correctly. Test file: /app/backend_vote_test.py."
+
+    -agent: "main"
+    -message: "INFRA (recurrente, ver memory/ENV_BACKUP.md): /app/.env volvió a faltar al recrearse el contenedor. Restaurado con MONGO_URL=mongodb://localhost:27017/twyk, ADMIN_EMAILS=twyk.apk@gmail.com, NEXT_PUBLIC_BASE_URL/CORS_ORIGINS apuntando a la URL de preview actual (leída de APP_URL en supervisord.conf). Re-sembradas las 4 cuentas con node scripts/seed-core-users.mjs (twykadmin/lucia/marcos/laura, ver memory/test_credentials.md recreado). NUEVA FEATURE a continuación (usuario: 'añadir una animación cuando se vote mejor que la de tiktok like'): creado components/VoteBurstEffect.jsx (halo de brillo + doble onda expansiva + icono con rebote elástico + 8 chispas radiales del color del lado votado) y sustituido el antiguo '.like-pop' (simple scale+fade, igual al corazón de TikTok) en components/CarouselSlide.jsx y components/DuetSlide.jsx. Nuevos keyframes CSS en app/globals.css (voteGlowFlash, voteRingPulse, voteIconPop, voteParticleFly). Cambio 100% frontend, no toca backend/endpoints. VERIFICADO VISUALMENTE con Playwright (login real como lucia + doble-tap en un post): se observa el halo+onda+icono elástico y luego las chispas dispersándose en círculo; el voto se registró de verdad (contador 1->2). El usuario pidió explícitamente NO usar el agente de testing para este cambio, así que no se invocó deep_testing_backend_nextjs/deep_testing_frontend_nextjs. Lint limpio (solo 2 warnings preexistentes de eslint-disable no usados, no relacionados)."
