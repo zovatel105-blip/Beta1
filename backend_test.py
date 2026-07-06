@@ -11,7 +11,7 @@ import os
 from io import BytesIO
 
 # Get base URL from environment
-BASE_URL = os.getenv('NEXT_PUBLIC_BASE_URL', 'https://1bf82442-e5aa-4c2d-84de-2b5f3035b493.preview.emergentagent.com')
+BASE_URL = os.getenv('NEXT_PUBLIC_BASE_URL', 'https://voting-system-10.preview.emergentagent.com')
 API_URL = f"{BASE_URL}/api"
 
 print(f"Testing backend at: {API_URL}")

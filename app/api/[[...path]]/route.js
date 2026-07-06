@@ -1342,17 +1342,29 @@ async function handleTrack(request) {
   }
 }
 
-// POST /api/vote   body: { id, side: 'a'|'b' }
+// POST /api/vote   body: { id, side: 'a'|'b', previousSide?: 'a'|'b' }
 // Increments the vote counter for that side of a duet/versus post.
-// Uploads persist in _meta.json; built-in feed posts persist in _votes.json.
+// Uploads persist in MongoDB (`posts`); built-in feed posts persist in `votes`.
+//
+// CAMBIO DE VOTO (opción A <-> B): si el cliente envía `previousSide` (el lado
+// que ese mismo usuario había votado antes en ESTA publicación, leído de
+// localStorage) y es distinto de `side`, se trata como un CAMBIO de opción:
+// se resta 1 del lado anterior y se suma 1 al nuevo dentro de la MISMA
+// operación atómica (incrementPostVote / incrementBuiltinVote), de modo que
+// el total de votos de la publicación no varía. Si `previousSide` coincide
+// con `side` (re-tocar la opción ya votada), no se aplica ningún cambio.
 async function handleVote(request) {
   try {
     const body = await request.json().catch(() => null)
     const id = body?.id
     const side = body?.side
+    const rawPrev = body?.previousSide
+    const previousSide = rawPrev === 'a' || rawPrev === 'b' ? rawPrev : null
     if (!id || (side !== 'a' && side !== 'b')) {
       return NextResponse.json({ error: 'bad_request' }, { status: 400 })
     }
+    const isSwitch = !!previousSide && previousSide !== side
+    const isNoOp = !!previousSide && previousSide === side
 
     const currentUser = await getCurrentUser(request)
     const gid = request.cookies.get('twyk_gid')?.value
@@ -1363,48 +1375,56 @@ async function handleVote(request) {
       isGuest: !currentUser,
       accountAgeMin: currentUser?.createdAt ? (Date.now() - new Date(currentUser.createdAt).getTime()) / 60000 : null,
     }
-    // 1) Publicaciones subidas (versus/1vs1/reto) -> incremento ATÓMICO en
-    //    MongoDB (colección `posts`). Un único $inc evita la race condition de
-    //    votos simultáneos. Devuelve el post actualizado (o null si no existe).
-    const updated = await incrementPostVote(id, side)
+    // 1) Publicaciones subidas (versus/1vs1/reto) -> incremento/cambio ATÓMICO
+    //    en MongoDB (colección `posts`). Devuelve el post actualizado (o null
+    //    si no existe una publicación versus/duet con ese id).
+    const updated = await incrementPostVote(id, side, previousSide)
     if (updated) {
-      // TWYK Engine: aprende del voto (velocity trending + BPR pairwise).
-      recordVote(updated, side, viewerKey, voteCtx).catch(() => {})
+      // TWYK Engine: aprende del voto (velocity trending + BPR pairwise). Se
+      // omite en un re-toque de la misma opción ya votada (no hay voto nuevo).
+      if (!isNoOp) recordVote(updated, side, viewerKey, voteCtx).catch(() => {})
       // Notificar al autor del lado votado (en retos sideA/sideB pueden ser
-      // usuarios distintos; en versus/1vs1 normales ambos lados son el mismo autor).
-      try {
-        const sideAuthor = side === 'a' ? updated.sideA?.author : updated.sideB?.author
-        const recipientId = sideAuthor?.id || updated.author?.id
-        if (
-          recipientId &&
-          recipientId !== 'anonymous' &&
-          recipientId !== currentUser?.id
-        ) {
-          await createNotification({
-            userId: recipientId,
-            type: 'vote',
-            fromUserId: currentUser?.id || null,
-            postId: updated.id,
-            side,
-          })
+      // usuarios distintos; en versus/1vs1 normales ambos lados son el mismo
+      // autor). No se notifica en un cambio de opción NI en un re-toque, para
+      // no repetir notificaciones al autor por la misma interacción del votante.
+      if (!isSwitch && !isNoOp) {
+        try {
+          const sideAuthor = side === 'a' ? updated.sideA?.author : updated.sideB?.author
+          const recipientId = sideAuthor?.id || updated.author?.id
+          if (
+            recipientId &&
+            recipientId !== 'anonymous' &&
+            recipientId !== currentUser?.id
+          ) {
+            await createNotification({
+              userId: recipientId,
+              type: 'vote',
+              fromUserId: currentUser?.id || null,
+              postId: updated.id,
+              side,
+            })
+          }
+        } catch (notifErr) {
+          console.error('vote notification error', notifErr)
         }
-      } catch (notifErr) {
-        console.error('vote notification error', notifErr)
       }
 
       return NextResponse.json({ ok: true, votes: updated.votes })
     }
-    // 2) Posts del feed integrado (demo) -> incremento ATÓMICO en `votes`,
-    //    sembrando con seedVotes la primera vez que se vota.
-    const votes = await incrementBuiltinVote(id, side, seedVotes(id))
-    // TWYK Engine: reconstruye el post demo (determinista por id) y aprende.
-    try {
-      const n = parseInt(String(id).split('_')[1], 10)
-      if (!isNaN(n)) {
-        const demoPost = makePosts(n, 1)[0]
-        if (demoPost) recordVote(demoPost, side, viewerKey, voteCtx).catch(() => {})
-      }
-    } catch { /* ignore */ }
+    // 2) Posts del feed integrado (demo) -> incremento/cambio ATÓMICO en
+    //    `votes`, sembrando con seedVotes la primera vez que se vota.
+    const votes = await incrementBuiltinVote(id, side, seedVotes(id), previousSide)
+    // TWYK Engine: reconstruye el post demo (determinista por id) y aprende
+    // (se omite en un re-toque de la misma opción).
+    if (!isNoOp) {
+      try {
+        const n = parseInt(String(id).split('_')[1], 10)
+        if (!isNaN(n)) {
+          const demoPost = makePosts(n, 1)[0]
+          if (demoPost) recordVote(demoPost, side, viewerKey, voteCtx).catch(() => {})
+        }
+      } catch { /* ignore */ }
+    }
     return NextResponse.json({ ok: true, votes })
   } catch (err) {
     return NextResponse.json({ error: 'vote_failed', detail: String(err?.message || err) }, { status: 500 })

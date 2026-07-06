@@ -390,13 +390,22 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
       setAuthModalOpen(true)
       return
     }
-    
-    if (userVote || voting) return
+
+    if (voting) return
+    // Re-tocar la MISMA opción ya votada: no hay cambio (el burst ya se
+    // dispara aparte, ver handleTapSide), no reenviamos nada al servidor.
+    if (userVote === side) return
+    const prevVote = userVote // null en el primer voto; 'a'|'b' si se está CAMBIANDO de opción
     setVoting(true)
     // Optimistic update
     setUserVote(side)
     setAudibleSide(side)
-    setVotes((v) => ({ ...v, [side]: (v[side] || 0) + 1 }))
+    setVotes((v) => {
+      const next = { ...v }
+      if (prevVote && prevVote !== side) next[prevVote] = Math.max(0, (next[prevVote] || 0) - 1)
+      next[side] = (next[side] || 0) + 1
+      return next
+    })
     spawnVoteBurst(side, pt)
     // Mostrar la tarjeta de ganador después de la animación del icono
     setTimeout(() => setShowWinner(true), 650)
@@ -405,7 +414,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
       const res = await fetch('/api/vote', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: post.id, side }),
+        body: JSON.stringify({ id: post.id, side, previousSide: prevVote || undefined }),
       })
       if (res.ok) {
         const data = await res.json()
@@ -438,11 +447,14 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
       // Punto del toque relativo al contenedor -> la animación sale ahí.
       const rect = overlayRef.current?.getBoundingClientRect()
       const pt = rect ? { x: e.clientX - rect.left, y: e.clientY - rect.top } : null
-      if (!userVote) {
+      if (userVote !== side) {
+        // Sin voto previo -> primer voto. Con voto previo en la OTRA opción
+        // (tocaste el lado contrario al que votaste) -> CAMBIA el voto a este
+        // lado (resta al anterior, suma a este, ver submitVote).
         submitVote(side, pt)
       } else {
-        // Ya votó antes: el voto es definitivo (no se reenvía ni cambia), pero
-        // la animación del icono debe seguir apareciendo en cada doble-tap,
+        // Re-tocar la MISMA opción ya votada: el voto no cambia, pero la
+        // animación del icono debe seguir apareciendo en cada doble-tap,
         // igual que el corazón de TikTok/Instagram al volver a dar doble toque.
         spawnVoteBurst(side, pt)
       }

@@ -313,11 +313,20 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
       setAuthModalOpen(true)
       return
     }
-    
-    if (userVote || voting) return
+
+    if (voting) return
+    // Re-tocar la MISMA opción ya votada: no hay cambio (el burst visual ya se
+    // dispara aparte, ver onPointerUp), no reenviamos nada al servidor.
+    if (userVote === s) return
+    const prevVote = userVote // null en el primer voto; 'a'|'b' si se está CAMBIANDO de opción
     setVoting(true)
     setUserVote(s)
-    setVotes((v) => ({ ...v, [s]: (v[s] || 0) + 1 }))
+    setVotes((v) => {
+      const next = { ...v }
+      if (prevVote && prevVote !== s) next[prevVote] = Math.max(0, (next[prevVote] || 0) - 1)
+      next[s] = (next[s] || 0) + 1
+      return next
+    })
     spawnVoteBurst(s, pt)
     // Mostrar la tarjeta de ganador después de la animación del icono
     setTimeout(() => setShowWinner(true), 650)
@@ -326,7 +335,7 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
       const res = await fetch('/api/vote', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: post.id, side: s }),
+        body: JSON.stringify({ id: post.id, side: s, previousSide: prevVote || undefined }),
       })
       if (res.ok) {
         const data = await res.json()
@@ -403,11 +412,14 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
     if (isDouble) {
       const rect = overlayRef.current?.getBoundingClientRect()
       const pt = rect ? { x: e.clientX - rect.left, y: e.clientY - rect.top } : null
-      if (!userVote) {
+      if (userVote !== side) {
+        // Sin voto previo -> primer voto. Con voto previo en la OTRA opción
+        // (estás viendo el lado contrario al que votaste) -> CAMBIA el voto a
+        // este lado (resta al anterior, suma a este, ver submitVote).
         submitVote(side, pt)
       } else {
-        // Ya votó antes: el voto es definitivo (no se reenvía ni cambia), pero
-        // la animación del icono debe seguir apareciendo en cada doble-tap,
+        // Re-tocar la MISMA opción ya votada: el voto no cambia, pero la
+        // animación del icono debe seguir apareciendo en cada doble-tap,
         // igual que el corazón de TikTok/Instagram al volver a dar doble toque.
         spawnVoteBurst(side, pt)
       }
@@ -503,10 +515,15 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
         onPointerCancel={onPointerCancel}
       />
 
-      {/* Pista para votar */}
+      {/* Pista para votar / cambiar de opción */}
       {!userVote && (
         <div className="absolute top-12 left-1/2 -translate-x-1/2 z-20 pointer-events-none bg-black/45 backdrop-blur text-white text-[10px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap">
           Swipe to compare · double-tap to vote
+        </div>
+      )}
+      {userVote && userVote !== side && (
+        <div className="absolute top-12 left-1/2 -translate-x-1/2 z-20 pointer-events-none bg-black/45 backdrop-blur text-white text-[10px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap">
+          Double-tap to switch your vote
         </div>
       )}
 
