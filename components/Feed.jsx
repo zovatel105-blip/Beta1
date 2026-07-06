@@ -259,6 +259,12 @@ export default function Feed() {
     return () => document.removeEventListener('visibilitychange', onVis)
   }, [])
 
+  // Pausa global de reproducción cuando una "página" overlay cubre el feed
+  // (perfil, batallas, retos activos, búsqueda, sugerencias, mensajes, subida).
+  // El feed sigue montado debajo, así que sin esto el audio seguiría sonando.
+  const overlayOpen = profileOpen || battlesOpen || activeChallengesOpen || searchOpen || suggestionsOpen || inboxOpen || uploadOpen
+  const effectivePlayback = playbackEnabled && !overlayOpen
+
   const openChallenge = useCallback((target) => {
     // No puedes retarte a ti mismo.
     if (target?.author?.username && user?.username && target.author.username === user.username) {
@@ -442,7 +448,7 @@ export default function Feed() {
                       isAdjacent={inWindow}
                       warm={warm}
                       muted={muted}
-                      playbackEnabled={playbackEnabled}
+                      playbackEnabled={effectivePlayback}
                       infoBottom
                       onRequestNext={goNext}
                       onChallenge={openChallenge}
@@ -456,7 +462,7 @@ export default function Feed() {
                       isAdjacent={inWindow}
                       warm={warm}
                       muted={muted}
-                      playbackEnabled={playbackEnabled}
+                      playbackEnabled={effectivePlayback}
                       infoBottom
                       onRequestNext={goNext}
                       onChallenge={openChallenge}
