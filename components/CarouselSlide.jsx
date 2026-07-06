@@ -643,7 +643,7 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
       >
         <button aria-label="votes" onClick={(e) => e.stopPropagation()} className="flex flex-col items-center gap-1 w-14 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
           <span style={{ color: userVote === 'a' ? '#A855F7' : userVote === 'b' ? '#3B82F6' : '#fff', display: 'inline-flex', transition: 'color 200ms' }}>
-            <VoteIcon className="w-[40px] h-[40px]" strokeWidth={180} filled={!!userVote} />
+            <VoteIcon className="w-[40px] h-[40px]" strokeWidth={210} filled={!!userVote} />
           </span>
           <span className="text-[9px] font-semibold text-white leading-none text-center whitespace-nowrap">{countLabel(totalVotes, 'Vote')}</span>
         </button>
