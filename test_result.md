@@ -107,12 +107,15 @@ user_problem_statement: "Las publicaciones normales deben ser un carrusel de 2 v
 backend:
   - task: "Recuperación de entorno: .env perdido + MongoDB vacío (persistencia efímera)"
     implemented: true
-    working: "NA"
+    working: true
     file: ".env, memory/ENV_BACKUP.md, scripts/seed-core-users.mjs, memory/test_credentials.md"
     stuck_count: 4
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
+        -working: true
+        -agent: "main"
+        -comment: "NUEVA PÉRDIDA DE .env (usuario: 'Restaura el archivo .env'). Misma causa raíz documentada (persistencia efímera de MongoDB + .env gitignored). Restaurado /app/.env con el contenido de memory/ENV_BACKUP.md, actualizando NEXT_PUBLIC_BASE_URL/CORS_ORIGINS a la URL de preview actual (APP_URL de supervisor: https://1bf82442-e5aa-4c2d-84de-2b5f3035b493.preview.emergentagent.com); ENV_BACKUP.md actualizado con la nueva URL. Reiniciado nextjs y re-ejecutado scripts/seed-core-users.mjs (4 usuarios + 3 follows creados de nuevo, BD estaba vacía). memory/test_credentials.md recreado. VERIFICACIÓN MANUAL con curl (usuario pidió explícitamente NO usar el agente de testing): (1) POST /api/auth/login twykadmin/Admin12345 -> 200 role=admin; (2) POST /api/auth/login lucia/Test12345 -> 200; (3) GET /api/auth/me con cookie de lucia -> 200 username=lucia; (4) GET /api/uploads -> 200; (5) GET /api/feed -> 200 {posts,nextCursor,hasMore}; (6) POST /api/auth/login marcos/Test12345 -> 200; (7) GET /api/users con sesión lucia -> 200, 4 usuarios reales (laura/marcos/lucia/twykadmin); (8) GET /api/notifications/unread -> 200 {count:0}; (9) POST /api/vote (marcos, side='b') sobre post duet_d5a38c92775655fa -> 200 {votes:{a:1,b:1}}, y un segundo GET /api/uploads confirma que el voto PERSISTE ({a:1,b:1}). Todo 200, sin errores 500. Backend operativo tras la restauración."
         -working: "NA"
         -agent: "user"
         -comment: "BUG (usuario: 'El archivo .env se volvió a perder'). Ya había ocurrido varias veces antes (ver comentarios anteriores en este archivo)."
@@ -479,6 +482,20 @@ backend:
         -comment: "VERIFICADO MANUALMENTE (el usuario pidió NO usar agente de testing). Registrados follower1/target1. (B) POST /api/users/target1/follow sin sesión -> 401 {error:unauthorized}. (C) con sesión -> 200 {ok:true,following:true,followers:1}. (D) toggle -> {following:false,followers:0}; de nuevo -> {following:true,followers:1}. (E) seguirse a sí mismo -> 400 {error:cannot_follow_yourself}. (F) GET /api/users/target1 sin sesión -> isFollowing=false, followers=1. (G) GET con sesión -> isFollowing=true, followers=1. (H) seguir autor demo 'wanderlust' (sin documento de usuario) -> 200 {following:true,followers:1}. Regresión: /api/feed y /api/users 200. Datos de prueba limpiados."
 
 frontend:
+  - task: "Doble toque para votar: mostrar SOLO el icono de voto (sin halo/ondas/chispas)"
+    implemented: true
+    working: "NA"
+    file: "components/VoteBurstEffect.jsx, app/globals.css"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "Usuario: 'el voto al hacer doble click en las publicaciones solo debe mostrar el icono de voto' (la animación anterior añadía un halo de brillo, doble onda expansiva y chispas radiales alrededor del icono, además del icono en sí)."
+        -working: "NA"
+        -agent: "main"
+        -comment: "CAMBIO UI. components/VoteBurstEffect.jsx reescrito: eliminados los 3 elementos extra (span.vote-glow con radial-gradient, 2x span.vote-ring de shockwave, y el array de PARTICLE_COUNT=8 span.vote-particle con posiciones/ángulos random) y su estado useState de partículas; el componente ahora renderiza ÚNICAMENTE <span className='vote-icon-pop'><VoteIcon filled/></span> dentro del span-ancla 0x0 (misma prop 'color', mismo contrato con CarouselSlide.jsx/DuetSlide.jsx -> CERO cambios necesarios en los padres, que solo pasan color y posicionan la ancla en el punto del toque o centrada). app/globals.css: eliminados los keyframes/clases voteGlowFlash/.vote-glow, voteRingPulse/.vote-ring y voteParticleFly/.vote-particle (ya no se usan); se conserva intacto voteIconPop/.vote-icon-pop (el rebote elástico del icono, único efecto que debe quedar). Lint limpio (sin issues en VoteBurstEffect.jsx). Sin cambios de backend. NO se ejecutó agente de testing (petición explícita del usuario 'No usar el testing agent'); verificación por revisión de código (contrato de props sin cambios, clases CSS huérfanas eliminadas, ninguna otra referencia a vote-glow/vote-ring/vote-particle en el proyecto)."
   - task: "Eliminar anillo alrededor del avatar principal del perfil"
     implemented: true
     working: "NA"
