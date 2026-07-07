@@ -28,6 +28,7 @@ import {
   markNotificationAsRead,
   markAllNotificationsAsRead,
   getUnreadNotificationsCount,
+  updateVoteNotificationOnSwitch,
   toggleFollowByUsername,
   isFollowingByUsername,
   getFollowingUsernames,
@@ -1385,9 +1386,27 @@ async function handleVote(request) {
       if (!isNoOp) recordVote(updated, side, viewerKey, voteCtx).catch(() => {})
       // Notificar al autor del lado votado (en retos sideA/sideB pueden ser
       // usuarios distintos; en versus/1vs1 normales ambos lados son el mismo
-      // autor). No se notifica en un cambio de opción NI en un re-toque, para
-      // no repetir notificaciones al autor por la misma interacción del votante.
-      if (!isSwitch && !isNoOp) {
+      // autor). En un CAMBIO de opción, actualizamos la notificación existente
+      // para que refleje el nuevo side (color correcto) o migramos al nuevo
+      // destinatario si en un reto los autores difieren.
+      if (isSwitch) {
+        try {
+          const prevAuthor = previousSide === 'a' ? updated.sideA?.author : updated.sideB?.author
+          const newAuthor = side === 'a' ? updated.sideA?.author : updated.sideB?.author
+          const previousRecipientId = prevAuthor?.id || updated.author?.id || null
+          const newRecipientId = newAuthor?.id || updated.author?.id || null
+          await updateVoteNotificationOnSwitch({
+            postId: updated.id,
+            fromUserId: currentUser?.id || null,
+            previousSide,
+            newSide: side,
+            previousRecipientId,
+            newRecipientId,
+          })
+        } catch (notifErr) {
+          console.error('vote switch notification error', notifErr)
+        }
+      } else if (!isNoOp) {
         try {
           const sideAuthor = side === 'a' ? updated.sideA?.author : updated.sideB?.author
           const recipientId = sideAuthor?.id || updated.author?.id
