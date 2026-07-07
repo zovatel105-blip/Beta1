@@ -591,9 +591,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
       {/* play overlay */}
       {paused && (loadedA || loadedB) && (
         <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
-          <div className="w-20 h-20 rounded-full bg-black/40 backdrop-blur flex items-center justify-center">
-            <Play size={42} className="text-white" fill="white" />
-          </div>
+          <Play size={72} className="text-white drop-shadow-lg" fill="white" />
         </div>
       )}
 
