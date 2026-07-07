@@ -688,7 +688,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
             }}
             aria-label="follow"
             className={cn(
-              'shrink-0 px-3 py-1 rounded-lg border text-[13px] font-medium transition-all duration-200 active:scale-95',
+              'shrink-0 px-3 py-1 rounded-full border text-[13px] font-medium transition-all duration-200 active:scale-95',
               following ? 'border-white/90 text-white' : 'border-white/90 text-white'
             )}
           >
