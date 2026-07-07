@@ -791,6 +791,21 @@ frontend:
         -agent: "main"
         -comment: "CAMBIO UI (usuario: 'el botón de seguir del feed inicio hazlo en forma de pastilla', pidió explícitamente NO usar el agente de testing). El botón Follow/Following que aparece junto al nombre del autor en la cabecera de cada tarjeta del feed (publicación normal 1 vídeo en CarouselSlide.jsx línea ~622, y publicación 1vs1/dueto en DuetSlide.jsx línea ~690) usaba 'rounded-lg' (esquinas ligeramente redondeadas, rectangular). Cambiado a 'rounded-full' en ambos archivos -> con el padding existente (px-3 py-1) y altura fija del texto de 1 línea, el border-radius completo convierte el rectángulo en una pastilla (cápsula) perfecta, igual al estilo Follow de TikTok/Instagram. Cambio 100% CSS (una clase de Tailwind), no toca la lógica de seguir/dejar de seguir ni ningún endpoint. Lint limpio en ambos archivos (solo los 2 warnings preexistentes de eslint-disable no usados, no relacionados con este cambio). Verificación visual con Playwright headless no fue posible: el feed no monta en el navegador headless (limitación conocida ya documentada varias veces en este archivo, 'la captura headless no logra montar el chunk dinámico del Feed'), no relacionada con este cambio. Pendiente confirmación visual del usuario en su dispositivo/preview real."
 
+  - task: "BUG: banner de subida de reto en segundo plano (Feed.jsx) mostraba texto en español mezclado con inglés"
+    implemented: true
+    working: "NA"
+    file: "components/Feed.jsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+        -working: false
+        -agent: "user"
+        -comment: "Screenshot mostrando el banner de subida de reto con el texto 'Enviando reto a @twykadmin' en español, cuando el resto de la app (y el mismo banner en su estado 'done': 'Challenge sent to @...') está en inglés: 'Esto sigue estando en español cuando debería estar en inglés'."
+        -working: "NA"
+        -agent: "main"
+        -comment: "ROOT CAUSE: el banner flotante de subida de reto en segundo plano (components/Feed.jsx, líneas ~560-601) tiene 3 estados (uploading/done/error). Los estados 'done' ('Challenge sent to @{username}') y 'error' (Couldn't send the challenge / Try again) ya estaban en inglés (de una traducción anterior), pero el estado 'uploading' (el que el usuario ve primero, mientras sube el vídeo del reto) se quedó con 2 strings sin traducir: 'Enviando reto a @{challengeUpload.username}' y (en el estado 'done') el subtítulo 'Te avisaremos cuando lo acepte'. FIX: (1) línea 569: 'Enviando reto a @{challengeUpload.username}' -> 'Sending challenge to @{challengeUpload.username}'. (2) línea 584 (subtítulo del estado 'done'): 'Te avisaremos cuando lo acepte' -> 'We will notify you when they accept' (se evitó el apóstrofo de 'We'll' para no introducir un nuevo error de lint react/no-unescaped-entities). Cambio 100% de texto estático (JSX), sin tocar lógica de subida/estado (sendChallengeInBackground, challengeUpload state machine intactos). Verificado con grep que no queden más ocurrencias de 'Enviando reto', 'Te avisaremos' ni 'cuando lo acepte' en components/*.jsx. Lint limpio (solo 1 warning preexistente no relacionado en línea 594, ya presente antes de este cambio). Pendiente verificación del agente de testing frontend (Playwright) disparando un reto real y confirmando que el banner completo (uploading -> done) se muestra 100% en inglés."
+
 metadata:
   created_by: "main_agent"
   version: "1.1"
@@ -799,7 +814,7 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Animación de voto mejorada (doble toque) — VoteBurstEffect"
+    - "BUG: banner de subida de reto en segundo plano (Feed.jsx) mostraba texto en español mezclado con inglés"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"

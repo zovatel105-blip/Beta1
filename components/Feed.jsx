@@ -566,7 +566,7 @@ export default function Feed() {
               <>
                 <div className="w-9 h-9 rounded-full border-2 border-white/15 border-t-white animate-spin shrink-0" />
                 <div className="min-w-0 flex-1">
-                  <p className="text-white text-[13px] font-semibold leading-tight truncate">Enviando reto a @{challengeUpload.username}</p>
+                  <p className="text-white text-[13px] font-semibold leading-tight truncate">Sending challenge to @{challengeUpload.username}</p>
                   <div className="mt-1.5 h-1 rounded-full bg-white/10 overflow-hidden">
                     <div className="h-full bg-white rounded-full transition-all" style={{ width: `${challengeUpload.progress}%` }} />
                   </div>
@@ -581,7 +581,7 @@ export default function Feed() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-white text-[13px] font-semibold leading-tight truncate">Challenge sent to @{challengeUpload.username}</p>
-                  <p className="text-zinc-400 text-[12px] leading-tight">Te avisaremos cuando lo acepte</p>
+                  <p className="text-zinc-400 text-[12px] leading-tight">We will notify you when they accept</p>
                 </div>
               </>
             )}
