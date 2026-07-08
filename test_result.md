@@ -793,18 +793,21 @@ frontend:
 
   - task: "BUG: banner de subida de reto en segundo plano (Feed.jsx) mostraba texto en español mezclado con inglés"
     implemented: true
-    working: "NA"
+    working: true
     file: "components/Feed.jsx"
     stuck_count: 0
     priority: "medium"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         -working: false
         -agent: "user"
         -comment: "Screenshot mostrando el banner de subida de reto con el texto 'Enviando reto a @twykadmin' en español, cuando el resto de la app (y el mismo banner en su estado 'done': 'Challenge sent to @...') está en inglés: 'Esto sigue estando en español cuando debería estar en inglés'."
         -working: "NA"
         -agent: "main"
-        -comment: "ROOT CAUSE: el banner flotante de subida de reto en segundo plano (components/Feed.jsx, líneas ~560-601) tiene 3 estados (uploading/done/error). Los estados 'done' ('Challenge sent to @{username}') y 'error' (Couldn't send the challenge / Try again) ya estaban en inglés (de una traducción anterior), pero el estado 'uploading' (el que el usuario ve primero, mientras sube el vídeo del reto) se quedó con 2 strings sin traducir: 'Enviando reto a @{challengeUpload.username}' y (en el estado 'done') el subtítulo 'Te avisaremos cuando lo acepte'. FIX: (1) línea 569: 'Enviando reto a @{challengeUpload.username}' -> 'Sending challenge to @{challengeUpload.username}'. (2) línea 584 (subtítulo del estado 'done'): 'Te avisaremos cuando lo acepte' -> 'We will notify you when they accept' (se evitó el apóstrofo de 'We'll' para no introducir un nuevo error de lint react/no-unescaped-entities). Cambio 100% de texto estático (JSX), sin tocar lógica de subida/estado (sendChallengeInBackground, challengeUpload state machine intactos). Verificado con grep que no queden más ocurrencias de 'Enviando reto', 'Te avisaremos' ni 'cuando lo acepte' en components/*.jsx. Lint limpio (solo 1 warning preexistente no relacionado en línea 594, ya presente antes de este cambio). Pendiente verificación del agente de testing frontend (Playwright) disparando un reto real y confirmando que el banner completo (uploading -> done) se muestra 100% en inglés."
+        -comment: "ROOT CAUSE: el banner flotante de subida de reto en segundo plano (components/Feed.jsx, líneas ~560-601) tiene 3 estados (uploading/done/error). Los estados 'done' ('Challenge sent to @{username}') y 'error' (Couldn't send the challenge / Try again) ya estaban en inglés (de una traducción anterior), pero el estado 'uploading' (el que el usuario ve primero, mientras sube el vídeo del reto) se quedó con 2 strings sin traducir: 'Enviando reto a @{challengeUpload.username}' y (en el estado 'done') el subtítulo 'Te avisaremos cuando lo acepte'. FIX: (1) línea 569: 'Enviando reto a @{challengeUpload.username}' -> 'Sending challenge to @{challengeUpload.username}'. (2) línea 584 (subtítulo del estado 'done'): 'Te avisaremos cuando lo acepte' -> 'We will notify you when they accept' (se evitó el apóstrofo de 'We'll' para no introducir un nuevo error de lint react/no-unescaped-entities). Cambio 100% de texto estático (JSX), sin tocar lógica de subida/estado (sendChallengeInBackground, challengeUpload state machine intactos). Verificado con grep que no queden más ocurrencias de 'Enviando reto', 'Te avisaremos' ni 'cuando lo acepte' en components/*.jsx. Lint limpio (solo 1 warning preexistente no relacionado en línea 594, ya presente antes de este cambio)."
+        -working: true
+        -agent: "testing"
+        -comment: "✅ CODE REVIEW PASS: revisado components/Feed.jsx líneas 560-600, los 3 estados del banner (uploading/done/error) están 100% en inglés: 'Sending challenge to @{username}' (569), 'Challenge sent to @{username}' + 'We will notify you when they accept' (583-584), 'Couldn't send the challenge' / 'Try again' (594-595). NO se encontró ningún texto en español en el componente. Verificación UI en vivo con Playwright NO pudo completarse (limitación conocida ya documentada varias veces en este proyecto: el bundle dinámico del Feed no monta en el harness headless de screenshot/testing), pero el fix de código es correcto y completo. Usuario pidió continuar sin más verificación del agente de testing."
 
 metadata:
   created_by: "main_agent"
@@ -813,8 +816,7 @@ metadata:
   run_ui: false
 
 test_plan:
-  current_focus:
-    - "BUG: banner de subida de reto en segundo plano (Feed.jsx) mostraba texto en español mezclado con inglés"
+  current_focus: []
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
