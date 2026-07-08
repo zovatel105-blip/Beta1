@@ -119,6 +119,10 @@ const PostViewer = ({ posts, startId, onClose, onChallenge, onOpenProfile }) => 
   const containerRef = useRef(null)
   const startIndex = Math.max(0, posts.findIndex((p) => p.id === startId))
   const [activeIndex, setActiveIndex] = useState(startIndex)
+  // Igual que en el feed de inicio: arranca muteado (autoplay con sonido no
+  // permitido por los navegadores sin gesto del usuario) y se desactiva al
+  // primer toque dentro del visor.
+  const [muted, setMuted] = useState(true)
 
   // Gesto "deslizar desde la izquierda para volver" (estilo iOS): al arrastrar
   // hacia la derecha empezando desde el borde izquierdo se cierra el visor.
@@ -182,7 +186,10 @@ const PostViewer = ({ posts, startId, onClose, onChallenge, onOpenProfile }) => 
   if (!posts || posts.length === 0) return null
 
   return (
-    <div className="fixed inset-0 z-[70] bg-black">
+    <div
+      className="fixed inset-0 z-[70] bg-black"
+      onPointerDown={muted ? () => setMuted(false) : undefined}
+    >
       <div
         ref={containerRef}
         onTouchStart={onTouchStart}
@@ -213,7 +220,7 @@ const PostViewer = ({ posts, startId, onClose, onChallenge, onOpenProfile }) => 
                     isNear={inWindow}
                     isAdjacent={inWindow}
                     warm={false}
-                    muted={true}
+                    muted={muted}
                     playbackEnabled={true}
                     infoBottom
                     onRequestNext={() => {}}

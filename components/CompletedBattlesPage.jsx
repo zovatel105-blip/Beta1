@@ -88,7 +88,10 @@ export default function CompletedBattlesPage({ open, onClose, onOpenActive, onOp
   const isEmpty = !loading && posts.length === 0
 
   return (
-    <div className="fixed inset-0 z-[55] bg-black overflow-hidden">
+    <div
+      className="fixed inset-0 z-[55] bg-black overflow-hidden"
+      onPointerDown={muted ? () => setMuted(false) : undefined}
+    >
       {/* Minimalist header — side buttons + central segmented control */}
       <div className="absolute top-0 left-0 right-0 z-40 px-4 pb-4 bg-gradient-to-b from-black/70 to-transparent"
            style={{ paddingTop: 'max(env(safe-area-inset-top), 14px)' }}>
