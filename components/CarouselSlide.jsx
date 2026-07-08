@@ -237,6 +237,15 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
         }
       }
     } else if (warm && playbackEnabled) {
+      // BUGFIX: al RETROCEDER a la publicación anterior, esta misma tarjeta
+      // pasa de isActive=true directamente a warm=true (warm = i ===
+      // activeIndex+1 relativo al NUEVO índice), sin pasar por el estado
+      // "inactiva". El precalentado (warm) SOLO gestiona el lado A
+      // (videoARef) — si el usuario se había quedado viendo/escuchando la
+      // opción B (sideIdx=1), ese vídeo B quedaba huérfano reproduciéndose
+      // (con su audio) para siempre, solapado con la publicación nueva. Hay
+      // que liberar el lado VISIBLE (vis) si no es ya el A antes de precargar A.
+      if (vis && vis !== videoARef.current) release(vis)
       const token = {}
       warmRef.current = token
       const va = videoARef.current

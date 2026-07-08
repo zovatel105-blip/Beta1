@@ -27,7 +27,7 @@ const RingAvatar = ({ src, size = 'w-11 h-11' }) => (
   </div>
 )
 
-const ChallengeSlide = ({ c, busy, onAccept, onReject }) => {
+const ChallengeSlide = ({ c, busy, onAccept, onReject, muted }) => {
   const [idx, setIdx] = useState(0)
   const innerRef = useRef(null)
   const fileRef = useRef(null)
@@ -110,7 +110,7 @@ const ChallengeSlide = ({ c, busy, onAccept, onReject }) => {
                   ) : (
                     <video
                       src={v.url + '#t=0.3'}
-                      muted
+                      muted={muted}
                       playsInline
                       loop
                       autoPlay
@@ -236,6 +236,10 @@ export default function ActiveChallengesPage({ open, onClose, onAccepted, onChan
   const [list, setList] = useState([])
   const [loading, setLoading] = useState(false)
   const [busyId, setBusyId] = useState(null)
+  // Igual que en Feed.jsx/CompletedBattlesPage.jsx/ProfilePage.jsx: el navegador
+  // exige un gesto del usuario para permitir audio con sonido, así que el
+  // primer toque en la página desmutea los vídeos de las miniaturas A/B.
+  const [muted, setMuted] = useState(true)
 
   const load = async () => {
     setLoading(true)
@@ -286,7 +290,10 @@ export default function ActiveChallengesPage({ open, onClose, onAccepted, onChan
   }
 
   return (
-    <div className="fixed inset-0 z-[58] bg-[#0a0a0b] overflow-hidden">
+    <div
+      className="fixed inset-0 z-[58] bg-[#0a0a0b] overflow-hidden"
+      onPointerDown={muted ? () => setMuted(false) : undefined}
+    >
       {/* Header — segmented control */}
       <div className="absolute top-0 left-0 right-0 z-40 px-6 pb-4 bg-gradient-to-b from-black/70 to-transparent"
            style={{ paddingTop: 'max(env(safe-area-inset-top), 14px)' }}>
@@ -330,7 +337,7 @@ export default function ActiveChallengesPage({ open, onClose, onAccepted, onChan
         >
           {list.map((c) => (
             <SwiperSlide key={c.id}>
-              <ChallengeSlide c={c} busy={busyId === c.id} onAccept={accept} onReject={reject} />
+              <ChallengeSlide c={c} busy={busyId === c.id} onAccept={accept} onReject={reject} muted={muted} />
             </SwiperSlide>
           ))}
         </Swiper>
