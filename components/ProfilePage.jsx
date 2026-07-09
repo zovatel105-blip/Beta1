@@ -27,11 +27,10 @@ const videoFor = (p) =>
   p?.videoUrl || p?.sideA?.videoUrl || p?.sideB?.videoUrl || ''
 
 // Icono de cuadrícula (6 rectángulos con bordes redondeados: 3 por fila, 2 filas).
-// El hueco entre rectángulos se calcula teniendo en cuenta el grosor del trazo
-// (strokeWidth 1.6 = 0.8 de solape hacia dentro en cada lado) para que la
-// separación SÍ se aprecie visualmente y no quede "comida" por el borde.
+// Trazo fino (strokeWidth 1.1) para que los rectángulos no se vean gruesos, y
+// el hueco entre ellos (gap geométrico 3) se aprecie con claridad.
 const ColumnsIcon = ({ className }) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className={className}>
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <rect x="2.4" y="3.2" width="4.4" height="7.3" rx="1.1" />
     <rect x="9.8" y="3.2" width="4.4" height="7.3" rx="1.1" />
     <rect x="17.2" y="3.2" width="4.4" height="7.3" rx="1.1" />
