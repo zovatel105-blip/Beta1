@@ -26,14 +26,16 @@ const thumbFor = (p) =>
 const videoFor = (p) =>
   p?.videoUrl || p?.sideA?.videoUrl || p?.sideB?.videoUrl || ''
 
-// Icono de columnas (HHH) usado en la pestaña de publicaciones y en el estado vacío.
+// Icono de cuadrícula (6 rectángulos con bordes redondeados: 3 por fila, 2 filas)
+// usado en la pestaña de publicaciones y en el estado vacío.
 const ColumnsIcon = ({ className }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <line x1="3" y1="4" x2="3" y2="20" />
-    <line x1="9" y1="4" x2="9" y2="20" />
-    <line x1="15" y1="4" x2="15" y2="20" />
-    <line x1="21" y1="4" x2="21" y2="20" />
-    <line x1="3" y1="12" x2="21" y2="12" />
+    <rect x="3.8" y="4.35" width="4.6" height="7" rx="1.2" />
+    <rect x="9.7" y="4.35" width="4.6" height="7" rx="1.2" />
+    <rect x="15.6" y="4.35" width="4.6" height="7" rx="1.2" />
+    <rect x="3.8" y="12.65" width="4.6" height="7" rx="1.2" />
+    <rect x="9.7" y="12.65" width="4.6" height="7" rx="1.2" />
+    <rect x="15.6" y="12.65" width="4.6" height="7" rx="1.2" />
   </svg>
 )
 
