@@ -26,17 +26,18 @@ const thumbFor = (p) =>
 const videoFor = (p) =>
   p?.videoUrl || p?.sideA?.videoUrl || p?.sideB?.videoUrl || ''
 
-// Icono de cuadrícula (6 rectángulos con bordes redondeados: 3 por fila, 2 filas,
-// separación mínima entre ellos) usado en la pestaña de publicaciones y en el
-// estado vacío.
+// Icono de cuadrícula (6 rectángulos con bordes redondeados: 3 por fila, 2 filas).
+// El hueco entre rectángulos se calcula teniendo en cuenta el grosor del trazo
+// (strokeWidth 1.6 = 0.8 de solape hacia dentro en cada lado) para que la
+// separación SÍ se aprecie visualmente y no quede "comida" por el borde.
 const ColumnsIcon = ({ className }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <rect x="3.9" y="4.3" width="5" height="7.4" rx="1.1" />
-    <rect x="9.5" y="4.3" width="5" height="7.4" rx="1.1" />
-    <rect x="15.1" y="4.3" width="5" height="7.4" rx="1.1" />
-    <rect x="3.9" y="12.3" width="5" height="7.4" rx="1.1" />
-    <rect x="9.5" y="12.3" width="5" height="7.4" rx="1.1" />
-    <rect x="15.1" y="12.3" width="5" height="7.4" rx="1.1" />
+    <rect x="2.4" y="3.2" width="4.4" height="7.3" rx="1.1" />
+    <rect x="9.8" y="3.2" width="4.4" height="7.3" rx="1.1" />
+    <rect x="17.2" y="3.2" width="4.4" height="7.3" rx="1.1" />
+    <rect x="2.4" y="13.5" width="4.4" height="7.3" rx="1.1" />
+    <rect x="9.8" y="13.5" width="4.4" height="7.3" rx="1.1" />
+    <rect x="17.2" y="13.5" width="4.4" height="7.3" rx="1.1" />
   </svg>
 )
 
