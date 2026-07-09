@@ -27,13 +27,45 @@ const RingAvatar = ({ src, size = 'w-11 h-11' }) => (
   </div>
 )
 
-const ChallengeSlide = ({ c, busy, onAccept, onReject, muted }) => {
+const ChallengeSlide = ({ c, active, busy, onAccept, onReject, muted }) => {
   const [idx, setIdx] = useState(0)
   const innerRef = useRef(null)
   const fileRef = useRef(null)
   const pendingAcceptRef = useRef(false)
   const [responseFile, setResponseFile] = useState(null)
   const [responsePreview, setResponsePreview] = useState(null)
+  // Refs to the 2 <video> elements (A and B). src is assigned IMPERATIVELY
+  // (see effect below) — never declared in JSX — so that only the video that
+  // is BOTH (a) on the challenge card currently visible in the vertical
+  // scroll AND (b) the side (A/B) currently shown in the horizontal swipe
+  // ever gets a real <source>+autoplay. This is the same "REGLA #2" pattern
+  // already used in CarouselSlide.jsx/DuetSlide.jsx.
+  const videoRefs = useRef([null, null])
+
+  // pause() + removeAttribute('src') + load(): forces the browser to abort
+  // the download and give the hardware decoder back. Without this, every
+  // challenge card (and both A/B sides within it) kept an <video autoPlay>
+  // mounted at once, exhausting the mobile decoder budget — side B (and
+  // every other card besides the first) never actually started playing.
+  const acquireVideo = (el, src) => {
+    if (!el || !src) return
+    if (el.preload !== 'auto') el.preload = 'auto'
+    if (el.getAttribute('src') !== src) {
+      el.setAttribute('src', src)
+      try { el.load() } catch { /* ignore */ }
+    }
+    const p = el.play()
+    if (p && p.catch) p.catch(() => { /* blocked until user gesture; muted state handles that */ })
+  }
+  const releaseVideo = (el) => {
+    if (!el) return
+    try { el.pause() } catch { /* ignore */ }
+    if (el.getAttribute('src') !== null) {
+      el.removeAttribute('src')
+      try { el.preload = 'none' } catch { /* ignore */ }
+      try { el.load() } catch { /* ignore */ }
+    }
+  }
 
   // "Mention" challenge: it does NOT carry the challenged user's video (targetVideoUrl).
   // The challenged user must upload their response video to be able to accept.
@@ -77,10 +109,31 @@ const ChallengeSlide = ({ c, busy, onAccept, onReject, muted }) => {
   const targetIsImage = c.targetMediaType === 'image' || (!c.targetVideoUrl && !!c.targetImageUrl)
   const responseUrl = needsVideo ? responsePreview : targetUrl
   const responseIsImage = needsVideo ? responseFileIsImage : targetIsImage
+  const aPoster = c.challengerPosterUrl || null
+  const responsePoster = needsVideo ? null : (c.targetPosterUrl || null)
   const videos = [
-    { url: aUrl, isImage: aIsImage, author: c.from, tag: 'A', tagColor: GOLD, isResponse: false },
-    { url: responseUrl, isImage: responseIsImage, author: c.to, tag: 'B', tagColor: '#FFFFFF', isResponse: true },
+    { url: aUrl, isImage: aIsImage, poster: aPoster, author: c.from, tag: 'A', tagColor: GOLD, isResponse: false },
+    { url: responseUrl, isImage: responseIsImage, poster: responsePoster, author: c.to, tag: 'B', tagColor: '#FFFFFF', isResponse: true },
   ]
+
+  // Play/pause + acquire/release the decoder for each of the 2 videos: ONLY
+  // the video that is on the currently visible card (active) AND is the
+  // currently shown side (idx) is ever assigned a src/play(). The other one
+  // (same card's other side, or ANY other card) stays released — showing
+  // only its poster/first frame — so it never competes for audio/decoder.
+  useEffect(() => {
+    videos.forEach((v, i) => {
+      const el = videoRefs.current[i]
+      if (!el || v.isImage) return
+      const shouldPlay = active && idx === i && !!v.url
+      if (shouldPlay) acquireVideo(el, v.url + '#t=0.3')
+      else releaseVideo(el)
+    })
+    // Release both on unmount (card removed after accept/reject).
+    return () => {
+      videoRefs.current.forEach((el) => releaseVideo(el))
+    }
+  }, [active, idx, aUrl, responseUrl, aIsImage, responseIsImage])
 
   return (
     <div className="relative w-full h-full bg-black overflow-hidden">
@@ -109,12 +162,12 @@ const ChallengeSlide = ({ c, busy, onAccept, onReject, muted }) => {
                     />
                   ) : (
                     <video
-                      src={v.url + '#t=0.3'}
+                      ref={(el) => { videoRefs.current[i] = el }}
+                      poster={v.poster || undefined}
                       muted={muted}
                       playsInline
                       loop
-                      autoPlay
-                      preload="metadata"
+                      preload="none"
                       className="absolute inset-0 w-full h-full object-cover"
                     />
                   )}
@@ -240,6 +293,10 @@ export default function ActiveChallengesPage({ open, onClose, onAccepted, onChan
   // exige un gesto del usuario para permitir audio con sonido, así que el
   // primer toque en la página desmutea los vídeos de las miniaturas A/B.
   const [muted, setMuted] = useState(true)
+  // Which challenge CARD is currently visible in the vertical scroll. Only
+  // that card's ChallengeSlide is allowed to acquire a video decoder/play —
+  // fixes multiple cards trying to autoplay their A/B videos at once.
+  const [activeCard, setActiveCard] = useState(0)
 
   const load = async () => {
     setLoading(true)
@@ -251,7 +308,7 @@ export default function ActiveChallengesPage({ open, onClose, onAccepted, onChan
   }
 
   useEffect(() => {
-    if (open) load()
+    if (open) { load(); setActiveCard(0) }
   }, [open])
 
   if (!open) return null
@@ -333,11 +390,12 @@ export default function ActiveChallengesPage({ open, onClose, onAccepted, onChan
           mousewheel
           keyboard
           modules={[Mousewheel, Keyboard]}
+          onSlideChange={(s) => setActiveCard(s.activeIndex)}
           className="w-full h-full"
         >
-          {list.map((c) => (
+          {list.map((c, i) => (
             <SwiperSlide key={c.id}>
-              <ChallengeSlide c={c} busy={busyId === c.id} onAccept={accept} onReject={reject} muted={muted} />
+              <ChallengeSlide c={c} active={activeCard === i} busy={busyId === c.id} onAccept={accept} onReject={reject} muted={muted} />
             </SwiperSlide>
           ))}
         </Swiper>

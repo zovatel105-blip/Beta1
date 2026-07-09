@@ -9,7 +9,7 @@ import json
 import sys
 
 # Use the public preview URL from .env
-BASE_URL = "https://audio-sync-fix-7.preview.emergentagent.com/api"
+BASE_URL = "https://audio-playback-bug.preview.emergentagent.com/api"
 
 def test_admin_login():
     """Scenario 1: Admin login with twykadmin/Admin12345"""
