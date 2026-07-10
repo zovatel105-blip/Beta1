@@ -1021,19 +1021,79 @@ const SettingsRow = ({ icon: Icon, label, onClick, href, tone = 'default' }) => 
 // Diseño minimalista/premium: lista plana sin tarjeta, secciones con etiqueta
 // sutil, iconos neutros en círculos tenues, y un leve resplandor de marca (morado)
 // en la cabecera para dar profundidad sin perder la simplicidad.
+// CIERRE: sin botón "X" ni toque en el fondo — el panel se cierra ÚNICAMENTE
+// deslizándolo hacia la derecha (gesto con dedo o ratón). Se usa Pointer Events
+// (cubre touch y mouse) con un umbral de movimiento horizontal para no interferir
+// con el scroll vertical de la lista ni con los taps sobre las filas/enlaces:
+// mientras el desplazamiento no supera el umbral, el toque se comporta como un
+// click normal; solo al superarlo se activa el arrastre y el panel sigue al dedo.
 // Permanece montado para poder animar la entrada y la salida con translateX.
 const SettingsDrawer = ({ open, onClose, onEdit, onLogout, isAdmin }) => {
+  const panelRef = useRef(null)
+  const dragStartRef = useRef(null)
+  const draggingRef = useRef(false)
+  const panelWidthRef = useRef(0)
+  const [dragX, setDragX] = useState(0)
+
+  const handlePointerDown = (e) => {
+    dragStartRef.current = { x: e.clientX, y: e.clientY }
+    draggingRef.current = false
+    if (panelRef.current) panelWidthRef.current = panelRef.current.offsetWidth
+  }
+
+  const handlePointerMove = (e) => {
+    if (!dragStartRef.current) return
+    const dx = e.clientX - dragStartRef.current.x
+    const dy = e.clientY - dragStartRef.current.y
+    if (!draggingRef.current) {
+      // Solo se activa el arrastre si el gesto es claramente horizontal hacia la
+      // derecha (cerrar); si es vertical (scroll de la lista) o hacia la izquierda,
+      // no hacemos nada y el navegador maneja el scroll/click normalmente.
+      if (dx > 12 && Math.abs(dx) > Math.abs(dy) * 1.4) {
+        draggingRef.current = true
+        try { e.target.setPointerCapture?.(e.pointerId) } catch (_err) { /* noop: navegadores sin setPointerCapture */ }
+      } else {
+        return
+      }
+    }
+    e.preventDefault()
+    const max = panelWidthRef.current || 320
+    setDragX(Math.max(0, Math.min(dx, max)))
+  }
+
+  const handlePointerUp = () => {
+    if (draggingRef.current) {
+      const max = panelWidthRef.current || 320
+      if (dragX > max * 0.28) {
+        onClose()
+      }
+    }
+    draggingRef.current = false
+    dragStartRef.current = null
+    setDragX(0)
+  }
+
   return (
     <div className={`fixed inset-0 z-[85] ${open ? '' : 'pointer-events-none'}`}>
-      {/* Backdrop */}
+      {/* Fondo (decorativo, ya no cierra al tocarlo: el cierre es solo deslizando el panel) */}
       <div
-        onClick={onClose}
+        aria-hidden
         className={`absolute inset-0 bg-black/60 backdrop-blur-[3px] transition-opacity duration-300 ${
           open ? 'opacity-100' : 'opacity-0'
         }`}
       />
-      {/* Panel lateral derecho */}
+      {/* Panel lateral derecho: arrastrar hacia la derecha para cerrar */}
       <div
+        ref={panelRef}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        style={{
+          touchAction: 'pan-y',
+          transform: dragX ? `translateX(${dragX}px)` : undefined,
+          transition: draggingRef.current ? 'none' : undefined,
+        }}
         className={`absolute top-0 right-0 h-full w-[82%] max-w-sm bg-[#0a0a0b] border-l border-white/[0.06] shadow-2xl flex flex-col text-white transition-transform duration-300 ease-out overflow-hidden ${
           open ? 'translate-x-0' : 'translate-x-full'
         }`}
@@ -1045,17 +1105,13 @@ const SettingsDrawer = ({ open, onClose, onEdit, onLogout, isAdmin }) => {
           style={{ background: 'radial-gradient(circle, rgba(168,85,247,0.14) 0%, rgba(168,85,247,0) 70%)' }}
         />
 
-        {/* Header */}
+        {/* Indicador de arrastre (pill) en el borde izquierdo del panel */}
+        <div aria-hidden className="absolute left-1.5 top-1/2 -translate-y-1/2 w-1 h-10 rounded-full bg-white/[0.14] pointer-events-none" />
+
+        {/* Header: sin botón de cierre — el panel se cierra deslizando */}
         <div className="relative z-10" style={{ paddingTop: 'max(env(safe-area-inset-top), 14px)' }}>
-          <div className="flex items-center justify-between px-5 h-14 w-full">
+          <div className="flex items-center px-5 h-14 w-full">
             <span className="text-white font-semibold text-[19px] tracking-tight">Settings</span>
-            <button
-              aria-label="close"
-              onClick={onClose}
-              className="w-8 h-8 rounded-full bg-white/[0.06] flex items-center justify-center text-white active:scale-90 transition"
-            >
-              <X strokeWidth={2} className="w-[16px] h-[16px]" />
-            </button>
           </div>
         </div>
 
