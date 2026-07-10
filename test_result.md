@@ -482,6 +482,21 @@ backend:
         -comment: "VERIFICADO MANUALMENTE (el usuario pidió NO usar agente de testing). Registrados follower1/target1. (B) POST /api/users/target1/follow sin sesión -> 401 {error:unauthorized}. (C) con sesión -> 200 {ok:true,following:true,followers:1}. (D) toggle -> {following:false,followers:0}; de nuevo -> {following:true,followers:1}. (E) seguirse a sí mismo -> 400 {error:cannot_follow_yourself}. (F) GET /api/users/target1 sin sesión -> isFollowing=false, followers=1. (G) GET con sesión -> isFollowing=true, followers=1. (H) seguir autor demo 'wanderlust' (sin documento de usuario) -> 200 {following:true,followers:1}. Regresión: /api/feed y /api/users 200. Datos de prueba limpiados."
 
 frontend:
+  - task: "Rediseño minimalista/premium del drawer de Ajustes del perfil (icono de hamburguesa)"
+    implemented: true
+    working: "NA"
+    file: ".env, memory/ENV_BACKUP.md, memory/test_credentials.md, components/ProfilePage.jsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'Los ajustes del perfil que se abren cuando haces click en la hamburguesa deben tener un diseño mejor minimalista' -> tras preguntar opciones, el usuario pidió 'Hazlo de manera que se vea premium minimalista'."
+        -working: "NA"
+        -agent: "main"
+        -comment: "PARTE 1 (.env, misma causa raíz recurrente de persistencia efímera, ver memory/ENV_BACKUP.md): restaurado /app/.env con NEXT_PUBLIC_BASE_URL/CORS_ORIGINS = URL de preview actual (APP_URL de supervisor: https://ed1be2ba-c77a-4c14-9e9a-7cad9878b2cd.preview.emergentagent.com); ENV_BACKUP.md actualizado; MongoDB estaba vacía -> re-ejecutado scripts/seed-core-users.mjs (twykadmin/lucia/marcos/laura + 3 follows); memory/test_credentials.md recreado (no existía). PARTE 2 (rediseño, components/ProfilePage.jsx, componente SettingsDrawer): CAMBIO UI puro, sin tocar lógica/props (misma firma open/onClose/onEdit/onLogout/isAdmin, mismos handlers). Antes: tarjeta redondeada con fondo/borde (bg-white/[0.04] border) y filas con iconos de colores llamativos (ámbar para 'Moderation panel', cian para 'Engine dashboard'), separadas por bordes internos, cabecera con borde inferior y botón X a la izquierda. Ahora: (1) nuevo subcomponente reutilizable SettingsRow (icono en círculo tenue bg-white/[0.06] neutro + label + ChevronRight, o círculo rojo bg-red-500/10 solo para 'Log out' como única acción con color, tone='danger' sin chevron); (2) lista PLANA sin tarjeta de fondo, agrupada en secciones con etiqueta sutil en mayúsculas (text-[11px] uppercase tracking-[0.09em] text-zinc-500): 'Administration' (Moderation panel + Engine dashboard, solo admin) y 'Account' (Edit profile), con 'Log out' separado al final tras un divisor sutil (border-t border-white/[0.06]) para distinguir la acción destructiva; (3) cabecera simplificada sin borde inferior, título más grande (19px) y botón de cerrar como círculo tenue (bg-white/[0.06]) a la derecha en vez de X suelta a la izquierda; (4) toque 'premium': resplandor decorativo radial sutil del color de marca (rgba(168,85,247,0.14), mismo tono morado usado en el resto de ProfilePage) en la esquina superior derecha del panel, pointer-events-none, backdrop más oscuro (bg-black/60 backdrop-blur-[3px]). GuestMenuDrawer (menú de invitados) NO se tocó, solo se pidió el de ajustes del perfil. Lint limpio (0 issues, components/ProfilePage.jsx). Compilación verificada en logs de supervisor (hot-reload sin errores, GET /, /api/auth/me, /api/challenges, /api/uploads todos 200 mientras el usuario navegaba en vivo con la sesión twykadmin). NOTA: no se pudo verificar visualmente con captura headless de Playwright (limitación conocida y ya documentada repetidamente en este archivo: el bundle dinámico del feed no monta en el harness de screenshot, solo muestra el spinner de carga). Pendiente de validación visual del usuario en la app real."
+
   - task: "Recuperación de entorno: .env perdido de nuevo (persistencia efímera) + audio no se escucha en la página de retos completados"
     implemented: true
     working: "NA"

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Menu, Bookmark, Swords, Users, UserPlus, ArrowLeft, LogOut, Camera, Loader2, X, Pencil, ShieldAlert, LogIn, CircleUserRound, Activity } from 'lucide-react'
+import { Menu, Bookmark, Swords, Users, UserPlus, ArrowLeft, LogOut, Camera, Loader2, X, Pencil, ShieldAlert, LogIn, CircleUserRound, Activity, ChevronRight } from 'lucide-react'
 import VoteIcon from './icons/VoteIcon'
 import ShareIcon from './icons/ShareIcon'
 import { useAuth } from '@/contexts/AuthContext'
@@ -983,7 +983,44 @@ const GuestMenuDrawer = ({ open, onClose, onLogin }) => {
   )
 }
 
+// Fila de ajuste minimalista: icono en círculo tenue + etiqueta + chevron.
+// Renderiza <a> si recibe href, o <button> si recibe onClick.
+const SettingsRow = ({ icon: Icon, label, onClick, href, tone = 'default' }) => {
+  const toneClasses =
+    tone === 'danger'
+      ? { iconWrap: 'bg-red-500/10 text-red-400', label: 'text-red-400' }
+      : { iconWrap: 'bg-white/[0.06] text-zinc-300', label: 'text-white' }
+
+  const inner = (
+    <>
+      <span className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${toneClasses.iconWrap}`}>
+        <Icon className="w-[16px] h-[16px]" strokeWidth={1.7} />
+      </span>
+      <span className={`flex-1 text-[15px] font-medium tracking-tight ${toneClasses.label}`}>{label}</span>
+      {tone !== 'danger' && <ChevronRight className="w-4 h-4 text-zinc-600 shrink-0" strokeWidth={2} />}
+    </>
+  )
+
+  const className = 'w-full flex items-center gap-3 py-3 active:opacity-60 transition-opacity duration-150 text-left'
+
+  if (href) {
+    return (
+      <a href={href} className={className}>
+        {inner}
+      </a>
+    )
+  }
+  return (
+    <button onClick={onClick} className={className}>
+      {inner}
+    </button>
+  )
+}
+
 // Drawer de ajustes que se desliza desde el borde derecho (estilo panel lateral).
+// Diseño minimalista/premium: lista plana sin tarjeta, secciones con etiqueta
+// sutil, iconos neutros en círculos tenues, y un leve resplandor de marca (morado)
+// en la cabecera para dar profundidad sin perder la simplicidad.
 // Permanece montado para poder animar la entrada y la salida con translateX.
 const SettingsDrawer = ({ open, onClose, onEdit, onLogout, isAdmin }) => {
   return (
@@ -991,61 +1028,60 @@ const SettingsDrawer = ({ open, onClose, onEdit, onLogout, isAdmin }) => {
       {/* Backdrop */}
       <div
         onClick={onClose}
-        className={`absolute inset-0 bg-black/50 backdrop-blur-[2px] transition-opacity duration-300 ${
+        className={`absolute inset-0 bg-black/60 backdrop-blur-[3px] transition-opacity duration-300 ${
           open ? 'opacity-100' : 'opacity-0'
         }`}
       />
       {/* Panel lateral derecho */}
       <div
-        className={`absolute top-0 right-0 h-full w-[82%] max-w-sm bg-[#0a0a0b] border-l border-white/[0.08] shadow-2xl flex flex-col text-white transition-transform duration-300 ease-out ${
+        className={`absolute top-0 right-0 h-full w-[82%] max-w-sm bg-[#0a0a0b] border-l border-white/[0.06] shadow-2xl flex flex-col text-white transition-transform duration-300 ease-out overflow-hidden ${
           open ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
+        {/* Resplandor de marca sutil, solo decorativo */}
+        <div
+          aria-hidden
+          className="absolute -top-24 -right-24 w-56 h-56 rounded-full pointer-events-none"
+          style={{ background: 'radial-gradient(circle, rgba(168,85,247,0.14) 0%, rgba(168,85,247,0) 70%)' }}
+        />
+
         {/* Header */}
-        <div className="border-b border-white/[0.06]" style={{ paddingTop: 'max(env(safe-area-inset-top), 8px)' }}>
-          <div className="flex items-center px-3 h-14 w-full">
-            <button aria-label="close" onClick={onClose} className="p-2 -ml-1 text-white active:scale-90 transition">
-              <X strokeWidth={1.9} className="w-[22px] h-[22px]" />
+        <div className="relative z-10" style={{ paddingTop: 'max(env(safe-area-inset-top), 14px)' }}>
+          <div className="flex items-center justify-between px-5 h-14 w-full">
+            <span className="text-white font-semibold text-[19px] tracking-tight">Settings</span>
+            <button
+              aria-label="close"
+              onClick={onClose}
+              className="w-8 h-8 rounded-full bg-white/[0.06] flex items-center justify-center text-white active:scale-90 transition"
+            >
+              <X strokeWidth={2} className="w-[16px] h-[16px]" />
             </button>
-            <span className="text-white font-semibold text-[15px] ml-1">Settings</span>
           </div>
         </div>
 
         {/* Opciones */}
-        <div className="flex-1 overflow-y-auto px-3 py-3">
-          <div className="rounded-2xl bg-white/[0.04] border border-white/[0.07] divide-y divide-white/[0.06] overflow-hidden">
-            {isAdmin && (
-              <a
-                href="/admin/reports"
-                className="w-full flex items-center gap-3 px-4 py-4 text-amber-300 hover:bg-amber-500/10 active:bg-amber-500/15 transition text-[15px] font-medium"
-              >
-                <ShieldAlert className="w-[19px] h-[19px]" strokeWidth={1.8} />
-                Moderation panel
-              </a>
-            )}
-            {isAdmin && (
-              <a
-                href="/admin/reco"
-                className="w-full flex items-center gap-3 px-4 py-4 text-cyan-300 hover:bg-cyan-500/10 active:bg-cyan-500/15 transition text-[15px] font-medium"
-              >
-                <Activity className="w-[19px] h-[19px]" strokeWidth={1.8} />
-                Engine dashboard
-              </a>
-            )}
-            <button
-              onClick={onEdit}
-              className="w-full flex items-center gap-3 px-4 py-4 text-white hover:bg-white/5 active:bg-white/10 transition text-[15px] font-medium"
-            >
-              <Pencil className="w-[19px] h-[19px]" strokeWidth={1.8} />
-              Edit profile
-            </button>
-            <button
-              onClick={onLogout}
-              className="w-full flex items-center gap-3 px-4 py-4 text-red-400 hover:bg-red-500/10 active:bg-red-500/15 transition text-[15px] font-medium"
-            >
-              <LogOut className="w-[19px] h-[19px]" strokeWidth={1.8} />
-              Log out
-            </button>
+        <div className="relative z-10 flex-1 overflow-y-auto px-5 pb-6">
+          {isAdmin && (
+            <div className="pt-5">
+              <p className="pb-1 text-[11px] font-semibold uppercase tracking-[0.09em] text-zinc-500">Administration</p>
+              <div className="divide-y divide-white/[0.05]">
+                <SettingsRow icon={ShieldAlert} label="Moderation panel" href="/admin/reports" />
+                <SettingsRow icon={Activity} label="Engine dashboard" href="/admin/reco" />
+              </div>
+            </div>
+          )}
+
+          <div className="pt-5">
+            <p className="pb-1 text-[11px] font-semibold uppercase tracking-[0.09em] text-zinc-500">Account</p>
+            <div className="divide-y divide-white/[0.05]">
+              <SettingsRow icon={Pencil} label="Edit profile" onClick={onEdit} />
+            </div>
+          </div>
+
+          <div className="pt-8">
+            <div className="border-t border-white/[0.06] pt-4">
+              <SettingsRow icon={LogOut} label="Log out" onClick={onLogout} tone="danger" />
+            </div>
           </div>
         </div>
       </div>
