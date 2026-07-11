@@ -863,6 +863,33 @@ frontend:
         -agent: "testing"
         -comment: "✅ CODE REVIEW PASS: revisado components/Feed.jsx líneas 560-600, los 3 estados del banner (uploading/done/error) están 100% en inglés: 'Sending challenge to @{username}' (569), 'Challenge sent to @{username}' + 'We will notify you when they accept' (583-584), 'Couldn't send the challenge' / 'Try again' (594-595). NO se encontró ningún texto en español en el componente. Verificación UI en vivo con Playwright NO pudo completarse (limitación conocida ya documentada varias veces en este proyecto: el bundle dinámico del Feed no monta en el harness headless de screenshot/testing), pero el fix de código es correcto y completo. Usuario pidió continuar sin más verificación del agente de testing."
 
+  - task: "Recuperación de entorno: .env perdido de nuevo (contenedor recreado, nueva sesión)"
+    implemented: true
+    working: true
+    file: ".env, memory/ENV_BACKUP.md, memory/test_credentials.md, scripts/seed-core-users.mjs"
+    stuck_count: 6
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "main"
+        -comment: "NUEVA PÉRDIDA DE .env al iniciar esta sesión (misma causa raíz recurrente ya documentada en memory/ENV_BACKUP.md: .env gitignored + MongoDB efímero). Restaurado /app/.env con MONGO_URL=mongodb://localhost:27017/twyk, ADMIN_EMAILS=twyk.apk@gmail.com, NEXT_PUBLIC_BASE_URL/CORS_ORIGINS apuntando a la URL de preview ACTUAL leída de APP_URL en /etc/supervisor/conf.d/supervisord.conf (https://5d62f2da-2914-4b63-9166-d7b42ad0125d.preview.emergentagent.com, distinta a la guardada previamente). memory/ENV_BACKUP.md actualizado con la nueva URL. Reiniciado nextjs (sudo supervisorctl restart nextjs) -> GET /api/feed pasó de 500 a 200. BD estaba vacía -> ejecutado node scripts/seed-core-users.mjs (recreados twykadmin/lucia/marcos/laura + follows). memory/test_credentials.md recreado."
+
+  - task: "Perfil: eliminar el hueco visual entre la barra superior y la fila de pestañas (cuadrícula/guardar) al hacer scroll (pegar pestañas al header)"
+    implemented: true
+    working: "NA"
+    file: "components/ProfilePage.jsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'En el perfil donde está el grind [cuadrícula] y el icono de guardar pegalo al header'. Tras aclaración del usuario (opción B): quiere que se elimine el hueco/espacio visual que aparece actualmente entre la barra superior fija (back/avatar mini/acciones) y la fila de pestañas (icono cuadrícula + icono guardar) cuando ambas quedan fijas (sticky) al hacer scroll hacia abajo en el perfil."
+        -working: "NA"
+        -agent: "main"
+        -comment: "ROOT CAUSE: components/ProfilePage.jsx tenía DOS elementos sticky independientes: la barra superior (barRef, sticky top:0, altura variable según safe-area-inset-top: paddingTop max(env(safe-area-inset-top),6px) + h-11/44px) y la fila de pestañas (tabsRef, sticky con top hardcodeado a la fórmula fija 'calc(max(env(safe-area-inset-top),8px) + 56px)'). Ese '+56px' fijo NO coincidía con la altura REAL de la barra superior (que varía según el dispositivo/safe-area), dejando un hueco de varios px donde se veía picar/asomar el contenido de la cabecera del perfil (avatar/stats) que scrollea por detrás (z-10, entre los dos sticky z-30/z-15). Además tabsRef tenía 'mt-7' (margin-top 28px) aplicado directamente al elemento sticky, lo cual también afecta el cálculo de la posición 'stuck' (el margin se incluye en la caja que se fija). FIX: (1) nuevo estado barHeight medido dinámicamente vía bar.offsetHeight dentro de measureCollapse (mismo efecto que ya medía barH/tabsH para otros cálculos, ahora también con setBarHeight); (2) tabsRef ahora usa style={{ top: `${barHeight}px` }} en vez de la fórmula fija, pegándose EXACTAMENTE debajo del borde inferior real de la barra superior, sin importar el safe-area-inset del dispositivo; (3) quitado 'mt-7' de tabsRef (para que el margen no afecte el cálculo de sticky) y trasladado el mismo espacio (28px) como 'mb-7' en headerRef (cabecera de stats/avatar/bio), preservando idéntico espaciado visual en el estado NO scrolleado (natural flow), sin afectar el estado STUCK. Lint limpio (0 issues). CONTEXTO: al empezar esta tarea el .env volvía a faltar (ver tarea de recuperación de entorno arriba); restaurado y BD re-sembrada antes de este cambio. Verificación visual con Playwright headless NO pudo completarse (limitación conocida y ya documentada muchas veces en este archivo: el feed/perfil no monta contenido dinámico en el navegador headless de screenshot). Pendiente de confirmación visual del usuario en su dispositivo/preview real."
+
 metadata:
   created_by: "main_agent"
   version: "1.1"
@@ -871,8 +898,8 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Recuperación de entorno: .env perdido de nuevo (persistencia efímera) + audio no se escucha en la página de retos completados"
-    - "ActiveChallengesPage.jsx: opción B (retado) no se reproducía ni sonaba en Retos Activos — fix decoder gating por tarjeta activa + lado activo"
+    - "Recuperación de entorno: .env perdido de nuevo (contenedor recreado, nueva sesión)"
+    - "Perfil: eliminar el hueco visual entre la barra superior y la fila de pestañas (cuadrícula/guardar) al hacer scroll (pegar pestañas al header)"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"

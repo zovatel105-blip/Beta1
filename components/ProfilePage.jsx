@@ -280,6 +280,11 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
   const tabsRef = useRef(null)
   const collapseDistRef = useRef(280)
   const [collapseProgress, setCollapseProgress] = useState(0)
+  // Altura real (medida) de la barra superior fija (barRef). Se usa como offset
+  // "top" de las pestañas para que queden pegadas EXACTAMENTE debajo de la barra
+  // al colapsar, sin ningún hueco entre ambas (antes era un valor fijo "+56px"
+  // que no coincidía con la altura real de la barra en todos los dispositivos).
+  const [barHeight, setBarHeight] = useState(64)
   // Altura mínima del contenido: rellena SOLO el área visible bajo las pestañas
   // fijadas. Así, con POCAS publicaciones el scroll se limita justo a colapsar
   // (las publicaciones quedan bajo las pestañas, sin desaparecer detrás del
@@ -296,6 +301,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
     const tabsH = tabs.offsetHeight
     collapseDistRef.current = Math.max(1, tabs.offsetTop - barH)
     setContentMinH(Math.max(0, scroller.clientHeight - barH - tabsH - 16))
+    setBarHeight(barH)
   }
 
   const handleScroll = () => {
@@ -735,7 +741,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
       {/* Cabecera del perfil: stats con iconos alrededor del avatar (se desvanece al colapsar) */}
       <div
         ref={headerRef}
-        className="relative z-10 px-5 sm:px-6 pt-6 pb-5 max-w-md mx-auto w-full"
+        className="relative z-10 px-5 sm:px-6 pt-6 pb-5 mb-7 max-w-md mx-auto w-full"
         style={{
           opacity: 1 - collapseProgress,
           transform: `translateY(${-collapseProgress * 14}px) scale(${1 - collapseProgress * 0.04})`,
@@ -851,8 +857,8 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
       {/* Tabs - chips finos a lo ancho (sticky bajo la barra al colapsar) */}
       <div
         ref={tabsRef}
-        className="sticky z-[15] bg-[#0a0a0b] max-w-md mx-auto w-full mt-7 px-2 pt-1 pb-2.5"
-        style={{ top: 'calc(max(env(safe-area-inset-top), 8px) + 56px)' }}
+        className="sticky z-[15] bg-[#0a0a0b] max-w-md mx-auto w-full px-2 pt-1 pb-2.5"
+        style={{ top: `${barHeight}px` }}
       >
         <div className="flex items-center gap-2.5">
           {(isOwn ? TABS : TABS.filter((t) => t.key === 'polls')).map((tab) => {
