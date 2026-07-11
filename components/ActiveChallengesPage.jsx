@@ -351,17 +351,34 @@ export default function ActiveChallengesPage({ open, onClose, onOpenCompleted, o
       className="fixed inset-0 z-[58] bg-[#0a0a0b] overflow-hidden"
       onPointerDown={muted ? () => setMuted(false) : undefined}
     >
-      {/* Header — segmented control */}
+      {/* Header — segmented control + counter badge (top-right) when there are pending challenges */}
       <div className="absolute top-0 left-0 right-0 z-40 px-6 pb-4 bg-gradient-to-b from-black/70 to-transparent"
            style={{ paddingTop: 'max(env(safe-area-inset-top), 14px)' }}>
-        <div className="flex items-center justify-center">
-          <div className="inline-flex p-1 rounded-full bg-black/40 border border-white/15 backdrop-blur-md">
-            <button onClick={onOpenCompleted || onClose} className="px-5 py-1.5 rounded-full text-[13px] font-medium text-zinc-200 hover:text-white transition">
-              Completed
-            </button>
-            <button className="px-5 py-1.5 rounded-full text-[13px] font-semibold bg-white text-black transition">
-              Active
-            </button>
+        <div className="grid grid-cols-3 items-center">
+          <div />
+          <div className="flex items-center justify-center">
+            <div className="inline-flex p-1 rounded-full bg-black/40 border border-white/15 backdrop-blur-md">
+              <button onClick={onOpenCompleted || onClose} className="px-5 py-1.5 rounded-full text-[13px] font-medium text-zinc-200 hover:text-white transition">
+                Completed
+              </button>
+              <button className="px-5 py-1.5 rounded-full text-[13px] font-semibold bg-white text-black transition">
+                Active
+              </button>
+            </div>
+          </div>
+          {/* Right: total count of pending active challenges */}
+          <div className="flex items-center justify-end">
+            {list.length > 0 && (
+              <div
+                aria-label={`${list.length} pending challenges`}
+                className="shrink-0 flex items-center gap-1.5 h-9 pl-2.5 pr-3 rounded-full bg-black/40 border border-white/15 backdrop-blur-md text-white"
+              >
+                <Swords className="w-3.5 h-3.5" strokeWidth={2} />
+                <span className="text-[13px] font-bold tabular-nums leading-none">
+                  {list.length > 99 ? '99+' : list.length}
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </div>
