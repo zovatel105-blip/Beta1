@@ -285,7 +285,7 @@ const ChallengeSlide = ({ c, active, busy, onAccept, onReject, muted }) => {
   )
 }
 
-export default function ActiveChallengesPage({ open, onClose, onAccepted, onChanged }) {
+export default function ActiveChallengesPage({ open, onClose, onOpenCompleted, onAccepted, onChanged }) {
   const [list, setList] = useState([])
   const [loading, setLoading] = useState(false)
   const [busyId, setBusyId] = useState(null)
@@ -356,7 +356,7 @@ export default function ActiveChallengesPage({ open, onClose, onAccepted, onChan
            style={{ paddingTop: 'max(env(safe-area-inset-top), 14px)' }}>
         <div className="flex items-center justify-center">
           <div className="inline-flex p-1 rounded-full bg-black/40 border border-white/15 backdrop-blur-md">
-            <button onClick={onClose} className="px-5 py-1.5 rounded-full text-[13px] font-medium text-zinc-200 hover:text-white transition">
+            <button onClick={onOpenCompleted || onClose} className="px-5 py-1.5 rounded-full text-[13px] font-medium text-zinc-200 hover:text-white transition">
               Completed
             </button>
             <button className="px-5 py-1.5 rounded-full text-[13px] font-semibold bg-white text-black transition">

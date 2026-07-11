@@ -544,7 +544,7 @@ export default function Feed() {
         open={battlesOpen}
         refreshKey={battlesRefresh}
         onClose={() => setBattlesOpen(false)}
-        onOpenActive={() => setActiveChallengesOpen(true)}
+        onOpenActive={() => { setBattlesOpen(false); setActiveChallengesOpen(true) }}
         onOpenUpload={() => { setBattlesOpen(false); requestUpload() }}
         onOpenInbox={() => { setBattlesOpen(false); setInboxOpen(true) }}
         onOpenProfile={() => { setBattlesOpen(false); setProfileOpen(true) }}
@@ -553,6 +553,7 @@ export default function Feed() {
       <ActiveChallengesPage
         open={activeChallengesOpen}
         onClose={() => setActiveChallengesOpen(false)}
+        onOpenCompleted={() => { setActiveChallengesOpen(false); setBattlesOpen(true) }}
         onAccepted={(post) => { handleUploaded(post); setBattlesRefresh((k) => k + 1) }}
         onChanged={refreshChallenges}
       />

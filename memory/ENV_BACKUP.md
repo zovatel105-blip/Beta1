@@ -16,8 +16,8 @@ scripts/seed-core-users.mjs y memory/test_credentials.md).
 ```
 MONGO_URL=mongodb://localhost:27017/twyk
 ADMIN_EMAILS=twyk.apk@gmail.com
-NEXT_PUBLIC_BASE_URL=https://5d62f2da-2914-4b63-9166-d7b42ad0125d.preview.emergentagent.com
-CORS_ORIGINS=https://5d62f2da-2914-4b63-9166-d7b42ad0125d.preview.emergentagent.com
+NEXT_PUBLIC_BASE_URL=https://2b704ff6-8ef2-40eb-bf8c-cd150a9eab1e.preview.emergentagent.com
+CORS_ORIGINS=https://2b704ff6-8ef2-40eb-bf8c-cd150a9eab1e.preview.emergentagent.com
 ```
 
 NOTA: si la URL de preview cambia (nuevo dominio *.preview.emergentagent.com),
