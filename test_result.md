@@ -994,6 +994,12 @@ agent_communication:
         -working: "NA"
         -agent: "main"
         -comment: "NUEVA FEATURE. components/ActiveChallengesPage.jsx: la cabecera solo tenía el control segmentado 'Completed/Active' centrado, sin nada en las esquinas. Cambiado el contenedor de `flex justify-center` a `grid grid-cols-3` (columna izquierda vacía de relleno, columna central con el control segmentado -sigue perfectamente centrado independientemente del ancho de la insignia-, columna derecha con la nueva insignia). Insignia: píldora `bg-black/40 border border-white/15 backdrop-blur-md` (mismo estilo que el resto de botones de cabecera de la app) con icono Swords + `list.length` (recorta a '99+' si supera 99), visible solo cuando `list.length > 0` (se oculta automáticamente si no hay retos pendientes, igual que el badge rojo de BottomNav). No requiere cambios de backend (usa el mismo estado `list` ya cargado por `load()`/GET /api/challenges). Lint limpio (solo el warning preexistente de eslint-disable no usado). NO se usó el agente de testing (petición explícita del usuario en el mismo hilo). Verificado por revisión de código y por logs de supervisor (GET /api/challenges 200 mientras el usuario navegaba en vivo)."
+        -working: "NA"
+        -agent: "user"
+        -comment: "'En la función que se acaba de aplicar también un indicador de posición tipo \"2/5\" (qué reto estás viendo del total, al deslizar verticalmente'. Tras preguntar si debía reemplazar la insignia existente o mantener ambas, el usuario eligió mantener AMBAS insignias juntas."
+        -working: "NA"
+        -agent: "main"
+        -comment: "AMPLIACIÓN. Añadida una segunda píldora a la izquierda de la insignia Swords+total ya existente (misma columna derecha del grid, `gap-2`, mismo estilo `bg-black/40 border border-white/15 backdrop-blur-md`): muestra `{posición actual}/{total}` usando el estado `activeCard` que YA existía (actualizado por `onSlideChange` del Swiper vertical de retos) +1, con `Math.min(activeCard+1, list.length)` para nunca mostrar un número mayor que el total tras aceptar/rechazar un reto (la lista se acorta y activeCard podría quedar momentáneamente desalineado). Se actualiza en vivo al deslizar verticalmente entre retos, igual visibilidad que la insignia de total (`list.length > 0`). Sin cambios de backend. Lint limpio (solo el warning preexistente). NO se usó el agente de testing (petición explícita repetida del usuario)."
 
 agent_communication:
     -agent: "main"

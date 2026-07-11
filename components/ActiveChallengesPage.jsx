@@ -366,8 +366,19 @@ export default function ActiveChallengesPage({ open, onClose, onOpenCompleted, o
               </button>
             </div>
           </div>
-          {/* Right: total count of pending active challenges */}
-          <div className="flex items-center justify-end">
+          {/* Right: current position among pending challenges (updates on vertical swipe) + total count */}
+          <div className="flex items-center justify-end gap-2">
+            {list.length > 0 && (
+              <div
+                aria-label={`Challenge ${Math.min(activeCard + 1, list.length)} of ${list.length}`}
+                className="shrink-0 flex items-center h-9 px-3 rounded-full bg-black/40 border border-white/15 backdrop-blur-md text-white"
+              >
+                <span className="text-[13px] font-bold tabular-nums leading-none">
+                  {Math.min(activeCard + 1, list.length)}
+                </span>
+                <span className="text-[13px] font-medium tabular-nums leading-none text-zinc-400">/{list.length}</span>
+              </div>
+            )}
             {list.length > 0 && (
               <div
                 aria-label={`${list.length} pending challenges`}
