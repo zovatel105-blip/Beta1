@@ -168,12 +168,18 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
 
   const sideA = post.sideA || {
     videoUrl: post.videoUrl,
+    posterUrl: post.posterUrl || post.thumbnailUrl,
+    imageUrl: post.imageUrl,
+    mediaType: post.mediaType,
     author: post.author,
     description: post.description,
     music: post.music,
   }
   const sideB = post.sideB || {
     videoUrl: post.videoUrl,
+    posterUrl: post.posterUrl || post.thumbnailUrl,
+    imageUrl: post.imageUrl,
+    mediaType: post.mediaType,
     author: post.author,
     description: '',
     music: '',
@@ -764,14 +770,18 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
         <button aria-label="mas-opciones" onClick={(e) => { e.stopPropagation(); setMenuOpen(true) }} className="flex flex-col items-center hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
           <MoreVertical className="w-[18px] h-[18px] text-white" strokeWidth={1.25} fill="currentColor" />
         </button>
-        {/* Disco de música (estilo TikTok) — ya NO gira: portada fija + insignia
-            de ondas de audio. Si no hay canción, la portada es el propio vídeo
-            (el lado que suena). */}
+        {/* Disco de música (estilo TikTok) — ya NO gira: portada fija + ondas
+            circulares que emanan alrededor. Si no hay canción, la portada es
+            el propio vídeo (el lado que suena). */}
         <div className="relative mt-1 w-10 h-10 shrink-0">
+          {/* Ondas circulares (ripple) — reemplazan el giro */}
+          <span className="ring-pulse pointer-events-none" style={{ animationDelay: '0s' }} />
+          <span className="ring-pulse pointer-events-none" style={{ animationDelay: '0.6s' }} />
+          <span className="ring-pulse pointer-events-none" style={{ animationDelay: '1.2s' }} />
           <div
             aria-label="music"
             title={hasMusic ? [post.musicTitle, post.musicArtist].filter(Boolean).join(' · ') : undefined}
-            className="w-10 h-10 rounded-full overflow-hidden border border-white/30 bg-gradient-to-br from-zinc-700 to-black flex items-center justify-center"
+            className="relative w-10 h-10 rounded-full overflow-hidden border border-white/30 bg-gradient-to-br from-zinc-700 to-black flex items-center justify-center"
           >
             {hasMusic ? (
               post.musicArtwork ? (
@@ -784,12 +794,6 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
             ) : (
               <Avatar src={headAuthor.avatarUrl} alt="" className="w-6 h-6 rounded-full" />
             )}
-          </div>
-          {/* Insignia de ondas: sustituye el giro, indica audio en curso */}
-          <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-black/85 border border-white/25 flex items-end justify-center gap-[1.5px] pb-[2px]">
-            <span className="bar bar-1 w-[1.5px] h-1.5 bg-white rounded-full" />
-            <span className="bar bar-2 w-[1.5px] h-1.5 bg-white rounded-full" />
-            <span className="bar bar-3 w-[1.5px] h-1.5 bg-white rounded-full" />
           </div>
         </div>
       </div>
