@@ -351,45 +351,53 @@ export default function ActiveChallengesPage({ open, onClose, onOpenCompleted, o
       className="fixed inset-0 z-[58] bg-[#0a0a0b] overflow-hidden"
       onPointerDown={muted ? () => setMuted(false) : undefined}
     >
-      {/* Header — segmented control only */}
+      {/* Header — segmented control (center) + sword/total badge (top-right, back to its
+          original spot per user request). */}
       <div className="absolute top-0 left-0 right-0 z-40 px-6 pb-4 bg-gradient-to-b from-black/70 to-transparent"
            style={{ paddingTop: 'max(env(safe-area-inset-top), 14px)' }}>
-        <div className="flex items-center justify-center">
-          <div className="inline-flex p-1 rounded-full bg-black/40 border border-white/15 backdrop-blur-md">
-            <button onClick={onOpenCompleted || onClose} className="px-5 py-1.5 rounded-full text-[13px] font-medium text-zinc-200 hover:text-white transition">
-              Completed
-            </button>
-            <button className="px-5 py-1.5 rounded-full text-[13px] font-semibold bg-white text-black transition">
-              Active
-            </button>
+        <div className="grid grid-cols-3 items-center">
+          <div />
+          <div className="flex items-center justify-center">
+            <div className="inline-flex p-1 rounded-full bg-black/40 border border-white/15 backdrop-blur-md">
+              <button onClick={onOpenCompleted || onClose} className="px-5 py-1.5 rounded-full text-[13px] font-medium text-zinc-200 hover:text-white transition">
+                Completed
+              </button>
+              <button className="px-5 py-1.5 rounded-full text-[13px] font-semibold bg-white text-black transition">
+                Active
+              </button>
+            </div>
+          </div>
+          <div className="flex items-center justify-end">
+            {list.length > 0 && (
+              <div
+                aria-label={`${list.length} pending challenges`}
+                className="shrink-0 flex items-center gap-1.5 h-9 pl-2.5 pr-3 rounded-full bg-black/40 border border-white/15 backdrop-blur-md text-white"
+              >
+                <Swords className="w-3.5 h-3.5" strokeWidth={2} />
+                <span className="text-[13px] font-bold tabular-nums leading-none">
+                  {list.length > 99 ? '99+' : list.length}
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Right-middle vertical indicators: current position among pending challenges
-          (updates on vertical swipe) + total count. Positioned like the side icon
-          rail of Reels/TikTok — fixed on the right, vertically centered. */}
+      {/* Right-middle indicator: current position among pending challenges
+          (updates on vertical swipe) — thin VERTICAL pill (narrow width, taller
+          than wide, content stacked top-to-bottom) per user request. */}
       {list.length > 0 && (
-        <div className="absolute right-3 top-1/2 -translate-y-1/2 z-40 flex flex-col items-center gap-2.5">
+        <div className="absolute right-3 top-1/2 -translate-y-1/2 z-40">
           <div
             aria-label={`Challenge ${Math.min(activeCard + 1, list.length)} of ${list.length}`}
-            className="shrink-0 flex flex-col items-center justify-center w-11 h-11 rounded-full bg-black/40 border border-white/15 backdrop-blur-md text-white"
+            className="shrink-0 flex flex-col items-center justify-center w-7 py-2.5 rounded-full bg-black/40 border border-white/15 backdrop-blur-md text-white"
           >
-            <span className="text-[13px] font-bold tabular-nums leading-none">
+            <span className="text-[12px] font-bold tabular-nums leading-none">
               {Math.min(activeCard + 1, list.length)}
             </span>
-            <span className="w-3 h-px bg-white/25 my-[3px]" />
+            <span className="w-2.5 h-px bg-white/25 my-1.5" />
             <span className="text-[11px] font-medium tabular-nums leading-none text-zinc-400">
               {list.length}
-            </span>
-          </div>
-          <div
-            aria-label={`${list.length} pending challenges`}
-            className="shrink-0 flex flex-col items-center justify-center w-11 h-11 rounded-full bg-black/40 border border-white/15 backdrop-blur-md text-white"
-          >
-            <Swords className="w-4 h-4" strokeWidth={2} />
-            <span className="text-[11px] font-bold tabular-nums leading-none mt-0.5">
-              {list.length > 99 ? '99+' : list.length}
             </span>
           </div>
         </div>
