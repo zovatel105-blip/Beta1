@@ -390,9 +390,9 @@ export default function ActiveChallengesPage({ open, onClose, onOpenCompleted, o
         <div className="absolute right-2.5 top-1/2 -translate-y-1/2 z-40">
           <div
             aria-label={`Swipe down for the next challenge (${activeCard + 2} of ${list.length})`}
-            className="shrink-0 flex items-center justify-center w-4 h-9 rounded-full bg-black/30 border border-white/10 backdrop-blur-md text-white/70"
+            className="shrink-0 flex items-center justify-center w-5 h-10 rounded-full bg-black/30 border border-white/10 backdrop-blur-md text-white/70"
           >
-            <ChevronDown className="w-3 h-3 animate-bounce" strokeWidth={2.5} />
+            <ChevronDown className="w-4 h-4 animate-bounce" strokeWidth={2.5} />
           </div>
         </div>
       )}
