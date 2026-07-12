@@ -696,22 +696,32 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
         <button aria-label="mas-opciones" onClick={(e) => { e.stopPropagation(); setMenuOpen(true) }} className="flex flex-col items-center hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
           <MoreVertical className="w-[18px] h-[18px] text-white" strokeWidth={1.25} fill="currentColor" />
         </button>
-        {/* Disco de música giratorio (estilo TikTok) — muestra la carátula de la canción si hay música */}
-        <div
-          aria-label="music"
-          title={hasMusic ? [post.musicTitle, post.musicArtist].filter(Boolean).join(' · ') : undefined}
-          className="mt-1 w-10 h-10 rounded-full overflow-hidden border border-white/30 bg-gradient-to-br from-zinc-700 to-black flex items-center justify-center shrink-0"
-          style={{ animation: 'spin 6s linear infinite' }}
-        >
-          {hasMusic ? (
-            post.musicArtwork ? (
-              <img src={post.musicArtwork} alt="" className="w-full h-full object-cover" />
+        {/* Disco de música (estilo TikTok) — ya NO gira: portada fija + insignia
+            de ondas de audio. Si no hay canción, la portada es el propio vídeo. */}
+        <div className="relative mt-1 w-10 h-10 shrink-0">
+          <div
+            aria-label="music"
+            title={hasMusic ? [post.musicTitle, post.musicArtist].filter(Boolean).join(' · ') : undefined}
+            className="w-10 h-10 rounded-full overflow-hidden border border-white/30 bg-gradient-to-br from-zinc-700 to-black flex items-center justify-center"
+          >
+            {hasMusic ? (
+              post.musicArtwork ? (
+                <img src={post.musicArtwork} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <Music size={16} className="text-white" />
+              )
+            ) : (current.posterUrl || current.imageUrl || post.posterUrl || post.thumbnailUrl) ? (
+              <img src={current.posterUrl || current.imageUrl || post.posterUrl || post.thumbnailUrl} alt="" className="w-full h-full object-cover" />
             ) : (
-              <Music size={16} className="text-white" />
-            )
-          ) : (
-            <Avatar src={headAuthor.avatarUrl} alt="" className="w-6 h-6 rounded-full" />
-          )}
+              <Avatar src={headAuthor.avatarUrl} alt="" className="w-6 h-6 rounded-full" />
+            )}
+          </div>
+          {/* Insignia de ondas: sustituye el giro, indica audio en curso */}
+          <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-black/85 border border-white/25 flex items-end justify-center gap-[1.5px] pb-[2px]">
+            <span className="bar bar-1 w-[1.5px] h-1.5 bg-white rounded-full" />
+            <span className="bar bar-2 w-[1.5px] h-1.5 bg-white rounded-full" />
+            <span className="bar bar-3 w-[1.5px] h-1.5 bg-white rounded-full" />
+          </div>
         </div>
       </div>
 
