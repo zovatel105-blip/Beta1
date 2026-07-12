@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Swiper, SwiperSlide } from 'swiper/react'
 import { Mousewheel, Keyboard } from 'swiper/modules'
 import 'swiper/css'
-import { Swords, Check, X, Loader2, Film } from 'lucide-react'
+import { Swords, Check, X, Loader2, Film, ChevronDown } from 'lucide-react'
 import Avatar from './Avatar'
 
 /**
@@ -383,22 +383,16 @@ export default function ActiveChallengesPage({ open, onClose, onOpenCompleted, o
         </div>
       </div>
 
-      {/* Right-middle indicator: current position among pending challenges
-          (updates on vertical swipe) — thin VERTICAL pill (narrow width, taller
-          than wide, content stacked top-to-bottom) per user request. */}
-      {list.length > 0 && (
-        <div className="absolute right-3 top-1/2 -translate-y-1/2 z-40">
+      {/* Right-middle indicator: only a slim, animated hint arrow when there
+          is another challenge below in the vertical scroll (hidden on the
+          last card, since there's nothing further to swipe to). */}
+      {list.length > 1 && activeCard < list.length - 1 && (
+        <div className="absolute right-2.5 top-1/2 -translate-y-1/2 z-40">
           <div
-            aria-label={`Challenge ${Math.min(activeCard + 1, list.length)} of ${list.length}`}
-            className="shrink-0 flex flex-col items-center justify-center w-7 py-2.5 rounded-full bg-black/40 border border-white/15 backdrop-blur-md text-white"
+            aria-label={`Swipe down for the next challenge (${activeCard + 2} of ${list.length})`}
+            className="shrink-0 flex items-center justify-center w-4 h-9 rounded-full bg-black/30 border border-white/10 backdrop-blur-md text-white/70"
           >
-            <span className="text-[12px] font-bold tabular-nums leading-none">
-              {Math.min(activeCard + 1, list.length)}
-            </span>
-            <span className="w-2.5 h-px bg-white/25 my-1.5" />
-            <span className="text-[11px] font-medium tabular-nums leading-none text-zinc-400">
-              {list.length}
-            </span>
+            <ChevronDown className="w-3 h-3 animate-bounce" strokeWidth={2.5} />
           </div>
         </div>
       )}
