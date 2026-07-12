@@ -220,7 +220,7 @@ const ChallengeSlide = ({ c, active, busy, onAccept, onReject, muted }) => {
       {/* Compact bottom panel (fixed, does not move with the carousel) */}
       <div className="absolute inset-x-0 bottom-0 z-20 px-4 pt-8"
            style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 14px)' }}>
-        {/* Carousel dots */}
+        {/* Carousel dots — slim */}
         {videos.length > 1 && (
           <div className="flex items-center justify-center gap-1.5 mb-2.5">
             {videos.map((_, i) => (
@@ -228,7 +228,7 @@ const ChallengeSlide = ({ c, active, busy, onAccept, onReject, muted }) => {
                 key={i}
                 aria-label={`video ${i + 1}`}
                 onClick={() => innerRef.current?.slideTo(i)}
-                className={`rounded-full transition-all duration-200 ${idx === i ? 'w-5 h-1.5 bg-white' : 'w-1.5 h-1.5 bg-white/40'}`}
+                className={`rounded-full transition-all duration-200 ${idx === i ? 'w-5 h-[3px] bg-white' : 'w-[3px] h-[3px] bg-white/40'}`}
               />
             ))}
           </div>
