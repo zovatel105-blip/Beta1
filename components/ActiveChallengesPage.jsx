@@ -234,7 +234,7 @@ const ChallengeSlide = ({ c, active, busy, onAccept, onReject, muted }) => {
           </div>
         )}
 
-        <div className="rounded-2xl border border-white/10 bg-black/40 backdrop-blur-xl px-3 py-2.5">
+        <div className="px-3 py-2.5">
           {/* Participants on a single compact line */}
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-2 min-w-0 flex-1">
