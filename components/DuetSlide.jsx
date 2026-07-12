@@ -878,6 +878,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
         optionA={sideA}
         optionB={sideB}
         initialIndex={contentIdx}
+        muted={globalMuted}
         onClose={() => setShowContent(false)}
       />
 

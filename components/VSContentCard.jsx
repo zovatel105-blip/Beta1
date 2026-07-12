@@ -8,7 +8,7 @@ import { ArrowLeft } from 'lucide-react'
  * OptionMedia — muestra el contenido (vídeo/imagen) de una opción del duelo.
  * Solo el contenido puro: sin nombre de usuario ni título/descripción superpuestos.
  */
-function OptionMedia({ option, active }) {
+function OptionMedia({ option, active, muted }) {
   const ref = useRef(null)
 
   useEffect(() => {
@@ -21,6 +21,13 @@ function OptionMedia({ option, active }) {
     }
   }, [active])
 
+  // Aplicar/actualizar el estado de silencio en vivo (sin recrear el <video>),
+  // igual que en el resto del feed: sigue el toggle global de sonido.
+  useEffect(() => {
+    const v = ref.current
+    if (v) v.muted = !!muted
+  }, [muted, active])
+
   if (!option) return <div className="min-w-full h-full bg-black" />
 
   return (
@@ -29,7 +36,7 @@ function OptionMedia({ option, active }) {
         <video
           ref={ref}
           src={option.videoUrl}
-          muted
+          muted={muted}
           loop
           playsInline
           className="w-full h-full object-cover"
@@ -54,6 +61,7 @@ export default function VSContentCard({
   optionA = null,
   optionB = null,
   initialIndex = 0,
+  muted = false,
   onClose,
 }) {
   const scrollerRef = useRef(null)
@@ -124,7 +132,7 @@ export default function VSContentCard({
           style={{ scrollbarWidth: 'none' }}
         >
           {slides.map((opt, i) => (
-            <OptionMedia key={i} option={opt} active={i === activeIdx} />
+            <OptionMedia key={i} option={opt} active={i === activeIdx} muted={muted} />
           ))}
         </div>
 
