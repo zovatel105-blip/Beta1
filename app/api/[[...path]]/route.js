@@ -29,6 +29,7 @@ import {
   markAllNotificationsAsRead,
   getUnreadNotificationsCount,
   updateVoteNotificationOnSwitch,
+  updateCommentsVotedSideForUser,
   toggleFollowByUsername,
   isFollowingByUsername,
   getFollowingUsernames,
@@ -1381,6 +1382,12 @@ async function handleVote(request) {
     //    si no existe una publicación versus/duet con ese id).
     const updated = await incrementPostVote(id, side, previousSide)
     if (updated) {
+      // Mantener sincronizados los comentarios ya publicados por este mismo
+      // usuario en esta publicación: si cambia de opción, sus comentarios
+      // anteriores deben mostrar el nuevo lado votado (punto de color).
+      if (currentUser?.id && !isNoOp) {
+        updateCommentsVotedSideForUser(id, currentUser.id, side).catch(() => {})
+      }
       // TWYK Engine: aprende del voto (velocity trending + BPR pairwise). Se
       // omite en un re-toque de la misma opción ya votada (no hay voto nuevo).
       if (!isNoOp) recordVote(updated, side, viewerKey, voteCtx).catch(() => {})
@@ -1433,6 +1440,11 @@ async function handleVote(request) {
     // 2) Posts del feed integrado (demo) -> incremento/cambio ATÓMICO en
     //    `votes`, sembrando con seedVotes la primera vez que se vota.
     const votes = await incrementBuiltinVote(id, side, seedVotes(id), previousSide)
+    // Igual que arriba: sincroniza el color del voto en los comentarios
+    // previos de este usuario en este post demo si cambió de opción.
+    if (currentUser?.id && !isNoOp) {
+      updateCommentsVotedSideForUser(id, currentUser.id, side).catch(() => {})
+    }
     // TWYK Engine: reconstruye el post demo (determinista por id) y aprende
     // (se omite en un re-toque de la misma opción).
     if (!isNoOp) {

@@ -135,7 +135,12 @@ export default function CommentsModal({ open, postId, onClose, votedSide = null,
           ) : (
             <div className="space-y-3">
               {comments.map((c) => {
-                const color = sideColor(c.votedSide)
+                // Para mis propios comentarios, el punto de color sigue el
+                // voto ACTUAL (prop en vivo), no el que tenía guardado al
+                // momento de comentar, para que se actualice al instante si
+                // cambio de opción sin esperar a recargar la lista.
+                const effectiveSide = c.isOwn && votedSide ? votedSide : c.votedSide
+                const color = sideColor(effectiveSide)
                 return (
                   <div key={c.id} className="flex gap-3">
                     {/* Avatar */}
