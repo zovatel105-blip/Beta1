@@ -35,6 +35,15 @@ export default function ChallengeDialog({ open, onClose, target, onSubmit }) {
 
   if (!open) return null
 
+  // El contenido retado ya tiene un tipo de media fijo (vídeo o foto): tu
+  // respuesta DEBE ser del MISMO tipo (vídeo<->vídeo, foto<->foto). Si es un
+  // reto "de mención" (sin contenido concreto, target.videoUrl === ''), no
+  // hay tipo que igualar: se permite subir vídeo O foto libremente.
+  const hasTargetMedia = !!(target?.videoUrl || target?.imageUrl)
+  const targetIsImage = target?.mediaType === 'image'
+  const requiredAccept = !hasTargetMedia ? 'video/*,image/*' : (targetIsImage ? 'image/*' : 'video/*')
+  const requiredLabel = targetIsImage ? 'photo' : 'video'
+
   const pickFile = () => inputRef.current?.click()
 
   const handleFileChange = (e) => {
@@ -43,6 +52,12 @@ export default function ChallengeDialog({ open, onClose, target, onSubmit }) {
     const isImg = f.type.startsWith('image/')
     const isVid = f.type.startsWith('video/')
     if (!isImg && !isVid) { setError('Select a video or photo'); return }
+    // Debe coincidir con el tipo del contenido retado (solo aplica cuando
+    // el reto ya tiene un contenido concreto que enfrentar).
+    if (hasTargetMedia && ((targetIsImage && !isImg) || (!targetIsImage && !isVid))) {
+      setError(`@${target?.author?.username || 'this'} challenge is a ${requiredLabel} — upload a ${requiredLabel} to match`)
+      return
+    }
     const maxMB = isImg ? 15 : 80
     if (f.size > maxMB * 1024 * 1024) { setError(`Maximum ${maxMB}MB`); return }
     setError(null)
@@ -53,14 +68,13 @@ export default function ChallengeDialog({ open, onClose, target, onSubmit }) {
   // segundo plano. El modal se cierra al instante y el usuario puede seguir
   // descubriendo contenido mientras se envía.
   const doSend = () => {
-    if (!file || !target) { setError('Upload your video or photo to challenge'); return }
+    if (!file || !target) { setError(hasTargetMedia ? `Upload your ${requiredLabel} to challenge` : 'Upload your video or photo to challenge'); return }
     onSubmit?.({ file, target, message })
     onClose()
   }
 
   const username = target?.author?.username || 'rival'
   const fileIsImage = !!file && file.type?.startsWith('image/')
-  const targetIsImage = target?.mediaType === 'image'
   const targetMediaUrl = target?.posterUrl || target?.imageUrl || target?.videoUrl || null
 
   return (
@@ -104,7 +118,7 @@ export default function ChallengeDialog({ open, onClose, target, onSubmit }) {
           <>
               {/* Enfrentamiento: tu vídeo (A, morado) vs el contenido retado (B, azul) */}
               <div className="relative grid grid-cols-2 gap-3.5">
-                <input ref={inputRef} type="file" accept="video/*,image/*" className="hidden" onChange={handleFileChange} />
+                <input ref={inputRef} type="file" accept={requiredAccept} className="hidden" onChange={handleFileChange} />
 
                 {/* Tu vídeo */}
                 <button
@@ -136,8 +150,12 @@ export default function ChallengeDialog({ open, onClose, target, onSubmit }) {
                         <Upload size={22} style={{ color: PURPLE }} strokeWidth={2} />
                       </span>
                       <div className="text-center leading-tight">
-                        <p className="text-[12px] font-semibold text-zinc-900">Upload your video or photo</p>
-                        <p className="text-[10.5px] text-zinc-500 mt-0.5">Record or pick one</p>
+                        <p className="text-[12px] font-semibold text-zinc-900">
+                          {hasTargetMedia ? `Upload your ${requiredLabel}` : 'Upload your video or photo'}
+                        </p>
+                        <p className="text-[10.5px] text-zinc-500 mt-0.5">
+                          {hasTargetMedia ? `@${username} challenged with a ${requiredLabel} — match it` : 'Record or pick one'}
+                        </p>
                       </div>
                     </div>
                   )}
