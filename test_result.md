@@ -1000,6 +1000,12 @@ agent_communication:
         -working: "NA"
         -agent: "main"
         -comment: "AMPLIACIÓN. Añadida una segunda píldora a la izquierda de la insignia Swords+total ya existente (misma columna derecha del grid, `gap-2`, mismo estilo `bg-black/40 border border-white/15 backdrop-blur-md`): muestra `{posición actual}/{total}` usando el estado `activeCard` que YA existía (actualizado por `onSlideChange` del Swiper vertical de retos) +1, con `Math.min(activeCard+1, list.length)` para nunca mostrar un número mayor que el total tras aceptar/rechazar un reto (la lista se acorta y activeCard podría quedar momentáneamente desalineado). Se actualiza en vivo al deslizar verticalmente entre retos, igual visibilidad que la insignia de total (`list.length > 0`). Sin cambios de backend. Lint limpio (solo el warning preexistente). NO se usó el agente de testing (petición explícita repetida del usuario)."
+        -working: "NA"
+        -agent: "user"
+        -comment: "'Esa información ponerla a la derecha en el medio como si fueran indicadores'."
+        -working: "NA"
+        -agent: "main"
+        -comment: "REPOSICIONAMIENTO. Sacadas ambas píldoras (posición '2/5' y Swords+total) de la cabecera superior; la cabecera vuelve a ser solo el control segmentado 'Completed/Active' centrado (`flex justify-center`, sin el grid de 3 columnas que ya no hace falta). Nuevo bloque `absolute right-3 top-1/2 -translate-y-1/2 z-40` con `flex-col items-center gap-2.5`: apila verticalmente las DOS píldoras (ahora circulares, `w-11 h-11`, con el número arriba/abajo dentro del mismo círculo separado por una línea sutil para la de posición, e icono Swords+total para la otra) fijas en el lado derecho de la pantalla y centradas verticalmente -al estilo de la barra de iconos lateral de Reels/TikTok, 'como indicadores'-, en vez de estar en la cabecera junto al control segmentado. Mismo contenido/lógica que antes (activeCard+1/list.length y list.length), solo cambia la posición y la forma (circular en vez de píldora horizontal). Lint limpio (solo el warning preexistente). NO se usó el agente de testing (petición explícita repetida del usuario)."
 
 agent_communication:
     -agent: "main"
