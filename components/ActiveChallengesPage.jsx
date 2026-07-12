@@ -177,7 +177,7 @@ const ChallengeSlide = ({ c, active, busy, onAccept, onReject, muted }) => {
                     className="absolute top-[72px] left-4 z-10 text-[11px] font-bold bg-black/45 backdrop-blur rounded-full px-2.5 py-1"
                     style={{ color: v.tagColor }}
                   >
-                    {v.tag} · @{v.author?.username}
+                    @{v.author?.username}
                   </span>
                   {/* If it's my freshly uploaded response, allow changing it */}
                   {v.isResponse && needsVideo && (
@@ -196,7 +196,7 @@ const ChallengeSlide = ({ c, active, busy, onAccept, onReject, muted }) => {
                   className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-zinc-900 active:bg-zinc-800 transition"
                 >
                   <span className="absolute top-[72px] left-4 z-10 text-[11px] font-bold bg-black/45 backdrop-blur rounded-full px-2.5 py-1 text-white">
-                    B · @{c.to?.username}
+                    @{c.to?.username}
                   </span>
                   <div className="w-16 h-16 rounded-full border border-white/15 bg-white/[0.04] flex items-center justify-center">
                     <Film className="w-7 h-7 text-zinc-400" strokeWidth={1.5} />
