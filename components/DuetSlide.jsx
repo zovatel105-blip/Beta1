@@ -185,6 +185,9 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
   // Reto 1vs1: cabecera con los DOS creadores (avatar + nombre de cada lado)
   const authorA = sideA.author || post.author || {}
   const authorB = sideB.author || post.author || {}
+  // El "vs" se ubica junto al nombre MÁS CORTO de los dos (arriba si el corto
+  // es A, abajo si el corto es B), para no forzar el recorte del nombre largo.
+  const shortNameIsA = (authorA.username || authorA.name || '').length <= (authorB.username || authorB.name || '').length
 
   // Sincroniza "Following" con el dato del servidor (headAuthor.isFollowing)
   // para que persista tras recargar y al reciclarse la tarjeta del feed.
@@ -651,11 +654,15 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
                   <Avatar src={authorA.avatarUrl} alt={authorA.username} className="w-full h-full" />
                 </button>
               </div>
-              <div className="flex flex-col min-w-0 max-w-[160px] leading-tight">
-                <span onClick={(e) => { e.stopPropagation(); onOpenProfile?.(authorA.username) }} className="text-white font-semibold text-[14px] drop-shadow-md truncate cursor-pointer">
-                  {authorA.username || authorA.name} <span className="font-light">vs</span>
+              <div className="flex flex-col min-w-0 leading-tight">
+                {/* Nombres completos (sin truncar); el "vs" se coloca junto al
+                    nombre más corto: arriba DESPUÉS del nombre, abajo ANTES. */}
+                <span onClick={(e) => { e.stopPropagation(); onOpenProfile?.(authorA.username) }} className="text-white font-semibold text-[14px] drop-shadow-md whitespace-nowrap cursor-pointer">
+                  {authorA.username || authorA.name}
+                  {shortNameIsA && <span className="font-light"> vs</span>}
                 </span>
-                <span onClick={(e) => { e.stopPropagation(); onOpenProfile?.(authorB.username) }} className="text-white font-semibold text-[14px] drop-shadow-md truncate cursor-pointer">
+                <span onClick={(e) => { e.stopPropagation(); onOpenProfile?.(authorB.username) }} className="text-white font-semibold text-[14px] drop-shadow-md whitespace-nowrap cursor-pointer">
+                  {!shortNameIsA && <span className="font-light">vs </span>}
                   {authorB.username || authorB.name}
                 </span>
               </div>
