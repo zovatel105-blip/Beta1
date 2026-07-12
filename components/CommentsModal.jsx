@@ -143,14 +143,8 @@ export default function CommentsModal({ open, postId, onClose, votedSide = null,
                       <Avatar src={c.author?.avatarUrl} alt={c.author?.username || ''} className="w-full h-full rounded-full" />
                     </div>
 
-                    {/* Burbuja coloreada por equipo */}
-                    <div
-                      className="flex-1 min-w-0 rounded-2xl px-3.5 py-2.5"
-                      style={{
-                        backgroundColor: color ? `${color}14` : '#f4f4f5',
-                        borderLeft: color ? `3px solid ${color}` : '3px solid transparent',
-                      }}
-                    >
+                    {/* Burbuja neutral: el color del voto solo se indica con el punto, no con el marco */}
+                    <div className="flex-1 min-w-0 rounded-2xl px-3.5 py-2.5 bg-zinc-100">
                       <div className="flex items-center gap-1.5 mb-0.5">
                         {color && (
                           <span className="inline-block w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
