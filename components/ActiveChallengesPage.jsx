@@ -371,10 +371,10 @@ export default function ActiveChallengesPage({ open, onClose, onOpenCompleted, o
             {list.length > 0 && (
               <div
                 aria-label={`${list.length} pending challenges`}
-                className="shrink-0 flex items-center gap-1.5 h-9 pl-2.5 pr-3 rounded-full bg-black/40 border border-white/15 backdrop-blur-md text-white"
+                className="shrink-0 flex flex-col items-center justify-center w-9 h-9 rounded-full bg-black/40 border border-white/15 backdrop-blur-md text-white"
               >
                 <Swords className="w-3.5 h-3.5" strokeWidth={2} />
-                <span className="text-[13px] font-bold tabular-nums leading-none">
+                <span className="text-[9px] font-bold tabular-nums leading-none mt-px">
                   {list.length > 99 ? '99+' : list.length}
                 </span>
               </div>

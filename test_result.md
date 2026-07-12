@@ -1018,6 +1018,19 @@ agent_communication:
         -working: "NA"
         -agent: "main"
         -comment: "AJUSTE DE FORMA. components/ActiveChallengesPage.jsx: el indicador de posición cambia de píldora horizontal (`h-9 px-3.5`, contenido en fila 'N / M') a píldora VERTICAL estrecha: `w-7 py-2.5 rounded-full` con `flex-col items-center justify-center` (ancho fijo de 28px, alto determinado por el padding vertical + 2 líneas de texto -> más alta que ancha, esquinas totalmente redondeadas = forma de cápsula/pastilla vertical). Contenido apilado de arriba a abajo: número de posición actual (bold), una línea divisoria fina horizontal (`w-2.5 h-px bg-white/25`), y el total (color atenuado) debajo — mismo patrón visual que el círculo de una iteración anterior, pero ahora en una cápsula vertical estrecha en vez de un círculo. Se mantiene en el mismo sitio (lado derecho, centro vertical de la pantalla) y la insignia de espada+total sigue en la cabecera (sin tocar). Lint limpio (solo el warning preexistente). NO se usó el agente de testing (petición explícita repetida del usuario)."
+        -working: "NA"
+        -agent: "user"
+        -comment: "'La espada con el número en forma de círculo como estaba en un principio'. Pide que la insignia de espada+total (actualmente píldora horizontal en la cabecera) vuelva a ser CIRCULAR (icono arriba, número debajo dentro del mismo círculo), como en la iteración en la que ambos indicadores eran círculos apilados a la derecha."
+        -working: "NA"
+        -agent: "main"
+        -comment: "AJUSTE DE FORMA. components/ActiveChallengesPage.jsx: la insignia Swords+total de la cabecera (columna derecha del grid, sin mover de sitio) cambió de píldora horizontal (`h-9 pl-2.5 pr-3`, icono+número en fila) a CÍRCULO (`flex-col items-center justify-center`): icono Swords arriba, número (recortado a '99+' si supera 99) debajo. El indicador de posición '2/5' (cápsula vertical fina, lado derecho-centro) no se tocó. Lint limpio. NO se usó el agente de testing."
+        -working: "NA"
+        -agent: "user"
+        -comment: "'El círculo del mismo tamaño que el + de completados'. El círculo de espada+total debe tener el mismo tamaño que el botón '+' (añadir reto) de la cabecera de CompletedBattlesPage.jsx (`w-9 h-9`, 36px)."
+        -working: "NA"
+        -agent: "main"
+        -comment: "AJUSTE DE TAMAÑO. components/ActiveChallengesPage.jsx: el círculo Swords+total cambió de `w-11 h-11` (44px) a `w-9 h-9` (36px), igual que el botón '+' `w-9 h-9` de components/CompletedBattlesPage.jsx (revisado el código de ese archivo para confirmar el tamaño exacto). Para que el icono+número sigan cabiendo dentro del círculo más pequeño, se redujo el icono Swords de `w-4 h-4` a `w-3.5 h-3.5` y el texto del número de `text-[11px]` a `text-[9px]` (con `mt-px` en vez de `mt-0.5` para menos espacio entre icono y número). Lint limpio (solo el warning preexistente de eslint-disable no usado). NO se usó el agente de testing (petición explícita repetida del usuario). Verificado por logs de supervisor en vivo (GET /api/challenges, /api/notifications/unread, /api/challenges/completed -> 200 mientras el usuario navegaba con la sesión twykadmin)."
+
 
 agent_communication:
     -agent: "main"
