@@ -137,6 +137,10 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
   // Música adjunta (preview de iTunes, 30s). Si existe, el vídeo va en mute y
   // suena la música; respeta el toggle global de sonido del feed.
   const hasMusic = !!post.musicPreviewUrl
+  // Audio realmente sonando ahora mismo (música O el propio vídeo sin mute):
+  // misma condición que controla el play() del audio/vídeo más abajo. Las
+  // ondas del disco solo deben animarse mientras esto sea true.
+  const isAudioPlaying = isActive && playbackEnabled && !showWinner && !globalMuted
 
   // Sincroniza el estado de seguimiento con el dato del servidor
   // (headAuthor.isFollowing) para que "Following" persista tras recargar y al
@@ -697,13 +701,17 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
           <MoreVertical className="w-[18px] h-[18px] text-white" strokeWidth={1.25} fill="currentColor" />
         </button>
         {/* Disco de música (estilo TikTok) — ya NO gira: portada fija + ondas
-            circulares que emanan alrededor. Si no hay canción, la portada es
-            el propio vídeo. */}
+            circulares que emanan alrededor SOLO mientras se escucha audio.
+            Si no hay canción, la portada es el propio vídeo. */}
         <div className="relative mt-1 w-10 h-10 shrink-0">
-          {/* Ondas circulares (ripple) — reemplazan el giro */}
-          <span className="ring-pulse pointer-events-none" style={{ animationDelay: '0s' }} />
-          <span className="ring-pulse pointer-events-none" style={{ animationDelay: '0.6s' }} />
-          <span className="ring-pulse pointer-events-none" style={{ animationDelay: '1.2s' }} />
+          {/* Ondas circulares (ripple) — solo con audio sonando */}
+          {isAudioPlaying && (
+            <>
+              <span className="ring-pulse pointer-events-none" style={{ animationDelay: '0s' }} />
+              <span className="ring-pulse pointer-events-none" style={{ animationDelay: '0.6s' }} />
+              <span className="ring-pulse pointer-events-none" style={{ animationDelay: '1.2s' }} />
+            </>
+          )}
           <div
             aria-label="music"
             title={hasMusic ? [post.musicTitle, post.musicArtist].filter(Boolean).join(' · ') : undefined}

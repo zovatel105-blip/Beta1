@@ -188,6 +188,10 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
   // Author principal mostrado en la cabecera (igual que en publicaciones normales)
   const headAuthor = sideA.author || post.author || {}
   const hasMusic = !!post.musicPreviewUrl
+  // Audio realmente sonando ahora mismo (música O los vídeos A/B sin mute):
+  // misma condición usada más abajo para decidir el play(). Las ondas del
+  // disco solo deben animarse mientras esto sea true.
+  const isAudioPlaying = isActive && playbackEnabled && !showWinner && !showContent && !globalMuted
   // Reto 1vs1: cabecera con los DOS creadores (avatar + nombre de cada lado)
   const authorA = sideA.author || post.author || {}
   const authorB = sideB.author || post.author || {}
@@ -771,13 +775,17 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
           <MoreVertical className="w-[18px] h-[18px] text-white" strokeWidth={1.25} fill="currentColor" />
         </button>
         {/* Disco de música (estilo TikTok) — ya NO gira: portada fija + ondas
-            circulares que emanan alrededor. Si no hay canción, la portada es
-            el propio vídeo (el lado que suena). */}
+            circulares que emanan alrededor SOLO mientras se escucha audio.
+            Si no hay canción, la portada es el propio vídeo (el lado que suena). */}
         <div className="relative mt-1 w-10 h-10 shrink-0">
-          {/* Ondas circulares (ripple) — reemplazan el giro */}
-          <span className="ring-pulse pointer-events-none" style={{ animationDelay: '0s' }} />
-          <span className="ring-pulse pointer-events-none" style={{ animationDelay: '0.6s' }} />
-          <span className="ring-pulse pointer-events-none" style={{ animationDelay: '1.2s' }} />
+          {/* Ondas circulares (ripple) — solo con audio sonando */}
+          {isAudioPlaying && (
+            <>
+              <span className="ring-pulse pointer-events-none" style={{ animationDelay: '0s' }} />
+              <span className="ring-pulse pointer-events-none" style={{ animationDelay: '0.6s' }} />
+              <span className="ring-pulse pointer-events-none" style={{ animationDelay: '1.2s' }} />
+            </>
+          )}
           <div
             aria-label="music"
             title={hasMusic ? [post.musicTitle, post.musicArtist].filter(Boolean).join(' · ') : undefined}
