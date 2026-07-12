@@ -139,8 +139,11 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
   const hasMusic = !!post.musicPreviewUrl
   // Audio realmente sonando ahora mismo (música O el propio vídeo sin mute):
   // misma condición que controla el play() del audio/vídeo más abajo. Las
-  // ondas del disco solo deben animarse mientras esto sea true.
-  const isAudioPlaying = isActive && playbackEnabled && !showWinner && !globalMuted
+  // ondas del disco solo deben animarse mientras esto sea true. Si hay
+  // música adjunta, su <audio> es independiente del tap de play/pausa del
+  // vídeo (por eso NO se corta con `paused`); si el audio es el del propio
+  // vídeo, sí debe detenerse en cuanto el usuario lo pausa.
+  const isAudioPlaying = isActive && playbackEnabled && !showWinner && !globalMuted && (hasMusic || !paused)
 
   // Sincroniza el estado de seguimiento con el dato del servidor
   // (headAuthor.isFollowing) para que "Following" persista tras recargar y al

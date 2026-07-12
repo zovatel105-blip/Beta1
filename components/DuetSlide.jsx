@@ -190,8 +190,11 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
   const hasMusic = !!post.musicPreviewUrl
   // Audio realmente sonando ahora mismo (música O los vídeos A/B sin mute):
   // misma condición usada más abajo para decidir el play(). Las ondas del
-  // disco solo deben animarse mientras esto sea true.
-  const isAudioPlaying = isActive && playbackEnabled && !showWinner && !showContent && !globalMuted
+  // disco solo deben animarse mientras esto sea true. Si hay música
+  // adjunta, su <audio> es independiente del tap de play/pausa de los
+  // vídeos (por eso NO se corta con `paused`); si el audio es el de los
+  // propios vídeos, sí debe detenerse en cuanto el usuario los pausa.
+  const isAudioPlaying = isActive && playbackEnabled && !showWinner && !showContent && !globalMuted && (hasMusic || !paused)
   // Reto 1vs1: cabecera con los DOS creadores (avatar + nombre de cada lado)
   const authorA = sideA.author || post.author || {}
   const authorB = sideB.author || post.author || {}
