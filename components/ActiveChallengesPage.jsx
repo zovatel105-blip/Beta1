@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Swiper, SwiperSlide } from 'swiper/react'
 import { Mousewheel, Keyboard } from 'swiper/modules'
 import 'swiper/css'
-import { Swords, Check, X, Loader2, Film, ChevronDown } from 'lucide-react'
+import { Swords, Check, X, Loader2, Film, ChevronDown, Image as ImageIcon } from 'lucide-react'
 import Avatar from './Avatar'
 
 /**
@@ -34,6 +34,7 @@ const ChallengeSlide = ({ c, active, busy, onAccept, onReject, muted }) => {
   const pendingAcceptRef = useRef(false)
   const [responseFile, setResponseFile] = useState(null)
   const [responsePreview, setResponsePreview] = useState(null)
+  const [typeError, setTypeError] = useState(null)
   // Refs to the 2 <video> elements (A and B). src is assigned IMPERATIVELY
   // (see effect below) — never declared in JSX — so that only the video that
   // is BOTH (a) on the challenge card currently visible in the vertical
@@ -70,6 +71,11 @@ const ChallengeSlide = ({ c, active, busy, onAccept, onReject, muted }) => {
   // "Mention" challenge: it does NOT carry the challenged user's video (targetVideoUrl).
   // The challenged user must upload their response video to be able to accept.
   const needsVideo = !c.targetVideoUrl && !c.targetImageUrl
+  // The response media MUST MATCH the challenger's media type: if the
+  // challenge was made with a video, the reply must be a video; if it was
+  // made with a photo, the reply must be a photo.
+  const aIsImage = c.challengerMediaType === 'image' || (!c.challengerVideoUrl && !!c.challengerImageUrl)
+  const requiredAccept = aIsImage ? 'image/*' : 'video/*'
 
   // Clean up the preview object URL when changing/unmounting.
   useEffect(() => () => { if (responsePreview) URL.revokeObjectURL(responsePreview) }, [responsePreview])
@@ -79,7 +85,16 @@ const ChallengeSlide = ({ c, active, busy, onAccept, onReject, muted }) => {
     const f = e.target.files?.[0]
     e.target.value = '' // allow re-selecting the same file
     if (!f) return
-    if (!f.type.startsWith('video/') && !f.type.startsWith('image/')) return
+    const isImg = f.type.startsWith('image/')
+    const isVid = f.type.startsWith('video/')
+    if (!isImg && !isVid) return
+    // Enforce the same media type as the challenge (video<->video, photo<->photo).
+    if (needsVideo && ((aIsImage && !isImg) || (!aIsImage && !isVid))) {
+      setTypeError(aIsImage ? 'This challenge needs a photo, not a video' : 'This challenge needs a video, not a photo')
+      pendingAcceptRef.current = false
+      return
+    }
+    setTypeError(null)
     setResponseFile(f)
     setResponsePreview((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(f) })
     // "After" flow: if you pressed Accept with no video, selecting it sends automatically.
@@ -104,7 +119,6 @@ const ChallengeSlide = ({ c, active, busy, onAccept, onReject, muted }) => {
   // B shows as an upload zone. Soporta imagen O vídeo.
   const responseFileIsImage = !!responseFile && responseFile.type?.startsWith('image/')
   const aUrl = c.challengerVideoUrl || c.challengerImageUrl || c.challengerPosterUrl
-  const aIsImage = c.challengerMediaType === 'image' || (!c.challengerVideoUrl && !!c.challengerImageUrl)
   const targetUrl = c.targetVideoUrl || c.targetImageUrl || c.targetPosterUrl
   const targetIsImage = c.targetMediaType === 'image' || (!c.targetVideoUrl && !!c.targetImageUrl)
   const responseUrl = needsVideo ? responsePreview : targetUrl
@@ -137,7 +151,7 @@ const ChallengeSlide = ({ c, active, busy, onAccept, onReject, muted }) => {
 
   return (
     <div className="relative w-full h-full bg-black overflow-hidden">
-      <input ref={fileRef} type="file" accept="video/*,image/*" className="hidden" onChange={onFileChange} />
+      <input ref={fileRef} type="file" accept={requiredAccept} className="hidden" onChange={onFileChange} />
       {/* Horizontal carousel of videos A / B */}
       <Swiper
         direction="horizontal"
@@ -199,10 +213,21 @@ const ChallengeSlide = ({ c, active, busy, onAccept, onReject, muted }) => {
                     @{c.to?.username}
                   </span>
                   <div className="w-16 h-16 rounded-full border border-white/15 bg-white/[0.04] flex items-center justify-center">
-                    <Film className="w-7 h-7 text-zinc-400" strokeWidth={1.5} />
+                    {aIsImage ? (
+                      <ImageIcon className="w-7 h-7 text-zinc-400" strokeWidth={1.5} />
+                    ) : (
+                      <Film className="w-7 h-7 text-zinc-400" strokeWidth={1.5} />
+                    )}
                   </div>
-                  <span className="text-white font-semibold text-[15px]">Upload your response</span>
-                  <span className="text-zinc-500 text-[13px]">Tap to record or pick a video or photo</span>
+                  <span className="text-white font-semibold text-[15px]">
+                    Upload your {aIsImage ? 'photo' : 'video'}
+                  </span>
+                  <span className="text-zinc-500 text-[13px]">
+                    This challenge was made with a {aIsImage ? 'photo — reply with a photo' : 'video — reply with a video'}
+                  </span>
+                  {typeError && (
+                    <span className="text-rose-400 text-[12px] font-medium mt-1">{typeError}</span>
+                  )}
                 </button>
               )}
             </div>
@@ -255,9 +280,14 @@ const ChallengeSlide = ({ c, active, busy, onAccept, onReject, muted }) => {
               disabled={busy}
               className="w-full h-10 mt-2.5 rounded-full border border-white/20 text-white font-semibold text-[14px] flex items-center justify-center gap-1.5 hover:bg-white/[0.06] active:scale-[0.99] transition disabled:opacity-50"
             >
-              <Film size={16} strokeWidth={2} />
-              {responseFile ? 'Change my video' : 'Upload my video'}
+              {aIsImage ? <ImageIcon size={16} strokeWidth={2} /> : <Film size={16} strokeWidth={2} />}
+              {responseFile
+                ? `Change my ${aIsImage ? 'photo' : 'video'}`
+                : `Upload my ${aIsImage ? 'photo' : 'video'}`}
             </button>
+          )}
+          {needsVideo && typeError && (
+            <p className="text-rose-400 text-[12px] font-medium text-center mt-1.5">{typeError}</p>
           )}
 
           {/* Compact actions */}

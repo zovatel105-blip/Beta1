@@ -1709,11 +1709,19 @@ async function handleAcceptChallenge(cid, request) {
     let respVideoUrl = c.targetVideoUrl || null
     let respImageUrl = c.targetImageUrl || null
     let respPosterUrl = c.targetPosterUrl || (respVideoUrl ? posterFor(respVideoUrl) : respImageUrl)
+    // Reto "mención" (sin media objetivo previa): el retado debe subir un
+    // archivo, y su TIPO debe coincidir con el del retador (vídeo<->vídeo,
+    // foto<->foto). Se valida aquí también por defensa (además del frontend).
+    const wasMention = !c.targetVideoUrl && !c.targetImageUrl
+    const requiredMediaType = c.challengerMediaType || (c.challengerImageUrl ? 'image' : 'video')
     try {
       const formData = await request.formData()
       const file = formData.get('file')
       if (file && typeof file !== 'string') {
         const m = await saveUploadedMedia(file)
+        if (wasMention && m.mediaType !== requiredMediaType) {
+          return NextResponse.json({ error: 'media_type_mismatch', detail: `This challenge requires a ${requiredMediaType}` }, { status: 400 })
+        }
         respMediaType = m.mediaType
         respVideoUrl = m.mediaType === 'video' ? m.url : null
         respImageUrl = m.mediaType === 'image' ? m.url : null
