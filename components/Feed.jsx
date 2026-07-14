@@ -20,6 +20,7 @@ import { notificationsUnreadCount } from '@/lib/notifications'
 import { startNetworkMonitor, pickQuality, shouldConserve } from '@/lib/networkQuality'
 import { useFeed } from '@/hooks/useFeed'
 import { useGuestTracking } from '@/hooks/useGuestTracking'
+import { useBackableOverlay } from '@/hooks/useBackableOverlay'
 import { reportBackground, reportDecoderReleaseMs } from '@/lib/perfMetrics'
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -107,6 +108,22 @@ export default function Feed() {
   const [pendingCount, setPendingCount] = useState(0)
   // Subida de reto en segundo plano: { status:'uploading'|'done'|'error', progress, username }
   const [challengeUpload, setChallengeUpload] = useState(null)
+
+  // NAVEGACIÓN ESTILO TIKTOK: el gesto de deslizar desde el borde lateral (o
+  // el botón/gesto Atrás del navegador/móvil) debe CERRAR el overlay actual
+  // -volver a la pantalla anterior DENTRO de la app-, no salir de la app por
+  // completo. Cada "página" overlay empuja su propia entrada de historial al
+  // abrirse; Atrás la consume y cierra justo esa página (ver hook para el
+  // detalle de la causa raíz).
+  useBackableOverlay(profileOpen, useCallback(() => { setProfileOpen(false); setProfileUsername(null) }, []))
+  useBackableOverlay(uploadOpen, useCallback(() => setUploadOpen(false), []))
+  useBackableOverlay(inboxOpen, useCallback(() => setInboxOpen(false), []))
+  useBackableOverlay(battlesOpen, useCallback(() => setBattlesOpen(false), []))
+  useBackableOverlay(activeChallengesOpen, useCallback(() => setActiveChallengesOpen(false), []))
+  useBackableOverlay(searchOpen, useCallback(() => setSearchOpen(false), []))
+  useBackableOverlay(suggestionsOpen, useCallback(() => setSuggestionsOpen(false), []))
+  useBackableOverlay(challengeOpen, useCallback(() => setChallengeOpen(false), []))
+  useBackableOverlay(authOpen, useCallback(() => setAuthOpen(false), []))
 
   const containerRef = useRef(null)
   const slotRefs = useRef([])
