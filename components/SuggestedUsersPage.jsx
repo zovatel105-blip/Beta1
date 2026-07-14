@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { ArrowLeft, Check, Loader2, UserRoundPlus, Users, Swords } from 'lucide-react'
+import { ArrowLeft, Check, Loader2, UserRoundPlus, UserRoundCheck, Users, Swords } from 'lucide-react'
 import Avatar from './Avatar'
 
 // Página de USUARIOS SUGERIDOS ("personas que quizá conozcas / amigos sugeridos").
@@ -113,44 +113,46 @@ export default function SuggestedUsersPage({ open, onClose, onOpenProfile, onCha
         ) : (
           <ul className="py-1">
             {users.map((u) => (
-              <li key={u.username} className="flex items-center gap-3 px-4 py-2.5">
+              <li key={u.username} className="flex items-center gap-2.5 px-4 py-1.5">
                 <button
                   onClick={() => { onOpenProfile?.(u.username) }}
-                  className="flex items-center gap-3 min-w-0 flex-1 text-left active:opacity-80 transition"
+                  className="flex items-center gap-2.5 min-w-0 flex-1 text-left active:opacity-80 transition"
                 >
-                  <Avatar src={u.avatarUrl} alt={u.username} className="w-12 h-12 rounded-full shrink-0" />
+                  <Avatar src={u.avatarUrl} alt={u.username} className="w-10 h-10 rounded-full shrink-0" />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1">
-                      <span className="text-white text-[15px] font-semibold truncate">{u.name || u.username}</span>
-                      {u.verified && <Check size={13} className="text-sky-400 shrink-0" />}
+                      <span className="text-white text-[13.5px] font-semibold truncate">{u.name || u.username}</span>
+                      {u.verified && <Check size={12} className="text-sky-400 shrink-0" />}
                     </div>
-                    <p className="text-white/50 text-[13px] truncate">@{u.username}</p>
-                    <p className="text-white/40 text-[12px] truncate mt-0.5">{u.reason}</p>
+                    <p className="text-white/50 text-[11.5px] truncate">@{u.username}</p>
+                    <p className="text-white/40 text-[11px] truncate mt-0.5">{u.reason}</p>
                   </div>
                 </button>
-                <div className="shrink-0 flex flex-col gap-1.5 w-[94px]">
+                <div className="shrink-0 flex items-center gap-1.5">
                   <button
                     onClick={() => toggleFollow(u.username)}
                     disabled={!!busy[u.username]}
-                    className={`w-full h-8 rounded-full text-[12.5px] font-semibold flex items-center justify-center gap-1.5 transition active:scale-95 disabled:opacity-60 ${
+                    aria-label={u.isFollowing ? 'Following' : 'Follow'}
+                    title={u.isFollowing ? 'Following' : 'Follow'}
+                    className={`w-8 h-8 rounded-full shrink-0 flex items-center justify-center transition active:scale-95 disabled:opacity-60 ${
                       u.isFollowing
                         ? 'bg-white/[0.06] border border-white/15 text-white'
                         : 'bg-white text-black'
                     }`}
                   >
                     {busy[u.username] ? (
-                      <Loader2 size={14} className="animate-spin" />
+                      <Loader2 size={13} className="animate-spin" />
                     ) : u.isFollowing ? (
-                      <>Following</>
+                      <UserRoundCheck size={14} strokeWidth={2.2} />
                     ) : (
-                      <><UserRoundPlus size={14} strokeWidth={2.2} /> Follow</>
+                      <UserRoundPlus size={14} strokeWidth={2.2} />
                     )}
                   </button>
                   <button
                     onClick={() => handleChallenge(u)}
-                    className="w-full h-8 rounded-full text-[12.5px] font-semibold flex items-center justify-center gap-1.5 bg-transparent border border-white/15 text-white hover:bg-white/[0.06] active:scale-95 transition"
+                    className="h-8 px-3 rounded-full text-[11.5px] font-semibold flex items-center justify-center gap-1 whitespace-nowrap bg-transparent border border-white/15 text-white hover:bg-white/[0.06] active:scale-95 transition"
                   >
-                    <Swords size={14} strokeWidth={2.1} /> Challenge
+                    <Swords size={13} strokeWidth={2.1} /> Challenge
                   </button>
                 </div>
               </li>
