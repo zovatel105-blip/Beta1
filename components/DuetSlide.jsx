@@ -15,6 +15,7 @@ import OptionsModal from './OptionsModal'
 import BottomSheet from './BottomSheet'
 import AuthModal from './AuthModal'
 import Avatar, { isGeneratedAvatar } from './Avatar'
+import AudioReactiveRings from './AudioReactiveRings'
 import { useAuth } from '@/contexts/AuthContext'
 import { pickQuality, reportStall } from '@/lib/networkQuality'
 
@@ -781,14 +782,9 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
             circulares que emanan alrededor SOLO mientras se escucha audio.
             Si no hay canción, la portada es el propio vídeo (el lado que suena). */}
         <div className="relative mt-1 w-10 h-10 shrink-0">
-          {/* Ondas circulares (ripple) — solo con audio sonando */}
-          {isAudioPlaying && (
-            <>
-              <span className="ring-pulse pointer-events-none" style={{ animationDelay: '0s' }} />
-              <span className="ring-pulse pointer-events-none" style={{ animationDelay: '0.6s' }} />
-              <span className="ring-pulse pointer-events-none" style={{ animationDelay: '1.2s' }} />
-            </>
-          )}
+          {/* Ondas circulares — reactivas al RITMO REAL del audio (Web Audio
+              API), solo visibles mientras hay sonido audible de verdad. */}
+          <AudioReactiveRings mediaEl={hasMusic ? audioRef.current : (audibleSide === 'a' ? videoARef.current : videoBRef.current)} active={isAudioPlaying} />
           <div
             aria-label="music"
             title={hasMusic ? [post.musicTitle, post.musicArtist].filter(Boolean).join(' · ') : undefined}
