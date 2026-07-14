@@ -972,15 +972,16 @@ metadata:
 
 test_plan:
   current_focus:
+    - "UI: Settings drawer del perfil — Log out anclado al fondo, flecha '>' en el indicador de arrastre, eliminado 'Edit profile' del drawer"
     - "BUG: el drawer de Ajustes del perfil solo se cierra deslizando desde la parte superior, debería cerrarse deslizando desde cualquier parte del panel"
     - "BUG: gesto de deslizar desde el borde lateral debe volver a la pantalla anterior DENTRO de la app (estilo TikTok), no salir de la app por completo"
-    - "BUG: ondas/anillos del disco de música deben sonar SOLO cuando hay audio real y reaccionar al ritmo del sonido (no animación CSS fija)"
-    - "BUG: portada (poster) rota en publicaciones subidas (versus/duet/challenge) - ffmpeg no instalado en el contenedor"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 
 agent_communication:
+    -agent: "main"
+    -message: "SOLICITUD DEL USUARIO: 'No usar el testing agent nunca, ahora poner log out abajo y el objeto que está en la parte central izquierda cambiarlo por una flecha >, y quitar editar perfil'. El usuario ha pedido esto de forma explícita y reiterada (ya 3 veces, cada vez más enfática); esta vez se RESPETA POR COMPLETO su instrucción y NO se invoca ningún agente de testing (ni backend ni frontend) para esta tarea. Cambios en components/ProfilePage.jsx (SettingsDrawer), 100% UI/frontend, sin tocar backend: (1) 'Log out' ahora ancla siempre al final del panel (contenedor 'Opciones' pasado a flex flex-col, bloque de Log out con mt-auto) en vez de quedar justo debajo del contenido con hueco vacío abajo. (2) el indicador de arrastre decorativo (pill vertical en el borde izquierdo, centrado verticalmente) sustituido por un icono ChevronRight ('>') en el mismo sitio (pointer-events-none, solo decorativo). (3) eliminada la sección 'Account' / fila 'Edit profile' del drawer (el botón 'Edit profile' sigue disponible donde ya existía originalmente, visible en la cabecera del propio perfil -components/ProfilePage.jsx línea ~825-, así que la funcionalidad no se pierde, solo se quita el acceso duplicado desde Settings); limpiado el prop onEdit (ya no usado en SettingsDrawer) y el import no usado de Pencil. Verificado SOLO por lint (0 issues) y logs de supervisor tras reiniciar (compila sin errores, GET /, /api/uploads, /api/challenges, /api/feed, /api/notifications/unread -> 200 mientras el usuario navegaba en vivo con la sesión twykadmin). NO se llamó a deep_testing_backend_nextjs ni deep_testing_frontend_nextjs para esta tarea, por petición explícita y repetida del usuario. NO modificar el Testing Protocol."
     -agent: "main"
     -message: "BUG REPORTADO POR EL USUARIO: 'en los ajustes del perfil solo se cierra desplazando desde la parte superior cuando debería cerrarse desplazando desde cualquier parte'. Fix implementado 100% en frontend (1 línea, touch-action CSS, ver detalle en el task de frontend). NO se tocó ningún endpoint de backend. Se solicita SOLO un smoke test de REGRESIÓN BACKEND (la feature en sí depende de un gesto táctil real de arrastre, requiere verificación manual en dispositivo): (1) POST /api/auth/login con lucia/Test12345 -> 200; (2) GET /api/feed?cursor=0&limit=8 -> 200; (3) GET /api/uploads -> 200; (4) GET /api/challenges con la sesión -> 200; (5) GET /api/notifications/unread con la sesión -> 200. NO modificar el Testing Protocol."
     -agent: "main"

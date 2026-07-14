@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Menu, Bookmark, Swords, Users, UserPlus, ArrowLeft, LogOut, Camera, Loader2, X, Pencil, ShieldAlert, LogIn, CircleUserRound, Activity, ChevronRight } from 'lucide-react'
+import { Menu, Bookmark, Swords, Users, UserPlus, ArrowLeft, LogOut, Camera, Loader2, X, ShieldAlert, LogIn, CircleUserRound, Activity, ChevronRight } from 'lucide-react'
 import VoteIcon from './icons/VoteIcon'
 import ShareIcon from './icons/ShareIcon'
 import { useAuth } from '@/contexts/AuthContext'
@@ -928,7 +928,6 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
         <SettingsDrawer
           open={menuOpen}
           onClose={() => setMenuOpen(false)}
-          onEdit={() => { setMenuOpen(false); setEditOpen(true) }}
           onLogout={handleLogout}
           isAdmin={user?.role === 'admin'}
         />
@@ -1034,7 +1033,7 @@ const SettingsRow = ({ icon: Icon, label, onClick, href, tone = 'default' }) => 
 // mientras el desplazamiento no supera el umbral, el toque se comporta como un
 // click normal; solo al superarlo se activa el arrastre y el panel sigue al dedo.
 // Permanece montado para poder animar la entrada y la salida con translateX.
-const SettingsDrawer = ({ open, onClose, onEdit, onLogout, isAdmin }) => {
+const SettingsDrawer = ({ open, onClose, onLogout, isAdmin }) => {
   const panelRef = useRef(null)
   const dragStartRef = useRef(null)
   const draggingRef = useRef(false)
@@ -1111,8 +1110,11 @@ const SettingsDrawer = ({ open, onClose, onEdit, onLogout, isAdmin }) => {
           style={{ background: 'radial-gradient(circle, rgba(168,85,247,0.14) 0%, rgba(168,85,247,0) 70%)' }}
         />
 
-        {/* Indicador de arrastre (pill) en el borde izquierdo del panel */}
-        <div aria-hidden className="absolute left-1.5 top-1/2 -translate-y-1/2 w-1 h-10 rounded-full bg-white/[0.14] pointer-events-none" />
+        {/* Indicador de arrastre: flecha ">" en el borde izquierdo del panel
+            (sugiere la dirección del gesto para cerrar) */}
+        <div aria-hidden className="absolute left-1 top-1/2 -translate-y-1/2 pointer-events-none text-white/25">
+          <ChevronRight className="w-4 h-4" strokeWidth={2.4} />
+        </div>
 
         {/* Header: sin botón de cierre — el panel se cierra deslizando */}
         <div className="relative z-10" style={{ paddingTop: 'max(env(safe-area-inset-top), 14px)' }}>
@@ -1122,7 +1124,7 @@ const SettingsDrawer = ({ open, onClose, onEdit, onLogout, isAdmin }) => {
         </div>
 
         {/* Opciones */}
-        <div className="relative z-10 flex-1 overflow-y-auto px-5 pb-6" style={{ touchAction: 'pan-y' }}>
+        <div className="relative z-10 flex-1 flex flex-col overflow-y-auto px-5 pb-6" style={{ touchAction: 'pan-y' }}>
           {isAdmin && (
             <div className="pt-5">
               <p className="pb-1 text-[11px] font-semibold uppercase tracking-[0.09em] text-zinc-500">Administration</p>
@@ -1133,14 +1135,8 @@ const SettingsDrawer = ({ open, onClose, onEdit, onLogout, isAdmin }) => {
             </div>
           )}
 
-          <div className="pt-5">
-            <p className="pb-1 text-[11px] font-semibold uppercase tracking-[0.09em] text-zinc-500">Account</p>
-            <div className="divide-y divide-white/[0.05]">
-              <SettingsRow icon={Pencil} label="Edit profile" onClick={onEdit} />
-            </div>
-          </div>
-
-          <div className="pt-8">
+          {/* "Log out" anclado siempre al final del panel */}
+          <div className="mt-auto pt-8">
             <div className="border-t border-white/[0.06] pt-4">
               <SettingsRow icon={LogOut} label="Log out" onClick={onLogout} tone="danger" />
             </div>
