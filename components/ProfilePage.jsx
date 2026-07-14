@@ -1122,7 +1122,7 @@ const SettingsDrawer = ({ open, onClose, onEdit, onLogout, isAdmin }) => {
         </div>
 
         {/* Opciones */}
-        <div className="relative z-10 flex-1 overflow-y-auto px-5 pb-6">
+        <div className="relative z-10 flex-1 overflow-y-auto px-5 pb-6" style={{ touchAction: 'pan-y' }}>
           {isAdmin && (
             <div className="pt-5">
               <p className="pb-1 text-[11px] font-semibold uppercase tracking-[0.09em] text-zinc-500">Administration</p>

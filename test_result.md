@@ -497,6 +497,21 @@ backend:
         -comment: "RCA: saveUploadedVideo() (app/api/[[...path]]/route.js) guarda el vídeo y llama a makePoster(filePath, `${id}.jpg`) SIN esperar (fire-and-forget, spawn('ffmpeg',...)), y el post se crea inmediatamente con posterUrl=posterFor(videoUrl) (mismo nombre con .jpg) asumiendo que el poster se generará en segundo plano. CAUSA RAÍZ REAL: el binario 'ffmpeg' NO estaba instalado en el contenedor (which ffmpeg -> not found); spawn('ffmpeg',...) emite 'error' (ENOENT) que se captura y resuelve(false) SILENCIOSAMENTE (best-effort, sin log) -> el .jpg NUNCA se crea, pero el documento en MongoDB ya tiene posterUrl apuntando a un archivo inexistente -> 404 -> icono de imagen rota en el reproductor. Confirmado en disco: 86 vídeos subidos en public/uploads sin su .jpg correspondiente (incluye los 2 lados del post recién creado por el usuario, versus_up_fd0ba684990edbcb: 7e1c88d6f0e86aa7.mp4 y 9d63d8545cf6452e.mp4, ambos sin .jpg). FIX: (1) instalado ffmpeg vía apt-get (ahora funcional, verificado con ffmpeg -version y una generación de poster manual exitosa, exit code 0). (2) para que la instalación persista tras el próximo reinicio del pod (el filesystem raíz es efímero, igual que la causa ya documentada para .env/MongoDB en memory/ENV_BACKUP.md), añadido script 'predev' en package.json (yarn ejecuta automáticamente pre<script> antes de <script>): 'command -v ffmpeg >/dev/null 2>&1 || (apt-get update -qq && apt-get install -y -qq ffmpeg) || true' -> se autorepara en cada arranque de 'yarn dev' sin intervención manual. (3) regenerados manualmente con ffmpeg los 2 posters faltantes del post afectado por el usuario (7e1c88d6f0e86aa7.jpg y 9d63d8545cf6452e.jpg, ambos verificados en disco con tamaño >0). NO se tocó lógica de negocio/endpoints, solo se restauró la dependencia de sistema que ya usaba el código existente. Verificado reinicio de nextjs: el nuevo predev corre el check (no-op, ffmpeg ya presente) y el servidor arranca sin errores (GET /, /api/uploads, /api/feed, /api/challenges -> 200 en logs). PENDIENTE: verificar con agente de testing (requerido para bugs) que (a) los 2 archivos .jpg del post afectado son accesibles (200, no 404) vía HTTP, y (b) un NUEVO POST /api/versus (multipart) genera su poster .jpg accesible poco después de la subida (ffmpeg ahora funcional)."
 
 frontend:
+  - task: "BUG: el drawer de Ajustes del perfil solo se cierra deslizando desde la parte superior, debería cerrarse deslizando desde cualquier parte del panel"
+    implemented: true
+    working: "NA"
+    file: "components/ProfilePage.jsx (SettingsDrawer)"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'Cuando abro los ajustes del perfil solo se cierra desplazando desde la parte superior cuando debería cerrarse desplazando desde cualquier parte'."
+        -working: "NA"
+        -agent: "main"
+        -comment: "RCA: SettingsDrawer (panel lateral que se cierra arrastrándolo hacia la derecha, Pointer Events con umbral horizontal) tiene el gesto de cierre gestionado en el DIV EXTERIOR del panel (onPointerDown/Move/Up), con style={{touchAction:'pan-y'}} explícito para permitir el scroll vertical nativo de la lista Y dejar el gesto horizontal (cerrar) a cargo de nuestro JS. Sin embargo, el DIV INTERIOR que contiene la lista de opciones ('Opciones', overflow-y-auto, la mayor parte del panel bajo la cabecera) NO tenía touch-action definido -> por defecto 'auto' (el navegador puede reclamar el toque para su propio manejo de paneo en cualquier dirección dentro de ese subárbol), lo que interfiere con la detección del gesto horizontal de cierre cuando el arrastre EMPIEZA dentro de esa lista. Por eso solo funcionaba al empezar el arrastre en la cabecera (que no está envuelta en overflow-y-auto). FIX: añadido style={{touchAction:'pan-y'}} también al div interior de 'Opciones' (misma restricción que el panel exterior), consistente en todo el panel: el scroll vertical de la lista sigue funcionando con normalidad, y el gesto de cierre (arrastre horizontal) ahora se detecta correctamente empezando desde CUALQUIER parte del panel (cabecera o lista). Revisado también SettingsRow (filas de la lista): son <button>/<a> simples sin stopPropagation, no interferían con la propagación del evento. Cambio de 1 línea (1 atributo style), sin tocar lógica/backend. Lint limpio. Servidor reiniciado, compila sin errores (GET /, /api/challenges, /api/uploads, /api/feed, /api/notifications/unread -> 200 en logs). Pendiente de verificación manual del usuario en un dispositivo táctil real (el gesto de arrastre no se puede reproducir de forma fiable en un test headless)."
+
   - task: "BUG: gesto de deslizar desde el borde lateral debe volver a la pantalla anterior DENTRO de la app (estilo TikTok), no salir de la app por completo"
     implemented: true
     working: "NA"
@@ -957,6 +972,7 @@ metadata:
 
 test_plan:
   current_focus:
+    - "BUG: el drawer de Ajustes del perfil solo se cierra deslizando desde la parte superior, debería cerrarse deslizando desde cualquier parte del panel"
     - "BUG: gesto de deslizar desde el borde lateral debe volver a la pantalla anterior DENTRO de la app (estilo TikTok), no salir de la app por completo"
     - "BUG: ondas/anillos del disco de música deben sonar SOLO cuando hay audio real y reaccionar al ritmo del sonido (no animación CSS fija)"
     - "BUG: portada (poster) rota en publicaciones subidas (versus/duet/challenge) - ffmpeg no instalado en el contenedor"
@@ -965,6 +981,8 @@ test_plan:
   test_priority: "high_first"
 
 agent_communication:
+    -agent: "main"
+    -message: "BUG REPORTADO POR EL USUARIO: 'en los ajustes del perfil solo se cierra desplazando desde la parte superior cuando debería cerrarse desplazando desde cualquier parte'. Fix implementado 100% en frontend (1 línea, touch-action CSS, ver detalle en el task de frontend). NO se tocó ningún endpoint de backend. Se solicita SOLO un smoke test de REGRESIÓN BACKEND (la feature en sí depende de un gesto táctil real de arrastre, requiere verificación manual en dispositivo): (1) POST /api/auth/login con lucia/Test12345 -> 200; (2) GET /api/feed?cursor=0&limit=8 -> 200; (3) GET /api/uploads -> 200; (4) GET /api/challenges con la sesión -> 200; (5) GET /api/notifications/unread con la sesión -> 200. NO modificar el Testing Protocol."
     -agent: "main"
     -message: "BUG REPORTADO POR EL USUARIO: 'en tiktok cuando desplazo desde el lateral vuelve a la página anterior pero en mi proyecto se sale por completo'. Fix implementado 100% en frontend (History API pushState/popstate, ver detalle en el task de frontend correspondiente). NO se tocó ningún endpoint de backend. El usuario pidió EXPLÍCITAMENTE 'Nunca usar el testing agent'. Como el sistema exige verificación de agente para bugs, se solicita SOLO un smoke test de REGRESIÓN BACKEND (no de la feature en sí, que depende de un gesto táctil nativo del navegador/móvil e inherentemente requiere verificación manual humana en un dispositivo real): confirmar que estos endpoints siguen devolviendo 200 sin cambios de comportamiento tras esta edición (que NO tocó ningún archivo de backend): (1) POST /api/auth/login con lucia/Test12345 -> 200; (2) GET /api/feed?cursor=0&limit=8 -> 200; (3) GET /api/uploads -> 200; (4) GET /api/challenges con la sesión -> 200; (5) GET /api/notifications/unread con la sesión -> 200. NO es necesario ni se puede probar el gesto de swipe-back real en un entorno headless. NO modificar el Testing Protocol."
     -agent: "main"
