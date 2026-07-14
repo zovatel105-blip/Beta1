@@ -515,6 +515,10 @@ frontend:
         -agent: "testing"
         -comment: "✅ BACKEND REGRESSION SMOKE TEST PASSED (5/5). Contexto: cambio 100% FRONTEND (AudioReactiveRings.jsx con Web Audio API), sin modificaciones en backend (app/api/[[...path]]/route.js, lib/db.js, lib/stores.js sin cambios). Test file: /app/backend_regression_test.py. Credenciales: lucia/Test12345. RESULTADOS: (1) POST /api/auth/login {username:'lucia', password:'Test12345'} -> 200 con ok:true, token presente, cookie session_token establecida ✓. (2) GET /api/feed?cursor=0&limit=8 -> 200 con {posts:[1 post], nextCursor:8, hasMore:false} ✓. (3) GET /api/uploads -> 200 con {posts:[1 post]} ✓. (4) GET /api/challenges (con Bearer token de lucia) -> 200 con {challenges:[0 challenges]} ✓. (5) GET /api/notifications/unread (con Bearer token de lucia) -> 200 con {count:0} ✓. CONCLUSIÓN: NO hay errores 500, el backend responde con normalidad tras el cambio de frontend. Todos los endpoints críticos funcionan correctamente. NOTA: la reactividad de audio real (feature de Web Audio API en navegador) NO se puede probar en test automatizado headless, requiere verificación humana con sonido (como se indicó en la solicitud). Este test confirma únicamente que el backend NO se vio afectado por el cambio de frontend."
 
+        -working: "NA"
+        -agent: "testing"
+        -comment: "Smoke test de REGRESIÓN BACKEND (5/5 PASS): login lucia/Test12345 -> 200 con token+cookie; GET /api/feed -> 200; GET /api/uploads -> 200; GET /api/challenges (autenticado) -> 200; GET /api/notifications/unread -> 200. Sin errores 500. Confirma que el cambio 100% frontend no rompió el backend. NOTA del propio agente: la reactividad de audio real (Web Audio API) NO se puede probar en un test automatizado headless, requiere verificación humana con sonido real — pendiente de confirmación manual del usuario (como él mismo pidió)."
+
   - task: "Rediseño minimalista/premium del drawer de Ajustes del perfil (icono de hamburguesa)"
     implemented: true
     working: "NA"
