@@ -7,7 +7,7 @@ Tests 5 critical endpoints to ensure backend still responds normally.
 import requests
 import sys
 
-BASE_URL = "https://21f15387-7067-4fe1-9dd9-c88bce35ad60.preview.emergentagent.com/api"
+BASE_URL = "https://reply-delete-system.preview.emergentagent.com/api"
 
 def test_login():
     """Test 1: POST /api/auth/login with lucia/Test12345"""

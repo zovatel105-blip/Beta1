@@ -6,7 +6,7 @@ Tests 5 critical endpoints to confirm no backend regressions.
 import requests
 import sys
 
-BASE_URL = "https://21f15387-7067-4fe1-9dd9-c88bce35ad60.preview.emergentagent.com/api"
+BASE_URL = "https://reply-delete-system.preview.emergentagent.com/api"
 
 def test_backend_regression():
     print("=" * 80)
