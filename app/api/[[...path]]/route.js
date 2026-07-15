@@ -17,6 +17,7 @@ import {
   getSuggestedUsers,
   createComment as createCommentDB,
   getCommentsByPostId,
+  getCommentById as getCommentByIdDB,
   toggleCommentLike as toggleCommentLikeDB,
   deleteComment as deleteCommentDB,
   toggleSave as toggleSaveDB,
@@ -212,6 +213,21 @@ async function ensureUploadDir() {
 // reciente primero) que tenía el JSON.
 async function readUploadMeta() {
   return getAllPosts()
+}
+
+// Resuelve el id de usuario "dueño" de una publicación subida (versus/duet/
+// reto completado), usado para permitir que ese dueño elimine CUALQUIER
+// comentario de su propia publicación (moderación estilo Instagram/TikTok).
+// Los posts "demo" del feed integrado (no subidos, sin documento en Mongo) no
+// tienen dueño real -> devuelve null (solo el propio autor del comentario
+// podrá borrarlo en ese caso).
+async function getPostAuthorId(postId) {
+  try {
+    const meta = await readUploadMeta()
+    const p = meta.find((x) => x.id === postId)
+    if (p) return p.author?.id || p.sideA?.author?.id || p.sideB?.author?.id || p.userId || null
+  } catch { /* ignore */ }
+  return null
 }
 
 // Lectura de votos de los posts del feed integrado (antes _votes.json). Ahora
@@ -836,7 +852,14 @@ export async function GET(request, { params }) {
     
     const currentUser = await getCurrentUser(request)
     const comments = await getCommentsByPostId(postId, currentUser?.id)
-    return NextResponse.json({ comments })
+    // canDelete: el propio autor del comentario, o el dueño de la publicación
+    // (moderación estilo Instagram/TikTok sobre su propio contenido).
+    const postOwnerId = currentUser ? await getPostAuthorId(postId) : null
+    const withPerms = comments.map((c) => ({
+      ...c,
+      canDelete: Boolean(currentUser) && (c.isOwn || (Boolean(postOwnerId) && postOwnerId === currentUser.id)),
+    }))
+    return NextResponse.json({ comments: withPerms })
   }
 
   // GET /api/saves - Obtener posts guardados del usuario (objetos completos)
@@ -1974,7 +1997,7 @@ async function handleCreateComment(request) {
     }
 
     const body = await request.json()
-    const { postId, text, votedSide } = body
+    const { postId, text, votedSide, parentId } = body
 
     if (!postId || !text || typeof text !== 'string' || text.trim().length === 0) {
       return NextResponse.json({ error: 'invalid_data' }, { status: 400 })
@@ -1991,35 +2014,70 @@ async function handleCreateComment(request) {
       }
     } catch { /* ignore */ }
 
+    // Si viene parentId, validar que el comentario padre existe y pertenece
+    // al MISMO post (evita respuestas "colgadas" de un post distinto).
+    let parentComment = null
+    let safeParentId = null
+    if (parentId && typeof parentId === 'string') {
+      try {
+        parentComment = await getCommentByIdDB(parentId)
+        if (parentComment && parentComment.postId === postId) {
+          safeParentId = parentComment.id
+        }
+      } catch { /* ignore, se trata como comentario normal */ }
+    }
+
     const comment = await createCommentDB({ 
       postId, 
       userId: currentUser.id, 
       text: text.trim(),
       votedSide: votedSide === 'a' || votedSide === 'b' ? votedSide : null,
+      parentId: safeParentId,
     })
 
-    // createCommentDB solo crea notificación si el post existe en la colección
-    // MongoDB POSTS. Las publicaciones subidas viven en _meta.json, así que aquí
-    // notificamos al autor del post subido (evita duplicado: son excluyentes).
-    try {
-      const meta = await readUploadMeta()
-      const p = meta.find((x) => x.id === postId)
-      if (p) {
-        const recipientId = p.author?.id || p.sideA?.author?.id
-        if (recipientId && recipientId !== 'anonymous' && recipientId !== currentUser.id) {
+    if (safeParentId && parentComment) {
+      // RESPUESTA a un comentario: notifica al AUTOR del comentario padre
+      // (no al dueño del post, salvo que sea la misma persona).
+      try {
+        const recipientId = parentComment.userId
+        if (recipientId && recipientId !== currentUser.id) {
           const t = text.trim()
           await createNotification({
             userId: recipientId,
-            type: 'comment',
+            type: 'reply',
             fromUserId: currentUser.id,
             postId,
             commentId: comment.id,
             text: t.length > 50 ? t.substring(0, 47) + '...' : t,
           })
         }
+      } catch (notifErr) {
+        console.error('reply notification error', notifErr)
       }
-    } catch (notifErr) {
-      console.error('comment notification error', notifErr)
+    } else {
+      // createCommentDB solo crea notificación si el post existe en la colección
+      // MongoDB POSTS. Las publicaciones subidas viven en _meta.json, así que aquí
+      // notificamos al autor del post subido (evita duplicado: son excluyentes).
+      try {
+        const meta = await readUploadMeta()
+        const p = meta.find((x) => x.id === postId)
+        if (p) {
+          const recipientId = p.author?.id || p.sideA?.author?.id
+          if (recipientId && recipientId !== 'anonymous' && recipientId !== currentUser.id) {
+            const t = text.trim()
+            await createNotification({
+              userId: recipientId,
+              type: 'comment',
+              fromUserId: currentUser.id,
+              postId,
+              commentId: comment.id,
+              text: t.length > 50 ? t.substring(0, 47) + '...' : t,
+            })
+          }
+        }
+      } catch (notifErr) {
+        console.error('comment notification error', notifErr)
+      }
     }
 
     // Formatear para el frontend
@@ -2028,9 +2086,11 @@ async function handleCreateComment(request) {
       postId: comment.postId,
       text: comment.text,
       votedSide: comment.votedSide || null,
+      parentId: comment.parentId || null,
       likes: comment.likes,
       userLiked: false,
       isOwn: true,
+      canDelete: true, // es tu propio comentario recién creado
       timestamp: comment.createdAt,
       author: comment.author,
     }
@@ -2091,7 +2151,8 @@ async function handleSavePost(request) {
   }
 }
 
-// DELETE /api/comments/{id} - Eliminar un comentario
+// DELETE /api/comments/{id} - Eliminar un comentario (su autor, o el dueño de
+// la publicación en la que vive).
 async function handleDeleteComment(commentId, request) {
   try {
     const currentUser = await getCurrentUser(request)
@@ -2103,7 +2164,13 @@ async function handleDeleteComment(commentId, request) {
       return NextResponse.json({ error: 'missing_commentId' }, { status: 400 })
     }
 
-    await deleteCommentDB(commentId, currentUser.id)
+    const rawComment = await getCommentByIdDB(commentId)
+    if (!rawComment) {
+      return NextResponse.json({ error: 'comment_not_found' }, { status: 404 })
+    }
+    const postOwnerId = await getPostAuthorId(rawComment.postId)
+
+    await deleteCommentDB(commentId, currentUser.id, postOwnerId)
     return NextResponse.json({ ok: true })
   } catch (err) {
     console.error('delete comment error', err)

@@ -20,6 +20,7 @@ const iconFor = (n) => {
     case 'accepted': return { Icon: Check, color: '#6EE7A8' }
     case 'follow': return { Icon: UserPlus, color: '#7DB7FF' }
     case 'comment': return { Icon: MessageCircle, color: '#FFFFFF' }
+    case 'reply': return { Icon: MessageCircle, color: '#FFFFFF' }
     default: return { Icon: Bell, color: '#A1A1AA' }
   }
 }
@@ -29,7 +30,7 @@ const FILTERS = [
   { key: 'challenge', label: 'Challenges', types: ['challenge', 'accepted'] },
   { key: 'vote', label: 'Votes', types: ['vote'] },
   { key: 'follow', label: 'Followers', types: ['follow'] },
-  { key: 'comment', label: 'Comments', types: ['comment'] },
+  { key: 'comment', label: 'Comments', types: ['comment', 'reply'] },
 ]
 
 export default function NotificationsInbox({ open, onClose }) {
