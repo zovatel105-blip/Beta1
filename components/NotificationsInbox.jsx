@@ -288,7 +288,7 @@ export default function NotificationsInbox({ open, onClose }) {
 
                   {/* Input de respuesta inline (sin salir de Notificaciones) */}
                   {replying && (
-                    <div className="flex items-center gap-2 pl-[52px]">
+                    <div className="flex items-center gap-1.5 pl-[52px] w-full min-w-0 max-w-full">
                       <CornerDownRight className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
                       <input
                         type="text"
@@ -299,7 +299,7 @@ export default function NotificationsInbox({ open, onClose }) {
                         placeholder={`Reply to @${n.user?.username || 'user'}...`}
                         maxLength={500}
                         disabled={replySubmitting}
-                        className="flex-1 bg-white/[0.06] text-white placeholder:text-zinc-500 px-3 py-2 rounded-full text-[13px] outline-none focus:bg-white/10 transition-all"
+                        className="flex-1 min-w-0 w-full bg-white/[0.06] text-white placeholder:text-zinc-500 px-3 py-2 rounded-full text-[13px] outline-none focus:bg-white/10 transition-all"
                       />
                       <button
                         onClick={() => submitReply(n)}
@@ -320,7 +320,7 @@ export default function NotificationsInbox({ open, onClose }) {
                       <button
                         onClick={cancelReply}
                         disabled={replySubmitting}
-                        className="text-[12px] text-zinc-500 hover:text-white transition shrink-0 px-1"
+                        className="text-[12px] text-zinc-500 hover:text-white transition shrink-0 px-1.5 whitespace-nowrap"
                       >
                         Cancel
                       </button>
