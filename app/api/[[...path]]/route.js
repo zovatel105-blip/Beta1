@@ -1493,6 +1493,13 @@ async function handleVote(request) {
 async function saveUploadedVideo(file) {
   const arrayBuffer = await file.arrayBuffer()
   const bytes = Buffer.from(arrayBuffer)
+  // GUARDA DE SEGURIDAD: si el buffer llega vacío/truncado (subida cortada,
+  // límite de tamaño, red inestable), NO crear un archivo/post fantasma en
+  // silencio -> lanzar para que el endpoint devuelva error y el usuario pueda
+  // reintentar, en vez de quedar con un post roto sin vídeo real.
+  if (!bytes || bytes.length === 0) {
+    throw new Error('empty_upload')
+  }
   const id = crypto.randomBytes(8).toString('hex')
   const name = file.name || 'video.mp4'
   const ext = name.includes('.') ? name.split('.').pop().toLowerCase() : 'mp4'
@@ -1512,6 +1519,9 @@ async function saveUploadedVideo(file) {
 async function saveUploadedImage(file) {
   const arrayBuffer = await file.arrayBuffer()
   const bytes = Buffer.from(arrayBuffer)
+  if (!bytes || bytes.length === 0) {
+    throw new Error('empty_upload')
+  }
   const id = crypto.randomBytes(8).toString('hex')
   const name = file.name || 'image.jpg'
   const ext = name.includes('.') ? name.split('.').pop().toLowerCase() : 'jpg'

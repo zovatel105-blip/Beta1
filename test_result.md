@@ -105,6 +105,21 @@
 user_problem_statement: "Las publicaciones normales deben ser un carrusel de 2 vídeos (opción A / opción B) entre los que se desliza y se vota tocando el vídeo. Se suben 2 vídeos. Reemplaza el vídeo normal. AÑADIDO: votar = doble toque, quitar el corazón/Me gusta, y nueva función 'Retar' (solicitud de enfrentamiento con un vídeo subido que el retado acepta/cancela en la Bandeja). NUEVO: buscador de usuarios en la esquina superior derecha de la página de inicio (icono de lupa que abre un overlay)."
 
 backend:
+  - task: "BUG: Perfil mostraba conteo de 'Challenges' incorrecto (contaba TODAS las publicaciones normales tipo 'versus', no solo retos aceptados) + posts fantasma sin archivo real cuando la subida se corrompe"
+    implemented: true
+    working: "NA"
+    file: "components/ProfilePage.jsx, app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'Acabo de publicar 2 publicaciones que no son challenge pero en el perfil me aparece que tengo 2 challenge'. Después: 'Se están gastando muchos créditos, terminar el comando' (pidió cerrar rápido, sin más investigación/testing agent)."
+        -working: "NA"
+        -agent: "main"
+        -comment: "CAUSA 1 (el bug reportado): components/ProfilePage.jsx calculaba stats.retos (mostrado como 'Challenges') con `myPosts.filter(p => p?.type === 'versus').length` — pero las publicaciones NORMALES (carrusel de 2 vídeos A/B) también son type==='versus' por diseño; SOLO un reto aceptado tiene `isChallenge:true` (asignado únicamente en handleAcceptChallenge). FIX: filtrar por `p?.isChallenge === true` en vez de por `type`. CAUSA 2 (hallazgo adicional al investigar, vía troubleshoot_agent): los 2 posts del usuario existían en MongoDB con URLs de vídeo válidas pero SIN el archivo real en disco (404), sin ningún rastro de escritura fallida — posible truncado silencioso de la subida (ver diagnóstico del troubleshoot_agent: límite de tamaño de body en Route Handlers de Next.js 14). FIX defensivo: saveUploadedVideo/saveUploadedImage ahora lanzan error si el buffer llega vacío (0 bytes) en vez de crear un post fantasma en silencio; esto convierte una pérdida de datos silenciosa en un error visible (500) que el usuario puede reintentar. Limpieza: eliminados de Mongo los 2 posts rotos del usuario (sin vídeo real). Verificado SOLO con lint (limpio en ambos archivos) y reinicio de nextjs sin errores. NO se invocó deep_testing_backend_nextjs (petición explícita y repetida del usuario, más preocupación explícita por el consumo de créditos)."
+
   - task: "Comentarios: RESPONDER (parentId, hilo de 1 nivel) y ELIMINAR (autor del comentario o dueño de la publicación)"
     implemented: true
     working: "NA"
