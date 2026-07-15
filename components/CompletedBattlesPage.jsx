@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Swiper, SwiperSlide } from 'swiper/react'
 import { Mousewheel, Keyboard } from 'swiper/modules'
 import 'swiper/css'
-import { Swords, Plus, Trophy, Search, Loader2, UserPlus } from 'lucide-react'
+import { Swords, Plus, Trophy, Loader2, UserPlus } from 'lucide-react'
 import BottomNav from './BottomNav'
 import CarouselSlide from './CarouselSlide'
 import DuetSlide from './DuetSlide'
@@ -49,12 +49,6 @@ const EmptyCompletedState = ({ onOpenUpload, onOpenActive }) => {
             <Swords className="w-[18px] h-[18px]" strokeWidth={1.75} />
             See active challenges
           </button>
-        </div>
-
-        {/* Minimalist search */}
-        <div className="mt-12 flex items-center gap-2.5 h-11 px-4 rounded-full bg-white/[0.04] border border-white/10">
-          <Search className="w-4 h-4 text-zinc-500" />
-          <span className="text-zinc-500 text-sm">Search creators</span>
         </div>
       </div>
     </div>

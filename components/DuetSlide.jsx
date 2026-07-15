@@ -511,6 +511,10 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
   const otherPct = 100 - chosenPct
   const chosenName = chosenSide.author?.name || (chosenSide.author?.username ? `@${chosenSide.author.username}` : '')
   const otherName = otherSide.author?.name || (otherSide.author?.username ? `@${otherSide.author.username}` : '')
+  // BUG FIX: ver mismo comentario en CarouselSlide.jsx — en publicaciones
+  // normales/1vs1 ambos lados son del MISMO autor; solo en un reto real
+  // (isChallenge) tiene sentido mostrar "vs {otro nombre}".
+  const sameAuthorBothSides = !!(chosenSide.author?.username && chosenSide.author?.username === otherSide.author?.username)
   const chosenSrc = chosenKey === 'b' ? srcB : srcA
   const chosenIsImage = chosenSide.mediaType === 'image'
 
@@ -887,7 +891,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
         winnerPercentage={chosenPct}
         winnerImage={chosenIsImage ? (chosenSide.posterUrl || chosenSide.imageUrl) : (isGeneratedAvatar(chosenSide.author?.avatarUrl) ? null : chosenSide.author?.avatarUrl)}
         winnerVideoUrl={chosenIsImage ? null : chosenSrc}
-        loserName={otherName}
+        loserName={sameAuthorBothSides ? '' : otherName}
         loserPercentage={otherPct}
         totalVotes={totalVotes}
         onClose={() => setShowWinner(false)}

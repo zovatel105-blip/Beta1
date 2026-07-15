@@ -472,6 +472,13 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
   const otherPct = 100 - chosenPct
   const chosenName = chosenSide.author?.name || (chosenSide.author?.username ? `@${chosenSide.author.username}` : '')
   const otherName = otherSide.author?.name || (otherSide.author?.username ? `@${otherSide.author.username}` : '')
+  // BUG FIX: en publicaciones normales (type='versus') y 1vs1 (type='duet'),
+  // sideA y sideB pertenecen SIEMPRE al MISMO autor (son 2 opciones de la
+  // misma persona, no un reto real entre 2 usuarios) -> mostrar "vs {mismo
+  // nombre}" en la winner card es una redundancia sin sentido. Solo en un
+  // reto ACEPTADO (post.isChallenge===true) sideA/sideB son autores distintos
+  // y esa línea sí aporta información real.
+  const sameAuthorBothSides = !!(chosenSide.author?.username && chosenSide.author?.username === otherSide.author?.username)
   const chosenSrc = chosenKey === 'b' ? srcB : srcA
   const chosenIsImage = chosenSide.mediaType === 'image'
 
@@ -767,7 +774,7 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
         winnerPercentage={chosenPct}
         winnerImage={chosenIsImage ? (chosenSide.posterUrl || chosenSide.imageUrl) : (isGeneratedAvatar(chosenSide.author?.avatarUrl) ? null : chosenSide.author?.avatarUrl)}
         winnerVideoUrl={chosenIsImage ? null : chosenSrc}
-        loserName={otherName}
+        loserName={sameAuthorBothSides ? '' : otherName}
         loserPercentage={otherPct}
         totalVotes={totalVotes}
         onClose={() => setShowWinner(false)}

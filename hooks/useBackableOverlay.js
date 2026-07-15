@@ -30,6 +30,14 @@ import { useEffect, useRef } from 'react'
  * su propia entrada, y el gesto de Atrás los cierra en orden inverso
  * (LIFO), igual que una pila de navegación nativa.
  */
+// Contador COMPARTIDO entre TODAS las instancias del hook (a nivel de
+// módulo, no de componente): cuenta cuántos popstate "sintéticos" (causados
+// por nuestros propios history.back() de limpieza al cerrar un overlay "por
+// otro medio") están pendientes de llegar, para que NINGÚN listener (el del
+// overlay que se cerró, ni el de uno distinto que se haya abierto justo
+// después en el mismo evento) los confunda con un gesto real de "Atrás".
+let ignoreNextPopstate = 0
+
 export function useBackableOverlay(isOpen, onClose) {
   const pushedRef = useRef(false)
   const onCloseRef = useRef(onClose)
@@ -44,7 +52,17 @@ export function useBackableOverlay(isOpen, onClose) {
     } else if (!isOpen && pushedRef.current) {
       // Se cerró por otro medio (botón X, acción interna...): consumimos la
       // entrada de historial que habíamos añadido para no dejarla huérfana.
+      // BUG FIX: si en el MISMO evento (p.ej. "cerrar Completados y abrir
+      // Activos" en un solo onClick) OTRO overlay hace su propio pushState
+      // justo después de este history.back(), el popstate real de este
+      // back() llega de forma ASÍNCRONA y puede terminar cerrando ese OTRO
+      // overlay recién abierto por error (pushedRef.current ya estaría en
+      // true para él). Marcamos este popstate como "sintético" con un
+      // contador COMPARTIDO entre todas las instancias del hook para que
+      // ningún listener (ni el propio ni el de otro overlay) lo confunda con
+      // un gesto real de "Atrás" del usuario.
       pushedRef.current = false
+      ignoreNextPopstate += 1
       window.history.back()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -55,6 +73,12 @@ export function useBackableOverlay(isOpen, onClose) {
   useEffect(() => {
     if (typeof window === 'undefined') return
     const onPopState = () => {
+      if (ignoreNextPopstate > 0) {
+        // Este popstate lo generó nuestro propio history.back() de limpieza
+        // (no un gesto real del usuario) -> se descarta una sola vez.
+        ignoreNextPopstate -= 1
+        return
+      }
       if (pushedRef.current) {
         pushedRef.current = false
         onCloseRef.current?.()
