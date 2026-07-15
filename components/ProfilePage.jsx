@@ -500,7 +500,12 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
 
   const stats = useMemo(() => {
     const votos = myPosts.reduce((acc, p) => acc + (p?.votes?.a || 0) + (p?.votes?.b || 0), 0)
-    const retos = myPosts.filter((p) => p?.type === 'versus').length
+    // BUG FIX: las publicaciones NORMALES (carrusel de 2 vídeos A/B) también son
+    // type==='versus' por diseño (no solo los retos aceptados), así que contar por
+    // `type` inflaba "Challenges" con publicaciones normales. Un reto real solo se
+    // marca con `isChallenge:true` (asignado únicamente al aceptar un reto, ver
+    // handleAcceptChallenge en route.js) — contar por esa bandera es lo correcto.
+    const retos = myPosts.filter((p) => p?.isChallenge === true).length
     return { votos, retos }
   }, [myPosts])
 
