@@ -61,13 +61,25 @@ export default function NotificationsInbox({ open, onClose }) {
   const [repliedIds, setRepliedIds] = useState(() => new Set())
   const { user } = useAuth()
 
+  // BUG FIX (contadores de las pestañas inconsistentes/"reaparecían" al
+  // volver a "All"): antes se volvía a pedir al backend con un `?filter=`
+  // distinto EN CADA cambio de pestaña, así que `list` solo contenía las
+  // notificaciones del tipo activo en cada momento. `countFor()` calculaba
+  // los números de TODAS las pestañas a partir de ese `list` parcial, por lo
+  // que las pestañas no activas mostraban 0 (o un número desactualizado) y,
+  // al volver a "All" (que sí trae el listado completo), los números
+  // "correctos" volvían a aparecer de golpe -> exactamente el bug reportado.
+  // FIX: se pide SIEMPRE el listado COMPLETO (sin filtro) una sola vez por
+  // apertura/usuario, y el filtrado por pestaña + el cálculo de los
+  // contadores se hace en el cliente sobre esa ÚNICA lista completa, así los
+  // números son siempre consistentes sin importar qué pestaña esté activa.
   useEffect(() => {
     if (open && user) {
-      loadNotifications(filter)
+      loadNotifications()
     } else if (open && !user) {
       setList([])
     }
-  }, [open, filter, user])
+  }, [open, user])
 
   // Reinicia el estado de "responder" cada vez que se abre/cierra la bandeja
   // o se cambia de pestaña, para no dejar un input abierto de un filtro
@@ -77,17 +89,14 @@ export default function NotificationsInbox({ open, onClose }) {
     setReplyText('')
   }, [open, filter])
 
-  const loadNotifications = async (currentFilter) => {
+  const loadNotifications = async () => {
     setLoading(true)
     try {
-      // BUG FIX: sin `cache: 'no-store'` el navegador podía servir una
-      // respuesta CACHEADA para esta misma URL (p.ej. al volver a la
-      // pestaña "All" tras marcar todo como leído), mostrando de nuevo el
-      // estado `read` ANTIGUO (no leídas) aunque el backend ya las tuviera
-      // marcadas como leídas. Mismo patrón que el resto de fetch de la app
-      // (GET /api/uploads, /api/challenges, etc.) para evitar exactamente
-      // este tipo de dato obsoleto.
-      const res = await fetch(`/api/notifications?filter=${currentFilter}`, {
+      // `cache: 'no-store'` evita que el navegador sirva una respuesta
+      // CACHEADA de una carga anterior (p.ej. al reabrir la bandeja tras
+      // marcar todo como leído), mostrando de nuevo el estado `read`
+      // ANTIGUO aunque el backend ya las tuviera marcadas como leídas.
+      const res = await fetch('/api/notifications?filter=all', {
         cache: 'no-store',
         headers: { ...authHeaders() },
       })
@@ -159,6 +168,12 @@ export default function NotificationsInbox({ open, onClose }) {
     if (!f.types) return list.length
     return list.filter((n) => f.types.includes(n.type)).length
   }
+  // Filtrado 100% en el cliente sobre la ÚNICA lista completa ya cargada
+  // (ver comentario en loadNotifications): así lo que se ve en pantalla al
+  // cambiar de pestaña siempre coincide con los contadores de arriba.
+  const displayList = activeFilter.types
+    ? list.filter((n) => activeFilter.types.includes(n.type))
+    : list
 
   return (
     <div className="fixed inset-0 z-[60] bg-[#0a0a0b] flex flex-col text-white">
@@ -230,7 +245,7 @@ export default function NotificationsInbox({ open, onClose }) {
               You need to log in to see your notifications
             </p>
           </div>
-        ) : list.length === 0 ? (
+        ) : displayList.length === 0 ? (
           <div className="flex flex-col items-center justify-center text-center pt-28">
             <div className="w-20 h-20 rounded-full border border-white/10 bg-white/[0.03] flex items-center justify-center mb-6"
                  style={{ boxShadow: '0 0 48px -14px rgba(255,255,255,0.4)' }}>
@@ -247,7 +262,7 @@ export default function NotificationsInbox({ open, onClose }) {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-1.5 pt-1">
-            {list.map((n) => {
+            {displayList.map((n) => {
               const { Icon, color } = iconFor(n)
               const replyable = isReplyable(n)
               const replying = replyOpenId === n.id
