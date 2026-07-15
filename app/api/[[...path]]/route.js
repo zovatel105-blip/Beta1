@@ -28,6 +28,7 @@ import {
   createNotification,
   markNotificationAsRead,
   markAllNotificationsAsRead,
+  markNotificationsByTypeAsRead,
   getUnreadNotificationsCount,
   updateVoteNotificationOnSwitch,
   updateCommentsVotedSideForUser,
@@ -1977,10 +1978,14 @@ async function handleMarkNotificationsRead(request) {
     }
 
     const body = await request.json().catch(() => ({}))
-    const { notificationId, all } = body
+    const { notificationId, all, types } = body
 
     if (all) {
       await markAllNotificationsAsRead(currentUser.id)
+    } else if (Array.isArray(types) && types.length > 0) {
+      // Usado al ABRIR una pestaña de categoría (Challenges/Votes/Followers/
+      // Comments) en la bandeja: verla ya cuenta como "leída" para esos tipos.
+      await markNotificationsByTypeAsRead(currentUser.id, types)
     } else if (notificationId) {
       await markNotificationAsRead(notificationId)
     } else {

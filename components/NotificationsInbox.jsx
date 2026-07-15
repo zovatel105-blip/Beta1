@@ -129,6 +129,27 @@ export default function NotificationsInbox({ open, onClose }) {
     }
   }
 
+  // NUEVO (petición del usuario): "Mark as read" queda reservado SOLO para
+  // la pestaña "All". En el resto de pestañas (Challenges/Votes/Followers/
+  // Comments), con solo ABRIRLAS ya se consideran "vistas" -> se marcan
+  // como leídas automáticamente (sin botón), y su insignia desaparece al
+  // instante. Optimista en el cliente + fire-and-forget al backend (nuevo
+  // parámetro `types` en POST /api/notifications/read).
+  const selectFilter = useCallback((f) => {
+    setFilter(f.key)
+    if (!f.types) return // "All" no se auto-marca; se usa el botón "Mark as read"
+    setList((prev) => {
+      const hasUnreadOfType = prev.some((n) => f.types.includes(n.type) && !n.read)
+      if (!hasUnreadOfType) return prev
+      fetch('/api/notifications/read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ types: f.types }),
+      }).catch((err) => console.error('Error marking type as read:', err))
+      return prev.map((n) => (f.types.includes(n.type) ? { ...n, read: true } : n))
+    })
+  }, [])
+
   const startReply = useCallback((n) => {
     setReplyOpenId(n.id)
     setReplyText('')
@@ -202,7 +223,7 @@ export default function NotificationsInbox({ open, onClose }) {
           </button>
           <h1 className="text-[17px] font-semibold tracking-tight">Notifications</h1>
         </div>
-        {hasUnread && (
+        {filter === 'all' && hasUnread && (
           <button onClick={markAllRead} className="text-[13px] font-medium text-zinc-400 hover:text-white px-2.5 py-1.5 rounded-full hover:bg-white/5 transition">
             Mark as read
           </button>
@@ -218,7 +239,7 @@ export default function NotificationsInbox({ open, onClose }) {
             return (
               <button
                 key={f.key}
-                onClick={() => setFilter(f.key)}
+                onClick={() => selectFilter(f)}
                 className={`shrink-0 inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full text-[13px] font-medium border transition-all active:scale-95 ${
                   active
                     ? 'bg-white text-black border-white'
