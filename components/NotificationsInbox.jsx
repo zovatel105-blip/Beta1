@@ -1,17 +1,31 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { Bell, Swords, UserPlus, MessageCircle, Check, ChevronLeft } from 'lucide-react'
+import { useEffect, useState, useCallback } from 'react'
+import { Bell, Swords, UserPlus, MessageCircle, Check, ChevronLeft, Send, CornerDownRight } from 'lucide-react'
 import VoteIcon from './icons/VoteIcon'
 import Avatar from './Avatar'
 import { useAuth } from '@/contexts/AuthContext'
 
 /**
  * NotificationsInbox — Página de notificaciones (diseño premium minimalista, móvil).
- * Ahora con datos reales de MongoDB.
+ * Ahora con datos reales de MongoDB. Permite responder directamente a
+ * comentarios/respuestas desde la propia notificación (sin tener que abrir
+ * la publicación).
  */
 const TWYK_A = '#A855F7' // opción A (morado)
 const TWYK_B = '#3B82F6' // opción B (azul)
+
+// Cabecera de autorización por token (respaldo de la cookie httpOnly,
+// necesaria dentro del iframe del preview donde se bloquean cookies de
+// terceros). Mismo patrón que el resto de la app (OptionsModal, Feed, etc).
+function authHeaders() {
+  try {
+    const t = localStorage.getItem('twyk_token')
+    return t ? { Authorization: `Bearer ${t}` } : {}
+  } catch {
+    return {}
+  }
+}
 
 const iconFor = (n) => {
   switch (n.type) {
@@ -25,6 +39,10 @@ const iconFor = (n) => {
   }
 }
 
+// Solo las notificaciones de comentario/respuesta con un post+comentario
+// identificables se pueden responder directamente desde aquí.
+const isReplyable = (n) => (n.type === 'comment' || n.type === 'reply') && n.postId && n.commentId
+
 const FILTERS = [
   { key: 'all', label: 'All', types: null },
   { key: 'challenge', label: 'Challenges', types: ['challenge', 'accepted'] },
@@ -37,6 +55,10 @@ export default function NotificationsInbox({ open, onClose }) {
   const [list, setList] = useState([])
   const [filter, setFilter] = useState('all')
   const [loading, setLoading] = useState(false)
+  const [replyOpenId, setReplyOpenId] = useState(null)
+  const [replyText, setReplyText] = useState('')
+  const [replySubmitting, setReplySubmitting] = useState(false)
+  const [repliedIds, setRepliedIds] = useState(() => new Set())
   const { user } = useAuth()
 
   useEffect(() => {
@@ -47,10 +69,28 @@ export default function NotificationsInbox({ open, onClose }) {
     }
   }, [open, filter, user])
 
+  // Reinicia el estado de "responder" cada vez que se abre/cierra la bandeja
+  // o se cambia de pestaña, para no dejar un input abierto de un filtro
+  // anterior.
+  useEffect(() => {
+    setReplyOpenId(null)
+    setReplyText('')
+  }, [open, filter])
+
   const loadNotifications = async (currentFilter) => {
     setLoading(true)
     try {
-      const res = await fetch(`/api/notifications?filter=${currentFilter}`)
+      // BUG FIX: sin `cache: 'no-store'` el navegador podía servir una
+      // respuesta CACHEADA para esta misma URL (p.ej. al volver a la
+      // pestaña "All" tras marcar todo como leído), mostrando de nuevo el
+      // estado `read` ANTIGUO (no leídas) aunque el backend ya las tuviera
+      // marcadas como leídas. Mismo patrón que el resto de fetch de la app
+      // (GET /api/uploads, /api/challenges, etc.) para evitar exactamente
+      // este tipo de dato obsoleto.
+      const res = await fetch(`/api/notifications?filter=${currentFilter}`, {
+        cache: 'no-store',
+        headers: { ...authHeaders() },
+      })
       if (res.ok) {
         const data = await res.json()
         setList(data.notifications || [])
@@ -65,13 +105,11 @@ export default function NotificationsInbox({ open, onClose }) {
     }
   }
 
-  if (!open) return null
-
   const markAllRead = async () => {
     try {
       const res = await fetch('/api/notifications/read', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ all: true }),
       })
       if (res.ok) {
@@ -81,6 +119,39 @@ export default function NotificationsInbox({ open, onClose }) {
       console.error('Error marking all as read:', err)
     }
   }
+
+  const startReply = useCallback((n) => {
+    setReplyOpenId(n.id)
+    setReplyText('')
+  }, [])
+
+  const cancelReply = useCallback(() => {
+    setReplyOpenId(null)
+    setReplyText('')
+  }, [])
+
+  const submitReply = useCallback(async (n) => {
+    if (!replyText.trim() || replySubmitting) return
+    setReplySubmitting(true)
+    try {
+      const res = await fetch('/api/comments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ postId: n.postId, text: replyText.trim(), parentId: n.commentId }),
+      })
+      if (res.ok) {
+        setRepliedIds((prev) => new Set(prev).add(n.id))
+        setReplyOpenId(null)
+        setReplyText('')
+      }
+    } catch (err) {
+      console.error('Error replying from notifications:', err)
+    } finally {
+      setReplySubmitting(false)
+    }
+  }, [replyText, replySubmitting])
+
+  if (!open) return null
 
   const hasUnread = list.some((n) => !n.read)
   const activeFilter = FILTERS.find((f) => f.key === filter) || FILTERS[0]
@@ -178,27 +249,83 @@ export default function NotificationsInbox({ open, onClose }) {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-1.5 pt-1">
             {list.map((n) => {
               const { Icon, color } = iconFor(n)
+              const replyable = isReplyable(n)
+              const replying = replyOpenId === n.id
+              const replied = repliedIds.has(n.id)
               return (
                 <div
                   key={n.id}
-                  className={`flex items-center gap-3 px-3 py-3 rounded-2xl transition ${
+                  className={`flex flex-col gap-2 px-3 py-3 rounded-2xl transition ${
                     n.read ? 'hover:bg-white/[0.03]' : 'bg-white/[0.04] border border-white/[0.06]'
                   }`}
                 >
-                  <div className="relative shrink-0">
-                    <Avatar src={n.user?.avatarUrl} alt="" className="w-11 h-11 rounded-full ring-1 ring-white/10" />
-                    <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center bg-zinc-900 border border-white/10">
-                      <Icon className="w-[12px] h-[12px]" style={{ color }} />
-                    </span>
+                  <div className="flex items-center gap-3">
+                    <div className="relative shrink-0">
+                      <Avatar src={n.user?.avatarUrl} alt="" className="w-11 h-11 rounded-full ring-1 ring-white/10" />
+                      <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center bg-zinc-900 border border-white/10">
+                        <Icon className="w-[12px] h-[12px]" style={{ color }} />
+                      </span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[14.5px] text-white leading-snug">
+                        <span className="font-semibold">@{n.user?.username}</span>{' '}
+                        <span className="text-zinc-300">{n.text}</span>
+                      </p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <p className="text-[12px] text-zinc-500">{n.time}</p>
+                        {replyable && !replying && (
+                          <button
+                            onClick={() => startReply(n)}
+                            className="text-[12px] font-semibold text-zinc-400 hover:text-white transition active:scale-95"
+                          >
+                            {replied ? 'Reply sent ✓' : 'Reply'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    {!n.read && <span className="shrink-0 w-2 h-2 rounded-full" style={{ background: '#EF4444' }} />}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[14.5px] text-white leading-snug">
-                      <span className="font-semibold">@{n.user?.username}</span>{' '}
-                      <span className="text-zinc-300">{n.text}</span>
-                    </p>
-                    <p className="text-[12px] text-zinc-500 mt-0.5">{n.time}</p>
-                  </div>
-                  {!n.read && <span className="shrink-0 w-2 h-2 rounded-full" style={{ background: '#EF4444' }} />}
+
+                  {/* Input de respuesta inline (sin salir de Notificaciones) */}
+                  {replying && (
+                    <div className="flex items-center gap-2 pl-[52px]">
+                      <CornerDownRight className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
+                      <input
+                        type="text"
+                        autoFocus
+                        value={replyText}
+                        onChange={(e) => setReplyText(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') submitReply(n) }}
+                        placeholder={`Reply to @${n.user?.username || 'user'}...`}
+                        maxLength={500}
+                        disabled={replySubmitting}
+                        className="flex-1 bg-white/[0.06] text-white placeholder:text-zinc-500 px-3 py-2 rounded-full text-[13px] outline-none focus:bg-white/10 transition-all"
+                      />
+                      <button
+                        onClick={() => submitReply(n)}
+                        disabled={!replyText.trim() || replySubmitting}
+                        aria-label="send reply"
+                        className={`w-8 h-8 rounded-full flex items-center justify-center transition-all shrink-0 ${
+                          replyText.trim() && !replySubmitting
+                            ? 'bg-white text-black hover:scale-105 active:scale-95'
+                            : 'bg-white/10 text-zinc-500 cursor-not-allowed'
+                        }`}
+                      >
+                        {replySubmitting ? (
+                          <div className="w-3.5 h-3.5 rounded-full border-2 border-black/30 border-t-black animate-spin" />
+                        ) : (
+                          <Send className="w-3.5 h-3.5" strokeWidth={2} />
+                        )}
+                      </button>
+                      <button
+                        onClick={cancelReply}
+                        disabled={replySubmitting}
+                        className="text-[12px] text-zinc-500 hover:text-white transition shrink-0 px-1"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  )}
                 </div>
               )
             })}

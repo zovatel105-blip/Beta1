@@ -2030,9 +2030,16 @@ async function handleCreateComment(request) {
     let safeParentId = null
     if (parentId && typeof parentId === 'string') {
       try {
-        parentComment = await getCommentByIdDB(parentId)
-        if (parentComment && parentComment.postId === postId) {
-          safeParentId = parentComment.id
+        const directParent = await getCommentByIdDB(parentId)
+        if (directParent && directParent.postId === postId) {
+          parentComment = directParent
+          // Aplanar a 1 nivel (igual criterio que CommentsModal.jsx en el
+          // frontend): si el comentario al que respondes YA es en sí mismo
+          // una respuesta (tiene su propio parentId), la nueva respuesta se
+          // cuelga del comentario RAÍZ, para que siempre aparezca en el
+          // mismo hilo plano sin importar desde dónde se responda (modal de
+          // comentarios o desde la página de Notificaciones).
+          safeParentId = directParent.parentId || directParent.id
         }
       } catch { /* ignore, se trata como comentario normal */ }
     }

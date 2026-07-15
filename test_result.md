@@ -105,6 +105,21 @@
 user_problem_statement: "Las publicaciones normales deben ser un carrusel de 2 vídeos (opción A / opción B) entre los que se desliza y se vota tocando el vídeo. Se suben 2 vídeos. Reemplaza el vídeo normal. AÑADIDO: votar = doble toque, quitar el corazón/Me gusta, y nueva función 'Retar' (solicitud de enfrentamiento con un vídeo subido que el retado acepta/cancela en la Bandeja). NUEVO: buscador de usuarios en la esquina superior derecha de la página de inicio (icono de lupa que abre un overlay)."
 
 backend:
+  - task: "Notificaciones: responder a comentarios desde la bandeja + bug de caché que revertía notificaciones leídas a no leídas"
+    implemented: true
+    working: "NA"
+    file: "components/NotificationsInbox.jsx, lib/db.js, app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'En la página de notificaciones: 1) poder responder a los comentarios 2) cuando hago click en all y las notificaciones se vuelven a mostrar como no leídas'."
+        -working: "NA"
+        -agent: "main"
+        -comment: "BUG #2 (caché): NotificationsInbox.jsx hacía `fetch('/api/notifications?filter=...')` SIN `cache:'no-store'` (a diferencia de casi todos los demás fetch de la app, que sí lo usan). El navegador podía servir una respuesta CACHEADA para esa misma URL exacta al volver a la pestaña 'All' (p.ej. tras 'Mark as read'), mostrando de nuevo el `read:false` antiguo aunque el backend ya las tuviera marcadas como leídas. FIX: añadido `cache:'no-store'` (+ Authorization Bearer de respaldo, mismo patrón que el resto de la app) a la petición. FEATURE #1 (responder): lib/db.js getNotifications ahora también devuelve `commentId` (antes se guardaba en el documento pero no se exponía al frontend). route.js handleCreateComment: si el `parentId` recibido pertenece a su vez a una respuesta (tiene su propio parentId), se APLANA automáticamente a la raíz (mismo criterio que ya usaba CommentsModal.jsx en el frontend), para que una respuesta iniciada desde Notificaciones aparezca en el mismo hilo plano que el modal de comentarios. NotificationsInbox.jsx: notificaciones type='comment'|'reply' con postId+commentId muestran un botón 'Reply' que abre un input inline (sin salir de la pantalla) y hace POST /api/comments {postId, text, parentId:n.commentId}; al enviar muestra 'Reply sent ✓'. Verificado SOLO con lint (limpio en los 3 archivos) y reinicio de nextjs sin errores. NO se usó el agente de testing (petición explícita y reiterada del usuario en esta sesión + preocupación por el consumo de créditos)."
+
   - task: "BUG: Perfil mostraba conteo de 'Challenges' incorrecto (contaba TODAS las publicaciones normales tipo 'versus', no solo retos aceptados) + posts fantasma sin archivo real cuando la subida se corrompe"
     implemented: true
     working: "NA"
