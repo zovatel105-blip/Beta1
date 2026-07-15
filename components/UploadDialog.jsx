@@ -269,7 +269,7 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
                   onClick={() => setSelected('challenge')}
                   className={`px-4 py-2 rounded-full text-[13px] font-semibold transition ${selected === 'challenge' ? 'bg-white text-black' : 'text-zinc-300 hover:text-white'}`}
                 >
-                  Retos
+                  Challenges
                 </button>
               </div>
             </div>
