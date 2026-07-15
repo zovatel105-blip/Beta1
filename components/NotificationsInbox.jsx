@@ -164,9 +164,21 @@ export default function NotificationsInbox({ open, onClose }) {
 
   const hasUnread = list.some((n) => !n.read)
   const activeFilter = FILTERS.find((f) => f.key === filter) || FILTERS[0]
+  // BUG FIX #2 (el usuario confirmó que el problema seguía tras la 1ª
+  // corrección de consistencia): las insignias contaban el TOTAL histórico
+  // de notificaciones de cada categoría (leídas + no leídas), NO solo las
+  // no leídas. Por eso, aunque ya eran consistentes entre pestañas, el
+  // número NUNCA desaparecía al pulsar "Mark as read" (seguía mostrando el
+  // total de siempre) -> al volver a "All" (o a cualquier pestaña) el
+  // usuario veía "el número volver a aparecer" porque en realidad nunca se
+  // había ido. FIX: la insignia ahora cuenta SOLO las NO LEÍDAS de esa
+  // categoría (comportamiento estándar de badge de notificaciones), así al
+  // marcar todo como leído desaparece de INMEDIATO en TODAS las pestañas a
+  // la vez (no solo en la activa), y no vuelve a aparecer al cambiar de
+  // pestaña porque el dato ya es 0 de verdad, no solo mientras estás en "All".
   const countFor = (f) => {
-    if (!f.types) return list.length
-    return list.filter((n) => f.types.includes(n.type)).length
+    const items = f.types ? list.filter((n) => f.types.includes(n.type)) : list
+    return items.filter((n) => !n.read).length
   }
   // Filtrado 100% en el cliente sobre la ÚNICA lista completa ya cargada
   // (ver comentario en loadNotifications): así lo que se ve en pantalla al
