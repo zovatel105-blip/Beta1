@@ -21,7 +21,7 @@ const fileKind = (f) => {
   return ''
 }
 
-export default function UploadDialog({ open, onClose, onUploaded, onChallengeCreated }) {
+export default function UploadDialog({ open, initialMode, onClose, onUploaded, onChallengeCreated }) {
   const inputRef = useRef(null)
   const inputBRef = useRef(null)
   const versusTouchX = useRef(0)
@@ -66,7 +66,24 @@ export default function UploadDialog({ open, onClose, onUploaded, onChallengeCre
   }
 
   useEffect(() => {
-    if (!open) reset()
+    if (!open) { reset(); return }
+    // BUG FIX (usuario: 'ahora funciona pero tiene que dirigirme directamente
+    // a retos no versus'): al abrir desde el botón 'Create a challenge'/'Add
+    // challenge' de la página de Retos, el diálogo mostraba siempre el
+    // selector Versus/1vs1/Retos empezando en 'Versus' -> el usuario tenía que
+    // cambiar manualmente a la pestaña 'Retos' y pulsar 'Continue'. Si se abre
+    // con initialMode='challenge' (ver Feed.jsx requestUpload), se salta el
+    // selector por completo y se entra DIRECTAMENTE al flujo de Retos (mismo
+    // efecto que si el usuario ya hubiera elegido 'Retos' y pulsado
+    // 'Continue'). Cualquier otro caso (initialMode null/'versus'/'duet')
+    // mantiene el comportamiento previo (mostrar el selector).
+    if (initialMode === 'challenge') {
+      setSelected('challenge')
+      setMode('challenge')
+      setStep('file')
+    } else if (initialMode === 'versus' || initialMode === 'duet') {
+      setSelected(initialMode)
+    }
   }, [open])
 
   // Carga la lista de creadores al entrar en el paso 'target' (a quién retar).

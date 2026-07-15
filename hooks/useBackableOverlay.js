@@ -46,31 +46,85 @@ import { useEffect, useRef } from 'react'
 // de este mismo evento lo ven como sintético y lo ignoran por igual.
 let ignoreNextPopstate = 0
 
+// BUG FIX (reportado: 'al pulsar Crear un reto desde la página de Retos me
+// manda al home feed'): cuando en el MISMO click se cierra un overlay Y se
+// abre OTRO distinto (p.ej. cerrar "Retos" + abrir "Subir"), cada overlay usa
+// su PROPIA instancia de este hook, y React ejecuta el useEffect de cada
+// instancia en el orden en que esos hooks fueron DECLARADOS en el componente
+// (Feed.jsx), NO en el orden lógico "primero cerrar, luego abrir". Si el
+// hook del overlay que ABRE está declarado ANTES que el del que CIERRA
+// (como pasaba con Subir=línea 119 vs Retos=línea 131), el pushState() del
+// que abre se ejecutaba ANTES de que el history.back() de limpieza del que
+// cierra hubiera movido la posición real -> el pushState quedaba apilado
+// SOBRE el marcador viejo, y el back() posterior solo lo desapilaba a medias,
+// dejando la posición REAL del historial desincronizada del estado de React
+// (se veía "Subir" en pantalla pero la posición de historial seguía
+// apuntando al marcador de "Retos") -> el siguiente back()/swipe (o incluso
+// un guardián nativo del navegador) podía saltar de golpe hasta ANTES de
+// abrir la app -> "me manda al home feed" (o directamente fuera de la app).
+//
+// FIX: en vez de ejecutar pushState()/history.back() de forma INMEDIATA
+// dentro de cada useEffect individual, cada instancia solo ENCOLA su acción
+// (cierre u apertura) en una cola COMPARTIDA a nivel de módulo, y se procesa
+// TODA la cola en un único microtask por "tanda" de cambios síncronos
+// (queueMicrotask corre DESPUÉS de que TODOS los useEffect de la tanda ya se
+// ejecutaron, sin importar su orden de declaración) -> dentro de ese
+// microtask, se procesan SIEMPRE primero TODOS los cierres pendientes y
+// LUEGO todas las aperturas, sin importar en qué orden se encolaron. Así
+// "cerrar Retos + abrir Subir" en un mismo click SIEMPRE limpia el marcador
+// viejo antes de apilar el nuevo, quedando el historial real sincronizado
+// con el estado de React sea cual sea el orden de los hooks en el código.
+let pendingCloses = []
+let pendingOpens = []
+let flushScheduled = false
+
+function scheduleFlush() {
+  if (flushScheduled) return
+  flushScheduled = true
+  queueMicrotask(() => {
+    flushScheduled = false
+    const closes = pendingCloses
+    const opens = pendingOpens
+    pendingCloses = []
+    pendingOpens = []
+    // Cierres SIEMPRE antes que aperturas, sin importar el orden de encolado.
+    closes.forEach((fn) => fn())
+    opens.forEach((fn) => fn())
+  })
+}
+
 export function useBackableOverlay(isOpen, onClose) {
   const pushedRef = useRef(false)
   const onCloseRef = useRef(onClose)
   onCloseRef.current = onClose
 
   // Al abrir: empuja el marcador de historial (una sola vez por apertura).
+  // Al cerrar "por otro medio": consume la entrada que habíamos añadido.
+  // Ambas acciones se ENCOLAN (ver comentario arriba) en vez de ejecutarse
+  // de inmediato, para garantizar el orden correcto entre overlays distintos
+  // que cambian en el mismo evento.
   useEffect(() => {
     if (typeof window === 'undefined') return
     if (isOpen && !pushedRef.current) {
-      window.history.pushState({ twykOverlay: true }, '')
       pushedRef.current = true
+      pendingOpens.push(() => {
+        window.history.pushState({ twykOverlay: true }, '')
+      })
+      scheduleFlush()
     } else if (!isOpen && pushedRef.current) {
-      // Se cerró por otro medio (botón X, acción interna...): consumimos la
-      // entrada de historial que habíamos añadido para no dejarla huérfana.
       pushedRef.current = false
-      ignoreNextPopstate += 1
-      window.history.back()
-      // Reset DIFERIDO (no inmediato): da tiempo a que el popstate asíncrono
-      // de este back() llegue y sea ignorado por TODOS los listeners activos
-      // en ese momento (incluido el de un overlay recién abierto en el mismo
-      // click), antes de volver a permitir que un popstate futuro (un gesto
-      // real del usuario) se procese con normalidad.
-      setTimeout(() => { ignoreNextPopstate = Math.max(0, ignoreNextPopstate - 1) }, 0)
+      pendingCloses.push(() => {
+        ignoreNextPopstate += 1
+        window.history.back()
+        // Reset DIFERIDO (no inmediato): da tiempo a que el popstate asíncrono
+        // de este back() llegue y sea ignorado por TODOS los listeners activos
+        // en ese momento (incluido el de un overlay recién abierto en el mismo
+        // click), antes de volver a permitir que un popstate futuro (un gesto
+        // real del usuario) se procese con normalidad.
+        setTimeout(() => { ignoreNextPopstate = Math.max(0, ignoreNextPopstate - 1) }, 0)
+      })
+      scheduleFlush()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen])
 
   // Escucha el gesto de Atrás (swipe lateral / botón Atrás / tecla Atrás):

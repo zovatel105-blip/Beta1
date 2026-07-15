@@ -86,6 +86,10 @@ export default function Feed() {
   // tarjetas LIBEREN los decoders (no consumir batería/CPU en background).
   const [playbackEnabled, setPlaybackEnabled] = useState(true)
   const [uploadOpen, setUploadOpen] = useState(false)
+  // Modo inicial de la subida (ver requestUpload): null = mostrar el selector
+  // Versus/1vs1/Retos como siempre; 'challenge' = abrir directamente en el
+  // flujo de Retos (sin pasar por el selector), usado desde la página de Retos.
+  const [uploadInitialMode, setUploadInitialMode] = useState(null)
   // Gating de publicación: solo usuarios registrados pueden subir/publicar.
   // Si un invitado pulsa "Crear", abrimos el login; tras autenticarse, se abre
   // automáticamente el diálogo de subida (pendingUpload).
@@ -209,7 +213,12 @@ export default function Feed() {
   }, [])
 
   // Gating de publicación: si hay sesión abre la subida; si no, abre el login.
-  const requestUpload = useCallback(() => {
+  // `mode` (opcional) permite abrir la subida directamente en un modo
+  // concreto (p.ej. 'challenge' cuando se pulsa "Create a challenge"/"Add
+  // challenge" desde la página de Retos, en vez de mostrar siempre el
+  // selector Versus/1vs1/Retos empezando en 'Versus').
+  const requestUpload = useCallback((mode) => {
+    setUploadInitialMode(mode || null)
     if (user) {
       setUploadOpen(true)
     } else {
@@ -542,7 +551,7 @@ export default function Feed() {
         onRequireAuth={() => { setAuthTab('register'); setAuthOpen(true) }}
         onRequireLogin={() => { setAuthTab('login'); setAuthOpen(true) }}
       />
-      <UploadDialog open={uploadOpen} onClose={() => setUploadOpen(false)} onUploaded={handleUploaded} onChallengeCreated={refreshChallenges} />
+      <UploadDialog open={uploadOpen} initialMode={uploadInitialMode} onClose={() => setUploadOpen(false)} onUploaded={handleUploaded} onChallengeCreated={refreshChallenges} />
       <AuthModal key={authTab} open={authOpen} onClose={() => setAuthOpen(false)} defaultTab={authTab} />
       <ChallengeDialog
         open={challengeOpen}
@@ -571,7 +580,7 @@ export default function Feed() {
         refreshKey={battlesRefresh}
         onClose={() => setBattlesOpen(false)}
         onOpenActive={() => { setBattlesOpen(false); setActiveChallengesOpen(true) }}
-        onOpenUpload={() => { setBattlesOpen(false); requestUpload() }}
+        onOpenUpload={() => { setBattlesOpen(false); requestUpload('challenge') }}
         onOpenInbox={() => { setBattlesOpen(false); setInboxOpen(true) }}
         onOpenProfile={() => { setBattlesOpen(false); setProfileOpen(true) }}
         onOpenSuggestions={() => setSuggestionsOpen(true)}
