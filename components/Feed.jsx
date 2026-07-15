@@ -118,8 +118,17 @@ export default function Feed() {
   useBackableOverlay(profileOpen, useCallback(() => { setProfileOpen(false); setProfileUsername(null) }, []))
   useBackableOverlay(uploadOpen, useCallback(() => setUploadOpen(false), []))
   useBackableOverlay(inboxOpen, useCallback(() => setInboxOpen(false), []))
-  useBackableOverlay(battlesOpen, useCallback(() => setBattlesOpen(false), []))
-  useBackableOverlay(activeChallengesOpen, useCallback(() => setActiveChallengesOpen(false), []))
+  // battlesOpen/activeChallengesOpen son 2 PESTAÑAS mutuamente excluyentes de
+  // la misma pantalla "Retos" (Completados/Activos) — se usa UN SOLO hook
+  // combinado (en vez de uno por pestaña) para que cambiar de pestaña
+  // (cerrar una y abrir la otra en el mismo click) NUNCA dispare un
+  // cierre+apertura real del marcador de historial (la combinación
+  // `battlesOpen || activeChallengesOpen` permanece `true` todo el tiempo
+  // durante el cambio de pestaña, solo cambia CUÁL de las 2 está activa) —
+  // evita el bug reportado (pulsar "Active" acababa cerrando la pantalla por
+  // una carrera entre el history.back() de limpieza de una pestaña y el
+  // history.pushState() de la otra, ver hooks/useBackableOverlay.js).
+  useBackableOverlay(battlesOpen || activeChallengesOpen, useCallback(() => { setBattlesOpen(false); setActiveChallengesOpen(false) }, []))
   useBackableOverlay(searchOpen, useCallback(() => setSearchOpen(false), []))
   useBackableOverlay(suggestionsOpen, useCallback(() => setSuggestionsOpen(false), []))
   useBackableOverlay(challengeOpen, useCallback(() => setChallengeOpen(false), []))
