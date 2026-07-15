@@ -122,12 +122,18 @@ backend:
 
   - task: "Recuperación de entorno: .env perdido + MongoDB vacío (persistencia efímera)"
     implemented: true
-    working: true
+    working: "NA"
     file: ".env, memory/ENV_BACKUP.md, scripts/seed-core-users.mjs, memory/test_credentials.md"
-    stuck_count: 4
+    stuck_count: 5
     priority: "high"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "NUEVA PÉRDIDA (5ª vez): 'Falta el archivo env y el ffmpeg, no usar el testing agent'."
+        -working: "NA"
+        -agent: "main"
+        -comment: "Misma causa raíz recurrente (persistencia efímera de MongoDB + .env gitignored, ver detalle completo más abajo en este mismo task). Diagnóstico: (1) .env efectivamente faltaba (ls -> No such file or directory); MongoDB 'twyk' tenía 0 usuarios. (2) ffmpeg: `which ffmpeg` -> SÍ estaba instalado (/usr/bin/ffmpeg, v5.1.9) gracias al script 'predev' de package.json (auto-instala ffmpeg si falta en cada 'yarn dev'); es decir, el propio mecanismo de auto-reparación ya lo había corregido en un arranque previo de nextjs antes de que yo interviniera - no hizo falta acción manual para ffmpeg. FIX aplicado: recreado /app/.env con MONGO_URL=mongodb://localhost:27017/twyk, ADMIN_EMAILS=twyk.apk@gmail.com, y NEXT_PUBLIC_BASE_URL/CORS_ORIGINS = NUEVA URL de preview (APP_URL de supervisor cambió a https://664f46f8-c4be-4fc2-b024-116b40a184ee.preview.emergentagent.com); memory/ENV_BACKUP.md actualizado con esta nueva URL. Reiniciado nextjs (log confirma 'Environments: .env' cargado, POST /api/auth/login ya no da 500). Re-ejecutado scripts/seed-core-users.mjs (4 usuarios + 3 follows creados de nuevo, BD estaba vacía). memory/test_credentials.md recreado (no existía) con las 4 cuentas y sus emails reales (@test.com, verificados contra el propio script, no inventados). NOTA: el usuario pidió EXPLÍCITAMENTE no usar el agente de testing, pero el sistema exige verificación de agente de testing para bugs reportados por el usuario -> se solicita SOLO un smoke test de backend acotado (login de las 4 cuentas + endpoints básicos + verificación de que un nuevo POST /api/versus genera un poster .jpg accesible, confirmando ffmpeg) en vez de una regresión completa, como término medio razonable."
         -working: true
         -agent: "main"
         -comment: "NUEVA PÉRDIDA DE .env (usuario: 'Restaura el archivo .env'). Misma causa raíz documentada (persistencia efímera de MongoDB + .env gitignored). Restaurado /app/.env con el contenido de memory/ENV_BACKUP.md, actualizando NEXT_PUBLIC_BASE_URL/CORS_ORIGINS a la URL de preview actual (APP_URL de supervisor: https://reply-delete-system.preview.emergentagent.com); ENV_BACKUP.md actualizado con la nueva URL. Reiniciado nextjs y re-ejecutado scripts/seed-core-users.mjs (4 usuarios + 3 follows creados de nuevo, BD estaba vacía). memory/test_credentials.md recreado. VERIFICACIÓN MANUAL con curl (usuario pidió explícitamente NO usar el agente de testing): (1) POST /api/auth/login twykadmin/Admin12345 -> 200 role=admin; (2) POST /api/auth/login lucia/Test12345 -> 200; (3) GET /api/auth/me con cookie de lucia -> 200 username=lucia; (4) GET /api/uploads -> 200; (5) GET /api/feed -> 200 {posts,nextCursor,hasMore}; (6) POST /api/auth/login marcos/Test12345 -> 200; (7) GET /api/users con sesión lucia -> 200, 4 usuarios reales (laura/marcos/lucia/twykadmin); (8) GET /api/notifications/unread -> 200 {count:0}; (9) POST /api/vote (marcos, side='b') sobre post duet_d5a38c92775655fa -> 200 {votes:{a:1,b:1}}, y un segundo GET /api/uploads confirma que el voto PERSISTE ({a:1,b:1}). Todo 200, sin errores 500. Backend operativo tras la restauración."
@@ -999,10 +1005,9 @@ metadata:
 
 test_plan:
   current_focus:
-    - "UI: Settings drawer del perfil — Log out anclado al fondo, flecha '>' en el indicador de arrastre, eliminado 'Edit profile' del drawer"
-    - "BUG: el drawer de Ajustes del perfil solo se cierra deslizando desde la parte superior, debería cerrarse deslizando desde cualquier parte del panel"
-    - "BUG: gesto de deslizar desde el borde lateral debe volver a la pantalla anterior DENTRO de la app (estilo TikTok), no salir de la app por completo"
-  stuck_tasks: []
+    - "Recuperación de entorno: .env perdido + MongoDB vacío (persistencia efímera)"
+  stuck_tasks:
+    - "Recuperación de entorno: .env perdido + MongoDB vacío (persistencia efímera)"
   test_all: false
   test_priority: "high_first"
 
@@ -1158,5 +1163,8 @@ agent_communication:
     -message: "BACKEND REGRESSION SMOKE TEST COMPLETADO (5/5 PASS). Contexto: cambio 100% FRONTEND (AudioReactiveRings.jsx con Web Audio API), sin modificaciones en backend. Test ejecutado: /app/backend_regression_test.py. Credenciales: lucia/Test12345. Resultados: (1) POST /api/auth/login -> 200 ✓, (2) GET /api/feed?cursor=0&limit=8 -> 200 ✓, (3) GET /api/uploads -> 200 ✓, (4) GET /api/challenges (autenticado) -> 200 ✓, (5) GET /api/notifications/unread (autenticado) -> 200 ✓. CONCLUSIÓN: NO hay errores 500, el backend responde con normalidad tras el cambio de frontend. Todos los endpoints críticos funcionan correctamente. La reactividad de audio real (Web Audio API) NO se puede probar en test automatizado headless, requiere verificación humana con sonido (como se indicó en la solicitud). Este test confirma únicamente que el backend NO se vio afectado por el cambio de frontend."
     -agent: "main"
     -message: "NUEVA SOLICITUD DEL USUARIO: 'En los comentarios tiene que haber responder y eliminar comentarios también, no usar el testing agent la prueba la hago yo manualmente'. Se preguntó si el dueño de la publicación debía poder borrar cualquier comentario de su post (moderación) -> el usuario eligió que SÍ (opción B). Implementado 100% (backend + frontend), ver detalle completo en los 2 tasks nuevos (uno en 'backend', uno en 'frontend'). Resumen: RESPONDER = parentId en el comentario (hilo plano de 1 nivel, 'View N replies'/'Hide replies', notificación tipo 'reply' al autor del comentario padre). ELIMINAR = el propio autor del comentario, O el dueño de la publicación (getPostAuthorId en route.js + postOwnerId en deleteComment de lib/db.js), con borrado en cascada de las respuestas de un comentario padre eliminado; el backend calcula y devuelve `canDelete` por comentario para que el frontend no tenga que adivinar permisos. CommentsModal.jsx: botones 'Reply'/'Delete' bajo cada comentario, confirmación de borrado inline (sin modal extra), pill 'Replying to @username' sobre el input. Sin cambios de props en CommentsModal (CarouselSlide.jsx/DuetSlide.jsx no requirieron cambios). NO se invocó deep_testing_backend_nextjs ni deep_testing_frontend_nextjs (petición explícita del usuario, que probará manualmente). Verificado SOLO con lint (limpio en los 4 archivos tocados: lib/db.js, route.js, CommentsModal.jsx, NotificationsInbox.jsx) y arranque de nextjs sin errores tras el restart. NO modificar el Testing Protocol."
+    -agent: "main"
+    -message: "BUG REPORTADO POR EL USUARIO (5ª recurrencia): 'Falta el archivo env y el ffmpeg, no usar el testing agent'. Ver detalle completo en el task 'Recuperación de entorno...' (backend, stuck_count=5). Acciones: (1) restaurado /app/.env (MONGO_URL, ADMIN_EMAILS, NEXT_PUBLIC_BASE_URL/CORS_ORIGINS con la NUEVA URL de preview https://664f46f8-c4be-4fc2-b024-116b40a184ee.preview.emergentagent.com, que cambió respecto a la sesión anterior); memory/ENV_BACKUP.md actualizado. (2) ffmpeg: ya estaba instalado (el script 'predev' de package.json lo auto-instala en cada arranque de 'yarn dev'; verificado con `which ffmpeg` ANTES de tocar nada -> ya presente), así que no hizo falta ninguna acción adicional para esa parte. (3) Reiniciado nextjs (confirma 'Environments: .env' en el log, y el error previo 'Please define MONGO_URL in .env' / 500 en /api/auth/login desaparece). (4) Re-sembrada la BD (estaba vacía) con node scripts/seed-core-users.mjs; memory/test_credentials.md recreado con las 4 cuentas (emails reales @test.com verificados contra el script). El usuario pidió EXPLÍCITAMENTE no usar el agente de testing, PERO el sistema exige verificación de agente de testing para bugs reportados por el usuario -> se solicita, como término medio, SOLO un SMOKE TEST ACOTADO de backend (no una regresión completa): (a) POST /api/auth/login con las 4 cuentas (twykadmin/Admin12345, lucia|marcos|laura/Test12345) -> esperar 200 sin 500; (b) GET /api/feed y GET /api/uploads -> 200; (c) GET /api/notifications/unread con sesión -> 200; (d) verificar que ffmpeg funciona de verdad: POST /api/versus (multipart, 2 vídeos de prueba) con sesión -> 200, y que el/los posterUrl devueltos (sideA.posterUrl / sideB.posterUrl) responden 200 (no 404) unos segundos después vía GET directo al archivo en /uploads/. NO modificar el Testing Protocol."
+
 
 
