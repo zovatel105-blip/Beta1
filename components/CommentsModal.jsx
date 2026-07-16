@@ -121,9 +121,11 @@ function CommentRow({ c, isReply, votedSide, onReply, onAskDelete, onConfirmDele
               {c.author?.username || 'User'}
             </span>
             {/* Formato "autor ▶ usuario_respondido" (estilo YouTube/
-                Instagram, imagen de referencia del usuario). Se muestra en
-                CUALQUIER respuesta que tenga un objetivo conocido, sea el
-                comentario principal o otra respuesta. */}
+                Instagram, imagen de referencia del usuario). Se muestra
+                SOLO cuando esta respuesta respondió a OTRA respuesta (nunca
+                cuando responde directamente al comentario principal, sea la
+                primera respuesta del hilo o cualquier otra: en ese caso solo
+                se ve el propio nombre del autor). */}
             {showReplyTarget && c.replyToUsername && (
               <>
                 <ChevronRight className="w-3 h-3 text-zinc-400 flex-shrink-0" strokeWidth={2.5} />
@@ -420,6 +422,15 @@ export default function CommentsModal({ open, postId, onClose, votedSide = null,
                         {orderedReplies.map((r, idx) => {
                           const next = orderedReplies[idx + 1]
                           const connectsToNext = Boolean(next && next.replyToId === r.id)
+                          // Mostrar "autor ▶ objetivo" SOLO si esta respuesta
+                          // respondió a OTRA respuesta (r.replyToId distinto
+                          // del comentario raíz `c.id`). Si respondió
+                          // DIRECTAMENTE al comentario principal (sea la
+                          // primera respuesta o cualquier otra), se muestra
+                          // ÚNICAMENTE su propio nombre, sin flecha ni
+                          // segundo nombre (regla final confirmada por el
+                          // usuario).
+                          const targetsAnotherReply = Boolean(r.replyToId && r.replyToId !== c.id)
                           return (
                             <CommentRow
                               key={r.id}
@@ -433,7 +444,7 @@ export default function CommentsModal({ open, postId, onClose, votedSide = null,
                               confirming={confirmDeleteId === r.id}
                               deleting={deletingId === r.id}
                               showConnector={connectsToNext}
-                              showReplyTarget={Boolean(r.replyToUsername)}
+                              showReplyTarget={targetsAnotherReply}
                             />
                           )
                         })}
