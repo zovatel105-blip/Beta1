@@ -2049,12 +2049,20 @@ async function handleCreateComment(request) {
       } catch { /* ignore, se trata como comentario normal */ }
     }
 
+    // replyToId = comentario EXACTO al que se respondió (puede ser una
+    // respuesta, no solo la raíz); distinto de safeParentId, que siempre es
+    // la raíz del hilo (aplanado a 1 nivel para el almacenamiento/agrupado).
+    // El frontend usa replyToId para saber entre qué 2 avatares dibujar la
+    // línea vertical de conexión (solo si B respondió específicamente a A).
+    const replyToId = parentComment ? parentComment.id : null
+
     const comment = await createCommentDB({ 
       postId, 
       userId: currentUser.id, 
       text: text.trim(),
       votedSide: votedSide === 'a' || votedSide === 'b' ? votedSide : null,
       parentId: safeParentId,
+      replyToId,
     })
 
     if (safeParentId && parentComment) {
@@ -2109,6 +2117,7 @@ async function handleCreateComment(request) {
       text: comment.text,
       votedSide: comment.votedSide || null,
       parentId: comment.parentId || null,
+      replyToId: comment.replyToId || null,
       likes: comment.likes,
       userLiked: false,
       isOwn: true,

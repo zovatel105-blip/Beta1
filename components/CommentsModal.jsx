@@ -42,16 +42,35 @@ const formatTime = (timestamp) => {
 // Fila de un comentario o de una respuesta (mismo diseño, avatar más pequeño
 // para las respuestas). Incluye las acciones "Reply" y, si `canDelete`,
 // "Delete" con una confirmación inline de 1 paso.
-function CommentRow({ c, isReply, votedSide, onReply, onAskDelete, onConfirmDelete, onCancelDelete, confirming, deleting }) {
+function CommentRow({ c, isReply, votedSide, onReply, onAskDelete, onConfirmDelete, onCancelDelete, confirming, deleting, showConnector }) {
   // Para mis propios comentarios, el punto de color sigue el voto ACTUAL
   // (prop en vivo), no el que tenía guardado al comentar.
   const effectiveSide = c.isOwn && votedSide ? votedSide : c.votedSide
   const color = sideColor(effectiveSide)
+  const avatarSize = isReply ? 28 : 36
 
   return (
     <div className="flex gap-3">
-      <div className={cn('rounded-full overflow-hidden bg-zinc-200 flex-shrink-0', isReply ? 'w-7 h-7' : 'w-9 h-9')}>
-        <Avatar src={c.author?.avatarUrl} alt={c.author?.username || ''} className="w-full h-full rounded-full" />
+      {/* Columna del avatar: se estira a la altura real de la fila (texto +
+          acciones) para que el conector, si lo hay, pueda ir del borde
+          inferior de ESTE avatar hasta cerca del borde superior del
+          SIGUIENTE avatar (respuesta), sin llegar a tocar ninguno de los
+          dos. Solo se dibuja entre respuestas consecutivas, nunca a partir
+          o hacia el comentario principal. */}
+      <div className="relative flex-shrink-0 self-stretch" style={{ width: avatarSize }}>
+        <div
+          className="rounded-full overflow-hidden bg-zinc-200 absolute top-0 left-0"
+          style={{ width: avatarSize, height: avatarSize }}
+        >
+          <Avatar src={c.author?.avatarUrl} alt={c.author?.username || ''} className="w-full h-full rounded-full" />
+        </div>
+        {showConnector && (
+          <span
+            aria-hidden="true"
+            className="absolute left-1/2 -translate-x-1/2 w-[1.5px] bg-zinc-200 rounded-full"
+            style={{ top: avatarSize + 6, bottom: -6 }}
+          />
+        )}
       </div>
 
       <div className="flex-1 min-w-0">
@@ -185,9 +204,11 @@ export default function CommentsModal({ open, postId, onClose, votedSide = null,
           onCountChange?.(next.length)
           return next
         })
-        // Si era una respuesta, abrir el hilo para que se vea al instante.
-        if (parentId) {
-          setExpandedReplies((prev) => new Set(prev).add(parentId))
+        // Si era una respuesta, abrir el hilo RAÍZ (el que devuelve el
+        // backend ya aplanado en data.comment.parentId) para que se vea al
+        // instante, sin importar si respondiste a la raíz o a otra respuesta.
+        if (data.comment.parentId) {
+          setExpandedReplies((prev) => new Set(prev).add(data.comment.parentId))
         }
         setNewComment('')
         setReplyingTo(null)
@@ -229,10 +250,12 @@ export default function CommentsModal({ open, postId, onClose, votedSide = null,
 
   const startReply = useCallback((c) => {
     if (!user) { setShowAuthModal(true); return }
-    // Las respuestas a una respuesta se cuelgan del comentario RAÍZ (hilo
-    // plano de 1 nivel, igual que Instagram), pero se muestra a quién se
-    // está respondiendo realmente.
-    setReplyingTo({ id: c.parentId || c.id, username: c.author?.username || 'user' })
+    // Se envía el id EXACTO del comentario pulsado (puede ser el comentario
+    // raíz o una respuesta concreta). El backend es quien aplana a 1 nivel
+    // para el hilo plano (parentId=raíz) SIN perder el dato de a quién se
+    // respondió realmente (replyToId), que es lo que necesita el frontend
+    // para saber entre qué 2 avatares dibujar la línea vertical de conexión.
+    setReplyingTo({ id: c.id, username: c.author?.username || 'user' })
   }, [user])
 
   const toggleReplies = useCallback((id) => {
@@ -333,20 +356,31 @@ export default function CommentsModal({ open, postId, onClose, votedSide = null,
 
                     {isExpanded && replies.length > 0 && (
                       <div className="ml-11 mt-3 space-y-3">
-                        {replies.map((r) => (
-                          <CommentRow
-                            key={r.id}
-                            c={r}
-                            isReply
-                            votedSide={votedSide}
-                            onReply={() => startReply(r)}
-                            onAskDelete={() => setConfirmDeleteId(r.id)}
-                            onConfirmDelete={() => handleDelete(r.id)}
-                            onCancelDelete={() => setConfirmDeleteId(null)}
-                            confirming={confirmDeleteId === r.id}
-                            deleting={deletingId === r.id}
-                          />
-                        ))}
+                        {/* Conector: pequeña línea vertical de avatar a avatar,
+                            SOLO cuando la respuesta siguiente fue dirigida
+                            específicamente a ESTA respuesta (replyToId),
+                            nunca por simple cercanía/orden. Nunca toca el
+                            comentario principal (la raíz no participa aquí)
+                            ni llega a tocar ninguno de los 2 avatares que une. */}
+                        {replies.map((r, idx) => {
+                          const next = replies[idx + 1]
+                          const connectsToNext = Boolean(next && next.replyToId === r.id)
+                          return (
+                            <CommentRow
+                              key={r.id}
+                              c={r}
+                              isReply
+                              votedSide={votedSide}
+                              onReply={() => startReply(r)}
+                              onAskDelete={() => setConfirmDeleteId(r.id)}
+                              onConfirmDelete={() => handleDelete(r.id)}
+                              onCancelDelete={() => setConfirmDeleteId(null)}
+                              confirming={confirmDeleteId === r.id}
+                              deleting={deletingId === r.id}
+                              showConnector={connectsToNext}
+                            />
+                          )
+                        })}
                       </div>
                     )}
                   </div>
