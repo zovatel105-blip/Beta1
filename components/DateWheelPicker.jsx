@@ -139,18 +139,16 @@ export default function DateWheelPicker({ value, onChange }) {
   const yearItems = years.map((y) => String(y))
 
   return (
-    <div
-      className="relative w-full rounded-3xl bg-white px-2 py-1 overflow-hidden"
-      style={{ border: '1px solid rgba(168,85,247,0.16)', boxShadow: '0 4px 24px -8px rgba(139,92,246,0.18)' }}
-    >
-      {/* Banda de selección central, con el gradiente de marca (morado -> azul) */}
+    <div className="relative w-full rounded-2xl bg-white px-2 py-1 overflow-hidden">
+      {/* Banda de selección central: minimalista, solo una línea superior e
+          inferior sutil en color de marca (sin relleno ni sombra). */}
       <div
-        className="pointer-events-none absolute left-2 right-2 rounded-2xl"
+        className="pointer-events-none absolute left-2 right-2"
         style={{
           top: PAD,
           height: ITEM_H,
-          background: 'linear-gradient(90deg, rgba(168,85,247,0.10) 0%, rgba(59,130,246,0.10) 100%)',
-          boxShadow: 'inset 0 0 0 1.5px rgba(139,92,246,0.35)',
+          borderTop: '1px solid rgba(139,92,246,0.35)',
+          borderBottom: '1px solid rgba(139,92,246,0.35)',
         }}
       />
       {/* Degradados superior/inferior para el efecto "rueda" */}

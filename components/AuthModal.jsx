@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { ChevronDown, ArrowLeft, User, Mail, Lock, LogIn, ShieldAlert, AtSign, Cake, Sparkles, PartyPopper } from 'lucide-react'
+import { ChevronDown, ArrowLeft, User, Mail, Lock, LogIn, ShieldAlert, AtSign, Cake } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import DateWheelPicker from './DateWheelPicker'
 
@@ -283,26 +283,12 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
 
                 {regStepCfg.key === 'birthdate' ? (
                   <>
-                    {/* Composición "hero" centrada (estructura distinta de la referencia:
-                        ahí el icono va arriba-derecha y el título a la izquierda, con un
-                        hueco vacío grande antes de la rueda). Aquí todo fluye centrado y
-                        compacto: icono con halo -> título -> subtítulo -> vista previa
-                        grande de la fecha/edad -> rueda, sin espacio muerto entre bloques. */}
+                    {/* Composición minimalista y centrada: el pastel es solo un icono
+                        (sin caja/fondo de color, sin halo ni sparkles) que flota como
+                        parte del diseño -> título -> subtítulo -> vista previa tipográfica
+                        (líneas finas, sin tarjeta rellena) -> rueda, sin espacio muerto. */}
                     <div className="flex flex-col items-center text-center">
-                      <div className="relative mb-4">
-                        <div
-                          className="absolute inset-0 rounded-full blur-2xl opacity-50 pointer-events-none"
-                          style={{ background: BRAND_GRADIENT, transform: 'scale(1.4)' }}
-                        />
-                        <Sparkles className="absolute -top-2 -left-3 w-4 h-4 text-purple-400 animate-pulse" strokeWidth={2} />
-                        <Sparkles className="absolute -bottom-1.5 -right-2.5 w-3.5 h-3.5 text-blue-400 animate-pulse" style={{ animationDelay: '0.5s' }} strokeWidth={2} />
-                        <div
-                          className="relative w-[76px] h-[76px] rounded-[26px] flex items-center justify-center"
-                          style={{ background: BRAND_GRADIENT, boxShadow: '0 16px 34px -10px rgba(168,85,247,0.55)' }}
-                        >
-                          <Cake className="w-9 h-9 text-white" strokeWidth={1.6} />
-                        </div>
-                      </div>
+                      <Cake className="w-11 h-11 text-purple-500 mb-3" strokeWidth={1.4} />
                       <h1 className="text-[24px] font-extrabold tracking-tight leading-tight max-w-[300px]">{regStepCfg.title}</h1>
                       <p className="text-zinc-500 text-[14px] mt-2 max-w-[280px] leading-snug">{regStepCfg.subtitle}</p>
 
@@ -311,25 +297,11 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
                         const underAge = previewAge !== null && previewAge < 13
                         const formatted = formatDateLong(registerData.birthDate)
                         return (
-                          <div
-                            className="w-full mt-6 mb-5 rounded-2xl py-4 px-4 text-center transition-colors duration-300"
-                            style={{
-                              background: underAge
-                                ? 'rgba(239,68,68,0.06)'
-                                : 'linear-gradient(135deg, rgba(168,85,247,0.09), rgba(59,130,246,0.09))',
-                              border: `1px solid ${underAge ? 'rgba(239,68,68,0.30)' : 'rgba(168,85,247,0.22)'}`,
-                            }}
-                          >
-                            <p className="text-[19px] font-extrabold text-zinc-900">{formatted || 'Select your date'}</p>
+                          <div className="w-full mt-7 mb-6 py-4 border-t border-b border-zinc-100 text-center">
+                            <p className="text-[20px] font-extrabold text-zinc-900 tracking-tight">{formatted || 'Select your date'}</p>
                             <p
-                              className={`text-[13px] mt-1.5 font-bold inline-flex items-center justify-center gap-1.5 ${underAge ? 'text-red-500' : ''}`}
-                              style={!underAge ? { color: '#8B5CF6' } : undefined}
+                              className={`text-[12.5px] mt-1.5 font-semibold uppercase tracking-wide ${underAge ? 'text-red-500' : 'text-purple-500'}`}
                             >
-                              {underAge ? (
-                                <ShieldAlert className="w-3.5 h-3.5" strokeWidth={2.2} />
-                              ) : (
-                                <PartyPopper className="w-3.5 h-3.5" strokeWidth={2.2} />
-                              )}
                               {underAge
                                 ? 'You must be 13 or older to join Twyk'
                                 : previewAge !== null
