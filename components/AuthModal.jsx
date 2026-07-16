@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { ChevronDown, ArrowLeft, User, Mail, Lock, LogIn, ShieldAlert, AtSign, Cake } from 'lucide-react'
+import { ChevronDown, ArrowLeft } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import DateWheelPicker from './DateWheelPicker'
 
@@ -159,13 +159,10 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
     }
   }
 
-  const inputCls =
-    'w-full bg-zinc-50 text-zinc-900 placeholder:text-zinc-400 px-4 py-4 rounded-xl text-[16px] outline-none focus:bg-white transition-all border border-zinc-200 focus:border-zinc-400'
-  const inputWithIcon =
-    'w-full bg-zinc-50 text-zinc-900 placeholder:text-zinc-400 pl-12 pr-4 py-4 rounded-xl text-[16px] outline-none focus:bg-white transition-all border border-zinc-200 focus:border-zinc-400'
-  // Input minimalista para los pasos del registro paso a paso (mismo lenguaje
-  // visual que el paso de fecha de nacimiento: sin caja/relleno, solo una
-  // línea inferior fina que se resalta en morado de marca al enfocar).
+  // Input minimalista para TODOS los formularios de este modal (registro
+  // paso a paso Y login): sin caja/relleno, solo una línea inferior fina
+  // que se resalta en morado de marca al enfocar. Reemplaza los inputs
+  // anteriores con icono incrustado dentro de una caja rellena.
   const minimalStepInput =
     'w-full bg-transparent text-zinc-900 placeholder:text-zinc-300 text-center text-[20px] font-bold tracking-tight py-3 outline-none border-0 border-b-2 border-zinc-200 focus:border-purple-400 transition-colors'
 
@@ -203,10 +200,7 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
         {/* ── PANTALLA DE BLOQUEO POR EDAD (COPPA) ───────────────────────────── */}
         {ageBlocked ? (
           <div className="relative z-10 flex-1 min-h-0 overflow-y-auto px-6">
-            <div className="max-w-[420px] mx-auto w-full flex flex-col items-center text-center pt-10">
-              <div className="w-16 h-16 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-5">
-                <ShieldAlert className="w-8 h-8 text-red-500" strokeWidth={1.7} />
-              </div>
+            <div className="max-w-[420px] mx-auto w-full flex flex-col items-center text-center pt-16">
               <h2 className="text-[20px] font-bold mb-2">Twyk isn&apos;t available for users under 13</h2>
               <p className="text-zinc-500 text-[14px] leading-relaxed max-w-[320px]">
                 In accordance with the U.S. COPPA law, we don&apos;t allow registration for users under 13. We can&apos;t create your account.
@@ -239,7 +233,6 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
                   className={gradientBtn + ' h-[54px] shadow-[0_10px_30px_-8px_rgba(168,85,247,0.55)]'}
                   style={{ background: BRAND_GRADIENT }}
                 >
-                  {isRegister ? <AtSign className="w-5 h-5" strokeWidth={2.2} /> : <User className="w-5 h-5" strokeWidth={2.2} />}
                   {isRegister ? 'Use email or username' : 'Use username and password'}
                 </button>
                 <p className="mt-6 text-center text-zinc-400 text-[12px] leading-relaxed">
@@ -293,7 +286,6 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
                         parte del diseño -> título -> subtítulo -> vista previa tipográfica
                         (líneas finas, sin tarjeta rellena) -> rueda, sin espacio muerto. */}
                     <div className="flex flex-col items-center text-center">
-                      <Cake className="w-11 h-11 text-purple-500 mb-3" strokeWidth={1.4} />
                       <h1 className="text-[24px] font-extrabold tracking-tight leading-tight max-w-[300px]">{regStepCfg.title}</h1>
                       <p className="text-zinc-500 text-[14px] mt-2 max-w-[280px] leading-snug">{regStepCfg.subtitle}</p>
 
@@ -331,8 +323,7 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
                 )}
 
                 {regStepCfg.key === 'email' && (
-                  <div className="flex flex-col items-center text-center mt-5">
-                    <Mail className="w-11 h-11 text-purple-500 mb-3" strokeWidth={1.4} />
+                  <div className="flex flex-col items-center text-center mt-8">
                     <input
                       type="email"
                       autoFocus
@@ -346,8 +337,7 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
                 )}
 
                 {regStepCfg.key === 'password' && (
-                  <div className="flex flex-col items-center text-center mt-5">
-                    <Lock className="w-11 h-11 text-purple-500 mb-3" strokeWidth={1.4} />
+                  <div className="flex flex-col items-center text-center mt-8">
                     <input
                       type="password"
                       autoFocus
@@ -362,8 +352,7 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
                 )}
 
                 {regStepCfg.key === 'username' && (
-                  <div className="flex flex-col items-center text-center mt-5">
-                    <User className="w-11 h-11 text-purple-500 mb-3" strokeWidth={1.4} />
+                  <div className="flex flex-col items-center text-center mt-8">
                     <input
                       type="text"
                       autoFocus
@@ -405,37 +394,31 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
           /* ── LOGIN ─────────────────────────────────────────────────────────── */
           <form onSubmit={handleLogin} className="relative z-10 flex-1 min-h-0 flex flex-col">
             <div className="flex-1 min-h-0 overflow-y-auto px-6">
-              <div className="max-w-[420px] mx-auto w-full pt-2">
-                <h1 className="text-[26px] font-extrabold tracking-tight leading-tight mb-1">Log in</h1>
-                <p className="text-zinc-500 text-[14px] mb-7">Enter your username or email and password.</p>
+              <div className="max-w-[420px] mx-auto w-full pt-2 flex flex-col items-center text-center">
+                <h1 className="text-[24px] font-extrabold tracking-tight leading-tight">Log in</h1>
+                <p className="text-zinc-500 text-[14px] mt-2 max-w-[280px] leading-snug">Enter your username or email and password.</p>
 
-                <div className="space-y-4">
-                  <div className="relative">
-                    <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" strokeWidth={1.5} />
-                    <input
-                      type="text"
-                      autoFocus
-                      value={loginData.username}
-                      onChange={(e) => setLoginData({ ...loginData, username: e.target.value })}
-                      placeholder="Username or email"
-                      className={inputWithIcon}
-                      required
-                    />
-                  </div>
-                  <div className="relative">
-                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" strokeWidth={1.5} />
-                    <input
-                      type="password"
-                      value={loginData.password}
-                      onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
-                      placeholder="Password"
-                      className={inputWithIcon}
-                      required
-                    />
-                  </div>
+                <div className="w-full mt-8 space-y-6">
+                  <input
+                    type="text"
+                    autoFocus
+                    value={loginData.username}
+                    onChange={(e) => setLoginData({ ...loginData, username: e.target.value })}
+                    placeholder="Username or email"
+                    className={minimalStepInput}
+                    required
+                  />
+                  <input
+                    type="password"
+                    value={loginData.password}
+                    onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
+                    placeholder="Password"
+                    className={minimalStepInput}
+                    required
+                  />
                 </div>
 
-                {error && <p className="text-red-500 text-[13px] mt-3">{error}</p>}
+                {error && <p className="text-red-500 text-[13px] mt-4">{error}</p>}
               </div>
             </div>
 
@@ -445,10 +428,7 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
                 {loading ? (
                   <div className="w-5 h-5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
                 ) : (
-                  <>
-                    <LogIn className="w-5 h-5" strokeWidth={2.2} />
-                    Log in
-                  </>
+                  'Log in'
                 )}
               </button>
               <p className="text-zinc-500 text-[14px] text-center mt-4">
