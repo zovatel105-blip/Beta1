@@ -325,7 +325,11 @@ export default function CommentsModal({ open, postId, onClose, votedSide = null,
       if (res.ok) {
         const data = await res.json()
         setComments((prev) => {
-          const next = [data.comment, ...prev]
+          // Comentarios raíz ahora del más antiguo al más reciente -> el
+          // nuevo comentario (el más reciente) se añade al FINAL de la
+          // lista, no al principio (antes coincidía con "más reciente
+          // arriba"; ya no aplica con el nuevo orden ascendente).
+          const next = [...prev, data.comment]
           onCountChange?.(next.length)
           return next
         })
