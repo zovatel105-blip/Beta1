@@ -39,6 +39,43 @@ const formatTime = (timestamp) => {
   return date.toLocaleDateString()
 }
 
+// Reordena las respuestas de un hilo (todas cuelgan de la misma raíz para el
+// almacenamiento/agrupado plano) según a QUIÉN respondió realmente cada una
+// (replyToId), en vez de dejarlas en simple orden cronológico. Esto es
+// necesario para que el conector "avatar a avatar" siempre pueda comparar
+// con el vecino inmediatamente anterior en la lista: si dejáramos el orden
+// puramente cronológico, una respuesta a un comentario ANTERIOR (no al más
+// reciente) quedaría separada de su objetivo real por otras respuestas
+// intermedias y la línea nunca se dibujaría aunque SÍ exista la relación.
+// Recorrido en profundidad (DFS): cada respuesta aparece justo después de
+// aquella a la que respondió, y sus propias respuestas (si las tuviera)
+// justo después de ella; los hermanos (varias respuestas al mismo
+// comentario) mantienen entre sí el orden cronológico original.
+function buildThreadOrder(rootId, replies) {
+  const idSet = new Set(replies.map((r) => r.id))
+  const childrenOf = new Map()
+  for (const r of replies) {
+    // Si replyToId no apunta a la raíz ni a otra respuesta de este mismo
+    // hilo (dato antiguo sin replyToId, o valor inconsistente), se trata
+    // como respuesta directa a la raíz (comportamiento anterior, seguro).
+    const target = r.replyToId && (r.replyToId === rootId || idSet.has(r.replyToId)) ? r.replyToId : rootId
+    if (!childrenOf.has(target)) childrenOf.set(target, [])
+    childrenOf.get(target).push(r)
+  }
+  const ordered = []
+  const visited = new Set()
+  const visit = (parentId) => {
+    for (const child of childrenOf.get(parentId) || []) {
+      if (visited.has(child.id)) continue // guarda ante ciclos improbables
+      visited.add(child.id)
+      ordered.push(child)
+      visit(child.id)
+    }
+  }
+  visit(rootId)
+  return ordered
+}
+
 // Fila de un comentario o de una respuesta (mismo diseño, avatar más pequeño
 // para las respuestas). Incluye las acciones "Reply" y, si `canDelete`,
 // "Delete" con una confirmación inline de 1 paso.
@@ -326,6 +363,7 @@ export default function CommentsModal({ open, postId, onClose, votedSide = null,
             <div className="space-y-4">
               {topLevel.map((c) => {
                 const replies = repliesByParent[c.id] || []
+                const orderedReplies = buildThreadOrder(c.id, replies)
                 const isExpanded = expandedReplies.has(c.id)
                 return (
                   <div key={c.id}>
@@ -358,12 +396,17 @@ export default function CommentsModal({ open, postId, onClose, votedSide = null,
                       <div className="ml-11 mt-3 space-y-3">
                         {/* Conector: pequeña línea vertical de avatar a avatar,
                             SOLO cuando la respuesta siguiente fue dirigida
-                            específicamente a ESTA respuesta (replyToId),
-                            nunca por simple cercanía/orden. Nunca toca el
-                            comentario principal (la raíz no participa aquí)
-                            ni llega a tocar ninguno de los 2 avatares que une. */}
-                        {replies.map((r, idx) => {
-                          const next = replies[idx + 1]
+                            específicamente a ESTA respuesta (replyToId).
+                            IMPORTANTE: aquí se recorre `orderedReplies` (orden
+                            por jerarquía real, no cronológico) para que la
+                            comparación "el vecino de abajo" sea siempre
+                            correcta aunque alguien haya respondido a una
+                            respuesta antigua con otras respuestas de por
+                            medio. Nunca toca el comentario principal (la
+                            raíz no participa aquí) ni llega a tocar ninguno
+                            de los 2 avatares que une. */}
+                        {orderedReplies.map((r, idx) => {
+                          const next = orderedReplies[idx + 1]
                           const connectsToNext = Boolean(next && next.replyToId === r.id)
                           return (
                             <CommentRow
