@@ -91,10 +91,9 @@ function CommentRow({ c, isReply, votedSide, onReply, onAskDelete, onConfirmDele
       {/* Columna del avatar: se estira a la altura real de la fila (texto +
           acciones) para que el conector, si lo hay, pueda ir del borde
           inferior de ESTE avatar hasta cerca del borde superior del
-          SIGUIENTE avatar (comentario/respuesta objetivo), sin llegar a
-          tocar ninguno de los dos. Se dibuja entre CUALQUIER comentario
-          (principal o respuesta) y la respuesta inmediatamente siguiente que
-          lo tuvo como objetivo directo (replyToId). */}
+          SIGUIENTE avatar (respuesta), sin llegar a tocar ninguno de los
+          dos. Solo se dibuja entre respuestas consecutivas; EXCLUYE siempre
+          al comentario principal (nunca se dibuja hacia/desde su avatar). */}
       <div className="relative flex-shrink-0 self-stretch" style={{ width: avatarSize }}>
         <div
           className="rounded-full overflow-hidden bg-zinc-200 absolute top-0 left-0"
@@ -378,14 +377,6 @@ export default function CommentsModal({ open, postId, onClose, votedSide = null,
                 const replies = repliesByParent[c.id] || []
                 const orderedReplies = buildThreadOrder(c.id, replies)
                 const isExpanded = expandedReplies.has(c.id)
-                // El comentario principal AHORA también puede tener conector
-                // hacia su PRIMERA respuesta directa (avatar a avatar), si
-                // esa respuesta lo tiene a él como objetivo (replyToId===c.id).
-                // Solo se dibuja si el hilo está expandido (si no, no hay
-                // avatar de respuesta visible al que conectar).
-                const rootConnectsToFirstReply = Boolean(
-                  isExpanded && orderedReplies[0] && orderedReplies[0].replyToId === c.id
-                )
                 return (
                   <div key={c.id}>
                     <CommentRow
@@ -398,7 +389,6 @@ export default function CommentsModal({ open, postId, onClose, votedSide = null,
                       onCancelDelete={() => setConfirmDeleteId(null)}
                       confirming={confirmDeleteId === c.id}
                       deleting={deletingId === c.id}
-                      showConnector={rootConnectsToFirstReply}
                     />
 
                     {replies.length > 0 && (
@@ -417,17 +407,16 @@ export default function CommentsModal({ open, postId, onClose, votedSide = null,
                     {isExpanded && replies.length > 0 && (
                       <div className="ml-11 mt-3 space-y-3">
                         {/* Conector: pequeña línea vertical de avatar a avatar,
-                            SIEMPRE que la respuesta siguiente fue dirigida
-                            específicamente a ESTA respuesta (replyToId) —
-                            incluye también la 1ª respuesta conectando hacia
-                            el comentario principal (ver rootConnectsToFirstReply
-                            arriba). IMPORTANTE: aquí se recorre
-                            `orderedReplies` (orden por jerarquía real, no
-                            cronológico) para que la comparación "el vecino de
-                            abajo" sea siempre correcta aunque alguien haya
-                            respondido a una respuesta antigua con otras
-                            respuestas de por medio. Nunca llega a tocar
-                            ninguno de los 2 avatares que une. */}
+                            SOLO cuando la respuesta siguiente fue dirigida
+                            específicamente a ESTA respuesta (replyToId).
+                            EXCLUYE siempre al comentario principal (nunca se
+                            dibuja hacia/desde su avatar, a petición explícita
+                            del usuario) — solo conecta respuesta con
+                            respuesta. IMPORTANTE: se recorre `orderedReplies`
+                            (orden por jerarquía real, no cronológico) para
+                            que la comparación "el vecino de abajo" sea
+                            siempre correcta. Nunca llega a tocar ninguno de
+                            los 2 avatares que une. */}
                         {orderedReplies.map((r, idx) => {
                           const next = orderedReplies[idx + 1]
                           const connectsToNext = Boolean(next && next.replyToId === r.id)
