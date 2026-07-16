@@ -91,9 +91,10 @@ function CommentRow({ c, isReply, votedSide, onReply, onAskDelete, onConfirmDele
       {/* Columna del avatar: se estira a la altura real de la fila (texto +
           acciones) para que el conector, si lo hay, pueda ir del borde
           inferior de ESTE avatar hasta cerca del borde superior del
-          SIGUIENTE avatar (respuesta), sin llegar a tocar ninguno de los
-          dos. Solo se dibuja entre respuestas consecutivas, nunca a partir
-          o hacia el comentario principal. */}
+          SIGUIENTE avatar (comentario/respuesta objetivo), sin llegar a
+          tocar ninguno de los dos. Se dibuja entre CUALQUIER comentario
+          (principal o respuesta) y la respuesta inmediatamente siguiente que
+          lo tuvo como objetivo directo (replyToId). */}
       <div className="relative flex-shrink-0 self-stretch" style={{ width: avatarSize }}>
         <div
           className="rounded-full overflow-hidden bg-zinc-200 absolute top-0 left-0"
@@ -120,12 +121,10 @@ function CommentRow({ c, isReply, votedSide, onReply, onAskDelete, onConfirmDele
             <span className="text-zinc-900 text-[13px] font-semibold truncate">
               {c.author?.username || 'User'}
             </span>
-            {/* Formato "autor ▶ usuario_respondido" (estilo YouTube/Instagram).
-                SOLO cuando esta respuesta responde específicamente a OTRA
-                respuesta del hilo (NUNCA cuando responde directamente al
-                comentario principal): mismo criterio que el conector de
-                línea vertical entre avatares (showConnector), a petición
-                explícita del usuario. */}
+            {/* Formato "autor ▶ usuario_respondido" (estilo YouTube/
+                Instagram, imagen de referencia del usuario). Se muestra en
+                CUALQUIER respuesta que tenga un objetivo conocido, sea el
+                comentario principal o otra respuesta. */}
             {showReplyTarget && c.replyToUsername && (
               <>
                 <ChevronRight className="w-3 h-3 text-zinc-400 flex-shrink-0" strokeWidth={2.5} />
@@ -379,6 +378,14 @@ export default function CommentsModal({ open, postId, onClose, votedSide = null,
                 const replies = repliesByParent[c.id] || []
                 const orderedReplies = buildThreadOrder(c.id, replies)
                 const isExpanded = expandedReplies.has(c.id)
+                // El comentario principal AHORA también puede tener conector
+                // hacia su PRIMERA respuesta directa (avatar a avatar), si
+                // esa respuesta lo tiene a él como objetivo (replyToId===c.id).
+                // Solo se dibuja si el hilo está expandido (si no, no hay
+                // avatar de respuesta visible al que conectar).
+                const rootConnectsToFirstReply = Boolean(
+                  isExpanded && orderedReplies[0] && orderedReplies[0].replyToId === c.id
+                )
                 return (
                   <div key={c.id}>
                     <CommentRow
@@ -391,6 +398,7 @@ export default function CommentsModal({ open, postId, onClose, votedSide = null,
                       onCancelDelete={() => setConfirmDeleteId(null)}
                       confirming={confirmDeleteId === c.id}
                       deleting={deletingId === c.id}
+                      showConnector={rootConnectsToFirstReply}
                     />
 
                     {replies.length > 0 && (
@@ -409,25 +417,20 @@ export default function CommentsModal({ open, postId, onClose, votedSide = null,
                     {isExpanded && replies.length > 0 && (
                       <div className="ml-11 mt-3 space-y-3">
                         {/* Conector: pequeña línea vertical de avatar a avatar,
-                            SOLO cuando la respuesta siguiente fue dirigida
-                            específicamente a ESTA respuesta (replyToId).
-                            IMPORTANTE: aquí se recorre `orderedReplies` (orden
-                            por jerarquía real, no cronológico) para que la
-                            comparación "el vecino de abajo" sea siempre
-                            correcta aunque alguien haya respondido a una
-                            respuesta antigua con otras respuestas de por
-                            medio. Nunca toca el comentario principal (la
-                            raíz no participa aquí) ni llega a tocar ninguno
-                            de los 2 avatares que une. */}
+                            SIEMPRE que la respuesta siguiente fue dirigida
+                            específicamente a ESTA respuesta (replyToId) —
+                            incluye también la 1ª respuesta conectando hacia
+                            el comentario principal (ver rootConnectsToFirstReply
+                            arriba). IMPORTANTE: aquí se recorre
+                            `orderedReplies` (orden por jerarquía real, no
+                            cronológico) para que la comparación "el vecino de
+                            abajo" sea siempre correcta aunque alguien haya
+                            respondido a una respuesta antigua con otras
+                            respuestas de por medio. Nunca llega a tocar
+                            ninguno de los 2 avatares que une. */}
                         {orderedReplies.map((r, idx) => {
                           const next = orderedReplies[idx + 1]
                           const connectsToNext = Boolean(next && next.replyToId === r.id)
-                          // Mostrar "autor ▶ objetivo" SOLO si esta respuesta
-                          // respondió a OTRA respuesta (r.replyToId distinto
-                          // del comentario raíz `c.id`), NUNCA cuando
-                          // responde directamente al comentario principal
-                          // (petición explícita del usuario).
-                          const targetsAnotherReply = Boolean(r.replyToId && r.replyToId !== c.id)
                           return (
                             <CommentRow
                               key={r.id}
@@ -441,7 +444,7 @@ export default function CommentsModal({ open, postId, onClose, votedSide = null,
                               confirming={confirmDeleteId === r.id}
                               deleting={deletingId === r.id}
                               showConnector={connectsToNext}
-                              showReplyTarget={targetsAnotherReply}
+                              showReplyTarget={Boolean(r.replyToUsername)}
                             />
                           )
                         })}
