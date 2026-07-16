@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect } from 'react'
 import { Send, ChevronUp, ChevronDown, ChevronRight, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
@@ -79,7 +79,7 @@ function buildThreadOrder(rootId, replies) {
 // Fila de un comentario o de una respuesta (mismo diseño, avatar más pequeño
 // para las respuestas). Incluye las acciones "Reply" y, si `canDelete`,
 // "Delete" con una confirmación inline de 1 paso.
-function CommentRow({ c, isReply, votedSide, onReply, onAskDelete, onConfirmDelete, onCancelDelete, confirming, deleting, showConnector, showReplyTarget }) {
+function CommentRow({ c, isReply, votedSide, onReply, onAskDelete, onConfirmDelete, onCancelDelete, confirming, deleting, showReplyTarget }) {
   // Para mis propios comentarios, el punto de color sigue el voto ACTUAL
   // (prop en vivo), no el que tenía guardado al comentar.
   const effectiveSide = c.isOwn && votedSide ? votedSide : c.votedSide
@@ -88,12 +88,12 @@ function CommentRow({ c, isReply, votedSide, onReply, onAskDelete, onConfirmDele
 
   return (
     <div className="flex gap-3">
-      {/* Columna del avatar: se estira a la altura real de la fila (texto +
-          acciones) para que el conector, si lo hay, pueda ir del borde
-          inferior de ESTE avatar hasta cerca del borde superior del
-          SIGUIENTE avatar (respuesta), sin llegar a tocar ninguno de los
-          dos. Solo se dibuja entre respuestas consecutivas; EXCLUYE siempre
-          al comentario principal (nunca se dibuja hacia/desde su avatar). */}
+      {/* Columna del avatar. El conector vertical (línea entre avatares) ya
+          NO se dibuja aquí: ahora lo dibuja ReplyThread con medición real
+          del DOM (ver más abajo), porque una fila "adyacente" no siempre es
+          el objetivo real de la respuesta (p.ej. 2 personas responden por
+          separado al MISMO comentario: la 2ª ya no es vecina de su
+          objetivo en la lista plana). */}
       <div className="relative flex-shrink-0 self-stretch" style={{ width: avatarSize }}>
         <div
           className="rounded-full overflow-hidden bg-zinc-200 absolute top-0 left-0"
@@ -101,13 +101,6 @@ function CommentRow({ c, isReply, votedSide, onReply, onAskDelete, onConfirmDele
         >
           <Avatar src={c.author?.avatarUrl} alt={c.author?.username || ''} className="w-full h-full rounded-full" />
         </div>
-        {showConnector && (
-          <span
-            aria-hidden="true"
-            className="absolute left-1/2 -translate-x-1/2 w-[1.5px] bg-zinc-200 rounded-full"
-            style={{ top: avatarSize + 6, bottom: -6 }}
-          />
-        )}
       </div>
 
       <div className="flex-1 min-w-0">
@@ -180,6 +173,87 @@ function CommentRow({ c, isReply, votedSide, onReply, onAskDelete, onConfirmDele
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+// Tamaño fijo del avatar de las respuestas (igual que avatarSize=28 en
+// CommentRow cuando isReply=true). Se usa para calcular dónde empieza el
+// conector (justo debajo del avatar objetivo) sin necesidad de leer estilos.
+const REPLY_AVATAR_SIZE = 28
+
+// Hilo de respuestas de UN comentario raíz. Reordena por jerarquía real
+// (buildThreadOrder) y luego MIDE con refs reales del DOM la posición de
+// cada fila para dibujar el conector vertical avatar-a-avatar con la
+// distancia EXACTA hasta su objetivo real (replyToId), incluso si hay OTRAS
+// respuestas de por medio. Esto corrige el bug: si 2 personas responden por
+// separado al MISMO comentario (p.ej. A responde a "lucia" y luego B
+// también responde a "lucia"), la 2ª respuesta ya no es la fila
+// INMEDIATAMENTE siguiente a "lucia" en la lista (la 1ª respuesta se
+// interpone) — con el método anterior (comparar solo con la fila
+// siguiente) la línea nunca se dibujaba aunque el dato replyToId fuera
+// correcto. Con medición real por refs, el conector siempre alcanza su
+// objetivo real sin importar cuántas filas ajenas haya en medio.
+function ReplyThread({ rootId, replies, votedSide, onReply, onAskDelete, onConfirmDelete, onCancelDelete, confirmDeleteId, deletingId }) {
+  const orderedReplies = useMemo(() => buildThreadOrder(rootId, replies), [rootId, replies])
+  const containerRef = useRef(null)
+  const rowRefs = useRef(new Map())
+  const [connectors, setConnectors] = useState([])
+
+  useLayoutEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+    const containerRect = container.getBoundingClientRect()
+    const next = []
+    for (const r of orderedReplies) {
+      // Sin conector si no respondió a nada, o si respondió DIRECTAMENTE a
+      // la raíz (el comentario principal nunca lleva conector).
+      if (!r.replyToId || r.replyToId === rootId) continue
+      const targetEl = rowRefs.current.get(r.replyToId)
+      const currentEl = rowRefs.current.get(r.id)
+      if (!targetEl || !currentEl) continue
+      const targetTop = targetEl.getBoundingClientRect().top - containerRect.top
+      const currentTop = currentEl.getBoundingClientRect().top - containerRect.top
+      const top = targetTop + REPLY_AVATAR_SIZE + 6
+      const bottom = currentTop - 6
+      const height = bottom - top
+      if (height > 2) next.push({ id: r.id, top, height })
+    }
+    setConnectors(next)
+  }, [orderedReplies, rootId, replies.length])
+
+  return (
+    <div ref={containerRef} className="relative ml-11 mt-3 space-y-3">
+      {connectors.map((conn) => (
+        <span
+          key={conn.id}
+          aria-hidden="true"
+          className="absolute w-[1.5px] bg-zinc-200 rounded-full"
+          style={{ top: conn.top, height: conn.height, left: REPLY_AVATAR_SIZE / 2, transform: 'translateX(-50%)' }}
+        />
+      ))}
+      {orderedReplies.map((r) => {
+        // Mostrar "autor ▶ objetivo" SOLO si esta respuesta respondió a OTRA
+        // respuesta (nunca cuando responde directamente al comentario
+        // principal, sea la primera respuesta del hilo o cualquier otra).
+        const targetsAnotherReply = Boolean(r.replyToId && r.replyToId !== rootId)
+        return (
+          <div key={r.id} ref={(el) => { if (el) rowRefs.current.set(r.id, el); else rowRefs.current.delete(r.id) }}>
+            <CommentRow
+              c={r}
+              isReply
+              votedSide={votedSide}
+              onReply={() => onReply(r)}
+              onAskDelete={() => onAskDelete(r.id)}
+              onConfirmDelete={() => onConfirmDelete(r.id)}
+              onCancelDelete={onCancelDelete}
+              confirming={confirmDeleteId === r.id}
+              deleting={deletingId === r.id}
+              showReplyTarget={targetsAnotherReply}
+            />
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -377,7 +451,6 @@ export default function CommentsModal({ open, postId, onClose, votedSide = null,
             <div className="space-y-4">
               {topLevel.map((c) => {
                 const replies = repliesByParent[c.id] || []
-                const orderedReplies = buildThreadOrder(c.id, replies)
                 const isExpanded = expandedReplies.has(c.id)
                 return (
                   <div key={c.id}>
@@ -407,48 +480,17 @@ export default function CommentsModal({ open, postId, onClose, votedSide = null,
                     )}
 
                     {isExpanded && replies.length > 0 && (
-                      <div className="ml-11 mt-3 space-y-3">
-                        {/* Conector: pequeña línea vertical de avatar a avatar,
-                            SOLO cuando la respuesta siguiente fue dirigida
-                            específicamente a ESTA respuesta (replyToId).
-                            EXCLUYE siempre al comentario principal (nunca se
-                            dibuja hacia/desde su avatar, a petición explícita
-                            del usuario) — solo conecta respuesta con
-                            respuesta. IMPORTANTE: se recorre `orderedReplies`
-                            (orden por jerarquía real, no cronológico) para
-                            que la comparación "el vecino de abajo" sea
-                            siempre correcta. Nunca llega a tocar ninguno de
-                            los 2 avatares que une. */}
-                        {orderedReplies.map((r, idx) => {
-                          const next = orderedReplies[idx + 1]
-                          const connectsToNext = Boolean(next && next.replyToId === r.id)
-                          // Mostrar "autor ▶ objetivo" SOLO si esta respuesta
-                          // respondió a OTRA respuesta (r.replyToId distinto
-                          // del comentario raíz `c.id`). Si respondió
-                          // DIRECTAMENTE al comentario principal (sea la
-                          // primera respuesta o cualquier otra), se muestra
-                          // ÚNICAMENTE su propio nombre, sin flecha ni
-                          // segundo nombre (regla final confirmada por el
-                          // usuario).
-                          const targetsAnotherReply = Boolean(r.replyToId && r.replyToId !== c.id)
-                          return (
-                            <CommentRow
-                              key={r.id}
-                              c={r}
-                              isReply
-                              votedSide={votedSide}
-                              onReply={() => startReply(r)}
-                              onAskDelete={() => setConfirmDeleteId(r.id)}
-                              onConfirmDelete={() => handleDelete(r.id)}
-                              onCancelDelete={() => setConfirmDeleteId(null)}
-                              confirming={confirmDeleteId === r.id}
-                              deleting={deletingId === r.id}
-                              showConnector={connectsToNext}
-                              showReplyTarget={targetsAnotherReply}
-                            />
-                          )
-                        })}
-                      </div>
+                      <ReplyThread
+                        rootId={c.id}
+                        replies={replies}
+                        votedSide={votedSide}
+                        onReply={startReply}
+                        onAskDelete={(id) => setConfirmDeleteId(id)}
+                        onConfirmDelete={handleDelete}
+                        onCancelDelete={() => setConfirmDeleteId(null)}
+                        confirmDeleteId={confirmDeleteId}
+                        deletingId={deletingId}
+                      />
                     )}
                   </div>
                 )
