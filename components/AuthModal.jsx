@@ -163,6 +163,11 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
     'w-full bg-zinc-50 text-zinc-900 placeholder:text-zinc-400 px-4 py-4 rounded-xl text-[16px] outline-none focus:bg-white transition-all border border-zinc-200 focus:border-zinc-400'
   const inputWithIcon =
     'w-full bg-zinc-50 text-zinc-900 placeholder:text-zinc-400 pl-12 pr-4 py-4 rounded-xl text-[16px] outline-none focus:bg-white transition-all border border-zinc-200 focus:border-zinc-400'
+  // Input minimalista para los pasos del registro paso a paso (mismo lenguaje
+  // visual que el paso de fecha de nacimiento: sin caja/relleno, solo una
+  // línea inferior fina que se resalta en morado de marca al enfocar).
+  const minimalStepInput =
+    'w-full bg-transparent text-zinc-900 placeholder:text-zinc-300 text-center text-[20px] font-bold tracking-tight py-3 outline-none border-0 border-b-2 border-zinc-200 focus:border-purple-400 transition-colors'
 
   const gradientBtn =
     'w-full h-[52px] rounded-full font-bold text-[16px] flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-60 text-white'
@@ -319,37 +324,37 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
                     />
                   </>
                 ) : (
-                  <div className="mb-7">
-                    <h1 className="text-[26px] font-extrabold tracking-tight leading-tight">{regStepCfg.title}</h1>
-                    <p className="text-zinc-500 text-[14px] mt-2 leading-snug">{regStepCfg.subtitle}</p>
+                  <div className="mb-2 text-center">
+                    <h1 className="text-[24px] font-extrabold tracking-tight leading-tight max-w-[300px] mx-auto">{regStepCfg.title}</h1>
+                    <p className="text-zinc-500 text-[14px] mt-2 max-w-[280px] mx-auto leading-snug">{regStepCfg.subtitle}</p>
                   </div>
                 )}
 
                 {regStepCfg.key === 'email' && (
-                  <div className="relative">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" strokeWidth={1.5} />
+                  <div className="flex flex-col items-center text-center mt-5">
+                    <Mail className="w-11 h-11 text-purple-500 mb-3" strokeWidth={1.4} />
                     <input
                       type="email"
                       autoFocus
                       value={registerData.email}
                       onChange={(e) => setRegisterData({ ...registerData, email: e.target.value })}
                       placeholder="you@email.com"
-                      className={inputWithIcon}
+                      className={minimalStepInput}
                       required
                     />
                   </div>
                 )}
 
                 {regStepCfg.key === 'password' && (
-                  <div className="relative">
-                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" strokeWidth={1.5} />
+                  <div className="flex flex-col items-center text-center mt-5">
+                    <Lock className="w-11 h-11 text-purple-500 mb-3" strokeWidth={1.4} />
                     <input
                       type="password"
                       autoFocus
                       value={registerData.password}
                       onChange={(e) => setRegisterData({ ...registerData, password: e.target.value })}
                       placeholder="Password"
-                      className={inputWithIcon}
+                      className={minimalStepInput}
                       required
                       minLength={6}
                     />
@@ -357,25 +362,25 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
                 )}
 
                 {regStepCfg.key === 'username' && (
-                  <div className="relative">
-                    <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" strokeWidth={1.5} />
+                  <div className="flex flex-col items-center text-center mt-5">
+                    <User className="w-11 h-11 text-purple-500 mb-3" strokeWidth={1.4} />
                     <input
                       type="text"
                       autoFocus
                       value={registerData.username}
                       onChange={(e) => setRegisterData({ ...registerData, username: e.target.value })}
                       placeholder="username"
-                      className={inputWithIcon}
+                      className={minimalStepInput}
                       required
                       minLength={3}
                     />
                   </div>
                 )}
 
-                {error && <p className="text-red-500 text-[13px] mt-3">{error}</p>}
+                {error && <p className="text-red-500 text-[13px] mt-4 text-center">{error}</p>}
 
                 {isLastRegStep && (
-                  <p className="mt-6 text-zinc-400 text-[12px] leading-relaxed">
+                  <p className="mt-6 text-zinc-400 text-[12px] leading-relaxed text-center">
                     By creating your account you accept our{' '}
                     <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-zinc-600 underline hover:text-zinc-900">Terms of Use</a>
                     {' '}and{' '}
