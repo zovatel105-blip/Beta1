@@ -79,7 +79,7 @@ function buildThreadOrder(rootId, replies) {
 // Fila de un comentario o de una respuesta (mismo diseño, avatar más pequeño
 // para las respuestas). Incluye las acciones "Reply" y, si `canDelete`,
 // "Delete" con una confirmación inline de 1 paso.
-function CommentRow({ c, isReply, votedSide, onReply, onAskDelete, onConfirmDelete, onCancelDelete, confirming, deleting, showConnector }) {
+function CommentRow({ c, isReply, votedSide, onReply, onAskDelete, onConfirmDelete, onCancelDelete, confirming, deleting, showConnector, showReplyTarget }) {
   // Para mis propios comentarios, el punto de color sigue el voto ACTUAL
   // (prop en vivo), no el que tenía guardado al comentar.
   const effectiveSide = c.isOwn && votedSide ? votedSide : c.votedSide
@@ -120,9 +120,13 @@ function CommentRow({ c, isReply, votedSide, onReply, onAskDelete, onConfirmDele
             <span className="text-zinc-900 text-[13px] font-semibold truncate">
               {c.author?.username || 'User'}
             </span>
-            {/* Formato "autor ▶ usuario_respondido" (estilo YouTube/Instagram),
-                solo en respuestas y solo si sabemos a quién respondió. */}
-            {isReply && c.replyToUsername && (
+            {/* Formato "autor ▶ usuario_respondido" (estilo YouTube/Instagram).
+                SOLO cuando esta respuesta responde específicamente a OTRA
+                respuesta del hilo (NUNCA cuando responde directamente al
+                comentario principal): mismo criterio que el conector de
+                línea vertical entre avatares (showConnector), a petición
+                explícita del usuario. */}
+            {showReplyTarget && c.replyToUsername && (
               <>
                 <ChevronRight className="w-3 h-3 text-zinc-400 flex-shrink-0" strokeWidth={2.5} />
                 <span className="text-zinc-500 text-[13px] font-semibold truncate">
@@ -418,6 +422,12 @@ export default function CommentsModal({ open, postId, onClose, votedSide = null,
                         {orderedReplies.map((r, idx) => {
                           const next = orderedReplies[idx + 1]
                           const connectsToNext = Boolean(next && next.replyToId === r.id)
+                          // Mostrar "autor ▶ objetivo" SOLO si esta respuesta
+                          // respondió a OTRA respuesta (r.replyToId distinto
+                          // del comentario raíz `c.id`), NUNCA cuando
+                          // responde directamente al comentario principal
+                          // (petición explícita del usuario).
+                          const targetsAnotherReply = Boolean(r.replyToId && r.replyToId !== c.id)
                           return (
                             <CommentRow
                               key={r.id}
@@ -431,6 +441,7 @@ export default function CommentsModal({ open, postId, onClose, votedSide = null,
                               confirming={confirmDeleteId === r.id}
                               deleting={deletingId === r.id}
                               showConnector={connectsToNext}
+                              showReplyTarget={targetsAnotherReply}
                             />
                           )
                         })}
