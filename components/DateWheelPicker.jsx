@@ -77,11 +77,12 @@ function WheelColumn({ items, selectedIndex, onChange, width }) {
             onClick={() => onChange(i)}
           >
             <span
-              className="transition-all duration-150"
+              className="transition-all duration-200"
               style={{
-                fontSize: isSel ? 19 : 17,
-                fontWeight: isSel ? 700 : 500,
-                color: isSel ? '#18181b' : `rgba(24,24,27,${Math.max(0.22, 0.55 - dist * 0.15)})`,
+                fontSize: isSel ? 20 : 17,
+                fontWeight: isSel ? 800 : 500,
+                color: isSel ? '#8B5CF6' : `rgba(24,24,27,${Math.max(0.22, 0.55 - dist * 0.15)})`,
+                transform: isSel ? 'scale(1.04)' : 'scale(1)',
               }}
             >
               {item}
@@ -138,17 +139,25 @@ export default function DateWheelPicker({ value, onChange }) {
   const yearItems = years.map((y) => String(y))
 
   return (
-    <div className="relative w-full rounded-2xl bg-zinc-50 border border-zinc-200 px-2 py-1 overflow-hidden">
-      {/* Banda de selección central */}
+    <div
+      className="relative w-full rounded-3xl bg-white px-2 py-1 overflow-hidden"
+      style={{ border: '1px solid rgba(168,85,247,0.16)', boxShadow: '0 4px 24px -8px rgba(139,92,246,0.18)' }}
+    >
+      {/* Banda de selección central, con el gradiente de marca (morado -> azul) */}
       <div
-        className="pointer-events-none absolute left-2 right-2 rounded-xl bg-zinc-900/[0.06] border-y border-zinc-300"
-        style={{ top: PAD, height: ITEM_H }}
+        className="pointer-events-none absolute left-2 right-2 rounded-2xl"
+        style={{
+          top: PAD,
+          height: ITEM_H,
+          background: 'linear-gradient(90deg, rgba(168,85,247,0.10) 0%, rgba(59,130,246,0.10) 100%)',
+          boxShadow: 'inset 0 0 0 1.5px rgba(139,92,246,0.35)',
+        }}
       />
       {/* Degradados superior/inferior para el efecto "rueda" */}
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[60px] z-10"
-           style={{ background: 'linear-gradient(to bottom, #fafafa 0%, rgba(250,250,250,0) 100%)' }} />
+           style={{ background: 'linear-gradient(to bottom, #ffffff 0%, rgba(255,255,255,0) 100%)' }} />
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[60px] z-10"
-           style={{ background: 'linear-gradient(to top, #fafafa 0%, rgba(250,250,250,0) 100%)' }} />
+           style={{ background: 'linear-gradient(to top, #ffffff 0%, rgba(255,255,255,0) 100%)' }} />
 
       <div className="relative flex items-stretch justify-center gap-1">
         <WheelColumn

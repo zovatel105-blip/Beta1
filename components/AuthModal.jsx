@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { ChevronDown, ArrowLeft, User, Mail, Lock, LogIn, ShieldAlert, AtSign } from 'lucide-react'
+import { ChevronDown, ArrowLeft, User, Mail, Lock, LogIn, ShieldAlert, AtSign, Cake, Sparkles, PartyPopper } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import DateWheelPicker from './DateWheelPicker'
 
@@ -28,6 +28,16 @@ function computeAge(birthDate) {
   const m = now.getMonth() - dob.getMonth()
   if (m < 0 || (m === 0 && now.getDate() < dob.getDate())) age--
   return age
+}
+
+// Formatea 'YYYY-MM-DD' a un texto largo en inglés ("July 15, 2005"), usado
+// por la tarjeta de vista previa en vivo del paso de fecha de nacimiento.
+function formatDateLong(birthDate) {
+  if (!birthDate || !/^\d{4}-\d{2}-\d{2}$/.test(birthDate)) return ''
+  const [y, m, d] = birthDate.split('-').map(Number)
+  const dt = new Date(y, m - 1, d)
+  if (isNaN(dt.getTime())) return ''
+  return dt.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
 }
 
 /**
@@ -259,8 +269,62 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
           <form onSubmit={handleRegisterNext} className="relative z-10 flex-1 min-h-0 flex flex-col">
             <div className="flex-1 min-h-0 overflow-y-auto px-6">
               <div className="max-w-[420px] mx-auto w-full pt-2">
-                <h1 className="text-[26px] font-extrabold tracking-tight leading-tight">{regStepCfg.title}</h1>
-                <p className="text-zinc-500 text-[14px] mt-2 mb-7 leading-snug">{regStepCfg.subtitle}</p>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h1 className="text-[26px] font-extrabold tracking-tight leading-tight">{regStepCfg.title}</h1>
+                    <p className={`text-zinc-500 text-[14px] mt-2 leading-snug ${regStepCfg.key === 'birthdate' ? 'mb-5' : 'mb-7'}`}>{regStepCfg.subtitle}</p>
+                  </div>
+                  {regStepCfg.key === 'birthdate' && (
+                    <div className="relative shrink-0 mt-1">
+                      <Sparkles className="absolute -top-1.5 -left-2.5 w-3.5 h-3.5 text-purple-400 animate-pulse" strokeWidth={2} />
+                      <Sparkles className="absolute -bottom-1 -right-1.5 w-3 h-3 text-blue-400 animate-pulse" style={{ animationDelay: '0.5s' }} strokeWidth={2} />
+                      <div
+                        className="w-14 h-14 rounded-2xl flex items-center justify-center"
+                        style={{ background: BRAND_GRADIENT, boxShadow: '0 10px 24px -8px rgba(168,85,247,0.55)' }}
+                      >
+                        <Cake className="w-7 h-7 text-white" strokeWidth={1.8} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {regStepCfg.key === 'birthdate' && (() => {
+                  const previewAge = computeAge(registerData.birthDate)
+                  const underAge = previewAge !== null && previewAge < 13
+                  const formatted = formatDateLong(registerData.birthDate)
+                  return (
+                    <div
+                      className="mb-5 rounded-2xl p-3.5 flex items-center gap-3 transition-colors duration-300"
+                      style={{
+                        background: underAge
+                          ? 'rgba(239,68,68,0.06)'
+                          : 'linear-gradient(135deg, rgba(168,85,247,0.08), rgba(59,130,246,0.08))',
+                        border: `1px solid ${underAge ? 'rgba(239,68,68,0.30)' : 'rgba(168,85,247,0.22)'}`,
+                      }}
+                    >
+                      <div
+                        className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+                        style={{ background: underAge ? '#EF4444' : BRAND_GRADIENT }}
+                      >
+                        {underAge ? (
+                          <ShieldAlert className="w-[18px] h-[18px] text-white" strokeWidth={2} />
+                        ) : (
+                          <PartyPopper className="w-[18px] h-[18px] text-white" strokeWidth={2} />
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[15px] font-bold text-zinc-900 truncate">{formatted || 'Select your date'}</p>
+                        <p className={`text-[12.5px] mt-0.5 ${underAge ? 'text-red-500 font-semibold' : 'text-zinc-500'}`}>
+                          {underAge
+                            ? 'You must be 13 or older to join Twyk'
+                            : previewAge !== null
+                              ? `You're ${previewAge} years old`
+                              : 'Scroll to pick day, month and year'}
+                        </p>
+                      </div>
+                    </div>
+                  )
+                })()}
 
                 {regStepCfg.key === 'birthdate' && (
                   <DateWheelPicker
