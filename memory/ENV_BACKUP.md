@@ -16,13 +16,16 @@ scripts/seed-core-users.mjs y memory/test_credentials.md).
 ```
 MONGO_URL=mongodb://localhost:27017/twyk
 ADMIN_EMAILS=twyk.apk@gmail.com
-NEXT_PUBLIC_BASE_URL=https://09d280eb-d1ee-4148-96d4-26ea93b70cc6.preview.emergentagent.com
-CORS_ORIGINS=https://09d280eb-d1ee-4148-96d4-26ea93b70cc6.preview.emergentagent.com
+NEXT_PUBLIC_BASE_URL=https://mention-format.preview.emergentagent.com
+CORS_ORIGINS=https://mention-format.preview.emergentagent.com
 ```
 
 NOTA: si la URL de preview cambia (nuevo dominio *.preview.emergentagent.com),
 actualizar NEXT_PUBLIC_BASE_URL y CORS_ORIGINS con el valor de la variable de
 entorno APP_URL definida en /etc/supervisor/conf.d/*.conf (bloque [program:nextjs]).
+
+## Última URL usada (actualizada automáticamente al restaurar)
+NEXT_PUBLIC_BASE_URL=https://55655645-4ff0-4438-b843-350caffe8759.preview.emergentagent.com
 
 ## Re-sembrar datos tras restaurar .env
 

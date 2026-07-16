@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { Send, ChevronUp, ChevronDown, X } from 'lucide-react'
+import { Send, ChevronUp, ChevronDown, ChevronRight, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
 import AuthModal from './AuthModal'
@@ -113,14 +113,24 @@ function CommentRow({ c, isReply, votedSide, onReply, onAskDelete, onConfirmDele
       <div className="flex-1 min-w-0">
         {/* Burbuja neutral: el color del voto solo se indica con el punto */}
         <div className="rounded-2xl px-3.5 py-2.5 bg-zinc-100">
-          <div className="flex items-center gap-1.5 mb-0.5">
+          <div className="flex items-center gap-1.5 mb-0.5 min-w-0">
             {color && (
               <span className="inline-block w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
             )}
             <span className="text-zinc-900 text-[13px] font-semibold truncate">
               {c.author?.username || 'User'}
             </span>
-            <span className="text-zinc-400 text-[11px]">{formatTime(c.timestamp)}</span>
+            {/* Formato "autor ▶ usuario_respondido" (estilo YouTube/Instagram),
+                solo en respuestas y solo si sabemos a quién respondió. */}
+            {isReply && c.replyToUsername && (
+              <>
+                <ChevronRight className="w-3 h-3 text-zinc-400 flex-shrink-0" strokeWidth={2.5} />
+                <span className="text-zinc-500 text-[13px] font-semibold truncate">
+                  {c.replyToUsername}
+                </span>
+              </>
+            )}
+            <span className="text-zinc-400 text-[11px] flex-shrink-0">{formatTime(c.timestamp)}</span>
           </div>
           <p className="text-zinc-700 text-[14px] leading-snug break-words">{c.text}</p>
         </div>

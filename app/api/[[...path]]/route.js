@@ -2056,6 +2056,18 @@ async function handleCreateComment(request) {
     // línea vertical de conexión (solo si B respondió específicamente a A).
     const replyToId = parentComment ? parentComment.id : null
 
+    // Username del AUTOR al que se respondió (para el formato "autor ▶
+    // usuario_respondido" en la cabecera de la respuesta, estilo
+    // YouTube/Instagram). Se resuelve aquí para que la respuesta recién
+    // creada lo muestre al instante, sin esperar a un recargar/refetch.
+    let replyToUsername = null
+    if (parentComment) {
+      try {
+        const targetUser = await getUserById(parentComment.userId)
+        replyToUsername = targetUser?.username || null
+      } catch { /* ignore */ }
+    }
+
     const comment = await createCommentDB({ 
       postId, 
       userId: currentUser.id, 
@@ -2118,6 +2130,7 @@ async function handleCreateComment(request) {
       votedSide: comment.votedSide || null,
       parentId: comment.parentId || null,
       replyToId: comment.replyToId || null,
+      replyToUsername,
       likes: comment.likes,
       userLiked: false,
       isOwn: true,
