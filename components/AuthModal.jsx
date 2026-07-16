@@ -269,68 +269,88 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
           <form onSubmit={handleRegisterNext} className="relative z-10 flex-1 min-h-0 flex flex-col">
             <div className="flex-1 min-h-0 overflow-y-auto px-6">
               <div className="max-w-[420px] mx-auto w-full pt-2">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <h1 className="text-[26px] font-extrabold tracking-tight leading-tight">{regStepCfg.title}</h1>
-                    <p className={`text-zinc-500 text-[14px] mt-2 leading-snug ${regStepCfg.key === 'birthdate' ? 'mb-5' : 'mb-7'}`}>{regStepCfg.subtitle}</p>
-                  </div>
-                  {regStepCfg.key === 'birthdate' && (
-                    <div className="relative shrink-0 mt-1">
-                      <Sparkles className="absolute -top-1.5 -left-2.5 w-3.5 h-3.5 text-purple-400 animate-pulse" strokeWidth={2} />
-                      <Sparkles className="absolute -bottom-1 -right-1.5 w-3 h-3 text-blue-400 animate-pulse" style={{ animationDelay: '0.5s' }} strokeWidth={2} />
-                      <div
-                        className="w-14 h-14 rounded-2xl flex items-center justify-center"
-                        style={{ background: BRAND_GRADIENT, boxShadow: '0 10px 24px -8px rgba(168,85,247,0.55)' }}
-                      >
-                        <Cake className="w-7 h-7 text-white" strokeWidth={1.8} />
-                      </div>
-                    </div>
-                  )}
+                {/* Indicador de progreso (1 punto por paso del registro) — ausente en la
+                    imagen de referencia, ayuda a orientarse dentro del flujo de 4 pasos. */}
+                <div className="flex items-center justify-center gap-1.5 mb-6">
+                  {REG_STEPS.map((s, i) => (
+                    <div
+                      key={s.key}
+                      className="h-1.5 rounded-full transition-all duration-300"
+                      style={{ width: i === regStep ? 26 : 8, background: i <= regStep ? BRAND_GRADIENT : '#e5e5e5' }}
+                    />
+                  ))}
                 </div>
 
-                {regStepCfg.key === 'birthdate' && (() => {
-                  const previewAge = computeAge(registerData.birthDate)
-                  const underAge = previewAge !== null && previewAge < 13
-                  const formatted = formatDateLong(registerData.birthDate)
-                  return (
-                    <div
-                      className="mb-5 rounded-2xl p-3.5 flex items-center gap-3 transition-colors duration-300"
-                      style={{
-                        background: underAge
-                          ? 'rgba(239,68,68,0.06)'
-                          : 'linear-gradient(135deg, rgba(168,85,247,0.08), rgba(59,130,246,0.08))',
-                        border: `1px solid ${underAge ? 'rgba(239,68,68,0.30)' : 'rgba(168,85,247,0.22)'}`,
-                      }}
-                    >
-                      <div
-                        className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
-                        style={{ background: underAge ? '#EF4444' : BRAND_GRADIENT }}
-                      >
-                        {underAge ? (
-                          <ShieldAlert className="w-[18px] h-[18px] text-white" strokeWidth={2} />
-                        ) : (
-                          <PartyPopper className="w-[18px] h-[18px] text-white" strokeWidth={2} />
-                        )}
+                {regStepCfg.key === 'birthdate' ? (
+                  <>
+                    {/* Composición "hero" centrada (estructura distinta de la referencia:
+                        ahí el icono va arriba-derecha y el título a la izquierda, con un
+                        hueco vacío grande antes de la rueda). Aquí todo fluye centrado y
+                        compacto: icono con halo -> título -> subtítulo -> vista previa
+                        grande de la fecha/edad -> rueda, sin espacio muerto entre bloques. */}
+                    <div className="flex flex-col items-center text-center">
+                      <div className="relative mb-4">
+                        <div
+                          className="absolute inset-0 rounded-full blur-2xl opacity-50 pointer-events-none"
+                          style={{ background: BRAND_GRADIENT, transform: 'scale(1.4)' }}
+                        />
+                        <Sparkles className="absolute -top-2 -left-3 w-4 h-4 text-purple-400 animate-pulse" strokeWidth={2} />
+                        <Sparkles className="absolute -bottom-1.5 -right-2.5 w-3.5 h-3.5 text-blue-400 animate-pulse" style={{ animationDelay: '0.5s' }} strokeWidth={2} />
+                        <div
+                          className="relative w-[76px] h-[76px] rounded-[26px] flex items-center justify-center"
+                          style={{ background: BRAND_GRADIENT, boxShadow: '0 16px 34px -10px rgba(168,85,247,0.55)' }}
+                        >
+                          <Cake className="w-9 h-9 text-white" strokeWidth={1.6} />
+                        </div>
                       </div>
-                      <div className="min-w-0">
-                        <p className="text-[15px] font-bold text-zinc-900 truncate">{formatted || 'Select your date'}</p>
-                        <p className={`text-[12.5px] mt-0.5 ${underAge ? 'text-red-500 font-semibold' : 'text-zinc-500'}`}>
-                          {underAge
-                            ? 'You must be 13 or older to join Twyk'
-                            : previewAge !== null
-                              ? `You're ${previewAge} years old`
-                              : 'Scroll to pick day, month and year'}
-                        </p>
-                      </div>
-                    </div>
-                  )
-                })()}
+                      <h1 className="text-[24px] font-extrabold tracking-tight leading-tight max-w-[300px]">{regStepCfg.title}</h1>
+                      <p className="text-zinc-500 text-[14px] mt-2 max-w-[280px] leading-snug">{regStepCfg.subtitle}</p>
 
-                {regStepCfg.key === 'birthdate' && (
-                  <DateWheelPicker
-                    value={registerData.birthDate}
-                    onChange={(val) => setRegisterData((prev) => ({ ...prev, birthDate: val }))}
-                  />
+                      {(() => {
+                        const previewAge = computeAge(registerData.birthDate)
+                        const underAge = previewAge !== null && previewAge < 13
+                        const formatted = formatDateLong(registerData.birthDate)
+                        return (
+                          <div
+                            className="w-full mt-6 mb-5 rounded-2xl py-4 px-4 text-center transition-colors duration-300"
+                            style={{
+                              background: underAge
+                                ? 'rgba(239,68,68,0.06)'
+                                : 'linear-gradient(135deg, rgba(168,85,247,0.09), rgba(59,130,246,0.09))',
+                              border: `1px solid ${underAge ? 'rgba(239,68,68,0.30)' : 'rgba(168,85,247,0.22)'}`,
+                            }}
+                          >
+                            <p className="text-[19px] font-extrabold text-zinc-900">{formatted || 'Select your date'}</p>
+                            <p
+                              className={`text-[13px] mt-1.5 font-bold inline-flex items-center justify-center gap-1.5 ${underAge ? 'text-red-500' : ''}`}
+                              style={!underAge ? { color: '#8B5CF6' } : undefined}
+                            >
+                              {underAge ? (
+                                <ShieldAlert className="w-3.5 h-3.5" strokeWidth={2.2} />
+                              ) : (
+                                <PartyPopper className="w-3.5 h-3.5" strokeWidth={2.2} />
+                              )}
+                              {underAge
+                                ? 'You must be 13 or older to join Twyk'
+                                : previewAge !== null
+                                  ? `You're ${previewAge} years old`
+                                  : 'Scroll to pick day, month and year'}
+                            </p>
+                          </div>
+                        )
+                      })()}
+                    </div>
+
+                    <DateWheelPicker
+                      value={registerData.birthDate}
+                      onChange={(val) => setRegisterData((prev) => ({ ...prev, birthDate: val }))}
+                    />
+                  </>
+                ) : (
+                  <div className="mb-7">
+                    <h1 className="text-[26px] font-extrabold tracking-tight leading-tight">{regStepCfg.title}</h1>
+                    <p className="text-zinc-500 text-[14px] mt-2 leading-snug">{regStepCfg.subtitle}</p>
+                  </div>
                 )}
 
                 {regStepCfg.key === 'email' && (
