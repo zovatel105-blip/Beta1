@@ -163,7 +163,7 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
   // login): caja rellena que se funde con el fondo blanco (gris muy claro,
   // sin línea ni borde visible), en vez de la línea inferior anterior.
   const minimalStepInput =
-    'w-full bg-zinc-50 text-zinc-800 placeholder:text-zinc-400 placeholder:font-light text-center text-[18px] font-medium tracking-tight py-4 px-4 rounded-2xl outline-none border border-transparent focus:bg-zinc-100 focus:ring-2 focus:ring-purple-200 transition-all duration-200'
+    'w-full bg-zinc-50 text-zinc-800 placeholder:text-zinc-400 placeholder:font-light text-center text-[17px] font-medium tracking-tight py-2.5 px-4 rounded-xl outline-none border border-transparent focus:bg-zinc-100 focus:ring-2 focus:ring-purple-200 transition-all duration-200'
 
   const gradientBtn =
     'w-full h-[52px] rounded-full font-bold text-[16px] flex items-center justify-center gap-2 active:scale-[0.98] transition-all duration-200 disabled:opacity-60 text-white shadow-[0_12px_28px_-10px_rgba(168,85,247,0.5)] hover:shadow-[0_14px_32px_-8px_rgba(168,85,247,0.62)]'
