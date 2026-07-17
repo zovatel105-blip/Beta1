@@ -164,10 +164,18 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
   // que se resalta en morado de marca al enfocar. Reemplaza los inputs
   // anteriores con icono incrustado dentro de una caja rellena.
   const minimalStepInput =
-    'w-full bg-transparent text-zinc-900 placeholder:text-zinc-300 text-center text-[20px] font-bold tracking-tight py-3 outline-none border-0 border-b-2 border-zinc-200 focus:border-purple-400 transition-colors'
+    'w-full bg-transparent text-zinc-900 placeholder:text-zinc-300 text-center text-[20px] font-bold tracking-tight py-3.5 outline-none border-0 border-b-2 border-zinc-200 focus:border-purple-400 focus:border-b-[3px] transition-all duration-200'
 
   const gradientBtn =
-    'w-full h-[52px] rounded-full font-bold text-[16px] flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-60 text-white'
+    'w-full h-[52px] rounded-full font-bold text-[16px] flex items-center justify-center gap-2 active:scale-[0.98] transition-all duration-200 disabled:opacity-60 text-white shadow-[0_12px_28px_-10px_rgba(168,85,247,0.5)] hover:shadow-[0_14px_32px_-8px_rgba(168,85,247,0.62)]'
+
+  // Chip de error compartido (registro y login): reemplaza el texto rojo plano
+  // por una tarjeta suave, más acorde al resto del rediseño "premium".
+  const errorChip = (msg) => (
+    <div className="mt-4 max-w-[320px] w-full mx-auto rounded-xl bg-red-50 border border-red-100 px-4 py-2.5 text-red-600 text-[13px] font-medium text-center">
+      {msg}
+    </div>
+  )
 
   const regStepCfg = REG_STEPS[regStep]
   const isLastRegStep = regStep === REG_STEPS.length - 1
@@ -217,13 +225,12 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
           /* ── SPLASH: método único ─────────────────────────────────────────── */
           <>
             <div className="relative z-10 flex-1 min-h-0 overflow-y-auto px-6">
-              <div className="max-w-[420px] mx-auto w-full pt-3">
-                <div className="text-center mb-7 flex flex-col items-center">
-                  <div className="w-9 h-[3px] rounded-full mb-4" style={{ background: BRAND_GRADIENT }} />
-                  <h1 className="text-[28px] font-extrabold tracking-tight leading-tight">
+              <div className="max-w-[420px] mx-auto w-full pt-5">
+                <div className="text-center mb-8 flex flex-col items-center">
+                  <h1 className="text-[29px] font-extrabold tracking-tight leading-tight">
                     {isRegister ? 'Sign up for Twyk' : 'Log in to Twyk'}
                   </h1>
-                  <p className="text-zinc-500 text-[15px] mt-2 leading-snug max-w-[320px] mx-auto">
+                  <p className="text-zinc-500 text-[15px] mt-2.5 leading-relaxed max-w-[320px] mx-auto">
                     {isRegister
                       ? 'Create your profile, vote on challenges, upload your videos and challenge other creators.'
                       : 'Log in to vote on challenges, upload your videos and challenge others.'}
@@ -231,7 +238,7 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
                 </div>
                 <button
                   onClick={() => { setStep('form'); setRegStep(0); setError('') }}
-                  className={gradientBtn + ' h-[54px] shadow-[0_10px_30px_-8px_rgba(168,85,247,0.55)]'}
+                  className={gradientBtn + ' h-[54px]'}
                   style={{ background: BRAND_GRADIENT }}
                 >
                   {isRegister ? 'Use email or username' : 'Use username and password'}
@@ -244,7 +251,7 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
                 </p>
               </div>
             </div>
-            <div className="relative z-10 border-t border-zinc-200 px-6 py-4 text-center shrink-0"
+            <div className="relative z-10 px-6 py-4 text-center shrink-0 shadow-[0_-14px_26px_-20px_rgba(0,0,0,0.18)]"
                  style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 14px)' }}>
               {isRegister ? (
                 <p className="text-zinc-500 text-[14px]">
@@ -268,14 +275,13 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
           <form onSubmit={handleRegisterNext} className="relative z-10 flex-1 min-h-0 flex flex-col">
             <div className="flex-1 min-h-0 overflow-y-auto px-6">
               <div className="max-w-[420px] mx-auto w-full pt-2">
-                {/* Indicador de progreso (1 punto por paso del registro) — ausente en la
-                    imagen de referencia, ayuda a orientarse dentro del flujo de 4 pasos. */}
-                <div className="flex items-center justify-center gap-1.5 mb-6">
+                {/* Indicador de progreso (1 punto por paso del registro). */}
+                <div className="flex items-center justify-center gap-2 mb-7">
                   {REG_STEPS.map((s, i) => (
                     <div
                       key={s.key}
-                      className="h-1.5 rounded-full transition-all duration-300"
-                      style={{ width: i === regStep ? 26 : 8, background: i <= regStep ? BRAND_GRADIENT : '#e5e5e5' }}
+                      className="h-2 rounded-full transition-all duration-300"
+                      style={{ width: i === regStep ? 28 : 8, background: i <= regStep ? BRAND_GRADIENT : '#e5e5e5' }}
                     />
                   ))}
                 </div>
@@ -319,9 +325,8 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
                   </>
                 ) : (
                   <div className="mb-2 text-center flex flex-col items-center">
-                    <div className="w-9 h-[3px] rounded-full mb-4" style={{ background: BRAND_GRADIENT }} />
-                    <h1 className="text-[24px] font-extrabold tracking-tight leading-tight max-w-[300px] mx-auto">{regStepCfg.title}</h1>
-                    <p className="text-zinc-500 text-[14px] mt-2 max-w-[280px] mx-auto leading-snug">{regStepCfg.subtitle}</p>
+                    <h1 className="text-[25px] font-extrabold tracking-tight leading-tight max-w-[300px] mx-auto">{regStepCfg.title}</h1>
+                    <p className="text-zinc-500 text-[14px] mt-2.5 max-w-[280px] mx-auto leading-relaxed">{regStepCfg.subtitle}</p>
                   </div>
                 )}
 
@@ -369,7 +374,7 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
                   </div>
                 )}
 
-                {error && <p className="text-red-500 text-[13px] mt-4 text-center">{error}</p>}
+                {error && errorChip(error)}
 
                 {isLastRegStep && (
                   <p className="mt-6 text-zinc-400 text-[12px] leading-relaxed text-center">
@@ -382,7 +387,7 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
               </div>
             </div>
 
-            <div className="border-t border-zinc-200 px-6 py-4 shrink-0"
+            <div className="px-6 py-4 shrink-0 shadow-[0_-14px_26px_-20px_rgba(0,0,0,0.18)]"
                  style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 14px)' }}>
               <button type="submit" disabled={loading} className={gradientBtn} style={{ background: BRAND_GRADIENT }}>
                 {loading ? (
@@ -397,10 +402,9 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
           /* ── LOGIN ─────────────────────────────────────────────────────────── */
           <form onSubmit={handleLogin} className="relative z-10 flex-1 min-h-0 flex flex-col">
             <div className="flex-1 min-h-0 overflow-y-auto px-6">
-              <div className="max-w-[420px] mx-auto w-full pt-2 flex flex-col items-center text-center">
-                <div className="w-9 h-[3px] rounded-full mb-4" style={{ background: BRAND_GRADIENT }} />
-                <h1 className="text-[24px] font-extrabold tracking-tight leading-tight">Log in</h1>
-                <p className="text-zinc-500 text-[14px] mt-2 max-w-[280px] leading-snug">Enter your username or email and password.</p>
+              <div className="max-w-[420px] mx-auto w-full pt-4 flex flex-col items-center text-center">
+                <h1 className="text-[25px] font-extrabold tracking-tight leading-tight">Log in</h1>
+                <p className="text-zinc-500 text-[14px] mt-2.5 max-w-[280px] leading-relaxed">Enter your username or email and password.</p>
 
                 <div className="w-full mt-8 space-y-6">
                   <input
@@ -422,11 +426,11 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
                   />
                 </div>
 
-                {error && <p className="text-red-500 text-[13px] mt-4">{error}</p>}
+                {error && errorChip(error)}
               </div>
             </div>
 
-            <div className="border-t border-zinc-200 px-6 py-4 shrink-0"
+            <div className="px-6 py-4 shrink-0 shadow-[0_-14px_26px_-20px_rgba(0,0,0,0.18)]"
                  style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 14px)' }}>
               <button type="submit" disabled={loading} className={gradientBtn} style={{ background: BRAND_GRADIENT }}>
                 {loading ? (
