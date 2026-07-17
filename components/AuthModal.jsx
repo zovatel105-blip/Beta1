@@ -164,7 +164,7 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
   // que se resalta en morado de marca al enfocar. Reemplaza los inputs
   // anteriores con icono incrustado dentro de una caja rellena.
   const minimalStepInput =
-    'w-full bg-transparent text-zinc-900 placeholder:text-zinc-300 text-center text-[20px] font-bold tracking-tight py-3.5 outline-none border-0 border-b-2 border-zinc-200 focus:border-purple-400 focus:border-b-[3px] transition-all duration-200'
+    'w-full bg-transparent text-zinc-800 placeholder:text-zinc-400 text-center text-[18px] font-medium tracking-tight py-3.5 outline-none border-0 border-b border-zinc-300 focus:border-purple-400 focus:border-b-2 transition-all duration-200'
 
   const gradientBtn =
     'w-full h-[52px] rounded-full font-bold text-[16px] flex items-center justify-center gap-2 active:scale-[0.98] transition-all duration-200 disabled:opacity-60 text-white shadow-[0_12px_28px_-10px_rgba(168,85,247,0.5)] hover:shadow-[0_14px_32px_-8px_rgba(168,85,247,0.62)]'
@@ -251,7 +251,7 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
                 </p>
               </div>
             </div>
-            <div className="relative z-10 px-6 py-4 text-center shrink-0 shadow-[0_-14px_26px_-20px_rgba(0,0,0,0.18)]"
+            <div className="relative z-10 px-6 py-4 text-center shrink-0"
                  style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 14px)' }}>
               {isRegister ? (
                 <p className="text-zinc-500 text-[14px]">
@@ -387,7 +387,7 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
               </div>
             </div>
 
-            <div className="px-6 py-4 shrink-0 shadow-[0_-14px_26px_-20px_rgba(0,0,0,0.18)]"
+            <div className="px-6 py-4 shrink-0"
                  style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 14px)' }}>
               <button type="submit" disabled={loading} className={gradientBtn} style={{ background: BRAND_GRADIENT }}>
                 {loading ? (
@@ -430,7 +430,7 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
               </div>
             </div>
 
-            <div className="px-6 py-4 shrink-0 shadow-[0_-14px_26px_-20px_rgba(0,0,0,0.18)]"
+            <div className="px-6 py-4 shrink-0"
                  style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 14px)' }}>
               <button type="submit" disabled={loading} className={gradientBtn} style={{ background: BRAND_GRADIENT }}>
                 {loading ? (
