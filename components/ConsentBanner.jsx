@@ -39,20 +39,20 @@ export default function ConsentBanner() {
       <div className="relative w-full max-w-[380px] rounded-3xl bg-zinc-900/95 backdrop-blur-xl border border-white/10 shadow-2xl overflow-hidden">
         <div className="px-6 pt-7 pb-6 text-center">
           <p className="text-white/80 text-[15px] leading-relaxed">
-            By tapping <span className="font-bold text-white">Accept and continue</span>, you agree to our{' '}
+            Twyk runs on a few essential cookies to keep things working smoothly. Sticking around means you&apos;re good with our{' '}
             <Link href="/terms" className="font-bold text-white underline-offset-2 hover:underline">Terms of Use</Link>
-            {' '}and confirm you&apos;ve read our{' '}
+            , you know how we handle your info from our{' '}
             <Link href="/privacy" className="font-bold text-white underline-offset-2 hover:underline">Privacy Policy</Link>
-            {' '}to see how we collect, use and share your data, and our{' '}
-            <Link href="/privacy" className="font-bold text-white underline-offset-2 hover:underline">Cookie Policy</Link>
-            {' '}to see how we use cookies.
+            , and you&apos;re okay with the{' '}
+            <Link href="/privacy" className="font-bold text-white underline-offset-2 hover:underline">Cookies</Link>
+            {' '}we use to make that happen.
           </p>
         </div>
         <button
           onClick={accept}
           className="w-full py-4 border-t border-white/10 text-white font-bold text-[15px] active:bg-white/5 transition-colors"
         >
-          Accept and continue
+          Sounds good
         </button>
       </div>
     </div>
