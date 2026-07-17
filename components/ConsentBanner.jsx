@@ -2,15 +2,14 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Cookie } from 'lucide-react'
 
 const CONSENT_KEY = 'twyk_consent'
 
 /**
- * ConsentBanner — Banner de consentimiento de cookies esenciales.
- * Aparece solo la PRIMERA vez que el usuario visita la app (mientras no exista
- * la preferencia en localStorage). Al pulsar "Entendido" se guarda y no vuelve
- * a aparecer.
+ * ConsentBanner — Modal de consentimiento de cookies esenciales, centrado en
+ * pantalla (estilo diálogo nativo). Aparece solo la PRIMERA vez que el
+ * usuario visita la app (mientras no exista la preferencia en localStorage).
+ * Al pulsar "Accept and continue" se guarda y no vuelve a aparecer.
  */
 export default function ConsentBanner() {
   const [visible, setVisible] = useState(false)
@@ -35,23 +34,25 @@ export default function ConsentBanner() {
   if (!visible) return null
 
   return (
-    <div
-      className="fixed inset-x-0 bottom-0 px-4 pb-4 flex justify-center"
-      style={{ zIndex: 11000 }}
-    >
-      <div className="w-full max-w-[640px] rounded-2xl bg-zinc-900/95 backdrop-blur-xl border border-white/10 shadow-2xl p-4 flex flex-col sm:flex-row sm:items-center gap-3">
-        <div className="flex items-start gap-3 flex-1">
-          <Cookie className="w-5 h-5 text-white/70 shrink-0 mt-0.5" strokeWidth={1.7} />
-          <p className="text-white/75 text-[13px] leading-relaxed">
-            Twyk uses essential cookies to work. By continuing, you accept our{' '}
-            <Link href="/privacy" className="underline text-white hover:text-white/80">Privacy Policy</Link>.
+    <div className="fixed inset-0 flex items-center justify-center px-5" style={{ zIndex: 11000 }}>
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      <div className="relative w-full max-w-[380px] rounded-3xl bg-zinc-900/95 backdrop-blur-xl border border-white/10 shadow-2xl overflow-hidden">
+        <div className="px-6 pt-7 pb-6 text-center">
+          <p className="text-white/80 text-[15px] leading-relaxed">
+            By tapping <span className="font-bold text-white">Accept and continue</span>, you agree to our{' '}
+            <Link href="/terms" className="font-bold text-white underline-offset-2 hover:underline">Terms of Use</Link>
+            {' '}and confirm you&apos;ve read our{' '}
+            <Link href="/privacy" className="font-bold text-white underline-offset-2 hover:underline">Privacy Policy</Link>
+            {' '}to see how we collect, use and share your data, and our{' '}
+            <Link href="/privacy" className="font-bold text-white underline-offset-2 hover:underline">Cookie Policy</Link>
+            {' '}to see how we use cookies.
           </p>
         </div>
         <button
           onClick={accept}
-          className="shrink-0 px-5 py-2.5 rounded-full bg-white text-black text-[13px] font-semibold hover:bg-white/90 active:scale-95 transition-all"
+          className="w-full py-4 border-t border-white/10 text-white font-bold text-[15px] active:bg-white/5 transition-colors"
         >
-          Got it
+          Accept and continue
         </button>
       </div>
     </div>
