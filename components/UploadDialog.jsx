@@ -5,6 +5,8 @@ import { useEffect, useRef, useState } from 'react'
 import { ChevronRight, Loader2, Film, Swords, Users, Rows3, Columns3, ArrowLeft, X, Search, Music } from 'lucide-react'
 import Avatar from './Avatar'
 import MusicPicker from './MusicPicker'
+import { addPendingUpload, updateUploadProgress, removePendingUpload, markUploadFailed } from '@/lib/uploadQueue'
+import { captureThumbnail } from '@/lib/mediaThumbnail'
 
 /**
  * UploadDialog — flujo multi-paso para crear publicaciones de votación: Versus
@@ -25,7 +27,7 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
   const inputRef = useRef(null)
   const inputBRef = useRef(null)
   const versusTouchX = useRef(0)
-  const [step, setStep] = useState('mode') // mode | layout | target | file | uploading
+  const [step, setStep] = useState('mode') // mode | layout | target | file
   const [mode, setMode] = useState(null) // 'versus' | 'duet' | 'challenge'
   const [layout, setLayout] = useState('horizontal') // 'horizontal' | 'vertical'
   const [users, setUsers] = useState([])
@@ -35,7 +37,6 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
   const [file, setFile] = useState(null)
   const [fileB, setFileB] = useState(null)
   const [description, setDescription] = useState('')
-  const [progress, setProgress] = useState(0)
   const [error, setError] = useState(null)
   const [selected, setSelected] = useState('versus')
   const [music, setMusic] = useState(null) // track de iTunes seleccionado
@@ -43,6 +44,10 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
   const [previewA, setPreviewA] = useState(null)
   const [previewB, setPreviewB] = useState(null)
   const [versusIdx, setVersusIdx] = useState(0) // slide activo en la vista previa carrusel (versus)
+  // Breve estado de feedback en el botón mientras se genera la miniatura local
+  // (paso previo, ~instantáneo) y se cierra el diálogo; la subida real ya no
+  // se espera aquí (continúa en segundo plano, ver doUpload).
+  const [publishing, setPublishing] = useState(false)
 
   // URLs de previsualización memorizadas (evita recrearlas en cada render,
   // lo que reiniciaría el vídeo al escribir la descripción).
@@ -61,7 +66,7 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
 
   const reset = () => {
     setStep('mode'); setMode(null); setLayout('horizontal'); setTarget(null); setUsers([])
-    setFile(null); setFileB(null); setDescription(''); setProgress(0); setError(null)
+    setFile(null); setFileB(null); setDescription(''); setError(null); setPublishing(false)
     setSelected('versus'); setVersusIdx(0); setMusic(null); setMusicOpen(false)
   }
 
@@ -144,14 +149,41 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
     } else if (!file) {
       return
     }
-    setStep('uploading')
-    setProgress(0)
+    if (publishing) return
+    setError(null)
+    setPublishing(true)
+
+    // Id local de la subida (para el placeholder del grid de perfil y el
+    // seguimiento de progreso, ver lib/uploadQueue.js).
+    const uploadId = (typeof crypto !== 'undefined' && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : `up_${Date.now()}_${Math.random().toString(36).slice(2)}`
+
+    // Solo versus/1vs1 crean una publicación INMEDIATA visible en el grid de
+    // perfil (un reto no crea publicación hasta que el retado lo acepta) ->
+    // solo esos dos modos muestran el placeholder de "subiendo…".
+    const showsInProfileGrid = mode === 'versus' || mode === 'duet'
+    if (showsInProfileGrid) {
+      // Mejor esfuerzo: miniatura local (lado A) para el placeholder. Se
+      // limita a ~2.5s (ver mediaThumbnail.js) para no retrasar el cierre.
+      const thumbUrl = await captureThumbnail(file)
+      addPendingUpload({ id: uploadId, mode, thumbUrl })
+    }
+
+    // Cerrar el diálogo YA: la subida real continúa en segundo plano (este
+    // componente sigue montado -aunque oculto- mientras Feed.jsx mantenga
+    // `uploadOpen` en su árbol, así que el XHR no se interrumpe al cerrar).
+    onClose()
+
     try {
       const xhr = new XMLHttpRequest()
       xhr.withCredentials = true // Incluir cookies en la petición
       const promise = new Promise((resolve, reject) => {
         xhr.upload.onprogress = (ev) => {
-          if (ev.lengthComputable) setProgress(Math.round((ev.loaded / ev.total) * 100))
+          if (ev.lengthComputable) {
+            const pct = Math.round((ev.loaded / ev.total) * 100)
+            if (showsInProfileGrid) updateUploadProgress(uploadId, pct)
+          }
         }
         xhr.onload = () => {
           if (xhr.status >= 200 && xhr.status < 300) {
@@ -194,17 +226,15 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
       } catch { /* ignore */ }
       xhr.send(fd)
       const data = await promise
+      if (showsInProfileGrid) removePendingUpload(uploadId)
       if (mode === 'challenge') {
         if (onChallengeCreated) onChallengeCreated()
       } else if (onUploaded && data?.post) {
         onUploaded(data.post)
       }
-      onClose()
     } catch (err) {
       console.error(err)
-      const needsLogin = /\b401\b/.test(err?.message || '')
-      setError(needsLogin ? 'You must sign in to publish' : 'Upload error')
-      setStep(mode === 'challenge' ? 'target' : 'file')
+      if (showsInProfileGrid) markUploadFailed(uploadId)
     }
   }
 
@@ -225,7 +255,7 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
       <div className="relative z-10 flex items-center justify-between px-4 pb-3"
            style={{ paddingTop: 'max(env(safe-area-inset-top), 14px)' }}>
         <div className="flex items-center gap-1">
-          {step !== 'mode' && step !== 'uploading' ? (
+          {step !== 'mode' ? (
             <button onClick={goBack} aria-label="Atrás" className="w-9 h-9 -ml-1.5 rounded-full flex items-center justify-center hover:bg-white/5 active:scale-90 transition">
               <ArrowLeft size={20} strokeWidth={1.75} />
             </button>
@@ -237,7 +267,6 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
             {step === 'layout' && 'Choose the format'}
             {step === 'target' && 'Choose who to challenge'}
             {step === 'file' && (mode === 'versus' ? 'Your 2 videos' : mode === 'challenge' ? 'Your challenge' : 'Your 1vs1')}
-            {step === 'uploading' && (mode === 'challenge' ? 'Sending challenge' : 'Uploading')}
           </h1>
         </div>
         <button onClick={onClose} aria-label="Close" className="w-9 h-9 -mr-1.5 rounded-full flex items-center justify-center hover:bg-white/5 active:scale-90 transition text-zinc-400 hover:text-white">
@@ -373,7 +402,8 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
                   <button
                     key={u.username}
                     onClick={() => { setTarget(u); doUpload(u) }}
-                    className="w-full flex items-center gap-3 p-3 rounded-2xl bg-white/[0.03] border border-white/[0.08] hover:border-white/40 active:scale-[0.99] transition text-left"
+                    disabled={publishing}
+                    className="w-full flex items-center gap-3 p-3 rounded-2xl bg-white/[0.03] border border-white/[0.08] hover:border-white/40 active:scale-[0.99] transition text-left disabled:opacity-50"
                   >
                     <div className="w-11 h-11 rounded-full overflow-hidden ring-1 ring-white/10 shrink-0 bg-zinc-800">
                       <Avatar src={u.avatarUrl} className="w-full h-full rounded-full" />
@@ -561,30 +591,19 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
                     )}
                     <button
                       onClick={() => (mode === 'challenge' ? goToTarget() : doUpload())}
-                      disabled={isAB ? (!file || !fileB) : !file}
-                      className="w-full py-3.5 rounded-full bg-white text-black font-bold text-[16px] disabled:bg-white/20 disabled:text-white/40 active:scale-[0.99] transition"
+                      disabled={publishing || (isAB ? (!file || !fileB) : !file)}
+                      className="w-full py-3.5 rounded-full bg-white text-black font-bold text-[16px] disabled:bg-white/20 disabled:text-white/40 active:scale-[0.99] transition flex items-center justify-center gap-2"
                     >
-                      {mode === 'duet' ? 'Publish 1vs1' : mode === 'challenge' ? 'Choose who to challenge' : 'Publish versus'}
+                      {publishing && mode !== 'challenge' ? (
+                        <><Loader2 size={17} className="animate-spin" /> Publishing…</>
+                      ) : (
+                        mode === 'duet' ? 'Publish 1vs1' : mode === 'challenge' ? 'Choose who to challenge' : 'Publish versus'
+                      )}
                     </button>
                   </div>
                 </>
               )
             })()}
-          </div>
-        )}
-
-        {/* STEP: uploading */}
-        {step === 'uploading' && (
-          <div className="max-w-xs mx-auto flex flex-col items-center justify-center pt-28 gap-5 text-center">
-            <div className="w-16 h-16 rounded-full border border-white/10 bg-white/[0.03] flex items-center justify-center"
-                 style={{ boxShadow: '0 0 48px -14px rgba(255,255,255,0.45)' }}>
-              <Loader2 size={28} className="animate-spin" style={{ color: GOLD }} />
-            </div>
-            <div className="text-2xl font-semibold tracking-tight">{progress}%</div>
-            <div className="w-full h-1.5 rounded-full bg-white/10 overflow-hidden">
-              <div className="h-full transition-all" style={{ width: `${progress}%`, background: GOLD }} />
-            </div>
-            <div className="text-[13px] text-zinc-500">{mode === 'challenge' ? 'Sending your challenge…' : mode === 'duet' ? 'Creating your 1vs1…' : 'Uploading your versus…'}</div>
           </div>
         )}
       </div>

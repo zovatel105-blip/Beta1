@@ -429,13 +429,28 @@ export default function Feed() {
 
   const onFirstInteraction = useCallback(() => setMuted(false), [])
 
+  // Publicación añadida al feed SIN forzar scroll (usada cuando la subida
+  // terminó en SEGUNDO PLANO, ver UploadDialog.jsx: el usuario ya cerró el
+  // diálogo y puede estar viendo cualquier otro vídeo -> saltar al inicio del
+  // feed en ese momento sería una interrupción inesperada). También avisa al
+  // resto de la app (p.ej. el grid de perfil) de que la publicación ya existe.
   const handleUploaded = useCallback((newPost) => {
     prependPost(newPost)
+    try {
+      window.dispatchEvent(new CustomEvent('twyk:postCreated', { detail: { post: newPost } }))
+    } catch { /* ignore */ }
+  }, [prependPost])
+
+  // Publicación aceptada desde un reto (acción síncrona explícita del
+  // usuario, ver ActiveChallengesPage onAccepted): aquí SÍ tiene sentido
+  // saltar al inicio del feed para mostrar el resultado de inmediato.
+  const handleChallengeAccepted = useCallback((newPost) => {
+    handleUploaded(newPost)
     activeIndexRef.current = 0
     setActiveIndex(0)
     const el = containerRef.current
     if (el) el.scrollTo({ top: 0, behavior: 'auto' })
-  }, [prependPost])
+  }, [handleUploaded])
 
   return (
     <div className="feed-container fixed inset-0 bg-black" onPointerDown={muted ? onFirstInteraction : undefined}>
@@ -593,7 +608,7 @@ export default function Feed() {
         open={activeChallengesOpen}
         onClose={() => setActiveChallengesOpen(false)}
         onOpenCompleted={() => { setActiveChallengesOpen(false); setBattlesOpen(true) }}
-        onAccepted={(post) => { handleUploaded(post); setBattlesRefresh((k) => k + 1) }}
+        onAccepted={(post) => { handleChallengeAccepted(post); setBattlesRefresh((k) => k + 1) }}
         onChanged={refreshChallenges}
       />
 

@@ -1,13 +1,14 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Menu, Bookmark, Swords, Users, UserPlus, ArrowLeft, LogOut, Camera, Loader2, X, ShieldAlert, LogIn, CircleUserRound, Activity, ChevronRight } from 'lucide-react'
+import { Menu, Bookmark, Swords, Users, UserPlus, ArrowLeft, LogOut, Camera, Loader2, X, ShieldAlert, LogIn, CircleUserRound, Activity, ChevronRight, AlertCircle } from 'lucide-react'
 import VoteIcon from './icons/VoteIcon'
 import ShareIcon from './icons/ShareIcon'
 import { useAuth } from '@/contexts/AuthContext'
 import Avatar from './Avatar'
 import DuetSlide from './DuetSlide'
 import CarouselSlide from './CarouselSlide'
+import { getUploadQueue, subscribeUploadQueue } from '@/lib/uploadQueue'
 
 // El perfil se deriva del usuario autenticado (useAuth) dentro del componente.
 // El avatar usa el componente compartido <Avatar> -> idéntico al del feed.
@@ -113,6 +114,41 @@ const GridItem = ({ post, onOpen }) => {
         </div>
       )}
     </button>
+  )
+}
+
+// Placeholder de una publicación EN CURSO de subida (ver lib/uploadQueue.js):
+// se muestra en el grid de perfil justo después de pulsar "Publicar" -el
+// diálogo ya se cerró y la subida sigue en segundo plano- hasta que el
+// servidor confirma la publicación real (se reemplaza por <GridItem>).
+const PendingGridItem = ({ item }) => {
+  const isError = item?.status === 'error'
+  return (
+    <div className="relative aspect-[9/16] overflow-hidden rounded-lg bg-white/[0.04] border border-white/5">
+      {item?.thumbUrl ? (
+        <img
+          src={item.thumbUrl}
+          alt=""
+          draggable={false}
+          className={`w-full h-full object-cover ${isError ? 'opacity-30' : 'opacity-70'}`}
+        />
+      ) : (
+        <div className="w-full h-full bg-gradient-to-br from-gray-700 via-gray-800 to-gray-900" />
+      )}
+      <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center gap-1.5">
+        {isError ? (
+          <>
+            <AlertCircle className="w-6 h-6 text-rose-400" strokeWidth={1.75} />
+            <span className="text-[10.5px] font-semibold text-rose-300">Upload failed</span>
+          </>
+        ) : (
+          <>
+            <Loader2 className="w-6 h-6 text-white animate-spin" strokeWidth={2} />
+            <span className="text-[11px] font-semibold text-white">{item?.progress || 0}%</span>
+          </>
+        )}
+      </div>
+    </div>
   )
 }
 
@@ -270,6 +306,8 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
   const [editOpen, setEditOpen] = useState(false)   // modal de editar perfil
   const [menuOpen, setMenuOpen] = useState(false)    // menú (cerrar sesión)
   const [guestMenuOpen, setGuestMenuOpen] = useState(false) // menú lateral para invitados
+  // Subidas EN CURSO (placeholder con progreso en el grid, ver lib/uploadQueue.js).
+  const [pendingUploads, setPendingUploads] = useState(() => getUploadQueue())
 
   // ── Cabecera colapsable estilo TikTok ──────────────────────────────────────
   // collapseProgress: 0 (expandida) -> 1 (colapsada). collapseDistRef = distancia
@@ -373,6 +411,28 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
     return () => window.removeEventListener('twyk:postDeleted', onDeleted)
   }, [])
 
+  // Suscripción a la cola de subidas EN CURSO (ver lib/uploadQueue.js): el
+  // diálogo de "Publicar" cierra al instante y la subida real continúa en
+  // segundo plano; mientras tanto se muestra un placeholder con progreso al
+  // principio del grid ("polls") de MI PROPIO perfil.
+  useEffect(() => {
+    return subscribeUploadQueue(setPendingUploads)
+  }, [])
+
+  // Cuando la subida en segundo plano TERMINA, Feed.jsx emite
+  // 'twyk:postCreated' con la publicación real -> si es mi propio perfil, la
+  // insertamos al principio del grid sin esperar a reabrir el perfil (el
+  // placeholder correspondiente ya se retira solo, ver lib/uploadQueue.js).
+  useEffect(() => {
+    const onCreated = (e) => {
+      const post = e?.detail?.post
+      if (!post || !isOwn) return
+      setPosts((prev) => (prev.some((p) => p.id === post.id) ? prev : [post, ...prev]))
+    }
+    window.addEventListener('twyk:postCreated', onCreated)
+    return () => window.removeEventListener('twyk:postCreated', onCreated)
+  }, [isOwn])
+
   // Cargar publicaciones GUARDADAS al abrir la pestaña 'saved' (solo perfil propio).
   useEffect(() => {
     if (!open || activeTab !== 'saved' || !isOwn || !user) return
@@ -400,7 +460,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
     const onResize = () => measureCollapse()
     window.addEventListener('resize', onResize)
     return () => { cancelAnimationFrame(id); window.removeEventListener('resize', onResize) }
-  }, [open, loading, posts, savedPosts, savedLoading, activeTab])
+  }, [open, loading, posts, savedPosts, savedLoading, activeTab, pendingUploads])
 
   // Seguir / dejar de seguir (persistente en backend). Optimista con rollback.
   const handleToggleFollow = async () => {
@@ -575,6 +635,9 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
 
   const renderTabContent = () => {
     if (activeTab === 'polls') {
+      // Placeholders de subidas en curso: solo en MI PROPIO perfil (una
+      // subida siempre pertenece al usuario autenticado, ver UploadDialog.jsx).
+      const pendingForGrid = isOwn ? pendingUploads : []
       if (loading) {
         return (
           <div className="flex justify-center items-center py-20">
@@ -582,7 +645,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
           </div>
         )
       }
-      if (myPosts.length === 0) {
+      if (myPosts.length === 0 && pendingForGrid.length === 0) {
         return (
           <div className="text-center py-16 space-y-4 px-4">
             <div className="w-16 h-16 bg-white/[0.04] border border-white/10 rounded-full flex items-center justify-center mx-auto">
@@ -597,6 +660,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
       }
       return (
         <div className="grid grid-cols-3 gap-1">
+          {pendingForGrid.map((item) => <PendingGridItem key={item.id} item={item} />)}
           {myPosts.map((p) => <GridItem key={p.id} post={p} onOpen={setOpenPost} />)}
         </div>
       )
