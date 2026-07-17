@@ -16,8 +16,8 @@ scripts/seed-core-users.mjs y memory/test_credentials.md).
 ```
 MONGO_URL=mongodb://localhost:27017/twyk
 ADMIN_EMAILS=twyk.apk@gmail.com
-NEXT_PUBLIC_BASE_URL=https://77ce7fbe-c2a0-43fb-966a-0273ff9bfa3b.preview.emergentagent.com
-CORS_ORIGINS=https://77ce7fbe-c2a0-43fb-966a-0273ff9bfa3b.preview.emergentagent.com
+NEXT_PUBLIC_BASE_URL=https://build-pipeline-16.preview.emergentagent.com
+CORS_ORIGINS=https://build-pipeline-16.preview.emergentagent.com
 ```
 
 NOTA: si la URL de preview cambia (nuevo dominio *.preview.emergentagent.com),
@@ -25,7 +25,7 @@ actualizar NEXT_PUBLIC_BASE_URL y CORS_ORIGINS con el valor de la variable de
 entorno APP_URL definida en /etc/supervisor/conf.d/*.conf (bloque [program:nextjs]).
 
 ## Última URL usada (actualizada automáticamente al restaurar)
-NEXT_PUBLIC_BASE_URL=https://77ce7fbe-c2a0-43fb-966a-0273ff9bfa3b.preview.emergentagent.com
+NEXT_PUBLIC_BASE_URL=https://fa82a314-16e7-4476-80cc-b9ffc5c05474.preview.emergentagent.com
 
 ## NOTA sobre ffmpeg (persistencia)
 ffmpeg también se pierde tras cada reinicio de pod (paquete apt en filesystem
