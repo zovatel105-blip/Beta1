@@ -50,6 +50,7 @@ import {
   getMutualBlockedIds,
   hasBlocked,
   REPORT_REASONS,
+  acceptTerms,
 } from '@/lib/db'
 import {
   getAllPosts,
@@ -989,6 +990,11 @@ export async function POST(request, { params }) {
   // POST /api/auth/logout - Cerrar sesión
   if (path === '/auth/logout') {
     return handleLogout(request)
+  }
+
+  // POST /api/auth/accept-terms - Marcar que el usuario aceptó Términos/Privacidad/Cookies
+  if (path === '/auth/accept-terms') {
+    return handleAcceptTerms(request)
   }
 
   // POST /api/profile - Actualizar perfil (nombre, bio, avatar)
@@ -1966,6 +1972,24 @@ async function handleLogout(request) {
   } catch (err) {
     console.error('logout error', err)
     return NextResponse.json({ error: 'logout_failed' }, { status: 500 })
+  }
+}
+
+// POST /api/auth/accept-terms - El usuario logueado acepta Términos de Uso /
+// Privacidad / Cookies desde el modal de consentimiento. Se persiste en la
+// cuenta (no solo en localStorage) para que no vuelva a pedirse en otro
+// dispositivo/sesión una vez aceptado.
+async function handleAcceptTerms(request) {
+  try {
+    const currentUser = await getCurrentUser(request)
+    if (!currentUser) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    }
+    const updated = await acceptTerms(currentUser.id)
+    return NextResponse.json({ ok: true, user: updated })
+  } catch (err) {
+    console.error('accept-terms error', err)
+    return NextResponse.json({ error: 'accept_terms_failed' }, { status: 500 })
   }
 }
 
