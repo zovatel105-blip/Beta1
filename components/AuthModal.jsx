@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { ChevronDown, ArrowLeft } from 'lucide-react'
+import { ChevronDown, ArrowLeft, Cake } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import DateWheelPicker from './DateWheelPicker'
 
@@ -218,7 +218,8 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
           <>
             <div className="relative z-10 flex-1 min-h-0 overflow-y-auto px-6">
               <div className="max-w-[420px] mx-auto w-full pt-3">
-                <div className="text-center mb-7">
+                <div className="text-center mb-7 flex flex-col items-center">
+                  <div className="w-9 h-[3px] rounded-full mb-4" style={{ background: BRAND_GRADIENT }} />
                   <h1 className="text-[28px] font-extrabold tracking-tight leading-tight">
                     {isRegister ? 'Sign up for Twyk' : 'Log in to Twyk'}
                   </h1>
@@ -286,6 +287,7 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
                         parte del diseño -> título -> subtítulo -> vista previa tipográfica
                         (líneas finas, sin tarjeta rellena) -> rueda, sin espacio muerto. */}
                     <div className="flex flex-col items-center text-center">
+                      <Cake className="w-11 h-11 text-purple-500 mb-3" strokeWidth={1.4} />
                       <h1 className="text-[24px] font-extrabold tracking-tight leading-tight max-w-[300px]">{regStepCfg.title}</h1>
                       <p className="text-zinc-500 text-[14px] mt-2 max-w-[280px] leading-snug">{regStepCfg.subtitle}</p>
 
@@ -316,7 +318,8 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
                     />
                   </>
                 ) : (
-                  <div className="mb-2 text-center">
+                  <div className="mb-2 text-center flex flex-col items-center">
+                    <div className="w-9 h-[3px] rounded-full mb-4" style={{ background: BRAND_GRADIENT }} />
                     <h1 className="text-[24px] font-extrabold tracking-tight leading-tight max-w-[300px] mx-auto">{regStepCfg.title}</h1>
                     <p className="text-zinc-500 text-[14px] mt-2 max-w-[280px] mx-auto leading-snug">{regStepCfg.subtitle}</p>
                   </div>
@@ -395,6 +398,7 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
           <form onSubmit={handleLogin} className="relative z-10 flex-1 min-h-0 flex flex-col">
             <div className="flex-1 min-h-0 overflow-y-auto px-6">
               <div className="max-w-[420px] mx-auto w-full pt-2 flex flex-col items-center text-center">
+                <div className="w-9 h-[3px] rounded-full mb-4" style={{ background: BRAND_GRADIENT }} />
                 <h1 className="text-[24px] font-extrabold tracking-tight leading-tight">Log in</h1>
                 <p className="text-zinc-500 text-[14px] mt-2 max-w-[280px] leading-snug">Enter your username or email and password.</p>
 
