@@ -1,70 +1,50 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
 
-// Fallback SOLO para invitados sin sesión (no hay cuenta donde persistir).
-const CONSENT_KEY = 'twyk_consent'
-
 /**
  * ConsentBanner — Modal de consentimiento de Términos de Uso / Privacidad /
- * Cookies, centrado en pantalla (estilo diálogo nativo).
+ * Cookies, centrado en pantalla (estilo diálogo nativo, bloqueante).
  *
- * Reglas de visibilidad:
- * - Usuario logueado (recién registrado O que acaba de iniciar sesión): se
- *   muestra si su cuenta aún no tiene `termsAccepted === true` (se consulta
- *   en el objeto `user` del AuthContext, que refleja el registro en Mongo).
- *   Al aceptar, se persiste en el servidor (POST /api/auth/accept-terms) y
- *   ya no vuelve a aparecer en ninguna sesión/dispositivo.
- * - Invitado sin sesión: se mantiene el comportamiento anterior basado en
- *   localStorage (no hay cuenta donde guardar la preferencia).
+ * Regla de visibilidad (ÚNICA fuente de verdad: la cuenta, no el navegador):
+ * - Invitado SIN sesión: NUNCA se muestra (no hay cuenta donde persistir
+ *   la aceptación, así que no tiene sentido pedirla todavía).
+ * - Usuario CON sesión (justo después de un registro exitoso, o justo
+ *   después de iniciar sesión): se muestra si su cuenta aún no tiene
+ *   `termsAccepted === true` en el servidor (campo persistido en Mongo).
+ *
+ * El banner NUNCA desaparece por sí solo ni se puede cerrar de ninguna otra
+ * forma (sin botón de cerrar, sin cerrar al tocar fuera, sin tecla Esc): la
+ * ÚNICA acción que lo hace desaparecer es pulsar "Accept and Continue", que
+ * persiste termsAccepted=true en el servidor (POST /api/auth/accept-terms)
+ * para esa cuenta. Mientras esté visible, cubre toda la pantalla con un
+ * z-index muy alto, bloqueando cualquier interacción con el resto de la app.
  */
 export default function ConsentBanner() {
   const { user, loading, updateUser } = useAuth()
-  const [visible, setVisible] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
-  useEffect(() => {
-    // Esperar a que el AuthContext resuelva si hay sesión antes de decidir,
-    // para no mostrar/ocultar el modal en falso durante el primer render.
-    if (loading) return
-
-    if (user) {
-      setVisible(user.termsAccepted !== true)
-      return
-    }
-
-    try {
-      setVisible(localStorage.getItem(CONSENT_KEY) !== 'accepted')
-    } catch {
-      setVisible(false)
-    }
-  }, [user, loading])
+  // Mientras el AuthContext no haya resuelto si hay sesión (loading), no se
+  // decide nada todavía (evita mostrar/ocultar en falso durante el 1er render).
+  const visible = !loading && !!user && user.termsAccepted !== true
 
   const accept = async () => {
-    if (submitting) return
-
-    if (user) {
-      setSubmitting(true)
-      try {
-        const token = localStorage.getItem('twyk_token')
-        await fetch('/api/auth/accept-terms', {
-          method: 'POST',
-          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-        })
-      } catch {
-        // Si falla la red, no bloqueamos la UI; se reintentará en la próxima carga.
-      }
-      updateUser({ termsAccepted: true })
-      setSubmitting(false)
-    } else {
-      try {
-        localStorage.setItem(CONSENT_KEY, 'accepted')
-      } catch { /* ignore */ }
+    if (submitting || !user) return
+    setSubmitting(true)
+    try {
+      const token = localStorage.getItem('twyk_token')
+      await fetch('/api/auth/accept-terms', {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      })
+    } catch {
+      // Si falla la red, no bloqueamos la UI local; el servidor seguirá
+      // marcando termsAccepted=false y se reintentará en la próxima carga.
     }
-
-    setVisible(false)
+    updateUser({ termsAccepted: true })
+    setSubmitting(false)
   }
 
   if (!visible) return null
