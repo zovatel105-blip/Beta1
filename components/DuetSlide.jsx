@@ -195,7 +195,10 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
   // adjunta, su <audio> es independiente del tap de play/pausa de los
   // vídeos (por eso NO se corta con `paused`); si el audio es el de los
   // propios vídeos, sí debe detenerse en cuanto el usuario los pausa.
-  const isAudioPlaying = isActive && playbackEnabled && !showWinner && !showContent && !globalMuted && (hasMusic || !paused)
+  // BUG FIX: al abrir el modal de login/registro (authModalOpen, se abre al
+  // votar/seguir/comentar/retar sin sesión) el audio/vídeo de la publicación
+  // seguía escuchándose de fondo. Se añade !authModalOpen a la condición.
+  const isAudioPlaying = isActive && playbackEnabled && !showWinner && !showContent && !authModalOpen && !globalMuted && (hasMusic || !paused)
   // Reto 1vs1: cabecera con los DOS creadores (avatar + nombre de cada lado)
   const authorA = sideA.author || post.author || {}
   const authorB = sideB.author || post.author || {}
@@ -318,7 +321,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
       // A suena solo si el audio global está activo Y el lado audible es A.
       if (va) va.muted = hasMusic ? true : (globalMuted || audibleSide !== 'a')
       if (vb) vb.muted = hasMusic ? true : (globalMuted || audibleSide !== 'b')
-      if (!showWinner && !showContent) {
+      if (!showWinner && !showContent && !authModalOpen) {
         startBothAtomically(va, vb)
       } else {
         if (atomicRef.current) atomicRef.current.cancelled = true
@@ -341,13 +344,13 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
       release(va)
       release(vb)
     }
-  }, [isActive, playbackEnabled, warm, globalMuted, audibleSide, showWinner, showContent, srcA, srcB, acquire, release, primeWarm, startBothAtomically])
+  }, [isActive, playbackEnabled, warm, globalMuted, audibleSide, showWinner, showContent, authModalOpen, srcA, srcB, acquire, release, primeWarm, startBothAtomically])
 
   // Música adjunta (preview iTunes): suena con la tarjeta activa y feed no-mute.
   useEffect(() => {
     const a = audioRef.current
     if (!a || !hasMusic) return
-    const shouldPlay = isActive && playbackEnabled && !showWinner && !showContent && !globalMuted
+    const shouldPlay = isActive && playbackEnabled && !showWinner && !showContent && !authModalOpen && !globalMuted
     if (shouldPlay) {
       a.muted = false
       const p = a.play()
@@ -356,7 +359,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
       try { a.pause() } catch { /* ignore */ }
       if (!isActive) { try { a.currentTime = 0 } catch { /* ignore */ } }
     }
-  }, [isActive, playbackEnabled, showWinner, showContent, globalMuted, hasMusic])
+  }, [isActive, playbackEnabled, showWinner, showContent, authModalOpen, globalMuted, hasMusic])
 
   // Cleanup de DESMONTAJE (sale de la ventana de 3) -> liberación garantizada.
   useEffect(() => () => {

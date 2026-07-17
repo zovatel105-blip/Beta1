@@ -295,9 +295,13 @@ export default function Feed() {
   }, [])
 
   // Pausa global de reproducción cuando una "página" overlay cubre el feed
-  // (perfil, batallas, retos activos, búsqueda, sugerencias, mensajes, subida).
-  // El feed sigue montado debajo, así que sin esto el audio seguiría sonando.
-  const overlayOpen = profileOpen || battlesOpen || activeChallengesOpen || searchOpen || suggestionsOpen || inboxOpen || uploadOpen
+  // (perfil, batallas, retos activos, búsqueda, sugerencias, mensajes, subida,
+  // login/registro). El feed sigue montado debajo, así que sin esto el audio
+  // seguiría sonando. BUG FIX: faltaba `authOpen` (el modal de login/registro
+  // que se abre directamente desde Crear/Retos/Bandeja para invitados, sin
+  // pasar por ningún otro overlay) -> el audio de la publicación seguía
+  // escuchándose de fondo mientras se mostraba el modal de inicio de sesión.
+  const overlayOpen = profileOpen || battlesOpen || activeChallengesOpen || searchOpen || suggestionsOpen || inboxOpen || uploadOpen || authOpen
   const effectivePlayback = playbackEnabled && !overlayOpen
 
   const openChallenge = useCallback((target) => {

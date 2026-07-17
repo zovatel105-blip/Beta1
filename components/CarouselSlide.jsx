@@ -144,7 +144,10 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
   // música adjunta, su <audio> es independiente del tap de play/pausa del
   // vídeo (por eso NO se corta con `paused`); si el audio es el del propio
   // vídeo, sí debe detenerse en cuanto el usuario lo pausa.
-  const isAudioPlaying = isActive && playbackEnabled && !showWinner && !globalMuted && (hasMusic || !paused)
+  // BUG FIX: al abrir el modal de login/registro (authModalOpen, se abre al
+  // votar/seguir/comentar/retar sin sesión) el audio/vídeo de la publicación
+  // seguía escuchándose de fondo. Se añade !authModalOpen a la condición.
+  const isAudioPlaying = isActive && playbackEnabled && !showWinner && !authModalOpen && !globalMuted && (hasMusic || !paused)
 
   // Sincroniza el estado de seguimiento con el dato del servidor
   // (headAuthor.isFollowing) para que "Following" persista tras recargar y al
@@ -240,7 +243,11 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
       acquire(vis, visSrc)
       if (vis) {
         vis.muted = hasMusic ? true : globalMuted
-        if (showWinner) {
+        // BUG FIX: si el modal de login/registro está abierto (authModalOpen),
+        // pausar igual que con la winner card -mismo patrón, sin soltar el
+        // decoder- para que el audio de la publicación no se siga escuchando
+        // mientras el usuario está iniciando sesión/registrándose.
+        if (showWinner || authModalOpen) {
           try { vis.pause() } catch { /* ignore */ }
         } else {
           const p = vis.play()
@@ -266,7 +273,7 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
       warmRef.current = null
       release(vis)
     }
-  }, [isActive, playbackEnabled, warm, sideIdx, globalMuted, srcA, srcB, showWinner, acquire, release, primeWarm])
+  }, [isActive, playbackEnabled, warm, sideIdx, globalMuted, srcA, srcB, showWinner, authModalOpen, acquire, release, primeWarm])
 
   // Reproducción de la MÚSICA adjunta (preview iTunes). Suena cuando la tarjeta
   // está activa y el feed no está en mute; en mute o al salir, se pausa. El
@@ -275,7 +282,7 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
   useEffect(() => {
     const a = audioRef.current
     if (!a || !hasMusic) return
-    const shouldPlay = isActive && playbackEnabled && !showWinner && !globalMuted
+    const shouldPlay = isActive && playbackEnabled && !showWinner && !authModalOpen && !globalMuted
     if (shouldPlay) {
       a.muted = false
       const p = a.play()
@@ -284,7 +291,7 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
       try { a.pause() } catch { /* ignore */ }
       if (!isActive) { try { a.currentTime = 0 } catch { /* ignore */ } }
     }
-  }, [isActive, playbackEnabled, showWinner, globalMuted, hasMusic])
+  }, [isActive, playbackEnabled, showWinner, authModalOpen, globalMuted, hasMusic])
 
 
   // Cleanup de DESMONTAJE (la tarjeta sale de la ventana de 3) -> liberación
