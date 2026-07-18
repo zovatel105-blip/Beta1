@@ -50,6 +50,14 @@ interface TwykApi {
     suspend fun toggleFollow(@Path("username") username: String): FollowResponse
 
     @Multipart
+    @POST("api/profile")
+    suspend fun updateProfile(
+        @Part("name") name: RequestBody,
+        @Part("bio") bio: RequestBody,
+        @Part avatar: MultipartBody.Part?,
+    ): UpdateProfileResponse
+
+    @Multipart
     @POST("api/versus")
     suspend fun uploadVersus(
         @Part fileA: MultipartBody.Part,
