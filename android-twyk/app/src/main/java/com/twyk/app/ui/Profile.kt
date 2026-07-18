@@ -94,6 +94,7 @@ fun ProfileScreen(
     var followers by remember(target) { mutableStateOf(0) }
     var followBusy by remember(target) { mutableStateOf(false) }
     var activeTab by remember(target) { mutableStateOf("polls") }
+    var editOpen by remember(target) { mutableStateOf(false) } // pantalla "Edit profile" (solo perfil propio)
 
     LaunchedEffect(target) {
         loading = true
@@ -160,6 +161,7 @@ fun ProfileScreen(
                     onFollow = onFollow,
                     onShare = onShare,
                     onClose = onClose,
+                    onEditProfile = { editOpen = true },
                 )
             }
 
@@ -183,6 +185,34 @@ fun ProfileScreen(
                 }
             }
         }
+
+        // Pantalla "Edit profile" (nombre, bio, avatar con recorte circular) —
+        // solo aplica al perfil propio. Al guardar, refresca la cabecera y la
+        // sesión (avatar/nombre usados en el resto de la app).
+        if (editOpen && isOwn) {
+            EditProfileScreen(
+                initial = profile ?: ProfileUser(
+                    username = Session.user?.username,
+                    name = Session.user?.name,
+                    avatarUrl = Session.user?.avatarUrl,
+                ),
+                onClose = { editOpen = false },
+                onSaved = { updated ->
+                    profile = (profile ?: ProfileUser()).copy(
+                        name = updated.name,
+                        bio = updated.bio,
+                        avatarUrl = updated.avatarUrl,
+                    )
+                    Session.user?.let { su ->
+                        Session.set(
+                            Session.token,
+                            su.copy(name = updated.name ?: su.name, avatarUrl = updated.avatarUrl ?: su.avatarUrl),
+                        )
+                    }
+                    editOpen = false
+                },
+            )
+        }
     }
 }
 
@@ -201,6 +231,7 @@ private fun ProfileHeaderSection(
     onFollow: () -> Unit,
     onShare: () -> Unit,
     onClose: () -> Unit,
+    onEditProfile: () -> Unit,
 ) {
     val name = profile?.name?.takeIf { it.isNotBlank() } ?: profile?.username ?: "Usuario"
     val handle = "@" + (profile?.username ?: "usuario")
@@ -244,17 +275,28 @@ private fun ProfileHeaderSection(
             }
         }
 
-        // ── Nombre + handle ──
+        // ── Nombre + handle + bio ──
         Spacer(Modifier.height(20.dp))
         Text(name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
         Spacer(Modifier.height(2.dp))
         Text(handle, color = ZincText, fontSize = 13.sp, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
+        val bio = profile?.bio?.trim().orEmpty()
+        if (bio.isNotEmpty()) {
+            Spacer(Modifier.height(6.dp))
+            Text(
+                bio,
+                color = Color(0xFFD4D4D8),
+                fontSize = 13.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().widthIn(max = 300.dp).padding(horizontal = 24.dp),
+            )
+        }
 
         // ── Botones ──
         Spacer(Modifier.height(18.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
             if (isOwn) {
-                PillButton("Editar perfil", filled = true) { }
+                PillButton("Editar perfil", filled = true, onClick = onEditProfile)
                 Spacer(Modifier.width(8.dp))
                 PillButton("Compartir", filled = false, onClick = onShare)
             } else {
