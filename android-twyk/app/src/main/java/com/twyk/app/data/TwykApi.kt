@@ -60,6 +60,9 @@ interface TwykApi {
     @GET("api/users/{username}/{type}")
     suspend fun followList(@Path("username") username: String, @Path("type") type: String): FollowListResponse
 
+    @GET("api/saves")
+    suspend fun saves(): PostsResponse
+
     @Multipart
     @POST("api/versus")
     suspend fun uploadVersus(

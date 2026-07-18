@@ -104,6 +104,12 @@ fun ProfileScreen(
     var nestedProfileUsername by remember(target) { mutableStateOf<String?>(null) }
     var followListType by remember(target) { mutableStateOf<String?>(null) } // "followers" | "following" | null
     var menuOpen by remember(target) { mutableStateOf(false) } // hoja de "Settings" (☰, cerrar sesión)
+    // Publicaciones guardadas (pestaña "saved", solo perfil propio) y lista
+    // activa dentro del visor (puede ser "posts" o "savedPosts" según la pestaña
+    // desde la que se abrió).
+    var savedPosts by remember(target) { mutableStateOf<List<Post>>(emptyList()) }
+    var savedLoading by remember(target) { mutableStateOf(false) }
+    var viewerList by remember(target) { mutableStateOf<List<Post>>(emptyList()) }
 
     LaunchedEffect(target) {
         loading = true
@@ -120,6 +126,15 @@ fun ProfileScreen(
     val isOwn = username == null || target == Session.user?.username
     val votos = posts.sumOf { (it.votes?.a ?: 0) + (it.votes?.b ?: 0) }
     val retos = posts.count { it.type == "versus" }
+
+    // Cargar publicaciones GUARDADAS al abrir la pestaña "saved" (solo perfil propio).
+    LaunchedEffect(activeTab, target, isOwn) {
+        if (activeTab == "saved" && isOwn && Session.token != null) {
+            savedLoading = true
+            savedPosts = runCatching { RetrofitProvider.api.saves().posts.orEmpty() }.getOrDefault(emptyList())
+            savedLoading = false
+        }
+    }
 
     val onFollow: () -> Unit = {
         if (Session.token == null) {
@@ -186,13 +201,23 @@ fun ProfileScreen(
                     posts.isEmpty() -> item(span = { GridItemSpan(maxLineSpan) }) {
                         EmptyTab(title = "Aún no hay publicaciones", desc = if (isOwn) "Empieza a crear contenido" else "Este usuario aún no ha publicado")
                     }
-                    else -> itemsIndexed(posts) { idx, p -> ProfileGridItem(p) { viewerIndex = idx } }
+                    else -> itemsIndexed(posts) { idx, p -> ProfileGridItem(p) { viewerList = posts; viewerIndex = idx } }
+                }
+            } else if (activeTab == "saved") {
+                when {
+                    savedLoading -> item(span = { GridItemSpan(maxLineSpan) }) {
+                        Box(Modifier.fillMaxWidth().height(160.dp), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(color = TwykGold, strokeWidth = 2.dp, modifier = Modifier.size(30.dp))
+                        }
+                    }
+                    savedPosts.isEmpty() -> item(span = { GridItemSpan(maxLineSpan) }) {
+                        EmptyTab(title = "No hay guardados", desc = "Guarda vídeos para verlos luego", bookmark = true)
+                    }
+                    else -> itemsIndexed(savedPosts) { idx, p -> ProfileGridItem(p) { viewerList = savedPosts; viewerIndex = idx } }
                 }
             } else {
                 item(span = { GridItemSpan(maxLineSpan) }) {
-                    val (t, d) = if (activeTab == "saved") "No hay guardados" to "Guarda vídeos para verlos luego"
-                    else "No hay enlaces" to "Añade tus enlaces aquí"
-                    EmptyTab(title = t, desc = d, bookmark = activeTab == "saved", link = activeTab == "links")
+                    EmptyTab(title = "No hay enlaces", desc = "Añade tus enlaces aquí", link = true)
                 }
             }
         }
@@ -232,7 +257,7 @@ fun ProfileScreen(
         viewerIndex?.let { idx ->
             Box(Modifier.fillMaxSize()) {
                 FeedPager(
-                    posts = posts,
+                    posts = viewerList,
                     initialPage = idx,
                     onOpenComments = { viewerCommentsPostId = it },
                     onRequireAuth = onRequireAuth,
