@@ -24,6 +24,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -49,9 +50,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -162,10 +165,22 @@ fun ProfileScreen(
         context.startActivity(Intent.createChooser(i, "Compartir"))
     }
 
+    // ── Header colapsable estilo TikTok ────────────────────────────────────────
+    // Al hacer scroll, la barra superior (siempre fija) revela progresivamente
+    // el mini-perfil (avatar+nombre) y la acción (Editar/Seguir). Se calcula a
+    // partir del scroll del PRIMER item del grid (la cabecera).
+    val gridState = rememberLazyGridState()
+    val density = LocalDensity.current
+    val collapseDistPx = with(density) { COLLAPSE_DIST_DP.dp.toPx() }
+    val collapseProgress =
+        if (gridState.firstVisibleItemIndex > 0) 1f
+        else (gridState.firstVisibleItemScrollOffset / collapseDistPx).coerceIn(0f, 1f)
+
     Box(Modifier.fillMaxSize().background(TwykBg)) {
         GoldGlow()
 
         LazyVerticalGrid(
+            state = gridState,
             columns = GridCells.Fixed(3),
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(start = 6.dp, end = 6.dp, bottom = 112.dp),
@@ -174,7 +189,6 @@ fun ProfileScreen(
                 ProfileHeaderSection(
                     profile = profile,
                     isOwn = isOwn,
-                    isOverlay = isOverlay,
                     votos = votos,
                     retos = retos,
                     followers = followers,
@@ -184,10 +198,8 @@ fun ProfileScreen(
                     onTab = { activeTab = it },
                     onFollow = onFollow,
                     onShare = onShare,
-                    onClose = onClose,
                     onEditProfile = { editOpen = true },
                     onOpenFollowList = { followListType = it },
-                    onOpenMenu = { menuOpen = true },
                 )
             }
 
@@ -221,6 +233,21 @@ fun ProfileScreen(
                 }
             }
         }
+
+        // Barra superior FIJA (siempre visible, encima del grid): revela el
+        // mini-perfil y la acción al colapsar, con menú (☰) para perfil propio.
+        CollapsedTopBar(
+            progress = collapseProgress,
+            profile = profile,
+            isOwn = isOwn,
+            isOverlay = isOverlay,
+            following = following,
+            followBusy = followBusy,
+            onClose = onClose,
+            onFollow = onFollow,
+            onEditProfile = { editOpen = true },
+            onOpenMenu = { menuOpen = true },
+        )
 
         // Pantalla "Edit profile" (nombre, bio, avatar con recorte circular) —
         // solo aplica al perfil propio. Al guardar, refresca la cabecera y la
@@ -311,11 +338,111 @@ fun ProfileScreen(
     }
 }
 
+// Distancia de scroll (en dp) necesaria para colapsar del todo la barra
+// superior y revelar el mini-perfil — equivalente al collapseDistRef web.
+private const val COLLAPSE_DIST_DP = 180
+
+// Barra superior FIJA (no se desplaza con el grid) — réplica del "barRef" de
+// la web: siempre visible; al colapsar (progress 0→1) revela el mini-perfil
+// (avatar+nombre) y la acción (Editar/Seguir), con fondo que se va opacando.
+@Composable
+private fun CollapsedTopBar(
+    progress: Float,
+    profile: ProfileUser?,
+    isOwn: Boolean,
+    isOverlay: Boolean,
+    following: Boolean,
+    followBusy: Boolean,
+    onClose: () -> Unit,
+    onFollow: () -> Unit,
+    onEditProfile: () -> Unit,
+    onOpenMenu: () -> Unit,
+) {
+    val name = profile?.name?.takeIf { it.isNotBlank() } ?: profile?.username ?: "Usuario"
+    val actionsEnabled = progress > 0.5f
+
+    Box(
+        Modifier.fillMaxWidth().statusBarsPadding().height(56.dp)
+            .background(TwykBg.copy(alpha = progress)),
+    ) {
+        Row(
+            Modifier.fillMaxSize().padding(horizontal = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (isOverlay && !isOwn) {
+                Box(Modifier.size(40.dp).clip(CircleShape).clickable { onClose() }, contentAlignment = Alignment.Center) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, "atrás", tint = Color.White, modifier = Modifier.size(24.dp))
+                }
+            } else {
+                Spacer(Modifier.size(40.dp))
+            }
+
+            // Mini avatar + nombre centrados, revelados con el scroll.
+            Row(
+                Modifier.weight(1f).graphicsLayer(alpha = progress),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+            ) {
+                Box(Modifier.size(28.dp).clip(CircleShape).border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape)) {
+                    TwykAvatar(profile?.avatarUrl, Modifier.fillMaxSize())
+                }
+                Spacer(Modifier.width(8.dp))
+                Text(name, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+
+            // Acción (Editar o Seguir/Retar), revelada igual que el mini-perfil.
+            Row(
+                Modifier.graphicsLayer(alpha = progress),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                if (isOwn) {
+                    MiniPill("Edit", filled = true, enabled = actionsEnabled, onClick = onEditProfile)
+                } else {
+                    MiniIconButton(enabled = actionsEnabled, onClick = { }) {
+                        Icon(ImageVector.vectorResource(R.drawable.ic_swords), null, tint = Color.White, modifier = Modifier.size(14.dp))
+                    }
+                    MiniPill(if (following) "Following" else "Follow", filled = !following, enabled = actionsEnabled && !followBusy, onClick = onFollow)
+                }
+            }
+
+            if (isOwn) {
+                Box(Modifier.size(40.dp).clip(CircleShape).clickable { onOpenMenu() }, contentAlignment = Alignment.Center) {
+                    Icon(Icons.Filled.Menu, "menú", tint = Color.White, modifier = Modifier.size(24.dp))
+                }
+            } else {
+                Spacer(Modifier.size(40.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun MiniPill(text: String, filled: Boolean, enabled: Boolean, onClick: () -> Unit) {
+    Box(
+        Modifier.height(28.dp).clip(RoundedCornerShape(50))
+            .then(if (filled) Modifier.background(Color.White) else Modifier.border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(50)))
+            .clickable(enabled = enabled) { onClick() }
+            .padding(horizontal = 14.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(text, color = if (filled) Color.Black else Color.White, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+    }
+}
+
+@Composable
+private fun MiniIconButton(enabled: Boolean, onClick: () -> Unit, content: @Composable () -> Unit) {
+    Box(
+        Modifier.size(28.dp).clip(CircleShape).border(1.dp, Color.White.copy(alpha = 0.2f), CircleShape)
+            .clickable(enabled = enabled) { onClick() },
+        contentAlignment = Alignment.Center,
+    ) { content() }
+}
+
 @Composable
 private fun ProfileHeaderSection(
     profile: ProfileUser?,
     isOwn: Boolean,
-    isOverlay: Boolean,
     votos: Int,
     retos: Int,
     followers: Int,
@@ -325,36 +452,17 @@ private fun ProfileHeaderSection(
     onTab: (String) -> Unit,
     onFollow: () -> Unit,
     onShare: () -> Unit,
-    onClose: () -> Unit,
     onEditProfile: () -> Unit,
     onOpenFollowList: (String) -> Unit,
-    onOpenMenu: () -> Unit,
 ) {
     val name = profile?.name?.takeIf { it.isNotBlank() } ?: profile?.username ?: "Usuario"
     val handle = "@" + (profile?.username ?: "usuario")
 
     Column(Modifier.fillMaxWidth().statusBarsPadding()) {
-        // ── Barra superior ──
-        Row(
-            Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            if (isOverlay && !isOwn) {
-                Box(Modifier.size(40.dp).clip(CircleShape).clickable { onClose() }, contentAlignment = Alignment.Center) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, "atrás", tint = Color.White, modifier = Modifier.size(24.dp))
-                }
-                Text(profile?.username ?: "", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f).padding(start = 4.dp))
-            } else {
-                Spacer(Modifier.weight(1f))
-            }
-            if (isOwn) {
-                Box(Modifier.size(40.dp).clip(CircleShape).clickable { onOpenMenu() }, contentAlignment = Alignment.Center) {
-                    Icon(Icons.Filled.Menu, "menú", tint = Color.White, modifier = Modifier.size(24.dp))
-                }
-            } else {
-                Spacer(Modifier.size(40.dp))
-            }
-        }
+        // Espacio reservado para la barra superior FIJA (ver CollapsedTopBar,
+        // renderizada como overlay encima del grid) — evita que el contenido
+        // aparezca oculto detrás de ella al inicio.
+        Spacer(Modifier.height(56.dp))
 
         // ── Stats alrededor del avatar ──
         Box(
