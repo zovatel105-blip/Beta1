@@ -87,7 +87,7 @@ data class Comment(
 )
 
 data class CommentsResponse(val comments: List<Comment>? = null)
-data class CreateCommentRequest(val postId: String, val text: String)
+data class CreateCommentRequest(val postId: String, val text: String, val parentId: String? = null)
 data class CreateCommentResponse(val ok: Boolean = false, val comment: Comment? = null)
 data class LikeCommentRequest(val commentId: String)
 data class LikeResponse(val ok: Boolean = false, val likes: Int = 0, val userLiked: Boolean = false)
@@ -123,9 +123,11 @@ data class NotificationItem(
     val time: String? = null,
     val read: Boolean = false,
     val side: String? = null,
+    val postId: String? = null,
+    val commentId: String? = null,
 )
 data class NotificationsResponse(val notifications: List<NotificationItem>? = null)
-data class MarkReadRequest(val all: Boolean? = null, val id: String? = null)
+data class MarkReadRequest(val all: Boolean? = null, val id: String? = null, val types: List<String>? = null)
 
 data class Challenge(
     val id: String = "",
