@@ -109,7 +109,7 @@ fun UploadScreen(onRequireAuth: () -> Unit, onDone: () -> Unit) {
         if (step == "target") {
             usersLoading = true
             userQuery = ""
-            users = runCatching { RetrofitProvider.api.users().users.orEmpty() }.getOrDefault(emptyList())
+            users = runCatching { RetrofitProvider.api.users(null).users.orEmpty() }.getOrDefault(emptyList())
             usersLoading = false
         }
     }
@@ -495,8 +495,9 @@ private fun UploadingStep(mode: String) {
 // Copia el contenido del Uri elegido a un archivo DURADERO (filesDir, no
 // cacheDir: el sistema puede purgar la caché en cualquier momento) para que
 // UploadWorker pueda leerlo de forma fiable en segundo plano, incluso si el
-// proceso se recrea antes de que termine la subida.
-private fun persistPickedFile(context: Context, prefix: String, uri: Uri): File {
+// proceso se recrea antes de que termine la subida. No es privada: la
+// reutiliza también ui/QuickChallenge.kt (mismo paquete).
+fun persistPickedFile(context: Context, prefix: String, uri: Uri): File {
     val dir = File(context.filesDir, "pending_uploads").apply { mkdirs() }
     val input = context.contentResolver.openInputStream(uri) ?: throw IllegalStateException("No se pudo abrir el vídeo")
     val file = File(dir, "twyk_${prefix}_${System.currentTimeMillis()}_${(0..9999).random()}.mp4")

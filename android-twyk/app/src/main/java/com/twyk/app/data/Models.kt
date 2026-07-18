@@ -62,6 +62,7 @@ data class User(
     val username: String? = null,
     val name: String? = null,
     val avatarUrl: String? = null,
+    val verified: Boolean = false,
 )
 
 data class LoginRequest(val username: String, val password: String)
@@ -100,6 +101,18 @@ data class UploadPostResponse(val ok: Boolean = false, val post: Post? = null)
 
 data class UsersResponse(val users: List<User>? = null)
 data class ChallengeResponse(val ok: Boolean = false, val error: String? = null, val message: String? = null)
+
+// Objetivo de un "Retar rápido" a una publicación concreta del feed (equivalente
+// al `target` que la web construye en CarouselSlide.jsx/DuetSlide.jsx al pulsar
+// el icono de espadas sobre un lado específico).
+data class QuickChallengeTarget(
+    val postId: String,
+    val author: Author?,
+    val videoUrl: String?,
+    val posterUrl: String?,
+    val description: String?,
+    val music: String?,
+)
 
 // ── Notificaciones / Retos (buzón y batallas) ─────────────────────────────────
 data class NotificationItem(

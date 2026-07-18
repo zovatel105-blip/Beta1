@@ -27,6 +27,10 @@ class UploadWorker(appContext: Context, params: WorkerParameters) : CoroutineWor
         const val KEY_TARGET_USERNAME = "targetUsername"
         const val KEY_TARGET_NAME = "targetName"
         const val KEY_TARGET_AVATAR = "targetAvatar"
+        const val KEY_TARGET_VIDEO_URL = "targetVideoUrl"
+        const val KEY_TARGET_POSTER_URL = "targetPosterUrl"
+        const val KEY_TARGET_DESCRIPTION = "targetDescription"
+        const val KEY_TARGET_MUSIC = "targetMusic"
     }
 
     override suspend fun doWork(): Result {
@@ -35,13 +39,19 @@ class UploadWorker(appContext: Context, params: WorkerParameters) : CoroutineWor
         val fileA = inputData.getString(KEY_FILE_A)?.let { File(it) }
         val fileB = inputData.getString(KEY_FILE_B)?.let { File(it) }
         val description = inputData.getString(KEY_DESCRIPTION).orEmpty()
+        val targetUsername = inputData.getString(KEY_TARGET_USERNAME).orEmpty()
 
         // Reporta el progreso combinado (0-100) a la cola en memoria que observa
         // la UI del perfil, calculado a partir de los bytes escritos de cada
-        // parte multipart mientras se sube.
+        // parte multipart mientras se sube. Para "challenge" también actualiza
+        // el banner flotante sobre el feed (ver ui/QuickChallenge.kt).
         var progressA = 0
         var progressB = if (fileB == null) 100 else 0
-        fun report() = UploadQueue.updateProgress(queueId, (progressA + progressB) / 2)
+        fun report() {
+            val pct = (progressA + progressB) / 2
+            UploadQueue.updateProgress(queueId, pct)
+            if (type == "challenge") ChallengeBanner.show("uploading", pct, targetUsername)
+        }
 
         return try {
             val textType = "text/plain".toMediaTypeOrNull()
@@ -51,7 +61,7 @@ class UploadWorker(appContext: Context, params: WorkerParameters) : CoroutineWor
                     val part = progressPart("file", a) { progressA = it; report() }
                     val targetJson = Gson().toJson(
                         mapOf(
-                            "username" to inputData.getString(KEY_TARGET_USERNAME).orEmpty(),
+                            "username" to targetUsername,
                             "name" to inputData.getString(KEY_TARGET_NAME).orEmpty(),
                             "avatarUrl" to inputData.getString(KEY_TARGET_AVATAR).orEmpty(),
                         ),
@@ -60,6 +70,10 @@ class UploadWorker(appContext: Context, params: WorkerParameters) : CoroutineWor
                         part,
                         targetJson.toRequestBody(textType),
                         description.toRequestBody(textType),
+                        inputData.getString(KEY_TARGET_VIDEO_URL).orEmpty().toRequestBody(textType),
+                        inputData.getString(KEY_TARGET_POSTER_URL).orEmpty().toRequestBody(textType),
+                        inputData.getString(KEY_TARGET_DESCRIPTION).orEmpty().toRequestBody(textType),
+                        inputData.getString(KEY_TARGET_MUSIC).orEmpty().toRequestBody(textType),
                     )
                     null
                 }
@@ -82,6 +96,7 @@ class UploadWorker(appContext: Context, params: WorkerParameters) : CoroutineWor
             fileA?.delete()
             fileB?.delete()
             UploadQueue.remove(queueId)
+            if (type == "challenge") ChallengeBanner.show("done", 100, targetUsername)
             response?.let { UploadEvents.emitPostCreated(it) }
             Result.success()
         } catch (e: Exception) {
@@ -89,6 +104,7 @@ class UploadWorker(appContext: Context, params: WorkerParameters) : CoroutineWor
                 Result.retry()
             } else {
                 UploadQueue.markFailed(queueId)
+                if (type == "challenge") ChallengeBanner.show("error", 0, targetUsername)
                 Result.failure()
             }
         }

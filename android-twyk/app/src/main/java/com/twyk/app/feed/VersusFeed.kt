@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -36,7 +37,9 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.CircularProgressIndicator
@@ -82,9 +85,11 @@ import com.twyk.app.Config
 import com.twyk.app.R
 import com.twyk.app.absoluteUrl
 import com.twyk.app.data.Post
+import com.twyk.app.data.QuickChallengeTarget
 import com.twyk.app.data.RetrofitProvider
 import com.twyk.app.data.SaveRequest
 import com.twyk.app.data.Session
+import com.twyk.app.data.Side
 import com.twyk.app.data.Votes
 import com.twyk.app.ui.sharePost
 import kotlinx.coroutines.delay
@@ -106,6 +111,7 @@ fun VersusFeed(
     onOpenComments: (String) -> Unit,
     onRequireAuth: () -> Unit,
     onOpenProfile: (String) -> Unit,
+    onChallenge: (QuickChallengeTarget) -> Unit = {},
     vm: FeedViewModel = viewModel(),
 ) {
     val posts by vm.posts.collectAsState()
@@ -124,6 +130,7 @@ fun VersusFeed(
         onOpenProfile = onOpenProfile,
         onVote = { id, side -> vm.vote(id, side) },
         onNearEnd = { vm.loadMore() },
+        onChallenge = onChallenge,
     )
 }
 
@@ -138,8 +145,10 @@ fun FeedPager(
     onVote: (String, String) -> Unit = { _, _ -> },
     onNearEnd: () -> Unit = {},
     initialPage: Int = 0,
+    onChallenge: (QuickChallengeTarget) -> Unit = {},
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val dataSourceFactory = remember { VideoCache.cacheDataSourceFactory(context) }
     val pagerState = rememberPagerState(initialPage = initialPage.coerceIn(0, (posts.size - 1).coerceAtLeast(0)), pageCount = { posts.size })
 
@@ -154,6 +163,10 @@ fun FeedPager(
     ) { page ->
         val post = posts[page]
         val active = page == pagerState.currentPage
+        val requestNext: () -> Unit = {
+            val next = page + 1
+            if (next < posts.size) scope.launch { pagerState.animateScrollToPage(next) }
+        }
         if (post.type == "duet") {
             DuetPage(
                 post, active, dataSourceFactory,
@@ -161,6 +174,8 @@ fun FeedPager(
                 onComments = { onOpenComments(post.id) },
                 onRequireAuth = onRequireAuth,
                 onOpenProfile = onOpenProfile,
+                onRequestNext = requestNext,
+                onChallenge = onChallenge,
             )
         } else {
             CarouselPage(
@@ -169,6 +184,8 @@ fun FeedPager(
                 onComments = { onOpenComments(post.id) },
                 onRequireAuth = onRequireAuth,
                 onOpenProfile = onOpenProfile,
+                onRequestNext = requestNext,
+                onChallenge = onChallenge,
             )
         }
     }
@@ -201,6 +218,8 @@ private fun CarouselPage(
     onComments: () -> Unit,
     onRequireAuth: () -> Unit,
     onOpenProfile: (String) -> Unit,
+    onRequestNext: () -> Unit,
+    onChallenge: (QuickChallengeTarget) -> Unit,
 ) {
     val context = LocalContext.current
     val playerA = remember(post.id) { buildPlayer(context, dataSourceFactory, post.sideA?.videoUrl, muted = false) }
@@ -212,10 +231,19 @@ private fun CarouselPage(
     val sidePager = rememberPagerState(pageCount = { 2 })
     var voted by remember(post.id) { mutableStateOf<String?>(null) }
     var votes by remember(post.id) { mutableStateOf(post.votes ?: Votes()) }
+    var showWinner by remember(post.id) { mutableStateOf(false) }
+
+    // Tarjeta de ganador: aparece ~650ms después de votar (igual que la web).
+    LaunchedEffect(post.id, voted) {
+        if (voted != null) {
+            delay(650)
+            showWinner = true
+        }
+    }
 
     // Solo el lado VISIBLE de la publicación ACTIVA reproduce (con audio).
-    LaunchedEffect(isActive, sidePager.currentPage) {
-        if (isActive) {
+    LaunchedEffect(isActive, sidePager.currentPage, showWinner) {
+        if (isActive && !showWinner) {
             if (sidePager.currentPage == 0) {
                 playerB.pause(); playerA.volume = 1f; playerA.play()
             } else {
@@ -251,9 +279,34 @@ private fun CarouselPage(
         if (burstId != 0L) VoteBurst(burstId, burstColor) { burstId = 0L }        // burst del doble toque
 
         HeaderOverlay(post, onOpenProfile)
-        SocialRail(post, votes, voted, onComments, onRequireAuth)
+        SocialRail(post, votes, voted, onComments, onRequireAuth) {
+            val current = if (sidePager.currentPage == 0) post.sideA else post.sideB
+            onChallenge(
+                QuickChallengeTarget(
+                    postId = post.id,
+                    author = current?.author ?: post.author,
+                    videoUrl = current?.videoUrl,
+                    posterUrl = current?.posterUrl,
+                    description = current?.description ?: post.description,
+                    music = current?.music ?: post.music,
+                ),
+            )
+        }
         Dots(active = sidePager.currentPage)
         if (voted == null) VoteHint("Desliza para comparar · doble toque para votar")
+
+        if (showWinner) {
+            val chosenSide = if (voted == "b") post.sideB else post.sideA
+            VoteResultOverlay(
+                votedSide = voted ?: "a",
+                chosenSide = chosenSide,
+                votes = votes,
+                onClose = { showWinner = false },
+                onShare = { sharePost(context, post) },
+                onComments = onComments,
+                onNext = { showWinner = false; onRequestNext() },
+            )
+        }
     }
 }
 
@@ -267,6 +320,8 @@ private fun DuetPage(
     onComments: () -> Unit,
     onRequireAuth: () -> Unit,
     onOpenProfile: (String) -> Unit,
+    onRequestNext: () -> Unit,
+    onChallenge: (QuickChallengeTarget) -> Unit,
 ) {
     val context = LocalContext.current
     val playerA = remember(post.id) { buildPlayer(context, dataSourceFactory, post.sideA?.videoUrl, muted = false) }
@@ -275,13 +330,22 @@ private fun DuetPage(
         onDispose { playerA.release(); playerB.release() }
     }
 
-    LaunchedEffect(isActive) {
-        if (isActive) { playerA.play(); playerB.play() } else { playerA.pause(); playerB.pause() }
-    }
-
     var voted by remember(post.id) { mutableStateOf<String?>(null) }
     var votes by remember(post.id) { mutableStateOf(post.votes ?: Votes()) }
+    var showWinner by remember(post.id) { mutableStateOf(false) }
     val isHorizontal = (post.layout ?: "horizontal") == "horizontal"
+
+    // Tarjeta de ganador: aparece ~650ms después de votar (igual que la web).
+    LaunchedEffect(post.id, voted) {
+        if (voted != null) {
+            delay(650)
+            showWinner = true
+        }
+    }
+
+    LaunchedEffect(isActive, showWinner) {
+        if (isActive && !showWinner) { playerA.play(); playerB.play() } else { playerA.pause(); playerB.pause() }
+    }
 
     val voteA: () -> Unit = { if (voted == null) { voted = "a"; votes = bump(votes, "a"); onVote("a") } }
     val voteB: () -> Unit = { if (voted == null) { voted = "b"; votes = bump(votes, "b"); onVote("b") } }
@@ -306,8 +370,33 @@ private fun DuetPage(
         }
 
         HeaderOverlay(post, onOpenProfile)
-        SocialRail(post, votes, voted, onComments, onRequireAuth)
+        SocialRail(post, votes, voted, onComments, onRequireAuth) {
+            val current = if (voted == "b") post.sideB else post.sideA
+            onChallenge(
+                QuickChallengeTarget(
+                    postId = post.id,
+                    author = current?.author ?: post.author,
+                    videoUrl = current?.videoUrl,
+                    posterUrl = current?.posterUrl,
+                    description = current?.description ?: post.description,
+                    music = current?.music ?: post.music,
+                ),
+            )
+        }
         if (voted == null) VoteHint("Doble toque para votar")
+
+        if (showWinner) {
+            val chosenSide = if (voted == "b") post.sideB else post.sideA
+            VoteResultOverlay(
+                votedSide = voted ?: "a",
+                chosenSide = chosenSide,
+                votes = votes,
+                onClose = { showWinner = false },
+                onShare = { sharePost(context, post) },
+                onComments = onComments,
+                onNext = { showWinner = false; onRequestNext() },
+            )
+        }
     }
 }
 
@@ -456,6 +545,7 @@ private fun BoxScope.SocialRail(
     voted: String?,
     onComments: () -> Unit,
     onRequireAuth: () -> Unit,
+    onChallengeClick: () -> Unit,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -482,7 +572,7 @@ private fun BoxScope.SocialRail(
         RailItem(ImageVector.vectorResource(if (voted != null) R.drawable.ic_vote_filled else R.drawable.ic_vote), label(total, "Votar"), voteTint, size = 36) { }
         // Retar (espadas cruzadas)
         RailItem(ImageVector.vectorResource(R.drawable.ic_swords), "Retar", Color.White, size = 25) {
-            if (Session.token == null) onRequireAuth()
+            if (Session.token == null) onRequireAuth() else onChallengeClick()
         }
         // Comentar (bocadillo redondo, igual que la web)
         RailItem(ImageVector.vectorResource(R.drawable.ic_comment), label(post.stats?.comments ?: 0, "Comentar"), Color.White, size = 25) { onComments() }
@@ -693,6 +783,124 @@ private fun BoxScope.VoteHint(text: String) {
             .padding(horizontal = 12.dp, vertical = 5.dp),
     ) {
         Text(text, color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+// Tarjeta de "ganador" — réplica de VSWinnerCard.jsx: aparece tras votar,
+// muestra al autor elegido en grande con su % y la barra de resultados A/B,
+// con acciones Compartir / Comentar / Siguiente duelo. Se usa tanto en
+// publicaciones "versus" (carrusel) como "duet" (pantalla partida).
+@Composable
+private fun VoteResultOverlay(
+    votedSide: String,
+    chosenSide: Side?,
+    votes: Votes,
+    onClose: () -> Unit,
+    onShare: () -> Unit,
+    onComments: () -> Unit,
+    onNext: () -> Unit,
+) {
+    val total = (votes.a + votes.b).coerceAtLeast(0)
+    val aPct = if (total > 0) (votes.a * 100f / total).roundToInt() else 50
+    val bPct = 100 - aPct
+    val chosenPct = if (votedSide == "b") bPct else aPct
+    val chosenColor = if (votedSide == "b") Color(0xFF3B82F6) else Color(0xFFA855F7)
+    val chosenName = chosenSide?.author?.name?.takeIf { it.isNotBlank() }
+        ?: chosenSide?.author?.username?.let { "@$it" } ?: ""
+    val posterUrl = absoluteUrl(chosenSide?.posterUrl)
+
+    Box(
+        Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.82f)).clickable { onClose() },
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            Modifier.fillMaxWidth(0.86f).aspectRatio(9f / 16f)
+                .clip(RoundedCornerShape(26.dp))
+                .border(2.5.dp, Brush.horizontalGradient(listOf(Color(0xFFA855F7), Color(0xFF3B82F6))), RoundedCornerShape(26.dp))
+                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { },
+        ) {
+            if (posterUrl != null) {
+                AsyncImage(model = posterUrl, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            } else {
+                Box(Modifier.fillMaxSize().background(Brush.linearGradient(listOf(Color(0xFF27272A), Color.Black))))
+            }
+            Box(
+                Modifier.fillMaxSize().background(
+                    Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.65f), Color.Black.copy(alpha = 0.15f), Color.Black.copy(alpha = 0.9f))),
+                ),
+            )
+
+            Column(
+                Modifier.fillMaxSize().padding(vertical = 22.dp, horizontal = 18.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("DUEL", color = Color.White.copy(alpha = 0.7f), fontSize = 11.sp, fontWeight = FontWeight.Black, letterSpacing = 3.sp)
+                    Row(
+                        Modifier.clip(RoundedCornerShape(50)).background(chosenColor.copy(alpha = 0.85f)).padding(horizontal = 14.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Icon(Icons.Filled.EmojiEvents, null, tint = Color.White, modifier = Modifier.size(15.dp))
+                        Text("WINNER", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Black)
+                    }
+                }
+
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    if (chosenName.isNotEmpty()) {
+                        Text(
+                            chosenName, color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Black,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(bottom = 4.dp),
+                        )
+                    }
+                    Text("$chosenPct%", color = Color.White, fontSize = 60.sp, fontWeight = FontWeight.Black)
+                }
+
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Column {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("A · $aPct%", color = Color(0xFFA855F7), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text("${formatCount(total)} votes", color = Color.White.copy(alpha = 0.6f), fontSize = 11.sp)
+                            Text("B · $bPct%", color = Color(0xFF3B82F6), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                        Spacer(Modifier.height(6.dp))
+                        Row(Modifier.fillMaxWidth().height(9.dp).clip(RoundedCornerShape(50)).background(Color.White.copy(alpha = 0.15f))) {
+                            Box(Modifier.weight(aPct.coerceIn(1, 99).toFloat()).fillMaxHeight().background(Color(0xFFA855F7)))
+                            Box(Modifier.weight((100 - aPct.coerceIn(1, 99)).toFloat()).fillMaxHeight().background(Color(0xFF3B82F6)))
+                        }
+                    }
+
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ResultActionButton("Share", ImageVector.vectorResource(R.drawable.ic_share), Modifier.weight(1f)) { onShare(); onClose() }
+                        ResultActionButton("Comments", ImageVector.vectorResource(R.drawable.ic_comment), Modifier.weight(1f)) { onComments(); onClose() }
+                    }
+                    Box(
+                        Modifier.fillMaxWidth().height(48.dp).clip(RoundedCornerShape(14.dp))
+                            .background(Brush.horizontalGradient(listOf(Color(0xFFA855F7), Color(0xFF3B82F6))))
+                            .clickable { onNext() },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text("Next duel", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Icon(Icons.Filled.KeyboardArrowDown, null, tint = Color.White, modifier = Modifier.size(18.dp))
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ResultActionButton(label: String, icon: ImageVector, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Row(
+        modifier.height(42.dp).clip(RoundedCornerShape(12.dp)).background(Color.White.copy(alpha = 0.15f)).clickable { onClick() },
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(icon, null, tint = Color.White, modifier = Modifier.size(14.dp))
+        Spacer(Modifier.width(6.dp))
+        Text(label, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
     }
 }
 

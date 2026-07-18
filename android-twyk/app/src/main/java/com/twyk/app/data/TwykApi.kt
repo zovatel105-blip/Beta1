@@ -81,7 +81,7 @@ interface TwykApi {
     ): UploadPostResponse
 
     @GET("api/users")
-    suspend fun users(): UsersResponse
+    suspend fun users(@Query("q") q: String?): UsersResponse
 
     @Multipart
     @POST("api/challenges")
@@ -89,6 +89,10 @@ interface TwykApi {
         @Part file: MultipartBody.Part,
         @Part("targetAuthor") targetAuthor: RequestBody,
         @Part("message") message: RequestBody,
+        @Part("targetVideoUrl") targetVideoUrl: RequestBody,
+        @Part("targetPosterUrl") targetPosterUrl: RequestBody,
+        @Part("targetDescription") targetDescription: RequestBody,
+        @Part("targetMusic") targetMusic: RequestBody,
     ): ChallengeResponse
 
     @GET("api/notifications")

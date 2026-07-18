@@ -16,9 +16,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
@@ -44,6 +46,7 @@ import com.twyk.app.ui.BattlesScreen
 import com.twyk.app.ui.CommentsSheet
 import com.twyk.app.ui.InboxScreen
 import com.twyk.app.ui.ProfileScreen
+import com.twyk.app.ui.SearchScreen
 import com.twyk.app.ui.UploadScreen
 
 // Twyk Android — app NATIVA (Jetpack Compose + Media3/ExoPlayer).
@@ -85,10 +88,19 @@ private fun TwykApp() {
     var authOpen by remember { mutableStateOf(false) }
     var profileUsername by remember { mutableStateOf<String?>(null) }
     var feedReloadKey by remember { mutableStateOf(0) }
+    var searchOpen by remember { mutableStateOf(false) } // buscador de usuarios (lupa del feed)
+    var quickChallengeTarget by remember { mutableStateOf<com.twyk.app.data.QuickChallengeTarget?>(null) } // "Retar rápido" a una publicación
     // Tocar TU propio autor abre tu perfil propio (no la vista de perfil ajeno).
     val openProfile: (String) -> Unit = { uname ->
         if (uname == com.twyk.app.data.Session.user?.username) tab = Tab.Profile
         else profileUsername = uname
+    }
+    // No puedes retarte a ti mismo (igual que la web: se ignora en silencio).
+    val onChallenge: (com.twyk.app.data.QuickChallengeTarget) -> Unit = { target ->
+        val authorUsername = target.author?.username
+        if (authorUsername != null && authorUsername != com.twyk.app.data.Session.user?.username) {
+            quickChallengeTarget = target
+        }
     }
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         when (tab) {
@@ -97,6 +109,7 @@ private fun TwykApp() {
                     onOpenComments = { commentsPostId = it },
                     onRequireAuth = { authOpen = true },
                     onOpenProfile = openProfile,
+                    onChallenge = onChallenge,
                 )
             }
             Tab.Upload -> UploadScreen(
@@ -119,6 +132,17 @@ private fun TwykApp() {
                 onOpenComments = { commentsPostId = it },
                 onOpenProfile = openProfile,
             )
+        }
+        // Buscador de usuarios: lupa fija arriba a la derecha (solo en Inicio,
+        // igual que la web).
+        if (tab == Tab.Home) {
+            Box(
+                Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(top = 4.dp, end = 12.dp)
+                    .size(36.dp).clickable { searchOpen = true },
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.Filled.Search, "Buscar usuarios", tint = Color.White, modifier = Modifier.size(24.dp))
+            }
         }
         TwykBottomNav(
             current = tab,
@@ -145,6 +169,17 @@ private fun TwykApp() {
         if (authOpen) {
             AuthSheet(onClose = { authOpen = false }, onAuthed = { authOpen = false })
         }
+        if (searchOpen) {
+            SearchScreen(
+                onClose = { searchOpen = false },
+                onOpenProfile = { uname -> searchOpen = false; openProfile(uname) },
+            )
+        }
+        quickChallengeTarget?.let { target ->
+            com.twyk.app.ui.QuickChallengeSheet(target = target, onClose = { quickChallengeTarget = null })
+        }
+        // Banner de reto enviándose en segundo plano (visible sobre cualquier pestaña).
+        com.twyk.app.ui.ChallengeBannerHost()
     }
 }
 

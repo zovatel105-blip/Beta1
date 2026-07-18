@@ -1,6 +1,9 @@
 package com.twyk.app.data
 
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 
@@ -49,5 +52,27 @@ object UploadEvents {
 
     suspend fun emitPostCreated(post: Post) {
         _postCreated.emit(post)
+    }
+}
+
+// Banner de "reto enviado en segundo plano" (equivalente a `challengeUpload`
+// en Feed.jsx) — visible sobre el feed mientras se envía un "Retar rápido" a
+// una publicación concreta (ver ui/QuickChallenge.kt).
+data class ChallengeBannerState(
+    val status: String, // uploading | done | error
+    val progress: Int = 0,
+    val username: String = "",
+)
+
+object ChallengeBanner {
+    var state by mutableStateOf<ChallengeBannerState?>(null)
+        private set
+
+    fun show(status: String, progress: Int, username: String) {
+        state = ChallengeBannerState(status, progress, username)
+    }
+
+    fun clear() {
+        state = null
     }
 }
