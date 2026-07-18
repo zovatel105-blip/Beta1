@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
@@ -69,6 +70,9 @@ import com.twyk.app.data.Post
 import com.twyk.app.data.ProfileUser
 import com.twyk.app.data.RetrofitProvider
 import com.twyk.app.data.Session
+import com.twyk.app.data.UploadEvents
+import com.twyk.app.data.UploadQueue
+import com.twyk.app.data.UploadQueueItem
 import com.twyk.app.data.VoteRequest
 import com.twyk.app.feed.FeedPager
 import kotlinx.coroutines.launch
@@ -139,6 +143,17 @@ fun ProfileScreen(
         }
     }
 
+    // Cuando una subida en segundo plano TERMINA con éxito (ver
+    // data/UploadWorker.kt + data/UploadQueue.kt), insertamos la publicación
+    // al principio del grid al instante, sin esperar a recargar el perfil.
+    LaunchedEffect(isOwn) {
+        if (isOwn) {
+            UploadEvents.postCreated.collect { post ->
+                posts = listOf(post) + posts.filterNot { it.id == post.id }
+            }
+        }
+    }
+
     val onFollow: () -> Unit = {
         if (Session.token == null) {
             onRequireAuth()
@@ -204,13 +219,20 @@ fun ProfileScreen(
             }
 
             if (activeTab == "polls") {
+                // Placeholders de subidas EN CURSO (solo perfil propio) — se
+                // muestran SIEMPRE al principio del grid, ver data/UploadQueue.kt.
+                if (isOwn && UploadQueue.items.isNotEmpty()) {
+                    items(UploadQueue.items, key = { it.id }) { q ->
+                        UploadPlaceholderItem(q) { UploadQueue.remove(q.id) }
+                    }
+                }
                 when {
                     loading -> item(span = { GridItemSpan(maxLineSpan) }) {
                         Box(Modifier.fillMaxWidth().height(160.dp), contentAlignment = Alignment.Center) {
                             CircularProgressIndicator(color = TwykGold, strokeWidth = 2.dp, modifier = Modifier.size(30.dp))
                         }
                     }
-                    posts.isEmpty() -> item(span = { GridItemSpan(maxLineSpan) }) {
+                    posts.isEmpty() && !(isOwn && UploadQueue.items.isNotEmpty()) -> item(span = { GridItemSpan(maxLineSpan) }) {
                         EmptyTab(title = "Aún no hay publicaciones", desc = if (isOwn) "Empieza a crear contenido" else "Este usuario aún no ha publicado")
                     }
                     else -> itemsIndexed(posts) { idx, p -> ProfileGridItem(p) { viewerList = posts; viewerIndex = idx } }
@@ -622,6 +644,29 @@ private fun EmptyTab(title: String, desc: String, bookmark: Boolean = false, lin
         Text(title, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
         Spacer(Modifier.height(4.dp))
         Text(desc, color = Color(0xFF71717A), fontSize = 13.sp)
+    }
+}
+
+@Composable
+private fun UploadPlaceholderItem(item: UploadQueueItem, onDismiss: () -> Unit) {
+    Box(
+        Modifier.padding(2.dp).fillMaxWidth().aspectRatio(9f / 16f)
+            .clip(RoundedCornerShape(12.dp)).background(Color.White.copy(alpha = 0.06f))
+            .then(if (item.failed) Modifier.clickable { onDismiss() } else Modifier),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (item.failed) {
+            Text(
+                "Upload failed", color = Color(0xFFFB7185), fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center, modifier = Modifier.padding(10.dp),
+            )
+        } else {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                CircularProgressIndicator(color = TwykGold, strokeWidth = 2.dp, modifier = Modifier.size(28.dp))
+                Spacer(Modifier.height(6.dp))
+                Text("${item.progress}%", color = ZincText, fontSize = 11.sp)
+            }
+        }
     }
 }
 

@@ -60,19 +60,23 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.google.gson.Gson
+import androidx.work.Constraints
+import androidx.work.Data
+import androidx.work.ExistingWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import com.twyk.app.R
 import com.twyk.app.data.RetrofitProvider
 import com.twyk.app.data.Session
+import com.twyk.app.data.UploadQueue
+import com.twyk.app.data.UploadWorker
 import com.twyk.app.data.User
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import okhttp3.MediaType.Companion.toMediaTypeOrNull
-import okhttp3.MultipartBody
-import okhttp3.RequestBody.Companion.asRequestBody
-import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.File
+import java.util.UUID
 
 // SUBIR — réplica de UploadDialog.jsx: modo (Versus / 1vs1 / Retos) → vídeos →
 // (a quién retar) → subiendo.
@@ -111,35 +115,50 @@ fun UploadScreen(onRequireAuth: () -> Unit, onDone: () -> Unit) {
     }
 
     fun doUpload(target: User?) {
-        step = "uploading"
         error = null
         scope.launch {
             try {
                 val a = uriA ?: throw IllegalStateException("Falta vídeo")
-                when (mode) {
-                    "challenge" -> {
-                        val tgt = target ?: throw IllegalStateException("Sin objetivo")
-                        val part = withContext(Dispatchers.IO) { uploadPart(context, "file", a) }
-                        val json = Gson().toJson(mapOf("username" to (tgt.username ?: ""), "name" to (tgt.name ?: tgt.username ?: ""), "avatarUrl" to (tgt.avatarUrl ?: "")))
-                        RetrofitProvider.api.createChallenge(part, json.toRequestBody("text/plain".toMediaTypeOrNull()), description.toRequestBody("text/plain".toMediaTypeOrNull()))
-                    }
-                    "duet" -> {
-                        val b = uriB ?: throw IllegalStateException("Falta vídeo B")
-                        val (pa, pb) = withContext(Dispatchers.IO) { uploadPart(context, "fileA", a) to uploadPart(context, "fileB", b) }
-                        val desc = description.ifBlank { "¿Quién gana? 🥊 #1vs1" }.toRequestBody("text/plain".toMediaTypeOrNull())
-                        RetrofitProvider.api.uploadDuet(pa, pb, desc, layout.toRequestBody("text/plain".toMediaTypeOrNull()))
-                    }
-                    else -> {
-                        val b = uriB ?: throw IllegalStateException("Falta vídeo B")
-                        val (pa, pb) = withContext(Dispatchers.IO) { uploadPart(context, "fileA", a) to uploadPart(context, "fileB", b) }
-                        val desc = description.ifBlank { "¿Cuál prefieres? 🅰️🆚🅱️" }.toRequestBody("text/plain".toMediaTypeOrNull())
-                        RetrofitProvider.api.uploadVersus(pa, pb, desc)
+                val queueId = UUID.randomUUID().toString()
+                val descFinal = when (mode) {
+                    "duet" -> description.ifBlank { "¿Quién gana? 🥊 #1vs1" }
+                    "challenge" -> description
+                    else -> description.ifBlank { "¿Cuál prefieres? 🅰️🆚🅱️" }
+                }
+                val dataBuilder = Data.Builder()
+                    .putString(UploadWorker.KEY_QUEUE_ID, queueId)
+                    .putString(UploadWorker.KEY_TYPE, mode)
+                    .putString(UploadWorker.KEY_DESCRIPTION, descFinal)
+
+                withContext(Dispatchers.IO) {
+                    dataBuilder.putString(UploadWorker.KEY_FILE_A, persistPickedFile(context, "a", a).absolutePath)
+                    when (mode) {
+                        "challenge" -> {
+                            val tgt = target ?: throw IllegalStateException("Sin objetivo")
+                            dataBuilder.putString(UploadWorker.KEY_TARGET_USERNAME, tgt.username ?: "")
+                            dataBuilder.putString(UploadWorker.KEY_TARGET_NAME, tgt.name ?: tgt.username ?: "")
+                            dataBuilder.putString(UploadWorker.KEY_TARGET_AVATAR, tgt.avatarUrl ?: "")
+                        }
+                        else -> {
+                            val b = uriB ?: throw IllegalStateException("Falta vídeo B")
+                            dataBuilder.putString(UploadWorker.KEY_FILE_B, persistPickedFile(context, "b", b).absolutePath)
+                            if (mode == "duet") dataBuilder.putString(UploadWorker.KEY_LAYOUT, layout)
+                        }
                     }
                 }
+
+                // Encola la subida REAL en segundo plano (sobrevive a cerrar esta
+                // pantalla) y cierra el diálogo al instante — igual que la web.
+                UploadQueue.enqueue(queueId, mode)
+                val request = OneTimeWorkRequestBuilder<UploadWorker>()
+                    .setInputData(dataBuilder.build())
+                    .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
+                    .build()
+                WorkManager.getInstance(context).enqueueUniqueWork(queueId, ExistingWorkPolicy.KEEP, request)
+
                 onDone()
             } catch (e: Exception) {
                 error = "Error al subir. Revisa tu sesión y los vídeos."
-                step = if (mode == "challenge") "target" else "file"
             }
         }
     }
@@ -473,10 +492,14 @@ private fun UploadingStep(mode: String) {
     }
 }
 
-private fun uploadPart(context: Context, name: String, uri: Uri): MultipartBody.Part {
+// Copia el contenido del Uri elegido a un archivo DURADERO (filesDir, no
+// cacheDir: el sistema puede purgar la caché en cualquier momento) para que
+// UploadWorker pueda leerlo de forma fiable en segundo plano, incluso si el
+// proceso se recrea antes de que termine la subida.
+private fun persistPickedFile(context: Context, prefix: String, uri: Uri): File {
+    val dir = File(context.filesDir, "pending_uploads").apply { mkdirs() }
     val input = context.contentResolver.openInputStream(uri) ?: throw IllegalStateException("No se pudo abrir el vídeo")
-    val file = File.createTempFile("twyk_upload_", ".mp4", context.cacheDir)
+    val file = File(dir, "twyk_${prefix}_${System.currentTimeMillis()}_${(0..9999).random()}.mp4")
     file.outputStream().use { out -> input.use { it.copyTo(out) } }
-    val body = file.asRequestBody("video/*".toMediaTypeOrNull())
-    return MultipartBody.Part.createFormData(name, file.name, body)
+    return file
 }

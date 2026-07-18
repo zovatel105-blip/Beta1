@@ -63,4 +63,9 @@ dependencies {
 
     // Posters / imagenes.
     implementation("io.coil-kt:coil-compose:2.7.0")
+
+    // Cola de subidas en segundo plano (sobrevive a cerrar la pantalla de
+    // subir e incluso a que el sistema recree el proceso) — ver
+    // data/UploadWorker.kt.
+    implementation("androidx.work:work-runtime-ktx:2.10.0")
 }
