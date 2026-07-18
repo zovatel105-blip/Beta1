@@ -90,18 +90,26 @@ html, body, #__next {
     animation: ringPulse 1.8s ease-out infinite;
 }
 
-/* Anillos REACTIVOS AL AUDIO REAL (AudioReactiveRings.jsx): sin keyframes,
-   transform/opacity se fijan por JS en cada fotograma según la amplitud real
-   del sonido (AnalyserNode), no en un bucle CSS fijo. */
-.audio-ring {
+/* Anillo (único) REACTIVO AL AUDIO REAL (AudioReactiveRings.jsx): estilo
+   "ecualizador circular" (trazos radiales cortos, referencia visual del
+   usuario) — el atributo `d` (largo de cada trazo) se recalcula por JS en
+   cada fotograma según la amplitud real del sonido (AnalyserNode), no en un
+   bucle CSS fijo. Siempre visible mientras el audio está activo (no se
+   apaga del todo en silencio, igual que la referencia). */
+.audio-ring-svg {
     position: absolute;
     inset: 0;
-    border-radius: 50%;
-    border: 0.75px solid rgba(255,255,255,0.85);
-    opacity: 0;
+    overflow: visible;
     pointer-events: none;
-    will-change: transform, opacity;
-    transition: transform 55ms linear, opacity 90ms linear;
+}
+.audio-ring-path {
+    fill: none;
+    stroke: rgba(255,255,255,0.92);
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    filter: drop-shadow(0 0 2.5px rgba(255,255,255,0.55));
+    will-change: d;
+
 }
 
 /* Heart bump on like */
