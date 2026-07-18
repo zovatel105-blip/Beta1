@@ -9,6 +9,7 @@ import Avatar from './Avatar'
 import DuetSlide from './DuetSlide'
 import CarouselSlide from './CarouselSlide'
 import { getUploadQueue, subscribeUploadQueue } from '@/lib/uploadQueue'
+import CircularCrop from './CircularCrop'
 
 // El perfil se deriva del usuario autenticado (useAuth) dentro del componente.
 // El avatar usa el componente compartido <Avatar> -> idéntico al del feed.
@@ -1313,6 +1314,10 @@ const EditProfileModal = ({ initial, onClose, onSaved }) => {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const fileRef = useRef(null)
+  // Recorte circular: imagen cruda seleccionada (data URL) pendiente de ajustar
+  // antes de aplicarla como foto de perfil (ver components/CircularCrop.jsx).
+  const [cropOpen, setCropOpen] = useState(false)
+  const [rawImage, setRawImage] = useState(null)
 
   const onPickFile = (e) => {
     const f = e.target.files?.[0]
@@ -1320,9 +1325,22 @@ const EditProfileModal = ({ initial, onClose, onSaved }) => {
     if (!f.type.startsWith('image/')) { setError('The file must be an image'); return }
     if (f.size > 6 * 1024 * 1024) { setError('The image exceeds the 6MB limit'); return }
     setError('')
-    setAvatarFile(f)
-    const url = URL.createObjectURL(f)
-    setPreview(url)
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      setRawImage(ev.target.result)
+      setCropOpen(true)
+    }
+    reader.readAsDataURL(f)
+    // Permite volver a elegir el mismo archivo más adelante.
+    e.target.value = ''
+  }
+
+  const onImageCropped = (croppedUrl, blob) => {
+    const croppedFile = new File([blob], 'avatar.jpg', { type: 'image/jpeg' })
+    setAvatarFile(croppedFile)
+    setPreview(croppedUrl)
+    setCropOpen(false)
+    setRawImage(null)
   }
 
   const handleSave = async () => {
@@ -1420,6 +1438,15 @@ const EditProfileModal = ({ initial, onClose, onSaved }) => {
 
         {error && <p className="mt-4 text-[13px] text-red-400 text-center">{error}</p>}
       </div>
+
+      {/* Ajuste circular de la foto de perfil antes de guardarla, ver
+          components/CircularCrop.jsx (recibido como recorte de referencia). */}
+      <CircularCrop
+        isOpen={cropOpen}
+        initialImage={rawImage}
+        onClose={() => { setCropOpen(false); setRawImage(null) }}
+        onImageCropped={onImageCropped}
+      />
     </div>
   )
 }
