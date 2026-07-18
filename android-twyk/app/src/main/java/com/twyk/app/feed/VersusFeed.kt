@@ -137,10 +137,11 @@ fun FeedPager(
     onOpenProfile: (String) -> Unit,
     onVote: (String, String) -> Unit = { _, _ -> },
     onNearEnd: () -> Unit = {},
+    initialPage: Int = 0,
 ) {
     val context = LocalContext.current
     val dataSourceFactory = remember { VideoCache.cacheDataSourceFactory(context) }
-    val pagerState = rememberPagerState(pageCount = { posts.size })
+    val pagerState = rememberPagerState(initialPage = initialPage.coerceIn(0, (posts.size - 1).coerceAtLeast(0)), pageCount = { posts.size })
 
     LaunchedEffect(pagerState.currentPage, posts.size) {
         if (posts.size - pagerState.currentPage <= 3) onNearEnd()

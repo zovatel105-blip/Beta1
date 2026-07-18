@@ -23,7 +23,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -66,6 +66,8 @@ import com.twyk.app.data.Post
 import com.twyk.app.data.ProfileUser
 import com.twyk.app.data.RetrofitProvider
 import com.twyk.app.data.Session
+import com.twyk.app.data.VoteRequest
+import com.twyk.app.feed.FeedPager
 import kotlinx.coroutines.launch
 
 // Pantalla de PERFIL (propio o ajeno) — réplica de ProfilePage.jsx de la web.
@@ -95,6 +97,11 @@ fun ProfileScreen(
     var followBusy by remember(target) { mutableStateOf(false) }
     var activeTab by remember(target) { mutableStateOf("polls") }
     var editOpen by remember(target) { mutableStateOf(false) } // pantalla "Edit profile" (solo perfil propio)
+    // Visor de publicación (al tocar un elemento del grid) — reutiliza el mismo
+    // reproductor nativo del feed principal (ver feed/VersusFeed.kt::FeedPager).
+    var viewerIndex by remember(target) { mutableStateOf<Int?>(null) }
+    var viewerCommentsPostId by remember(target) { mutableStateOf<String?>(null) }
+    var nestedProfileUsername by remember(target) { mutableStateOf<String?>(null) }
 
     LaunchedEffect(target) {
         loading = true
@@ -175,7 +182,7 @@ fun ProfileScreen(
                     posts.isEmpty() -> item(span = { GridItemSpan(maxLineSpan) }) {
                         EmptyTab(title = "Aún no hay publicaciones", desc = if (isOwn) "Empieza a crear contenido" else "Este usuario aún no ha publicado")
                     }
-                    else -> items(posts) { p -> ProfileGridItem(p) }
+                    else -> itemsIndexed(posts) { idx, p -> ProfileGridItem(p) { viewerIndex = idx } }
                 }
             } else {
                 item(span = { GridItemSpan(maxLineSpan) }) {
@@ -212,6 +219,44 @@ fun ProfileScreen(
                     editOpen = false
                 },
             )
+        }
+
+        // Visor de publicación al tocar un elemento del grid ("polls"). Reutiliza
+        // el mismo FeedPager del feed principal, empezando en la publicación
+        // tocada. Comentarios y "abrir perfil de otro autor" se gestionan aquí
+        // mismo (hoja de comentarios y overlay de perfil anidado).
+        viewerIndex?.let { idx ->
+            Box(Modifier.fillMaxSize()) {
+                FeedPager(
+                    posts = posts,
+                    initialPage = idx,
+                    onOpenComments = { viewerCommentsPostId = it },
+                    onRequireAuth = onRequireAuth,
+                    onOpenProfile = { uname -> nestedProfileUsername = uname },
+                    onVote = { id, side ->
+                        scope.launch { runCatching { RetrofitProvider.api.vote(VoteRequest(id, side)) } }
+                    },
+                )
+                Box(
+                    Modifier.align(Alignment.TopStart).statusBarsPadding().padding(start = 12.dp, top = 8.dp)
+                        .size(36.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.45f))
+                        .clickable { viewerIndex = null },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, "cerrar", tint = Color.White, modifier = Modifier.size(20.dp))
+                }
+            }
+            viewerCommentsPostId?.let { pid ->
+                CommentsSheet(postId = pid, onClose = { viewerCommentsPostId = null }, onRequireAuth = onRequireAuth)
+            }
+            nestedProfileUsername?.let { uname ->
+                ProfileScreen(
+                    username = uname,
+                    isOverlay = true,
+                    onClose = { nestedProfileUsername = null },
+                    onRequireAuth = onRequireAuth,
+                )
+            }
         }
     }
 }
@@ -412,14 +457,15 @@ private fun EmptyTab(title: String, desc: String, bookmark: Boolean = false, lin
 }
 
 @Composable
-private fun ProfileGridItem(post: Post) {
+private fun ProfileGridItem(post: Post, onClick: () -> Unit) {
     val isDuet = post.type == "duet" && post.sideA?.videoUrl != null && post.sideB?.videoUrl != null
     val isRow = post.layout == "vertical"
     val totalVotes = (post.votes?.a ?: 0) + (post.votes?.b ?: 0)
 
     Box(
         Modifier.padding(2.dp).fillMaxWidth().aspectRatio(9f / 16f)
-            .clip(RoundedCornerShape(12.dp)).background(Color.White.copy(alpha = 0.04f)),
+            .clip(RoundedCornerShape(12.dp)).background(Color.White.copy(alpha = 0.04f))
+            .clickable { onClick() },
     ) {
         if (isDuet) {
             val a = absoluteUrl(post.sideA?.posterUrl)
