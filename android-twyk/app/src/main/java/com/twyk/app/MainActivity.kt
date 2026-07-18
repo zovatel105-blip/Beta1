@@ -131,6 +131,8 @@ private fun TwykApp() {
                 onChanged = { feedReloadKey++ },
                 onOpenComments = { commentsPostId = it },
                 onOpenProfile = openProfile,
+                onOpenUpload = { tab = Tab.Upload },
+                onChallenge = onChallenge,
             )
         }
         // Buscador de usuarios: lupa fija arriba a la derecha (solo en Inicio,

@@ -64,6 +64,7 @@ import com.twyk.app.R
 import com.twyk.app.absoluteUrl
 import com.twyk.app.data.Challenge
 import com.twyk.app.data.Post
+import com.twyk.app.data.QuickChallengeTarget
 import com.twyk.app.data.RetrofitProvider
 import com.twyk.app.data.Session
 import com.twyk.app.data.VoteRequest
@@ -93,6 +94,8 @@ fun BattlesScreen(
     onChanged: () -> Unit = {},
     onOpenComments: (String) -> Unit = {},
     onOpenProfile: (String) -> Unit = {},
+    onOpenUpload: () -> Unit = {},
+    onChallenge: (QuickChallengeTarget) -> Unit = {},
 ) {
     if (Session.token == null) {
         LoginPrompt("Inicia sesión para ver tus batallas", onRequireAuth, Icons.Filled.EmojiEvents)
@@ -107,6 +110,7 @@ fun BattlesScreen(
     var loading by remember { mutableStateOf(true) }
     var busy by remember { mutableStateOf(false) }
     var pendingAcceptId by remember { mutableStateOf<String?>(null) }
+    var suggestionsOpen by remember { mutableStateOf(false) } // página "Sugeridos" (icono superior izquierdo)
 
     fun reload() {
         scope.launch {
@@ -154,6 +158,7 @@ fun BattlesScreen(
                         onRequireAuth = onRequireAuth,
                         onOpenProfile = onOpenProfile,
                         onVote = { id, side -> scope.launch { runCatching { RetrofitProvider.api.vote(VoteRequest(id, side)) } } },
+                        onChallenge = onChallenge,
                     )
                 }
             }
@@ -182,12 +187,31 @@ fun BattlesScreen(
         }
 
         // Header segmentado (encima del contenido)
-        BattlesHeader(tab = tab, onSelect = { tab = it })
+        BattlesHeader(
+            tab = tab,
+            onSelect = { tab = it },
+            onOpenSuggestions = { suggestionsOpen = true },
+            onOpenUpload = onOpenUpload,
+        )
+    }
+
+    if (suggestionsOpen) {
+        SuggestedUsersScreen(
+            onClose = { suggestionsOpen = false },
+            onOpenProfile = onOpenProfile,
+            onChallenge = { onChallenge(it); suggestionsOpen = false },
+            onRequireAuth = onRequireAuth,
+        )
     }
 }
 
 @Composable
-private fun BattlesHeader(tab: String, onSelect: (String) -> Unit) {
+private fun BattlesHeader(
+    tab: String,
+    onSelect: (String) -> Unit,
+    onOpenSuggestions: () -> Unit,
+    onOpenUpload: () -> Unit,
+) {
     Row(
         Modifier.fillMaxWidth()
             .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.65f), Color.Transparent)))
@@ -196,9 +220,10 @@ private fun BattlesHeader(tab: String, onSelect: (String) -> Unit) {
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Box(
-            Modifier.size(36.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.06f)).border(1.dp, Color.White.copy(alpha = 0.10f), CircleShape),
+            Modifier.size(36.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.06f)).border(1.dp, Color.White.copy(alpha = 0.10f), CircleShape)
+                .clickable { onOpenSuggestions() },
             contentAlignment = Alignment.Center,
-        ) { Icon(Icons.Outlined.PersonAdd, "compartir", tint = Color.White, modifier = Modifier.size(18.dp)) }
+        ) { Icon(Icons.Outlined.PersonAdd, "Sugerencias de usuarios", tint = Color.White, modifier = Modifier.size(18.dp)) }
 
         Row(
             Modifier.clip(RoundedCornerShape(50)).background(Color.White.copy(alpha = 0.06f)).border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(50)).padding(4.dp),
@@ -209,9 +234,10 @@ private fun BattlesHeader(tab: String, onSelect: (String) -> Unit) {
         }
 
         Box(
-            Modifier.size(36.dp).clip(CircleShape).background(Color.White),
+            Modifier.size(36.dp).clip(CircleShape).background(Color.White)
+                .clickable { onOpenUpload() },
             contentAlignment = Alignment.Center,
-        ) { Icon(Icons.Filled.Add, "añadir", tint = Color.Black, modifier = Modifier.size(20.dp)) }
+        ) { Icon(Icons.Filled.Add, "añadir reto", tint = Color.Black, modifier = Modifier.size(20.dp)) }
     }
 }
 

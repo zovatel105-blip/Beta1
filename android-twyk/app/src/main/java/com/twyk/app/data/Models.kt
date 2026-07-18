@@ -150,6 +150,7 @@ data class ProfileUser(
     val following: Int = 0,
     val bio: String? = null,
     val isFollowing: Boolean = false,
+    val reason: String? = null,
 )
 
 data class ProfileResponse(val user: ProfileUser? = null, val posts: List<Post>? = null)
