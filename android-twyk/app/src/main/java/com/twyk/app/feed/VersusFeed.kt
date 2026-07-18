@@ -146,6 +146,7 @@ fun FeedPager(
     onNearEnd: () -> Unit = {},
     initialPage: Int = 0,
     onChallenge: (QuickChallengeTarget) -> Unit = {},
+    hideChallenge: Boolean = false,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -176,6 +177,7 @@ fun FeedPager(
                 onOpenProfile = onOpenProfile,
                 onRequestNext = requestNext,
                 onChallenge = onChallenge,
+                hideChallenge = hideChallenge,
             )
         } else {
             CarouselPage(
@@ -186,6 +188,7 @@ fun FeedPager(
                 onOpenProfile = onOpenProfile,
                 onRequestNext = requestNext,
                 onChallenge = onChallenge,
+                hideChallenge = hideChallenge,
             )
         }
     }
@@ -220,6 +223,7 @@ private fun CarouselPage(
     onOpenProfile: (String) -> Unit,
     onRequestNext: () -> Unit,
     onChallenge: (QuickChallengeTarget) -> Unit,
+    hideChallenge: Boolean = false,
 ) {
     val context = LocalContext.current
     val playerA = remember(post.id) { buildPlayer(context, dataSourceFactory, post.sideA?.videoUrl, muted = false) }
@@ -279,7 +283,7 @@ private fun CarouselPage(
         if (burstId != 0L) VoteBurst(burstId, burstColor) { burstId = 0L }        // burst del doble toque
 
         HeaderOverlay(post, onOpenProfile)
-        SocialRail(post, votes, voted, onComments, onRequireAuth) {
+        SocialRail(post, votes, voted, onComments, onRequireAuth, hideChallenge = hideChallenge) {
             val current = if (sidePager.currentPage == 0) post.sideA else post.sideB
             onChallenge(
                 QuickChallengeTarget(
@@ -322,6 +326,7 @@ private fun DuetPage(
     onOpenProfile: (String) -> Unit,
     onRequestNext: () -> Unit,
     onChallenge: (QuickChallengeTarget) -> Unit,
+    hideChallenge: Boolean = false,
 ) {
     val context = LocalContext.current
     val playerA = remember(post.id) { buildPlayer(context, dataSourceFactory, post.sideA?.videoUrl, muted = false) }
@@ -370,7 +375,7 @@ private fun DuetPage(
         }
 
         HeaderOverlay(post, onOpenProfile)
-        SocialRail(post, votes, voted, onComments, onRequireAuth) {
+        SocialRail(post, votes, voted, onComments, onRequireAuth, hideChallenge = hideChallenge) {
             val current = if (voted == "b") post.sideB else post.sideA
             onChallenge(
                 QuickChallengeTarget(
@@ -545,6 +550,7 @@ private fun BoxScope.SocialRail(
     voted: String?,
     onComments: () -> Unit,
     onRequireAuth: () -> Unit,
+    hideChallenge: Boolean = false,
     onChallengeClick: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -570,9 +576,11 @@ private fun BoxScope.SocialRail(
         }
         // Votar — al votar pasa a icono SÓLIDO (relleno por dentro), como la web.
         RailItem(ImageVector.vectorResource(if (voted != null) R.drawable.ic_vote_filled else R.drawable.ic_vote), label(total, "Votar"), voteTint, size = 36) { }
-        // Retar (espadas cruzadas)
-        RailItem(ImageVector.vectorResource(R.drawable.ic_swords), "Retar", Color.White, size = 25) {
-            if (Session.token == null) onRequireAuth() else onChallengeClick()
+        // Retar (espadas cruzadas) — oculto en "Batallas > Completados" (hideChallenge), igual que la web.
+        if (!hideChallenge) {
+            RailItem(ImageVector.vectorResource(R.drawable.ic_swords), "Retar", Color.White, size = 25) {
+                if (Session.token == null) onRequireAuth() else onChallengeClick()
+            }
         }
         // Comentar (bocadillo redondo, igual que la web)
         RailItem(ImageVector.vectorResource(R.drawable.ic_comment), label(post.stats?.comments ?: 0, "Comentar"), Color.White, size = 25) { onComments() }

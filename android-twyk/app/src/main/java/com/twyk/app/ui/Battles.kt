@@ -1,3 +1,5 @@
+@file:androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+
 package com.twyk.app.ui
 
 import android.content.Context
@@ -21,24 +23,23 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.VerticalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Movie
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.PersonAdd
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -59,6 +60,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.AspectRatioFrameLayout
+import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
 import com.twyk.app.R
 import com.twyk.app.absoluteUrl
@@ -76,16 +83,6 @@ import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
 import java.io.File
-
-private data class Suggestion(val username: String, val name: String, val avatar: String, val meta: String)
-
-private val SUGGESTED = listOf(
-    Suggestion("creatorpro", "Creator Pro", "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop", "Te sigue"),
-    Suggestion("dancequeen", "Dance Queen", "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop", "Te sigue"),
-    Suggestion("gamerx", "Gamer X", "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop", "Sugerido para ti"),
-    Suggestion("chefmario", "Chef Mario", "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&h=150&fit=crop", "Te sigue"),
-    Suggestion("pianomaster", "Piano Master", "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&h=150&fit=crop", "Sugerido para ti"),
-)
 
 // BATALLAS — réplica de CompletedBattlesPage.jsx (Completados) + ActiveChallengesPage.jsx (Activos).
 @Composable
@@ -109,7 +106,6 @@ fun BattlesScreen(
     var active by remember { mutableStateOf<List<Challenge>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
     var busy by remember { mutableStateOf(false) }
-    var pendingAcceptId by remember { mutableStateOf<String?>(null) }
     var suggestionsOpen by remember { mutableStateOf(false) } // página "Sugeridos" (icono superior izquierdo)
 
     fun reload() {
@@ -123,22 +119,21 @@ fun BattlesScreen(
 
     LaunchedEffect(Unit) { reload() }
 
-    val pickResponse = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        val cid = pendingAcceptId
-        pendingAcceptId = null
-        if (cid != null && uri != null) {
-            busy = true
-            scope.launch {
-                runCatching {
-                    val part = withContext(Dispatchers.IO) { videoPart(context, "file", uri) }
-                    RetrofitProvider.api.acceptChallenge(cid, part)
-                }.onSuccess {
-                    active = active.filterNot { it.id == cid }
-                    onChanged()
-                    reload()
-                }
-                busy = false
+    // Aceptar un reto: si ya trae contenido objetivo (targetVideoUrl/targetImageUrl)
+    // no hace falta subir nada (uri=null); si es un reto "de mención", uri es el
+    // archivo que el usuario acaba de elegir en ActiveChallengeFrame.
+    fun acceptChallenge(c: Challenge, uri: Uri?) {
+        busy = true
+        scope.launch {
+            runCatching {
+                val part = uri?.let { withContext(Dispatchers.IO) { videoPart(context, "file", it) } }
+                RetrofitProvider.api.acceptChallenge(c.id, part)
+            }.onSuccess {
+                active = active.filterNot { it.id == c.id }
+                onChanged()
+                reload()
             }
+            busy = false
         }
     }
 
@@ -159,6 +154,7 @@ fun BattlesScreen(
                         onOpenProfile = onOpenProfile,
                         onVote = { id, side -> scope.launch { runCatching { RetrofitProvider.api.vote(VoteRequest(id, side)) } } },
                         onChallenge = onChallenge,
+                        hideChallenge = true,
                     )
                 }
             }
@@ -170,8 +166,9 @@ fun BattlesScreen(
                     VerticalPager(state = pager, modifier = Modifier.fillMaxSize()) { i ->
                         ActiveChallengeFrame(
                             c = active[i],
+                            isActiveCard = i == pager.currentPage,
                             busy = busy,
-                            onAccept = { pendingAcceptId = active[i].id; pickResponse.launch("video/*") },
+                            onAccept = { uri -> acceptChallenge(active[i], uri) },
                             onReject = {
                                 val cid = active[i].id
                                 scope.launch {
@@ -186,9 +183,10 @@ fun BattlesScreen(
             }
         }
 
-        // Header segmentado (encima del contenido)
+        // Header (encima del contenido) — distinto por pestaña, igual que la web.
         BattlesHeader(
             tab = tab,
+            pendingCount = active.size,
             onSelect = { tab = it },
             onOpenSuggestions = { suggestionsOpen = true },
             onOpenUpload = onOpenUpload,
@@ -208,6 +206,7 @@ fun BattlesScreen(
 @Composable
 private fun BattlesHeader(
     tab: String,
+    pendingCount: Int,
     onSelect: (String) -> Unit,
     onOpenSuggestions: () -> Unit,
     onOpenUpload: () -> Unit,
@@ -219,11 +218,16 @@ private fun BattlesHeader(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        Box(
-            Modifier.size(36.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.06f)).border(1.dp, Color.White.copy(alpha = 0.10f), CircleShape)
-                .clickable { onOpenSuggestions() },
-            contentAlignment = Alignment.Center,
-        ) { Icon(Icons.Outlined.PersonAdd, "Sugerencias de usuarios", tint = Color.White, modifier = Modifier.size(18.dp)) }
+        // Izquierda: sugerencias (solo en "Completados", igual que la web).
+        if (tab == "completed") {
+            Box(
+                Modifier.size(36.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.06f)).border(1.dp, Color.White.copy(alpha = 0.10f), CircleShape)
+                    .clickable { onOpenSuggestions() },
+                contentAlignment = Alignment.Center,
+            ) { Icon(Icons.Outlined.PersonAdd, "Sugerencias de usuarios", tint = Color.White, modifier = Modifier.size(18.dp)) }
+        } else {
+            Spacer(Modifier.size(36.dp))
+        }
 
         Row(
             Modifier.clip(RoundedCornerShape(50)).background(Color.White.copy(alpha = 0.06f)).border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(50)).padding(4.dp),
@@ -233,11 +237,24 @@ private fun BattlesHeader(
             SegBtn("Activos", tab == "active") { onSelect("active") }
         }
 
-        Box(
-            Modifier.size(36.dp).clip(CircleShape).background(Color.White)
-                .clickable { onOpenUpload() },
-            contentAlignment = Alignment.Center,
-        ) { Icon(Icons.Filled.Add, "añadir reto", tint = Color.Black, modifier = Modifier.size(20.dp)) }
+        // Derecha: añadir reto ("Completados") o contador de pendientes ("Activos").
+        if (tab == "completed") {
+            Box(
+                Modifier.size(36.dp).clip(CircleShape).background(Color.White)
+                    .clickable { onOpenUpload() },
+                contentAlignment = Alignment.Center,
+            ) { Icon(Icons.Filled.Add, "añadir reto", tint = Color.Black, modifier = Modifier.size(20.dp)) }
+        } else if (pendingCount > 0) {
+            Row(
+                Modifier.height(36.dp).clip(RoundedCornerShape(50)).background(Color.Black.copy(alpha = 0.4f)).border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(50)).padding(horizontal = 12.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Icon(ImageVector.vectorResource(R.drawable.ic_swords), null, tint = Color.White, modifier = Modifier.size(14.dp))
+                Text(if (pendingCount > 99) "99+" else pendingCount.toString(), color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+            }
+        } else {
+            Spacer(Modifier.size(36.dp))
+        }
     }
 }
 
@@ -252,89 +269,154 @@ private fun SegBtn(label: String, active: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun CompletedBattleFrame(post: Post) {
-    val poster = absoluteUrl(post.posterUrl ?: post.sideA?.posterUrl ?: post.thumbnailUrl ?: post.sideB?.posterUrl)
-    val va = post.votes?.a ?: 0
-    val vb = post.votes?.b ?: 0
-    val total = (va + vb).coerceAtLeast(1)
-    val pa = (va * 100 / total)
-    val aName = post.sideA?.author?.username ?: post.author?.username ?: "A"
-    val bName = post.sideB?.author?.username ?: "B"
+private fun ActiveChallengeFrame(c: Challenge, isActiveCard: Boolean, busy: Boolean, onAccept: (Uri?) -> Unit, onReject: () -> Unit) {
+    // Reto "de mención" (sin contenido objetivo previo): el retado debe subir
+    // su respuesta ANTES (o al momento) de aceptar — igual que en la web.
+    val needsResponse = c.targetVideoUrl.isNullOrBlank() && c.targetImageUrl.isNullOrBlank()
+    val aIsImage = c.challengerMediaType == "image" || (c.challengerVideoUrl.isNullOrBlank() && !c.challengerImageUrl.isNullOrBlank())
+    val requiredMime = if (aIsImage) "image/*" else "video/*"
+    val requiredLabel = if (aIsImage) "photo" else "video"
 
-    Box(Modifier.fillMaxSize().background(Color.Black)) {
-        if (poster != null) {
-            AsyncImage(model = poster, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+    var responseUri by remember(c.id) { mutableStateOf<Uri?>(null) }
+    var pendingAutoAccept by remember(c.id) { mutableStateOf(false) }
+    val pickFile = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) {
+            responseUri = uri
+            if (pendingAutoAccept) { pendingAutoAccept = false; onAccept(uri) }
         } else {
-            Box(Modifier.fillMaxSize().background(Brush.linearGradient(listOf(Color(0xFF1F2937), Color(0xFF0B0B0C)))))
-        }
-        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.35f), Color.Transparent, Color.Black.copy(alpha = 0.75f)))))
-
-        Column(
-            Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding().padding(start = 16.dp, end = 16.dp, bottom = 110.dp),
-        ) {
-            post.description?.takeIf { it.isNotBlank() }?.let {
-                Text(it, color = Color.White, fontSize = 14.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                Spacer(Modifier.height(10.dp))
-            }
-            Column(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Color.Black.copy(alpha = 0.40f)).border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(18.dp)).padding(14.dp),
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("@$aName", color = TwykGold, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                    Text("VS", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 8.dp))
-                    Text("@$bName", color = TwykBlue, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
-                }
-                Spacer(Modifier.height(10.dp))
-                // Barra de votos A/B
-                Row(Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(50))) {
-                    Box(Modifier.weight((pa.coerceIn(1, 99)).toFloat()).fillMaxHeight().background(TwykPurple))
-                    Box(Modifier.weight((100 - pa).coerceIn(1, 99).toFloat()).fillMaxHeight().background(TwykBlue))
-                }
-                Spacer(Modifier.height(6.dp))
-                Row(Modifier.fillMaxWidth()) {
-                    Text("$pa%", color = TwykGold, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                    Text("${formatCount(va + vb)} votos", color = ZincText, fontSize = 11.sp)
-                    Text("${100 - pa}%", color = TwykBlue, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
-                }
-            }
+            pendingAutoAccept = false
         }
     }
-}
 
-@Composable
-private fun ActiveChallengeFrame(c: Challenge, busy: Boolean, onAccept: () -> Unit, onReject: () -> Unit) {
+    val aUrl = c.challengerVideoUrl ?: c.challengerImageUrl
+    val bUrl = if (needsResponse) responseUri?.toString() else (c.targetVideoUrl ?: c.targetImageUrl)
+    val bIsImage = if (needsResponse) false else (c.targetMediaType == "image" || (c.targetVideoUrl.isNullOrBlank() && !c.targetImageUrl.isNullOrBlank()))
+    val bIsLocalUri = needsResponse && responseUri != null
+
+    val pager = rememberPagerState(pageCount = { 2 })
+
     Box(Modifier.fillMaxSize().background(Color.Black)) {
-        // Dos mitades A (retador) / B (tu respuesta)
-        Row(Modifier.fillMaxSize()) {
-            ChallengeHalf(avatar = c.from?.avatarUrl, label = "A · @${c.from?.username ?: "rival"}", labelColor = TwykGold, tint = TwykPurple, modifier = Modifier.weight(1f).fillMaxHeight())
-            ChallengeHalf(avatar = c.to?.avatarUrl, label = "B · @${c.to?.username ?: "tú"}", labelColor = Color.White, tint = TwykBlue, upload = true, onUpload = onAccept, modifier = Modifier.weight(1f).fillMaxHeight())
+        HorizontalPager(state = pager, modifier = Modifier.fillMaxSize()) { page ->
+            if (page == 0) {
+                ChallengeMediaBox(
+                    url = aUrl, posterUrl = c.challengerPosterUrl, isImage = aIsImage, isLocalUri = false,
+                    isVisible = isActiveCard && pager.currentPage == 0,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            } else if (bUrl != null) {
+                ChallengeMediaBox(
+                    url = bUrl, posterUrl = if (needsResponse) null else c.targetPosterUrl, isImage = bIsImage, isLocalUri = bIsLocalUri,
+                    isVisible = isActiveCard && pager.currentPage == 1,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            } else {
+                // Lado B sin media (reto de mención): zona para subir la respuesta.
+                Box(
+                    Modifier.fillMaxSize().background(Color(0xFF18181B)).clickable { pickFile.launch(requiredMime) },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Box(
+                            Modifier.size(64.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.04f)).border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape),
+                            contentAlignment = Alignment.Center,
+                        ) { Icon(Icons.Filled.Movie, null, tint = ZincText, modifier = Modifier.size(28.dp)) }
+                        Spacer(Modifier.height(14.dp))
+                        Text("Upload your $requiredLabel", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                        Spacer(Modifier.height(4.dp))
+                        Text("This challenge was made with a $requiredLabel — reply with a $requiredLabel", color = ZincText, fontSize = 13.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 32.dp))
+                    }
+                }
+            }
         }
-        // VS central
-        Box(
-            Modifier.align(Alignment.Center).size(48.dp).clip(CircleShape).background(TwykBg).border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape),
-            contentAlignment = Alignment.Center,
-        ) { Text("VS", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Black) }
+
+        // Etiqueta del lado visible (A/B) + botón "Change" si es mi respuesta ya subida.
+        Row(
+            Modifier.align(Alignment.TopStart).statusBarsPadding().padding(start = 16.dp, top = 64.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                Modifier.clip(RoundedCornerShape(50)).background(Color.Black.copy(alpha = 0.45f)).padding(horizontal = 10.dp, vertical = 4.dp),
+            ) {
+                Text(
+                    if (pager.currentPage == 0) "@${c.from?.username ?: "rival"}" else "@${c.to?.username ?: "tú"}",
+                    color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold,
+                )
+            }
+            if (pager.currentPage == 1 && needsResponse && responseUri != null) {
+                Spacer(Modifier.width(8.dp))
+                Box(
+                    Modifier.clip(RoundedCornerShape(50)).background(Color.Black.copy(alpha = 0.55f)).border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(50))
+                        .clickable { pickFile.launch(requiredMime) }.padding(horizontal = 12.dp, vertical = 4.dp),
+                ) { Text("Change", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.SemiBold) }
+            }
+        }
+
+        // Puntitos del carrusel horizontal A/B.
+        Row(
+            Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 70.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            for (i in 0..1) {
+                Box(
+                    Modifier.size(width = if (pager.currentPage == i) 16.dp else 3.dp, height = 3.dp)
+                        .clip(RoundedCornerShape(1.5.dp)).background(if (pager.currentPage == i) Color.White else Color.White.copy(alpha = 0.4f)),
+                )
+            }
+        }
 
         // Panel inferior de acciones
         Column(
-            Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding().padding(start = 16.dp, end = 16.dp, bottom = 28.dp),
+            Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding().padding(start = 16.dp, end = 16.dp, bottom = 20.dp),
         ) {
             Column(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Color.Black.copy(alpha = 0.40f)).border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(18.dp)).padding(12.dp),
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Color.Black.copy(alpha = 0.45f)).border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(18.dp)).padding(12.dp),
             ) {
                 c.message?.takeIf { it.isNotBlank() }?.let {
                     Text("“$it”", color = Color.White.copy(alpha = 0.75f), fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     Spacer(Modifier.height(10.dp))
                 }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("@${c.from?.username ?: "rival"}", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                    Text("VS", color = Color.White.copy(alpha = 0.8f), fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 8.dp))
+                    Text("@${c.to?.username ?: "tú"}", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
+                }
+                if (needsResponse) {
+                    Spacer(Modifier.height(10.dp))
+                    Box(
+                        Modifier.fillMaxWidth().height(40.dp).clip(RoundedCornerShape(50)).border(1.dp, Color.White.copy(alpha = 0.20f), RoundedCornerShape(50))
+                            .clickable(enabled = !busy) { pickFile.launch(requiredMime) },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Icon(Icons.Filled.Movie, null, tint = Color.White, modifier = Modifier.size(15.dp))
+                            Text(
+                                if (responseUri != null) "Change my $requiredLabel" else "Upload my $requiredLabel",
+                                color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+                            )
+                        }
+                    }
+                }
+                Spacer(Modifier.height(10.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Box(
-                        Modifier.weight(1f).height(44.dp).clip(RoundedCornerShape(50)).background(if (busy) Color.White.copy(alpha = 0.6f) else Color.White).clickable(enabled = !busy) { onAccept() },
+                        Modifier.weight(1f).height(44.dp).clip(RoundedCornerShape(50)).background(if (busy) Color.White.copy(alpha = 0.6f) else Color.White)
+                            .clickable(enabled = !busy) {
+                                if (needsResponse && responseUri == null) {
+                                    pendingAutoAccept = true
+                                    pickFile.launch(requiredMime)
+                                } else {
+                                    onAccept(responseUri)
+                                }
+                            },
                         contentAlignment = Alignment.Center,
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             if (busy) CircularProgressIndicator(color = Color.Black, strokeWidth = 2.dp, modifier = Modifier.size(16.dp))
                             else Icon(Icons.Filled.Check, null, tint = Color.Black, modifier = Modifier.size(16.dp))
-                            Text("Subir y aceptar", color = Color.Black, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                            Text(
+                                if (needsResponse && responseUri == null) "Upload & accept" else "Accept challenge",
+                                color = Color.Black, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
+                            )
                         }
                     }
                     Box(
@@ -347,50 +429,75 @@ private fun ActiveChallengeFrame(c: Challenge, busy: Boolean, onAccept: () -> Un
     }
 }
 
+// Caja de media (vídeo real con ExoPlayer o imagen) para cada lado A/B del
+// reto — réplica del carrusel de vídeos de ActiveChallengesPage.jsx. Solo
+// reproduce (acquire) cuando `isVisible` es true (tarjeta activa Y lado
+// visible del carrusel horizontal); el resto libera el reproductor.
 @Composable
-private fun ChallengeHalf(
-    avatar: String?,
-    label: String,
-    labelColor: Color,
-    tint: Color,
-    modifier: Modifier,
-    upload: Boolean = false,
-    onUpload: (() -> Unit)? = null,
+private fun ChallengeMediaBox(
+    url: String?,
+    posterUrl: String?,
+    isImage: Boolean,
+    isLocalUri: Boolean,
+    isVisible: Boolean,
+    modifier: Modifier = Modifier,
 ) {
-    Box(modifier.background(Brush.verticalGradient(listOf(tint.copy(alpha = 0.28f), Color(0xFF0B0B0C))))) {
-        Column(Modifier.align(Alignment.Center).padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            TwykAvatar(avatar, Modifier.size(72.dp).border(2.dp, Color.White.copy(alpha = 0.15f), CircleShape))
-            if (upload) {
-                Spacer(Modifier.height(14.dp))
-                Box(
-                    Modifier.size(54.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.06f)).border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape)
-                        .clickable { onUpload?.invoke() },
-                    contentAlignment = Alignment.Center,
-                ) { Icon(Icons.Filled.Movie, null, tint = ZincText, modifier = Modifier.size(24.dp)) }
-                Spacer(Modifier.height(8.dp))
-                Text("Sube tu vídeo", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
+    val mediaUrl = if (isLocalUri) url else absoluteUrl(url)
+    Box(modifier.background(Color.Black)) {
+        when {
+            mediaUrl == null -> {
+                val absPoster = absoluteUrl(posterUrl)
+                if (absPoster != null) {
+                    AsyncImage(model = absPoster, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                }
+            }
+            isImage -> {
+                AsyncImage(model = mediaUrl, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            }
+            else -> {
+                val context = LocalContext.current
+                val player = remember(mediaUrl) {
+                    ExoPlayer.Builder(context).build().apply {
+                        setMediaItem(MediaItem.fromUri(mediaUrl))
+                        repeatMode = Player.REPEAT_MODE_ONE
+                        volume = 0f
+                        playWhenReady = false
+                        prepare()
+                    }
+                }
+                DisposableEffect(mediaUrl) { onDispose { player.release() } }
+                LaunchedEffect(isVisible) { if (isVisible) player.play() else player.pause() }
+                AndroidView(
+                    factory = { ctx ->
+                        PlayerView(ctx).apply {
+                            useController = false
+                            resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                            setShutterBackgroundColor(android.graphics.Color.BLACK)
+                        }
+                    },
+                    update = { it.player = player },
+                    modifier = Modifier.fillMaxSize(),
+                )
             }
         }
-        Box(
-            Modifier.align(Alignment.TopStart).statusBarsPadding().padding(start = 12.dp, top = 64.dp).clip(RoundedCornerShape(50)).background(Color.Black.copy(alpha = 0.45f)).padding(horizontal = 10.dp, vertical = 4.dp),
-        ) { Text(label, color = labelColor, fontSize = 11.sp, fontWeight = FontWeight.Bold) }
     }
 }
 
 @Composable
 private fun EmptyCompleted(onCreate: () -> Unit, onActive: () -> Unit) {
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).statusBarsPadding().padding(start = 24.dp, end = 24.dp, top = 96.dp, bottom = 120.dp),
+        Modifier.fillMaxSize().statusBarsPadding().padding(horizontal = 24.dp, vertical = 96.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
     ) {
         Box(
             Modifier.size(80.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.03f)).border(1.dp, Color.White.copy(alpha = 0.10f), CircleShape),
             contentAlignment = Alignment.Center,
-        ) { Icon(Icons.Filled.EmojiEvents, null, tint = TwykGold, modifier = Modifier.size(36.dp)) }
+        ) { Icon(Icons.Filled.EmojiEvents, null, tint = Color.White, modifier = Modifier.size(36.dp)) }
         Spacer(Modifier.height(22.dp))
-        Text("Aún no hay retos completados", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
+        Text("No completed challenges yet", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
         Spacer(Modifier.height(10.dp))
-        Text("Crea tu primer reto y empieza a competir. Los ganadores aparecerán aquí.", color = ZincText, fontSize = 15.sp, textAlign = TextAlign.Center)
+        Text("Create your first challenge and start competing. Winners will appear here.", color = ZincText, fontSize = 15.sp, textAlign = TextAlign.Center)
         Spacer(Modifier.height(28.dp))
         Box(
             Modifier.fillMaxWidth().height(48.dp).clip(RoundedCornerShape(50)).background(Color.White).clickable { onCreate() },
@@ -398,7 +505,7 @@ private fun EmptyCompleted(onCreate: () -> Unit, onActive: () -> Unit) {
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(Icons.Filled.Add, null, tint = Color.Black, modifier = Modifier.size(18.dp))
-                Text("Crear un reto", color = Color.Black, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                Text("Create a challenge", color = Color.Black, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
             }
         }
         Spacer(Modifier.height(12.dp))
@@ -408,35 +515,7 @@ private fun EmptyCompleted(onCreate: () -> Unit, onActive: () -> Unit) {
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(ImageVector.vectorResource(R.drawable.ic_swords), null, tint = Color.White, modifier = Modifier.size(18.dp))
-                Text("Ver retos activos", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Medium)
-            }
-        }
-        Spacer(Modifier.height(40.dp))
-        Row(
-            Modifier.fillMaxWidth().height(44.dp).clip(RoundedCornerShape(50)).background(Color.White.copy(alpha = 0.04f)).border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(50)).padding(horizontal = 16.dp),
-            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Icon(Icons.Filled.Search, null, tint = ZincText, modifier = Modifier.size(16.dp))
-            Text("Buscar creadores", color = ZincText, fontSize = 14.sp)
-        }
-        Spacer(Modifier.height(26.dp))
-        Text("SUGERENCIAS PARA RETAR", color = ZincText, fontSize = 12.sp, fontWeight = FontWeight.Medium, modifier = Modifier.fillMaxWidth())
-        Spacer(Modifier.height(6.dp))
-        SUGGESTED.forEach { acc ->
-            Row(Modifier.fillMaxWidth().padding(vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-                AsyncImage(model = acc.avatar, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.size(44.dp).clip(CircleShape).border(1.dp, Color.White.copy(alpha = 0.10f), CircleShape))
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(acc.name, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Medium)
-                    Text(acc.meta, color = ZincText, fontSize = 13.sp)
-                }
-                Row(
-                    Modifier.height(32.dp).clip(RoundedCornerShape(50)).border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(50)).clickable { onCreate() }.padding(horizontal = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    Icon(ImageVector.vectorResource(R.drawable.ic_swords), null, tint = Color.White, modifier = Modifier.size(14.dp))
-                    Text("Retar", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                }
+                Text("See active challenges", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Medium)
             }
         }
     }

@@ -133,7 +133,14 @@ data class Challenge(
     val from: User? = null,
     val to: User? = null,
     val message: String? = null,
+    val challengerMediaType: String? = null,
     val challengerVideoUrl: String? = null,
+    val challengerImageUrl: String? = null,
+    val challengerPosterUrl: String? = null,
+    val targetMediaType: String? = null,
+    val targetVideoUrl: String? = null,
+    val targetImageUrl: String? = null,
+    val targetPosterUrl: String? = null,
     val createdAt: String? = null,
 )
 data class ChallengesResponse(val challenges: List<Challenge>? = null)

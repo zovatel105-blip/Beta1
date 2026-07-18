@@ -112,7 +112,7 @@ interface TwykApi {
 
     @Multipart
     @POST("api/challenges/{id}/accept")
-    suspend fun acceptChallenge(@Path("id") id: String, @Part file: MultipartBody.Part): UploadPostResponse
+    suspend fun acceptChallenge(@Path("id") id: String, @Part file: MultipartBody.Part?): UploadPostResponse
 
     @POST("api/challenges/{id}/reject")
     suspend fun rejectChallenge(@Path("id") id: String): OkResponse
