@@ -142,3 +142,4 @@ data class ProfileUser(
 data class ProfileResponse(val user: ProfileUser? = null, val posts: List<Post>? = null)
 data class FollowResponse(val ok: Boolean = false, val following: Boolean = false, val followers: Int = 0)
 data class UpdateProfileResponse(val ok: Boolean = false, val user: ProfileUser? = null, val error: String? = null)
+data class FollowListResponse(val users: List<ProfileUser>? = null)

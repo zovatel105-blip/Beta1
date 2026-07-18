@@ -57,6 +57,9 @@ interface TwykApi {
         @Part avatar: MultipartBody.Part?,
     ): UpdateProfileResponse
 
+    @GET("api/users/{username}/{type}")
+    suspend fun followList(@Path("username") username: String, @Path("type") type: String): FollowListResponse
+
     @Multipart
     @POST("api/versus")
     suspend fun uploadVersus(

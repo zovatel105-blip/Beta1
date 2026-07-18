@@ -102,6 +102,8 @@ fun ProfileScreen(
     var viewerIndex by remember(target) { mutableStateOf<Int?>(null) }
     var viewerCommentsPostId by remember(target) { mutableStateOf<String?>(null) }
     var nestedProfileUsername by remember(target) { mutableStateOf<String?>(null) }
+    var followListType by remember(target) { mutableStateOf<String?>(null) } // "followers" | "following" | null
+    var menuOpen by remember(target) { mutableStateOf(false) } // hoja de "Settings" (☰, cerrar sesión)
 
     LaunchedEffect(target) {
         loading = true
@@ -169,6 +171,8 @@ fun ProfileScreen(
                     onShare = onShare,
                     onClose = onClose,
                     onEditProfile = { editOpen = true },
+                    onOpenFollowList = { followListType = it },
+                    onOpenMenu = { menuOpen = true },
                 )
             }
 
@@ -249,14 +253,35 @@ fun ProfileScreen(
             viewerCommentsPostId?.let { pid ->
                 CommentsSheet(postId = pid, onClose = { viewerCommentsPostId = null }, onRequireAuth = onRequireAuth)
             }
-            nestedProfileUsername?.let { uname ->
-                ProfileScreen(
-                    username = uname,
-                    isOverlay = true,
-                    onClose = { nestedProfileUsername = null },
-                    onRequireAuth = onRequireAuth,
-                )
-            }
+        }
+
+        // Listas de Followers / Following (tocar un usuario abre su perfil).
+        followListType?.let { type ->
+            FollowListScreen(
+                username = target,
+                initialType = type,
+                onClose = { followListType = null },
+                onOpenUser = { uname -> followListType = null; nestedProfileUsername = uname },
+            )
+        }
+
+        // Perfil anidado de OTRO autor — puede abrirse desde el visor de
+        // publicaciones o desde la lista de Followers/Following.
+        nestedProfileUsername?.let { uname ->
+            ProfileScreen(
+                username = uname,
+                isOverlay = true,
+                onClose = { nestedProfileUsername = null },
+                onRequireAuth = onRequireAuth,
+            )
+        }
+
+        // Menú (☰, solo perfil propio) — acción principal: cerrar sesión.
+        if (menuOpen) {
+            ProfileMenuSheet(
+                onClose = { menuOpen = false },
+                onLogout = { Session.clear() },
+            )
         }
     }
 }
@@ -277,6 +302,8 @@ private fun ProfileHeaderSection(
     onShare: () -> Unit,
     onClose: () -> Unit,
     onEditProfile: () -> Unit,
+    onOpenFollowList: (String) -> Unit,
+    onOpenMenu: () -> Unit,
 ) {
     val name = profile?.name?.takeIf { it.isNotBlank() } ?: profile?.username ?: "Usuario"
     val handle = "@" + (profile?.username ?: "usuario")
@@ -295,8 +322,12 @@ private fun ProfileHeaderSection(
             } else {
                 Spacer(Modifier.weight(1f))
             }
-            Box(Modifier.size(40.dp).clip(CircleShape).clickable { }, contentAlignment = Alignment.Center) {
-                Icon(Icons.Filled.Menu, "menú", tint = Color.White, modifier = Modifier.size(24.dp))
+            if (isOwn) {
+                Box(Modifier.size(40.dp).clip(CircleShape).clickable { onOpenMenu() }, contentAlignment = Alignment.Center) {
+                    Icon(Icons.Filled.Menu, "menú", tint = Color.White, modifier = Modifier.size(24.dp))
+                }
+            } else {
+                Spacer(Modifier.size(40.dp))
             }
         }
 
@@ -315,8 +346,8 @@ private fun ProfileHeaderSection(
                 }
             }
             Row(Modifier.fillMaxWidth().align(Alignment.BottomCenter), horizontalArrangement = Arrangement.SpaceBetween) {
-                StatItem(icon = Icons.Outlined.People, value = formatCount(followers), label = "Followers", iconSize = 26.dp)
-                StatItem(icon = Icons.Outlined.PersonAdd, value = formatCount(profile?.following ?: 0), label = "Following", iconSize = 26.dp, alignEnd = true)
+                StatItem(icon = Icons.Outlined.People, value = formatCount(followers), label = "Followers", iconSize = 26.dp, onClick = { onOpenFollowList("followers") })
+                StatItem(icon = Icons.Outlined.PersonAdd, value = formatCount(profile?.following ?: 0), label = "Following", iconSize = 26.dp, alignEnd = true, onClick = { onOpenFollowList("following") })
             }
         }
 
@@ -390,6 +421,7 @@ private fun StatItem(
     alignEnd: Boolean = false,
     icon: ImageVector? = null,
     drawable: Int? = null,
+    onClick: (() -> Unit)? = null,
 ) {
     val iconSlot: @Composable () -> Unit = {
         when {
@@ -404,7 +436,11 @@ private fun StatItem(
             Text(label, color = ZincText, fontSize = 11.sp, fontWeight = FontWeight.Medium)
         }
     }
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = if (onClick != null) Modifier.clickable { onClick() } else Modifier,
+    ) {
         if (alignEnd) { textSlot(); iconSlot() } else { iconSlot(); textSlot() }
     }
 }
