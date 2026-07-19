@@ -18,7 +18,7 @@ estado queda intacta** y el vídeo se ve por detrás (edge-to-edge).
 - **Fase 1 (HECHA):** feed nativo adaptable (carrusel/dúo) + navegación + votar.
 - **Fase 2 (HECHA):** comentarios + compartir + guardar + login/registro (Bearer token).
 - **Fase 3 (HECHA):** perfil propio y ajeno + seguir + cuadrícula de publicaciones.
-- **Fase 4 (HECHA):** subir contenido — **Versus**, **1vs1/Duelo** y **Reto** (retar a un usuario).
+- **Fase 4 (HECHA):** subir contenido — **Versus**, **1vs1/Duelo** y **Reto** (retar a un usuario), con soporte de **foto o vídeo** (mismo tipo en A/B, vídeo máx 80MB / foto máx 15MB, igual que la web).
 - **Fase 5 (HECHA):** **Buzón** (retos recibidos: aceptar subiendo vídeo / rechazar +
   notificaciones) y **Batallas** (retos completados en los que participas).
 

@@ -1,6 +1,7 @@
 package com.twyk.app.data
 
 import android.content.Context
+import android.webkit.MimeTypeMap
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.google.gson.Gson
@@ -111,11 +112,24 @@ class UploadWorker(appContext: Context, params: WorkerParameters) : CoroutineWor
     }
 }
 
+// Content-Type real del archivo persistido (imagen o vídeo; ver
+// persistPickedFile en ui/Upload.kt, que ya guarda con la extensión
+// correcta) — el backend (mediaKind() en route.js) lee primero el
+// Content-Type de la parte multipart, así que NO puede ser siempre
+// "video/*" o toda foto llegaría marcada como vídeo.
+private val IMAGE_EXTENSIONS = setOf("jpg", "jpeg", "png", "webp", "gif", "heic", "heif", "avif")
+private fun guessContentType(file: File): okhttp3.MediaType? {
+    val ext = file.extension.lowercase()
+    val mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext)
+        ?: if (ext in IMAGE_EXTENSIONS) "image/$ext" else "video/mp4"
+    return mime.toMediaTypeOrNull()
+}
+
 // RequestBody que reporta el progreso de escritura (0-100) mientras sube el
 // archivo — OkHttp no expone esto de forma nativa en multipart.
 private fun progressPart(name: String, file: File, onProgress: (Int) -> Unit): MultipartBody.Part {
     val body = object : RequestBody() {
-        override fun contentType() = "video/*".toMediaTypeOrNull()
+        override fun contentType() = guessContentType(file)
         override fun contentLength(): Long = file.length()
         override fun writeTo(sink: BufferedSink) {
             val total = file.length().coerceAtLeast(1L)

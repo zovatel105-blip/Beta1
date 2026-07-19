@@ -2,7 +2,10 @@ package com.twyk.app.ui
 
 import android.content.Context
 import android.net.Uri
+import android.provider.OpenableColumns
+import android.webkit.MimeTypeMap
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -96,14 +99,37 @@ fun UploadScreen(onRequireAuth: () -> Unit, onDone: () -> Unit) {
     var layout by remember { mutableStateOf("horizontal") }
     var uriA by remember { mutableStateOf<Uri?>(null) }
     var uriB by remember { mutableStateOf<Uri?>(null) }
+    var mediaKindA by remember { mutableStateOf<String?>(null) } // "image" | "video"
+    var mediaKindB by remember { mutableStateOf<String?>(null) }
     var description by remember { mutableStateOf("") }
     var users by remember { mutableStateOf<List<User>>(emptyList()) }
     var usersLoading by remember { mutableStateOf(false) }
     var userQuery by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
 
-    val pickA = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uriA = it }
-    val pickB = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uriB = it }
+    // Réplica de la validación de UploadDialog.jsx: acepta vídeo O foto (nunca
+    // mezclados), ambos lados (A/B) deben ser del MISMO tipo, y cada tipo
+    // tiene su propio límite de tamaño (vídeo 80MB, foto 15MB).
+    fun handlePicked(uri: Uri?, isSideA: Boolean) {
+        if (uri == null) return
+        val kind = mediaKindOf(context, uri)
+        val otherKind = if (isSideA) mediaKindB else mediaKindA
+        if (mode != "challenge" && otherKind != null && kind != otherKind) {
+            error = "Ambos lados deben ser del mismo tipo: 2 vídeos o 2 fotos."
+            return
+        }
+        val maxBytes = if (kind == "image") MAX_IMAGE_BYTES else MAX_VIDEO_BYTES
+        val size = fileSizeOf(context, uri)
+        if (size > 0 && size > maxBytes) {
+            error = if (kind == "image") "La foto no puede superar 15MB." else "El vídeo no puede superar 80MB."
+            return
+        }
+        error = null
+        if (isSideA) { uriA = uri; mediaKindA = kind } else { uriB = uri; mediaKindB = kind }
+    }
+
+    val pickA = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { handlePicked(it, true) }
+    val pickB = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { handlePicked(it, false) }
 
     LaunchedEffect(step) {
         if (step == "target") {
@@ -200,9 +226,9 @@ fun UploadScreen(onRequireAuth: () -> Unit, onDone: () -> Unit) {
                     description = description,
                     onDescription = { description = it },
                     error = error,
-                    onPickA = { pickA.launch("video/*") },
-                    onPickB = { pickB.launch("video/*") },
-                    onPublish = { if (mode == "challenge") { if (uriA != null) step = "target" else error = "Sube tu vídeo del reto" } else doUpload(null) },
+                    onPickA = { pickA.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)) },
+                    onPickB = { pickB.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)) },
+                    onPublish = { if (mode == "challenge") { if (uriA != null) step = "target" else error = "Sube tu vídeo o foto del reto" } else doUpload(null) },
                 )
                 "target" -> TargetStep(
                     users = users,
@@ -250,9 +276,9 @@ private fun ModeStep(selected: String, onSelect: (String) -> Unit, onContinue: (
             Spacer(Modifier.height(28.dp))
             Text(
                 when (selected) {
-                    "versus" -> "Sube 2 vídeos (A y B) y deja que la gente vote deslizando entre ellos."
-                    "duet" -> "Sube 2 vídeos (A y B) con el formato que elijas y deja que la gente vote quién gana."
-                    else -> "Sube tu vídeo y reta a un creador. Aparecerá en sus retos activos para que lo acepte."
+                    "versus" -> "Sube 2 vídeos o 2 fotos (A y B) y deja que la gente vote deslizando entre ellos."
+                    "duet" -> "Sube 2 vídeos o 2 fotos (A y B) con el formato que elijas y deja que la gente vote quién gana."
+                    else -> "Sube tu vídeo o foto y reta a un creador. Aparecerá en sus retos activos para que lo acepte."
                 },
                 color = ZincText, fontSize = 15.sp, textAlign = TextAlign.Center,
             )
@@ -399,7 +425,7 @@ private fun VideoSlot(label: String, selected: Boolean, modifier: Modifier, onCl
             Text(if (selected) "$label listo" else "Subir $label", color = if (selected) Color.White else Color(0xFFD4D4D8), fontSize = 13.sp, fontWeight = FontWeight.Medium)
             if (!selected) {
                 Spacer(Modifier.height(2.dp))
-                Text("MP4 / WebM · máx 80MB", color = Color(0xFF71717A), fontSize = 10.sp)
+                Text("Vídeo o foto · máx 80MB / 15MB", color = Color(0xFF71717A), fontSize = 10.sp)
             }
         }
     }
@@ -492,15 +518,47 @@ private fun UploadingStep(mode: String) {
     }
 }
 
+// Detecta si el Uri elegido es una imagen o un vídeo (mismo criterio que el
+// backend, ver mediaKind() en route.js): por MIME type real del
+// ContentResolver.
+private fun mediaKindOf(context: Context, uri: Uri): String {
+    val type = context.contentResolver.getType(uri)?.lowercase().orEmpty()
+    return if (type.startsWith("image/")) "image" else "video"
+}
+
+// Tamaño en bytes del Uri elegido (columna OpenableColumns.SIZE), o -1 si no
+// se puede determinar (en ese caso no se bloquea la subida: el backend sigue
+// siendo la autoridad final de validación de tamaño).
+private fun fileSizeOf(context: Context, uri: Uri): Long = try {
+    context.contentResolver.query(uri, arrayOf(OpenableColumns.SIZE), null, null, null)?.use { cursor ->
+        if (cursor.moveToFirst()) {
+            val idx = cursor.getColumnIndex(OpenableColumns.SIZE)
+            if (idx >= 0) cursor.getLong(idx) else -1L
+        } else {
+            -1L
+        }
+    } ?: -1L
+} catch (e: Exception) {
+    -1L
+}
+
+private const val MAX_VIDEO_BYTES = 80L * 1024 * 1024
+private const val MAX_IMAGE_BYTES = 15L * 1024 * 1024
+
 // Copia el contenido del Uri elegido a un archivo DURADERO (filesDir, no
 // cacheDir: el sistema puede purgar la caché en cualquier momento) para que
 // UploadWorker pueda leerlo de forma fiable en segundo plano, incluso si el
 // proceso se recrea antes de que termine la subida. No es privada: la
-// reutiliza también ui/QuickChallenge.kt (mismo paquete).
+// reutiliza también ui/QuickChallenge.kt (mismo paquete). La extensión se
+// deriva del MIME real (jpg/png/webp/mp4/webm…) para que el backend
+// (mediaKind()) detecte correctamente imagen vs vídeo.
 fun persistPickedFile(context: Context, prefix: String, uri: Uri): File {
     val dir = File(context.filesDir, "pending_uploads").apply { mkdirs() }
-    val input = context.contentResolver.openInputStream(uri) ?: throw IllegalStateException("No se pudo abrir el vídeo")
-    val file = File(dir, "twyk_${prefix}_${System.currentTimeMillis()}_${(0..9999).random()}.mp4")
+    val input = context.contentResolver.openInputStream(uri) ?: throw IllegalStateException("No se pudo abrir el archivo")
+    val mime = context.contentResolver.getType(uri)
+    val extFromMime = mime?.let { MimeTypeMap.getSingleton().getExtensionFromMimeType(it) }
+    val ext = extFromMime ?: if (mime?.startsWith("image/") == true) "jpg" else "mp4"
+    val file = File(dir, "twyk_${prefix}_${System.currentTimeMillis()}_${(0..9999).random()}.$ext")
     file.outputStream().use { out -> input.use { it.copyTo(out) } }
     return file
 }
