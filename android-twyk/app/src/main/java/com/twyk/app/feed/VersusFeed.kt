@@ -288,7 +288,7 @@ private fun CarouselPage(
         BufferingSpinner(visiblePlayer)                                           // spinner de carga
         if (burstId != 0L) VoteBurst(burstId, burstColor) { burstId = 0L }        // burst del doble toque
 
-        HeaderOverlay(post, onOpenProfile)
+        HeaderOverlay(post, onOpenProfile, onRequireAuth)
         SocialRail(post, votes, voted, onComments, onRequireAuth, hideChallenge = hideChallenge) {
             val current = if (sidePager.currentPage == 0) post.sideA else post.sideB
             onChallenge(
@@ -380,7 +380,7 @@ private fun DuetPage(
             }
         }
 
-        HeaderOverlay(post, onOpenProfile)
+        HeaderOverlay(post, onOpenProfile, onRequireAuth)
         SocialRail(post, votes, voted, onComments, onRequireAuth, hideChallenge = hideChallenge) {
             val current = if (voted == "b") post.sideB else post.sideA
             onChallenge(
@@ -466,9 +466,17 @@ private fun VideoSurface(
 
 // ── Overlays ──────────────────────────────────────────────────────────────────
 @Composable
-private fun BoxScope.HeaderOverlay(post: Post, onOpenProfile: (String) -> Unit) {
+private fun BoxScope.HeaderOverlay(post: Post, onOpenProfile: (String) -> Unit, onRequireAuth: () -> Unit) {
     val author = post.sideA?.author ?: post.author
     val uname = author?.username
+    // Estado de "Seguir" — antes este botón NO hacía nada (ni onClick, ni
+    // llamada a la API, ni reflejaba si ya se seguía). Réplica exacta del
+    // comportamiento de CarouselSlide.jsx/DuetSlide.jsx: estado inicial desde
+    // author.isFollowing (persistente, anotado por el backend), toggle
+    // optimista al tocar + POST /api/users/{username}/follow, revertido si
+    // la llamada falla.
+    var following by remember(post.id, uname) { mutableStateOf(author?.isFollowing ?: false) }
+    val followScope = rememberCoroutineScope()
     Column(
         Modifier
             .align(Alignment.BottomStart)
@@ -547,11 +555,21 @@ private fun BoxScope.HeaderOverlay(post: Post, onOpenProfile: (String) -> Unit) 
             Spacer(Modifier.width(10.dp))
             Box(
                 Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .border(1.dp, Color.White, RoundedCornerShape(8.dp))
+                    .clip(RoundedCornerShape(50))
+                    .border(1.dp, Color.White, RoundedCornerShape(50))
+                    .clickable(enabled = uname != null) {
+                        if (Session.token == null) { onRequireAuth(); return@clickable }
+                        if (uname == null || uname == Session.user?.username) return@clickable
+                        following = !following
+                        followScope.launch {
+                            runCatching { RetrofitProvider.api.toggleFollow(uname) }
+                                .onSuccess { r -> following = r.following }
+                                .onFailure { following = !following }
+                        }
+                    }
                     .padding(horizontal = 12.dp, vertical = 4.dp),
             ) {
-                Text("Seguir", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                Text(if (following) "Following" else "Follow", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium)
             }
         }
         val desc = post.sideA?.description ?: post.description

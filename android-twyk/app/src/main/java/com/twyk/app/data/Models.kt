@@ -6,6 +6,10 @@ data class Author(
     val username: String? = null,
     val name: String? = null,
     val avatarUrl: String? = null,
+    // El backend anota este campo en /api/uploads y /api/feed (ver `annotate`
+    // en route.js) para que el botón Follow/Following del feed refleje el
+    // estado real y persista tras recargar, igual que en la web.
+    val isFollowing: Boolean = false,
 )
 
 data class Side(
@@ -70,7 +74,10 @@ data class User(
 )
 
 data class LoginRequest(val username: String, val password: String)
-data class RegisterRequest(val username: String, val email: String, val password: String)
+// birthDate ('YYYY-MM-DD') es OBLIGATORIO para el backend (gating de edad
+// COPPA, ver handleRegister en route.js): sin este campo, /api/auth/register
+// devuelve 400 'birthdate_required' y el registro falla SIEMPRE.
+data class RegisterRequest(val username: String, val email: String, val password: String, val birthDate: String)
 data class AuthResponse(
     val ok: Boolean = false,
     val token: String? = null,

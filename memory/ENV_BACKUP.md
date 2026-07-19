@@ -25,7 +25,7 @@ actualizar NEXT_PUBLIC_BASE_URL y CORS_ORIGINS con el valor de la variable de
 entorno APP_URL definida en /etc/supervisor/conf.d/*.conf (bloque [program:nextjs]).
 
 ## Última URL usada (actualizada automáticamente al restaurar)
-NEXT_PUBLIC_BASE_URL=https://content-creator-673.preview.emergentagent.com
+NEXT_PUBLIC_BASE_URL=https://506a01ba-1c7c-47ff-b59a-8e8fdf05ee2e.preview.emergentagent.com
 
 ## NOTA sobre ffmpeg (persistencia)
 ffmpeg también se pierde tras cada reinicio de pod (paquete apt en filesystem

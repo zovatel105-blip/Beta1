@@ -1,11 +1,14 @@
 package com.twyk.app.ui
 
+import android.app.DatePickerDialog
 import android.content.Context
 import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,9 +31,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Login
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.outlined.Cake
 import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Person
@@ -59,6 +67,8 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -72,6 +82,7 @@ import com.twyk.app.data.RegisterRequest
 import com.twyk.app.data.RetrofitProvider
 import com.twyk.app.data.Session
 import kotlinx.coroutines.launch
+import java.util.Calendar
 
 // Compartir una publicación con el selector nativo de Android.
 fun sharePost(context: Context, post: Post) {
@@ -231,6 +242,12 @@ private fun CommentRow(c: Comment, isReply: Boolean, onReply: () -> Unit, onDele
     var confirmingDelete by remember(c.id) { mutableStateOf(false) }
     var deleting by remember(c.id) { mutableStateOf(false) }
     val avatarSize = if (isReply) 26.dp else 32.dp
+    // "autor ▶ usuario_respondido" (réplica de `targetsAnotherReply` en
+    // CommentsModal.jsx): solo se muestra cuando esta respuesta respondió a
+    // OTRA respuesta (replyToId distinto de la raíz del hilo, que es
+    // `parentId` ya que el backend aplana cualquier respuesta a la raíz),
+    // nunca cuando responde directamente al comentario principal.
+    val showReplyTarget = isReply && c.replyToId != null && c.replyToId != c.parentId
 
     Row(Modifier.fillMaxWidth().padding(start = if (isReply) 40.dp else 0.dp)) {
         // Avatar (foto real o degradado morado→azul con inicial)
@@ -248,6 +265,10 @@ private fun CommentRow(c: Comment, isReply: Boolean, onReply: () -> Unit, onDele
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(c.author?.username ?: "Usuario", color = Color.White.copy(alpha = 0.9f), fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                if (showReplyTarget && c.replyToUsername != null) {
+                    Icon(Icons.Filled.ChevronRight, null, tint = Color.White.copy(alpha = 0.35f), modifier = Modifier.size(13.dp))
+                    Text(c.replyToUsername, color = Color.White.copy(alpha = 0.55f), fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                }
                 c.timestamp?.let {
                     Spacer(Modifier.width(8.dp))
                     Text(relativeTime(it), color = Color.White.copy(alpha = 0.3f), fontSize = 11.sp)
@@ -292,100 +313,152 @@ private fun relativeTime(ts: String): String {
     return ts.take(10)
 }
 
-// ── Hoja de LOGIN / REGISTRO — réplica de AuthModal.jsx (modal centrado) ──────
+// ── Hoja de LOGIN / REGISTRO — réplica EXACTA de AuthModal.jsx: hoja inferior
+// BLANCA (antes era un diálogo centrado oscuro, diseño antiguo) con splash de
+// "métodos" y registro PASO A PASO estilo TikTok (fecha de nacimiento -> email
+// -> contraseña -> usuario, cada uno en su propia pantalla con indicador de
+// progreso), en vez de un único formulario con pestañas Login/Registro. ─────
+private val AuthPurple = Color(0xFFA855F7)
+private val AuthBlue = Color(0xFF3B82F6)
+private val AuthGradient = Brush.horizontalGradient(listOf(AuthPurple, AuthBlue))
+
+private data class RegStep(val key: String, val title: String, val subtitle: String)
+private val REG_STEPS = listOf(
+    RegStep("birthdate", "What's your date of birth?", "Your date of birth won't be shown publicly."),
+    RegStep("email", "What's your email?", "We'll send important information to this email."),
+    RegStep("password", "Create a password", "Use at least 6 characters."),
+    RegStep("username", "Create your username", "This is how people will find you on Twyk. You can change it later."),
+)
+
 @Composable
 fun AuthSheet(onClose: () -> Unit, onAuthed: () -> Unit) {
     val scope = rememberCoroutineScope()
-    var isRegister by remember { mutableStateOf(false) }
+    var view by remember { mutableStateOf("register") } // "login" | "register"
+    var step by remember { mutableStateOf("methods") }  // "methods" | "form"
+    var regStep by remember { mutableStateOf(0) }
     var username by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    // Fecha de nacimiento ('YYYY-MM-DD'), OBLIGATORIA para registrarse — el
+    // backend la exige (gating de edad COPPA) y sin ella /api/auth/register
+    // devuelve 400 'birthdate_required'. Antes este campo no existía en la
+    // app nativa: NINGÚN registro podía completarse nunca.
+    var birthDate by remember { mutableStateOf<String?>(null) }
+    var loginUsername by remember { mutableStateOf("") }
+    var loginPassword by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
+    var ageBlocked by remember { mutableStateOf(false) }
+
+    fun switchMode(mode: String) {
+        view = mode; step = "methods"; regStep = 0; error = null; ageBlocked = false
+    }
+
+    fun goBack() {
+        error = null
+        if (view == "register" && step == "form") {
+            if (regStep > 0) regStep -= 1 else step = "methods"
+        } else {
+            step = "methods"
+        }
+    }
+
+    fun doRegister() {
+        busy = true
+        scope.launch {
+            runCatching { RetrofitProvider.api.register(RegisterRequest(username.trim(), email.trim(), password, birthDate ?: "")) }
+                .onSuccess { r ->
+                    if (r.token != null) {
+                        Session.set(r.token, r.user); onAuthed()
+                    } else {
+                        val msg = r.message ?: r.error ?: "Sign up error"
+                        if (msg.contains("under 13", ignoreCase = true)) ageBlocked = true else error = msg
+                    }
+                }
+                .onFailure { error = "Sign up error" }
+            busy = false
+        }
+    }
+
+    fun handleRegisterNext() {
+        error = null
+        when (REG_STEPS[regStep].key) {
+            "birthdate" -> {
+                if (birthDate == null) { error = "Enter your date of birth"; return }
+                val age = ageFromBirthDate(birthDate)
+                if (age < 0) { error = "Invalid date of birth"; return }
+                if (age < 13) { ageBlocked = true; return }
+            }
+            "email" -> if (!email.contains("@") || !email.substringAfter("@").contains(".")) { error = "Enter a valid email"; return }
+            "password" -> if (password.length < 6) { error = "Password must be at least 6 characters"; return }
+            "username" -> {
+                if (username.trim().length < 3) { error = "Username must be at least 3 characters"; return }
+                doRegister(); return
+            }
+        }
+        regStep += 1
+    }
+
+    fun handleLogin() {
+        error = null
+        busy = true
+        scope.launch {
+            runCatching { RetrofitProvider.api.login(LoginRequest(loginUsername.trim(), loginPassword)) }
+                .onSuccess { r ->
+                    if (r.token != null) { Session.set(r.token, r.user); onAuthed() }
+                    else error = r.message ?: r.error ?: "Sign in error"
+                }
+                .onFailure { error = "Sign in error" }
+            busy = false
+        }
+    }
 
     Box(
-        Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.70f)).pointerInput(Unit) { detectTapGestures(onTap = { onClose() }) },
-        contentAlignment = Alignment.Center,
+        Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.60f)),
+        contentAlignment = Alignment.BottomCenter,
     ) {
         Column(
-            Modifier.widthIn(max = 420.dp).fillMaxWidth().padding(horizontal = 16.dp).imePadding()
-                .clip(RoundedCornerShape(24.dp)).background(Color(0xFF18181B)).border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(24.dp))
-                .pointerInput(Unit) { detectTapGestures(onTap = {}) },
+            Modifier.fillMaxWidth().fillMaxHeight(0.94f).imePadding()
+                .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+                .background(Color.White),
         ) {
-            // Header
-            Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 18.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(if (isRegister) "Crear cuenta" else "Iniciar sesión", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                Box(Modifier.size(36.dp).clip(CircleShape).clickable { onClose() }, contentAlignment = Alignment.Center) {
-                    Icon(Icons.Filled.Close, "cerrar", tint = Color.White.copy(alpha = 0.6f), modifier = Modifier.size(20.dp))
+            // Header: flecha abajo (cerrar) en el splash/bloqueo por edad; flecha atrás en los pasos.
+            Box(Modifier.fillMaxWidth().statusBarsPadding().height(48.dp)) {
+                if (step == "methods" || ageBlocked) {
+                    Box(Modifier.align(Alignment.Center).size(36.dp).clip(CircleShape).clickable { onClose() }, contentAlignment = Alignment.Center) {
+                        Icon(Icons.Filled.KeyboardArrowDown, "cerrar", tint = Color(0xFF52525B), modifier = Modifier.size(26.dp))
+                    }
+                } else {
+                    Box(Modifier.align(Alignment.CenterStart).padding(start = 6.dp).size(36.dp).clip(CircleShape).clickable { goBack() }, contentAlignment = Alignment.Center) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "atrás", tint = Color(0xFF18181B), modifier = Modifier.size(22.dp))
+                    }
                 }
             }
-            HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
 
-            // Tabs
-            Row(Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, top = 20.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                AuthTab("Iniciar sesión", !isRegister, Modifier.weight(1f)) { isRegister = false; error = null }
-                AuthTab("Registrarse", isRegister, Modifier.weight(1f)) { isRegister = true; error = null }
-            }
-
-            Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 24.dp)) {
-                error?.let {
-                    Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color(0xFFEF4444).copy(alpha = 0.10f)).border(1.dp, Color(0xFFEF4444).copy(alpha = 0.20f), RoundedCornerShape(12.dp)).padding(horizontal = 16.dp, vertical = 12.dp)) {
-                        Text(it, color = Color(0xFFF87171), fontSize = 13.sp)
-                    }
-                    Spacer(Modifier.height(16.dp))
-                }
-
-                AuthField("USUARIO", username, Icons.Outlined.Person) { username = it }
-                if (isRegister) {
-                    Spacer(Modifier.height(16.dp))
-                    AuthField("EMAIL", email, Icons.Outlined.Email) { email = it }
-                }
-                Spacer(Modifier.height(16.dp))
-                AuthField("CONTRASEÑA", password, Icons.Outlined.Lock, isPassword = true) { password = it }
-                if (isRegister) {
-                    Spacer(Modifier.height(6.dp))
-                    Text("Mínimo 6 caracteres", color = Color.White.copy(alpha = 0.4f), fontSize = 11.sp)
-                }
-
-                Spacer(Modifier.height(24.dp))
-                Box(
-                    Modifier.fillMaxWidth().height(50.dp).clip(RoundedCornerShape(12.dp)).background(if (busy) Color.White.copy(alpha = 0.20f) else Color.White)
-                        .clickable(enabled = !busy) {
-                            error = null
-                            if (isRegister && password.length < 6) { error = "La contraseña debe tener al menos 6 caracteres"; return@clickable }
-                            busy = true
-                            scope.launch {
-                                runCatching {
-                                    if (isRegister) RetrofitProvider.api.register(RegisterRequest(username.trim(), email.trim(), password))
-                                    else RetrofitProvider.api.login(LoginRequest(username.trim(), password))
-                                }.onSuccess { r ->
-                                    if (r.token != null) {
-                                        Session.set(r.token, r.user)
-                                        onAuthed()
-                                    } else if (isRegister) {
-                                        // Si el registro no devuelve token, iniciamos sesión automáticamente.
-                                        val lr = runCatching { RetrofitProvider.api.login(LoginRequest(username.trim(), password)) }.getOrNull()
-                                        if (lr?.token != null) { Session.set(lr.token, lr.user); onAuthed() }
-                                        else error = "Cuenta creada. Inicia sesión para continuar."
-                                    } else {
-                                        error = r.message ?: r.error ?: "No se pudo continuar"
-                                    }
-                                }.onFailure {
-                                    error = if (isRegister) "No se pudo registrar (¿usuario o email en uso?)" else "Usuario o contraseña incorrectos"
-                                }
-                                busy = false
-                            }
-                        },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    if (busy) {
-                        CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
-                    } else {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Icon(if (isRegister) Icons.Outlined.PersonAdd else Icons.AutoMirrored.Filled.Login, null, tint = Color.Black, modifier = Modifier.size(18.dp))
-                            Text(if (isRegister) "Crear cuenta" else "Iniciar sesión", color = Color.Black, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                        }
-                    }
+            Box(Modifier.weight(1f).fillMaxWidth()) {
+                when {
+                    ageBlocked -> AgeBlockedScreen { ageBlocked = false; switchMode("login") }
+                    step == "methods" -> AuthMethodsScreen(
+                        isRegister = view == "register",
+                        onUseForm = { step = "form"; regStep = 0; error = null },
+                        onSwitch = { switchMode(if (view == "register") "login" else "register") },
+                    )
+                    view == "register" -> AuthRegisterStepScreen(
+                        regStep = regStep,
+                        birthDate = birthDate, onBirthDate = { birthDate = it },
+                        email = email, onEmail = { email = it },
+                        password = password, onPassword = { password = it },
+                        username = username, onUsername = { username = it },
+                        error = error, busy = busy,
+                        onSubmit = { handleRegisterNext() },
+                    )
+                    else -> AuthLoginScreen(
+                        username = loginUsername, onUsername = { loginUsername = it },
+                        password = loginPassword, onPassword = { loginPassword = it },
+                        error = error, busy = busy,
+                        onSubmit = { handleLogin() },
+                        onSwitch = { switchMode("register") },
+                    )
                 }
             }
         }
@@ -393,33 +466,280 @@ fun AuthSheet(onClose: () -> Unit, onAuthed: () -> Unit) {
 }
 
 @Composable
-private fun AuthTab(label: String, active: Boolean, modifier: Modifier, onClick: () -> Unit) {
-    Box(
-        modifier.clip(RoundedCornerShape(12.dp)).background(if (active) Color.White else Color.White.copy(alpha = 0.05f)).clickable { onClick() }.padding(vertical = 11.dp),
-        contentAlignment = Alignment.Center,
-    ) { Text(label, color = if (active) Color.Black else Color.White.copy(alpha = 0.6f), fontSize = 14.sp, fontWeight = FontWeight.Medium) }
+private fun AuthMethodsScreen(isRegister: Boolean, onUseForm: () -> Unit, onSwitch: () -> Unit) {
+    Column(Modifier.fillMaxSize()) {
+        Column(
+            Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Spacer(Modifier.height(20.dp))
+            Text(
+                if (isRegister) "Sign up for Twyk" else "Log in to Twyk",
+                color = Color(0xFF18181B), fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center,
+            )
+            Spacer(Modifier.height(10.dp))
+            Text(
+                if (isRegister) "Create your profile, vote on challenges, upload your videos and challenge other creators."
+                else "Log in to vote on challenges, upload your videos and challenge others.",
+                color = Color(0xFF71717A), fontSize = 14.sp, textAlign = TextAlign.Center, lineHeight = 19.sp,
+                modifier = Modifier.widthIn(max = 300.dp),
+            )
+            Spacer(Modifier.height(28.dp))
+            AuthGradientButton(if (isRegister) "Use email or username" else "Use username and password", busy = false, onClick = onUseForm)
+            Spacer(Modifier.height(20.dp))
+            Text(
+                "By continuing you accept our Terms of Use and Privacy Policy",
+                color = Color(0xFFA1A1AA), fontSize = 12.sp, textAlign = TextAlign.Center, lineHeight = 16.sp,
+            )
+        }
+        Row(
+            Modifier.fillMaxWidth().navigationBarsPadding().padding(vertical = 16.dp),
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            Text(if (isRegister) "Already have an account? " else "Don't have an account? ", color = Color(0xFF71717A), fontSize = 14.sp)
+            Text(
+                if (isRegister) "Log in" else "Sign up",
+                color = AuthPurple, fontWeight = FontWeight.Bold, fontSize = 14.sp,
+                modifier = Modifier.clickable { onSwitch() },
+            )
+        }
+    }
 }
 
 @Composable
-private fun AuthField(label: String, value: String, icon: ImageVector, isPassword: Boolean = false, onChange: (String) -> Unit) {
-    Column {
-        Text(label, color = Color.White.copy(alpha = 0.6f), fontSize = 11.sp, fontWeight = FontWeight.Medium)
-        Spacer(Modifier.height(8.dp))
-        Row(
-            Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color.White.copy(alpha = 0.05f)).border(1.dp, Color.White.copy(alpha = 0.05f), RoundedCornerShape(12.dp)).padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically,
+private fun AuthRegisterStepScreen(
+    regStep: Int,
+    birthDate: String?, onBirthDate: (String) -> Unit,
+    email: String, onEmail: (String) -> Unit,
+    password: String, onPassword: (String) -> Unit,
+    username: String, onUsername: (String) -> Unit,
+    error: String?, busy: Boolean,
+    onSubmit: () -> Unit,
+) {
+    val stepCfg = REG_STEPS[regStep]
+    val isLast = regStep == REG_STEPS.lastIndex
+    val context = LocalContext.current
+
+    Column(Modifier.fillMaxSize()) {
+        Column(
+            Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Icon(icon, null, tint = Color.White.copy(alpha = 0.4f), modifier = Modifier.size(20.dp))
-            Spacer(Modifier.width(12.dp))
-            Box(Modifier.weight(1f)) {
-                if (value.isEmpty()) Text(if (isPassword) "••••••••" else if (label == "EMAIL") "tu@email.com" else "tu_usuario", color = Color.White.copy(alpha = 0.3f), fontSize = 14.sp)
-                BasicTextField(
-                    value = value, onValueChange = onChange, singleLine = true,
-                    visualTransformation = if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
-                    textStyle = TextStyle(color = Color.White, fontSize = 14.sp), cursorBrush = SolidColor(Color.White),
-                    modifier = Modifier.fillMaxWidth(),
+            // Indicador de progreso (1 punto por paso del registro, igual que la web).
+            Row(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 26.dp), horizontalArrangement = Arrangement.Center) {
+                REG_STEPS.forEachIndexed { i, _ ->
+                    Box(
+                        Modifier.padding(horizontal = 3.dp).height(6.dp).width(if (i == regStep) 26.dp else 8.dp)
+                            .clip(RoundedCornerShape(50))
+                            .background(if (i <= regStep) AuthGradient else SolidColor(Color(0xFFE5E5E5))),
+                    )
+                }
+            }
+
+            if (stepCfg.key == "birthdate") {
+                Icon(Icons.Outlined.Cake, null, tint = AuthPurple, modifier = Modifier.size(42.dp))
+                Spacer(Modifier.height(10.dp))
+                Text(stepCfg.title, color = Color(0xFF18181B), fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center, modifier = Modifier.widthIn(max = 280.dp))
+                Spacer(Modifier.height(6.dp))
+                Text(stepCfg.subtitle, color = Color(0xFF71717A), fontSize = 13.sp, textAlign = TextAlign.Center, modifier = Modifier.widthIn(max = 260.dp))
+
+                val age = ageFromBirthDate(birthDate)
+                val underAge = birthDate != null && age in 0..12
+                Box(Modifier.fillMaxWidth().padding(top = 22.dp).height(1.dp).background(Color(0xFFF4F4F5)))
+                Column(
+                    Modifier.fillMaxWidth().padding(vertical = 16.dp).clickable {
+                        val cal = Calendar.getInstance()
+                        val parsed = birthDate?.split("-")
+                        if (parsed != null && parsed.size == 3) runCatching { cal.set(parsed[0].toInt(), parsed[1].toInt() - 1, parsed[2].toInt()) }
+                        else cal.add(Calendar.YEAR, -18)
+                        DatePickerDialog(
+                            context,
+                            { _, y, m, d -> onBirthDate(String.format("%04d-%02d-%02d", y, m + 1, d)) },
+                            cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH),
+                        ).apply { datePicker.maxDate = System.currentTimeMillis() }.show()
+                    },
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        birthDate?.let { displayDateLong(it) } ?: "Select your date",
+                        color = Color(0xFF18181B), fontSize = 19.sp, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center,
+                    )
+                    Spacer(Modifier.height(5.dp))
+                    Text(
+                        when {
+                            underAge -> "You must be 13 or older to join Twyk"
+                            birthDate != null && age >= 0 -> "You're $age years old"
+                            else -> "Tap to pick your date"
+                        },
+                        color = if (underAge) Color(0xFFEF4444) else AuthPurple, fontSize = 11.sp, fontWeight = FontWeight.Bold,
+                    )
+                }
+                Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0xFFF4F4F5)))
+            } else {
+                Text(stepCfg.title, color = Color(0xFF18181B), fontSize = 23.sp, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center, modifier = Modifier.widthIn(max = 280.dp))
+                Spacer(Modifier.height(8.dp))
+                Text(stepCfg.subtitle, color = Color(0xFF71717A), fontSize = 13.sp, textAlign = TextAlign.Center, modifier = Modifier.widthIn(max = 270.dp))
+                Spacer(Modifier.height(26.dp))
+                when (stepCfg.key) {
+                    "email" -> MinimalAuthInput(email, "you@email.com", onChange = onEmail)
+                    "password" -> MinimalAuthInput(password, "Password", isPassword = true, onChange = onPassword)
+                    "username" -> MinimalAuthInput(username, "username", onChange = onUsername)
+                }
+            }
+
+            error?.let {
+                Spacer(Modifier.height(16.dp))
+                AuthErrorChip(it)
+            }
+
+            if (isLast) {
+                Spacer(Modifier.height(20.dp))
+                Text(
+                    "By creating your account you accept our Terms of Use and Privacy Policy",
+                    color = Color(0xFFA1A1AA), fontSize = 11.sp, textAlign = TextAlign.Center, lineHeight = 15.sp,
                 )
             }
+            Spacer(Modifier.height(12.dp))
+        }
+        Box(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 24.dp, vertical = 14.dp)) {
+            AuthGradientButton(if (isLast) "Create account" else "Continue", busy = busy, onClick = onSubmit)
         }
     }
+}
+
+@Composable
+private fun AuthLoginScreen(
+    username: String, onUsername: (String) -> Unit,
+    password: String, onPassword: (String) -> Unit,
+    error: String?, busy: Boolean,
+    onSubmit: () -> Unit, onSwitch: () -> Unit,
+) {
+    Column(Modifier.fillMaxSize()) {
+        Column(
+            Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Spacer(Modifier.height(16.dp))
+            Text("Log in", color = Color(0xFF18181B), fontSize = 23.sp, fontWeight = FontWeight.ExtraBold)
+            Spacer(Modifier.height(8.dp))
+            Text("Enter your username or email and password.", color = Color(0xFF71717A), fontSize = 13.sp, textAlign = TextAlign.Center, modifier = Modifier.widthIn(max = 270.dp))
+            Spacer(Modifier.height(26.dp))
+            MinimalAuthInput(username, "Username or email", onChange = onUsername)
+            Spacer(Modifier.height(16.dp))
+            MinimalAuthInput(password, "Password", isPassword = true, onChange = onPassword)
+            error?.let { Spacer(Modifier.height(16.dp)); AuthErrorChip(it) }
+        }
+        Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 24.dp, vertical = 14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            AuthGradientButton("Log in", busy = busy, onClick = onSubmit)
+            Spacer(Modifier.height(12.dp))
+            Row {
+                Text("Don't have an account? ", color = Color(0xFF71717A), fontSize = 14.sp)
+                Text("Sign up", color = AuthPurple, fontWeight = FontWeight.Bold, fontSize = 14.sp, modifier = Modifier.clickable { onSwitch() })
+            }
+        }
+    }
+}
+
+@Composable
+private fun AgeBlockedScreen(onGotIt: () -> Unit) {
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp).padding(top = 56.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text("Twyk isn't available for users under 13", color = Color(0xFF18181B), fontSize = 20.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+        Spacer(Modifier.height(8.dp))
+        Text(
+            "In accordance with the U.S. COPPA law, we don't allow registration for users under 13. We can't create your account.",
+            color = Color(0xFF71717A), fontSize = 14.sp, textAlign = TextAlign.Center, lineHeight = 19.sp,
+            modifier = Modifier.widthIn(max = 300.dp),
+        )
+        Spacer(Modifier.height(28.dp))
+        Box(
+            Modifier.fillMaxWidth().height(48.dp).clip(RoundedCornerShape(50)).background(Color(0xFFF4F4F5)).clickable { onGotIt() },
+            contentAlignment = Alignment.Center,
+        ) { Text("Got it", color = Color(0xFF18181B), fontSize = 15.sp, fontWeight = FontWeight.SemiBold) }
+    }
+}
+
+@Composable
+private fun AuthGradientButton(label: String, busy: Boolean, onClick: () -> Unit) {
+    Box(
+        Modifier.fillMaxWidth().height(52.dp).clip(RoundedCornerShape(50))
+            .background(if (busy) SolidColor(Color(0xFFD4D4D8)) else AuthGradient)
+            .clickable(enabled = !busy) { onClick() },
+        contentAlignment = Alignment.Center,
+    ) {
+        if (busy) CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
+        else Text(label, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
+private fun AuthErrorChip(msg: String) {
+    Box(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color(0xFFFEF2F2))
+            .border(1.dp, Color(0xFFFEE2E2), RoundedCornerShape(14.dp)).padding(horizontal = 16.dp, vertical = 10.dp),
+        contentAlignment = Alignment.Center,
+    ) { Text(msg, color = Color(0xFFDC2626), fontSize = 13.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center) }
+}
+
+// Input minimalista centrado (réplica de `minimalStepInput` en AuthModal.jsx:
+// caja gris muy clara, sin icono, texto centrado grande) — usado en los pasos
+// de email/contraseña/usuario del registro y en las 2 casillas del login.
+@Composable
+private fun MinimalAuthInput(value: String, placeholder: String, isPassword: Boolean = false, onChange: (String) -> Unit) {
+    Box(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color(0xFFFAFAFA)).padding(vertical = 14.dp, horizontal = 16.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (value.isEmpty()) Text(placeholder, color = Color(0xFFA1A1AA), fontSize = 17.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center)
+        BasicTextField(
+            value = value, onValueChange = onChange, singleLine = true,
+            visualTransformation = if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
+            textStyle = TextStyle(color = Color(0xFF18181B), fontSize = 17.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center),
+            cursorBrush = SolidColor(Color(0xFF18181B)),
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+// 'YYYY-MM-DD' -> 'DD/MM/YYYY' (uso interno, no visible tras el rediseño de
+// la FASE 4 — se mantiene por si se reutiliza en otra pantalla).
+private fun displayDate(iso: String): String {
+    val p = iso.split("-")
+    return if (p.size == 3) "${p[2]}/${p[1]}/${p[0]}" else iso
+}
+
+// 'YYYY-MM-DD' -> "July 15, 2005" (réplica de formatDateLong() en AuthModal.jsx,
+// usado en la vista previa en vivo del paso de fecha de nacimiento).
+private val MONTH_NAMES = listOf(
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
+)
+private fun displayDateLong(iso: String): String {
+    val p = iso.split("-")
+    if (p.size != 3) return iso
+    return runCatching {
+        val m = p[1].toInt() - 1
+        val d = p[2].toInt()
+        "${MONTH_NAMES[m]} $d, ${p[0]}"
+    }.getOrDefault(iso)
+}
+
+// Réplica de computeAge() en route.js (mismo criterio de años cumplidos),
+// para bloquear en el cliente ANTES de llamar al backend (misma validación
+// que ya hace el servidor, gating de edad COPPA, edad mínima 13 años).
+// Devuelve -1 si la fecha es nula/inválida.
+private fun ageFromBirthDate(iso: String?): Int {
+    if (iso == null) return -1
+    val p = iso.split("-")
+    if (p.size != 3) return -1
+    return runCatching {
+        val cal = Calendar.getInstance()
+        val now = Calendar.getInstance()
+        cal.set(p[0].toInt(), p[1].toInt() - 1, p[2].toInt())
+        var age = now.get(Calendar.YEAR) - cal.get(Calendar.YEAR)
+        if (now.get(Calendar.DAY_OF_YEAR) < cal.get(Calendar.DAY_OF_YEAR)) age--
+        age
+    }.getOrDefault(-1)
 }

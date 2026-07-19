@@ -6,7 +6,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -26,7 +25,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.twyk.app.data.RetrofitProvider
@@ -39,7 +42,7 @@ import kotlinx.coroutines.launch
 // `true` (recién registrado, o que inició sesión sin haberlo aceptado nunca);
 // los INVITADOS nunca lo ven. No tiene botón de cerrar ni se descarta tocando
 // fuera ni con el gesto/botón de "Atrás" (BackHandler lo consume sin hacer
-// nada) — la ÚNICA salida es pulsar "Aceptar y continuar", que persiste
+// nada) — la ÚNICA salida es pulsar "Accept and Continue", que persiste
 // `termsAccepted=true` en la cuenta (POST /api/auth/accept-terms), no solo en
 // este dispositivo.
 @Composable
@@ -58,30 +61,51 @@ fun ConsentGate() {
     var error by remember { mutableStateOf(false) }
 
     Box(
-        Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.75f)),
+        Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.60f)),
         contentAlignment = Alignment.Center,
     ) {
         Column(
-            Modifier.widthIn(max = 420.dp).fillMaxWidth().padding(horizontal = 20.dp)
-                .clip(RoundedCornerShape(20.dp))
+            Modifier.widthIn(max = 380.dp).fillMaxWidth().padding(horizontal = 20.dp)
+                .clip(RoundedCornerShape(24.dp))
                 .background(Color(0xFF18181B))
-                .border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(20.dp))
-                .padding(22.dp),
+                .border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(24.dp)),
         ) {
-            Text("Antes de continuar", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-            Spacer(Modifier.height(10.dp))
+            // Texto EXACTO de components/ConsentBanner.jsx (web), sin cabecera
+            // adicional (la web no tiene título "Antes de continuar", solo
+            // este párrafo centrado + el botón).
             Text(
-                "Al continuar usando Twyk, aceptas nuestros Términos de Uso y la Política de Privacidad, incluido el uso de las cookies esenciales para el funcionamiento de la app.",
-                color = Color.White.copy(alpha = 0.65f), fontSize = 13.sp, lineHeight = 19.sp,
+                buildAnnotatedString {
+                    withStyle(SpanStyle(color = Color.White.copy(alpha = 0.80f))) {
+                        append("By continuing to use Twyk, you acknowledge our ")
+                    }
+                    withStyle(SpanStyle(color = Color.White, fontWeight = FontWeight.Bold)) { append("Terms of Use") }
+                    withStyle(SpanStyle(color = Color.White.copy(alpha = 0.80f))) {
+                        append(" and confirm that you have reviewed our ")
+                    }
+                    withStyle(SpanStyle(color = Color.White, fontWeight = FontWeight.Bold)) { append("Privacy Policy") }
+                    withStyle(SpanStyle(color = Color.White.copy(alpha = 0.80f))) {
+                        append(", which explains how your personal data is collected, processed and shared. You also consent to our use of essential ")
+                    }
+                    withStyle(SpanStyle(color = Color.White, fontWeight = FontWeight.Bold)) { append("Cookies") }
+                    withStyle(SpanStyle(color = Color.White.copy(alpha = 0.80f))) {
+                        append(" required for the platform to function properly.")
+                    }
+                },
+                fontSize = 15.sp, lineHeight = 21.sp, textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 28.dp),
             )
             if (error) {
-                Spacer(Modifier.height(10.dp))
-                Text("No se pudo guardar. Comprueba tu conexión e inténtalo de nuevo.", color = Color(0xFFFB7185), fontSize = 12.sp)
+                Text(
+                    "No se pudo guardar. Comprueba tu conexión e inténtalo de nuevo.",
+                    color = Color(0xFFFB7185), fontSize = 12.sp, textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 4.dp),
+                )
             }
-            Spacer(Modifier.height(18.dp))
             Box(
-                Modifier.fillMaxWidth().height(48.dp).clip(RoundedCornerShape(50))
-                    .background(if (busy) Color.White.copy(alpha = 0.4f) else Color.White)
+                Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.10f)),
+            )
+            Box(
+                Modifier.fillMaxWidth().height(54.dp)
                     .clickable(enabled = !busy) {
                         busy = true
                         error = false
@@ -98,9 +122,9 @@ fun ConsentGate() {
                 contentAlignment = Alignment.Center,
             ) {
                 if (busy) {
-                    CircularProgressIndicator(color = Color.Black, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
+                    CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
                 } else {
-                    Text("Aceptar y continuar", color = Color.Black, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Accept and Continue", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
