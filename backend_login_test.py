@@ -23,7 +23,7 @@ import sys
 import os
 
 # Base URL from environment
-BASE_URL = os.getenv('NEXT_PUBLIC_BASE_URL', 'https://env-ffmpeg-setup.preview.emergentagent.com')
+BASE_URL = os.getenv('NEXT_PUBLIC_BASE_URL', 'https://content-creator-673.preview.emergentagent.com')
 API_BASE = f"{BASE_URL}/api"
 
 print(f"Testing against: {API_BASE}")
