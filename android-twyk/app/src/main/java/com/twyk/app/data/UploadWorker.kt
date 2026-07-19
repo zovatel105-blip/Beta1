@@ -32,6 +32,14 @@ class UploadWorker(appContext: Context, params: WorkerParameters) : CoroutineWor
         const val KEY_TARGET_POSTER_URL = "targetPosterUrl"
         const val KEY_TARGET_DESCRIPTION = "targetDescription"
         const val KEY_TARGET_MUSIC = "targetMusic"
+        // Música elegida por el propio usuario al publicar (iTunes, ver
+        // ui/Music.kt) — NO confundir con KEY_TARGET_MUSIC (la música YA
+        // adjunta al contenido retado, en el flujo de "Retar rápido").
+        const val KEY_MUSIC_TITLE = "musicTitle"
+        const val KEY_MUSIC_ARTIST = "musicArtist"
+        const val KEY_MUSIC_ARTWORK = "musicArtwork"
+        const val KEY_MUSIC_PREVIEW_URL = "musicPreviewUrl"
+        const val KEY_MUSIC_TRACK_ID = "musicTrackId"
     }
 
     override suspend fun doWork(): Result {
@@ -56,6 +64,11 @@ class UploadWorker(appContext: Context, params: WorkerParameters) : CoroutineWor
 
         return try {
             val textType = "text/plain".toMediaTypeOrNull()
+            val musicTitle = musicPart(inputData.getString(KEY_MUSIC_TITLE))
+            val musicArtist = musicPart(inputData.getString(KEY_MUSIC_ARTIST))
+            val musicArtwork = musicPart(inputData.getString(KEY_MUSIC_ARTWORK))
+            val musicPreviewUrl = musicPart(inputData.getString(KEY_MUSIC_PREVIEW_URL))
+            val musicTrackId = musicPart(inputData.getString(KEY_MUSIC_TRACK_ID))
             val response = when (type) {
                 "challenge" -> {
                     val a = fileA ?: return Result.failure()
@@ -75,6 +88,7 @@ class UploadWorker(appContext: Context, params: WorkerParameters) : CoroutineWor
                         inputData.getString(KEY_TARGET_POSTER_URL).orEmpty().toRequestBody(textType),
                         inputData.getString(KEY_TARGET_DESCRIPTION).orEmpty().toRequestBody(textType),
                         inputData.getString(KEY_TARGET_MUSIC).orEmpty().toRequestBody(textType),
+                        musicTitle, musicArtist, musicArtwork, musicPreviewUrl, musicTrackId,
                     )
                     null
                 }
@@ -84,14 +98,20 @@ class UploadWorker(appContext: Context, params: WorkerParameters) : CoroutineWor
                     val layout = inputData.getString(KEY_LAYOUT) ?: "horizontal"
                     val pa = progressPart("fileA", a) { progressA = it; report() }
                     val pb = progressPart("fileB", b) { progressB = it; report() }
-                    RetrofitProvider.api.uploadDuet(pa, pb, description.toRequestBody(textType), layout.toRequestBody(textType)).post
+                    RetrofitProvider.api.uploadDuet(
+                        pa, pb, description.toRequestBody(textType), layout.toRequestBody(textType),
+                        musicTitle, musicArtist, musicArtwork, musicPreviewUrl, musicTrackId,
+                    ).post
                 }
                 else -> {
                     val a = fileA ?: return Result.failure()
                     val b = fileB ?: return Result.failure()
                     val pa = progressPart("fileA", a) { progressA = it; report() }
                     val pb = progressPart("fileB", b) { progressB = it; report() }
-                    RetrofitProvider.api.uploadVersus(pa, pb, description.toRequestBody(textType)).post
+                    RetrofitProvider.api.uploadVersus(
+                        pa, pb, description.toRequestBody(textType),
+                        musicTitle, musicArtist, musicArtwork, musicPreviewUrl, musicTrackId,
+                    ).post
                 }
             }
             fileA?.delete()
@@ -111,6 +131,13 @@ class UploadWorker(appContext: Context, params: WorkerParameters) : CoroutineWor
         }
     }
 }
+
+// Parte multipart de TEXTO opcional: si el valor es nulo/vacío, devuelve null
+// (Retrofit omite por completo la parte @Part si su RequestBody es null), en
+// vez de enviar una cadena vacía — así el backend (readMusicFields en
+// route.js) no la confunde con "hay música pero está vacía".
+private fun musicPart(value: String?): RequestBody? =
+    if (value.isNullOrBlank()) null else value.toRequestBody("text/plain".toMediaTypeOrNull())
 
 // Content-Type real del archivo persistido (imagen o vídeo; ver
 // persistPickedFile en ui/Upload.kt, que ya guarda con la extensión

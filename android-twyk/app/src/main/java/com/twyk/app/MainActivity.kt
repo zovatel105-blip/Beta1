@@ -25,6 +25,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -44,6 +45,7 @@ import com.twyk.app.feed.VersusFeed
 import com.twyk.app.ui.AuthSheet
 import com.twyk.app.ui.BattlesScreen
 import com.twyk.app.ui.CommentsSheet
+import com.twyk.app.ui.ConsentGate
 import com.twyk.app.ui.InboxScreen
 import com.twyk.app.ui.ProfileScreen
 import com.twyk.app.ui.SearchScreen
@@ -100,6 +102,18 @@ private fun TwykApp() {
         val authorUsername = target.author?.username
         if (authorUsername != null && authorUsername != com.twyk.app.data.Session.user?.username) {
             quickChallengeTarget = target
+        }
+    }
+
+    // Al abrir la app con una sesión guardada, refresca el usuario desde el
+    // backend (no solo la copia local en disco) — así, si `termsAccepted` (o
+    // el avatar/nombre) cambió desde otro dispositivo o la web, el modal de
+    // Términos (ConsentGate, más abajo) decide con el dato REAL, no uno
+    // desactualizado.
+    LaunchedEffect(Unit) {
+        if (com.twyk.app.data.Session.token != null) {
+            val me = runCatching { com.twyk.app.data.RetrofitProvider.api.me() }.getOrNull()
+            me?.user?.let { com.twyk.app.data.Session.set(com.twyk.app.data.Session.token, it) }
         }
     }
     Box(Modifier.fillMaxSize().background(Color.Black)) {
@@ -182,6 +196,9 @@ private fun TwykApp() {
         }
         // Banner de reto enviándose en segundo plano (visible sobre cualquier pestaña).
         com.twyk.app.ui.ChallengeBannerHost()
+        // Modal de Términos y Condiciones (bloqueante, ver ui/Consent.kt) — se
+        // dibuja al final para quedar SIEMPRE por encima de todo lo demás.
+        ConsentGate()
     }
 }
 

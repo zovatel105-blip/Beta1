@@ -55,6 +55,19 @@ object UploadEvents {
     }
 }
 
+// Notifica a las pantallas abiertas cuando una publicación se ELIMINA (menú
+// "Más opciones" > Eliminar publicación, ver feed/VersusFeed.kt::MoreOptionsSheet)
+// para quitarla de todas las listas visibles (feed, perfil, guardados) sin
+// tener que recargar — mismo patrón que UploadEvents.postCreated.
+object PostEvents {
+    private val _postDeleted = MutableSharedFlow<String>(extraBufferCapacity = 4)
+    val postDeleted = _postDeleted.asSharedFlow()
+
+    suspend fun emitPostDeleted(postId: String) {
+        _postDeleted.emit(postId)
+    }
+}
+
 // Banner de "reto enviado en segundo plano" (equivalente a `challengeUpload`
 // en Feed.jsx) — visible sobre el feed mientras se envía un "Retar rápido" a
 // una publicación concreta (ver ui/QuickChallenge.kt).

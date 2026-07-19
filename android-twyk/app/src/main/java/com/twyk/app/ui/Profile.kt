@@ -67,6 +67,7 @@ import com.twyk.app.Config
 import com.twyk.app.R
 import com.twyk.app.absoluteUrl
 import com.twyk.app.data.Post
+import com.twyk.app.data.PostEvents
 import com.twyk.app.data.ProfileUser
 import com.twyk.app.data.RetrofitProvider
 import com.twyk.app.data.Session
@@ -151,6 +152,17 @@ fun ProfileScreen(
             UploadEvents.postCreated.collect { post ->
                 posts = listOf(post) + posts.filterNot { it.id == post.id }
             }
+        }
+    }
+
+    // Cuando se elimina una publicación (propia, desde "Más opciones" en
+    // cualquier pantalla), la quitamos de TODAS las listas de este perfil
+    // (grid principal, guardados, visor abierto) sin recargar.
+    LaunchedEffect(Unit) {
+        PostEvents.postDeleted.collect { id ->
+            posts = posts.filterNot { it.id == id }
+            savedPosts = savedPosts.filterNot { it.id == id }
+            viewerList = viewerList.filterNot { it.id == id }
         }
     }
 

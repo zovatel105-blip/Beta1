@@ -3,6 +3,7 @@ package com.twyk.app.feed
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.twyk.app.data.Post
+import com.twyk.app.data.PostEvents
 import com.twyk.app.data.RetrofitProvider
 import com.twyk.app.data.VoteRequest
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,6 +24,12 @@ class FeedViewModel : ViewModel() {
 
     init {
         loadInitial()
+        // Si se elimina una publicación desde "Más opciones" (propia, en
+        // cualquier pantalla), la quitamos también del feed principal al
+        // instante, sin esperar a recargar.
+        viewModelScope.launch {
+            PostEvents.postDeleted.collect { id -> _posts.value = _posts.value.filterNot { it.id == id } }
+        }
     }
 
     private fun isFeedPost(p: Post) = p.type == "versus" || p.type == "duet"

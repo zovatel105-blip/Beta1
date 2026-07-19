@@ -24,6 +24,11 @@ estado queda intacta** y el vídeo se ve por detrás (edge-to-edge).
 
 > ✅ App nativa COMPLETA. Cuenta demo: `twyk_demo` / `demo1234`.
 
+> 🆕 Última sesión (paridad con la web): soporte de FOTOS al publicar, Reportar
+> y Bloquear usuario reales (antes "Reportar" no llamaba a ningún endpoint),
+> Eliminar publicación propia, Responder/Eliminar comentarios, modal de
+> Términos y Condiciones, y selector de música (iTunes) al publicar.
+
 > 👉 Compila la **Fase 1** primero y confirma que arranca; así validamos el
 > toolchain antes de añadir las siguientes fases.
 

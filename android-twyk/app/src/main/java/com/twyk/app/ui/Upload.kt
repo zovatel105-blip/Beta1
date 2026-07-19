@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
@@ -55,6 +56,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.TextStyle
@@ -69,7 +71,9 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
+import coil.compose.AsyncImage
 import com.twyk.app.R
+import com.twyk.app.data.MusicTrack
 import com.twyk.app.data.RetrofitProvider
 import com.twyk.app.data.Session
 import com.twyk.app.data.UploadQueue
@@ -102,6 +106,8 @@ fun UploadScreen(onRequireAuth: () -> Unit, onDone: () -> Unit) {
     var mediaKindA by remember { mutableStateOf<String?>(null) } // "image" | "video"
     var mediaKindB by remember { mutableStateOf<String?>(null) }
     var description by remember { mutableStateOf("") }
+    var music by remember { mutableStateOf<MusicTrack?>(null) }
+    var musicPickerOpen by remember { mutableStateOf(false) }
     var users by remember { mutableStateOf<List<User>>(emptyList()) }
     var usersLoading by remember { mutableStateOf(false) }
     var userQuery by remember { mutableStateOf("") }
@@ -158,6 +164,13 @@ fun UploadScreen(onRequireAuth: () -> Unit, onDone: () -> Unit) {
 
                 withContext(Dispatchers.IO) {
                     dataBuilder.putString(UploadWorker.KEY_FILE_A, persistPickedFile(context, "a", a).absolutePath)
+                    music?.let { m ->
+                        dataBuilder.putString(UploadWorker.KEY_MUSIC_TITLE, m.title.orEmpty())
+                        dataBuilder.putString(UploadWorker.KEY_MUSIC_ARTIST, m.artist.orEmpty())
+                        dataBuilder.putString(UploadWorker.KEY_MUSIC_ARTWORK, m.artwork.orEmpty())
+                        dataBuilder.putString(UploadWorker.KEY_MUSIC_PREVIEW_URL, m.previewUrl.orEmpty())
+                        dataBuilder.putString(UploadWorker.KEY_MUSIC_TRACK_ID, m.id.orEmpty())
+                    }
                     when (mode) {
                         "challenge" -> {
                             val tgt = target ?: throw IllegalStateException("Sin objetivo")
@@ -225,6 +238,9 @@ fun UploadScreen(onRequireAuth: () -> Unit, onDone: () -> Unit) {
                     uriB = uriB,
                     description = description,
                     onDescription = { description = it },
+                    music = music,
+                    onPickMusic = { musicPickerOpen = true },
+                    onRemoveMusic = { music = null },
                     error = error,
                     onPickA = { pickA.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)) },
                     onPickB = { pickB.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)) },
@@ -240,6 +256,13 @@ fun UploadScreen(onRequireAuth: () -> Unit, onDone: () -> Unit) {
                 )
                 else -> UploadingStep(mode)
             }
+        }
+
+        if (musicPickerOpen) {
+            MusicPickerSheet(
+                onClose = { musicPickerOpen = false },
+                onSelect = { music = it },
+            )
         }
     }
 }
@@ -337,6 +360,9 @@ private fun FileStep(
     uriB: Uri?,
     description: String,
     onDescription: (String) -> Unit,
+    music: MusicTrack?,
+    onPickMusic: () -> Unit,
+    onRemoveMusic: () -> Unit,
     error: String?,
     onPickA: () -> Unit,
     onPickB: () -> Unit,
@@ -389,6 +415,9 @@ private fun FileStep(
             Text(it, color = Color(0xFFFB7185), fontSize = 12.sp)
         }
 
+        Spacer(Modifier.height(12.dp))
+        MusicRowPicker(music = music, onPick = onPickMusic, onRemove = onRemoveMusic)
+
         Spacer(Modifier.height(16.dp))
         val enabled = if (mode == "challenge") uriA != null else (uriA != null && uriB != null)
         Box(
@@ -401,6 +430,40 @@ private fun FileStep(
             )
         }
         Spacer(Modifier.height(20.dp))
+    }
+}
+
+@Composable
+private fun MusicRowPicker(music: MusicTrack?, onPick: () -> Unit, onRemove: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color.White.copy(alpha = 0.04f))
+            .border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(16.dp))
+            .clickable(enabled = music == null) { onPick() }
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (music == null) {
+            Icon(Icons.Filled.MusicNote, null, tint = TwykGold, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(10.dp))
+            Text("Añadir música", color = ZincText, fontSize = 14.sp, modifier = Modifier.weight(1f))
+            Icon(Icons.Filled.ChevronRight, null, tint = Color.White.copy(alpha = 0.3f), modifier = Modifier.size(18.dp))
+        } else {
+            Box(Modifier.size(32.dp).clip(RoundedCornerShape(6.dp)).background(Color.White.copy(alpha = 0.06f)), contentAlignment = Alignment.Center) {
+                if (!music.artwork.isNullOrBlank()) {
+                    AsyncImage(model = music.artwork, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                } else {
+                    Icon(Icons.Filled.MusicNote, null, tint = TwykGold, modifier = Modifier.size(14.dp))
+                }
+            }
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f)) {
+                Text(music.title ?: "Canción", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(music.artist ?: "", color = ZincText, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            Box(Modifier.size(28.dp).clip(CircleShape).clickable { onRemove() }, contentAlignment = Alignment.Center) {
+                Icon(Icons.Filled.Close, "quitar música", tint = Color.White.copy(alpha = 0.6f), modifier = Modifier.size(16.dp))
+            }
+        }
     }
 }
 

@@ -72,6 +72,11 @@ interface TwykApi {
         @Part fileA: MultipartBody.Part,
         @Part fileB: MultipartBody.Part,
         @Part("description") description: RequestBody,
+        @Part("musicTitle") musicTitle: RequestBody?,
+        @Part("musicArtist") musicArtist: RequestBody?,
+        @Part("musicArtwork") musicArtwork: RequestBody?,
+        @Part("musicPreviewUrl") musicPreviewUrl: RequestBody?,
+        @Part("musicTrackId") musicTrackId: RequestBody?,
     ): UploadPostResponse
 
     @Multipart
@@ -81,10 +86,20 @@ interface TwykApi {
         @Part fileB: MultipartBody.Part,
         @Part("description") description: RequestBody,
         @Part("layout") layout: RequestBody,
+        @Part("musicTitle") musicTitle: RequestBody?,
+        @Part("musicArtist") musicArtist: RequestBody?,
+        @Part("musicArtwork") musicArtwork: RequestBody?,
+        @Part("musicPreviewUrl") musicPreviewUrl: RequestBody?,
+        @Part("musicTrackId") musicTrackId: RequestBody?,
     ): UploadPostResponse
 
     @GET("api/users")
     suspend fun users(@Query("q") q: String?): UsersResponse
+
+    // GET /api/music/search?q=... — proxy del backend a la búsqueda de iTunes
+    // (evita CORS/claves desde el cliente; réplica de MusicPicker.jsx web).
+    @GET("api/music/search")
+    suspend fun searchMusic(@Query("q") q: String): MusicSearchResponse
 
     @Multipart
     @POST("api/challenges")
@@ -96,6 +111,11 @@ interface TwykApi {
         @Part("targetPosterUrl") targetPosterUrl: RequestBody,
         @Part("targetDescription") targetDescription: RequestBody,
         @Part("targetMusic") targetMusic: RequestBody,
+        @Part("musicTitle") musicTitle: RequestBody?,
+        @Part("musicArtist") musicArtist: RequestBody?,
+        @Part("musicArtwork") musicArtwork: RequestBody?,
+        @Part("musicPreviewUrl") musicPreviewUrl: RequestBody?,
+        @Part("musicTrackId") musicTrackId: RequestBody?,
     ): ChallengeResponse
 
     @GET("api/notifications")
@@ -116,6 +136,32 @@ interface TwykApi {
 
     @POST("api/challenges/{id}/reject")
     suspend fun rejectChallenge(@Path("id") id: String): OkResponse
+
+    // ── Reportes / Bloqueos / Eliminar publicación (paridad con la web) ────────
+    @POST("api/reports")
+    suspend fun createReport(@Body body: CreateReportRequest): ReportResponse
+
+    @POST("api/users/block")
+    suspend fun blockUser(@Body body: BlockRequest): BlockResponse
+
+    // @DELETE de Retrofit no admite @Body por defecto; se usa @HTTP con
+    // hasBody=true (el backend SÍ espera un body JSON en el DELETE, ver
+    // handleUnblockUser en route.js).
+    @HTTP(method = "DELETE", path = "api/users/block", hasBody = true)
+    suspend fun unblockUser(@Body body: BlockRequest): BlockResponse
+
+    @DELETE("api/posts/{id}")
+    suspend fun deletePost(@Path("id") id: String): OkResponse
+
+    @DELETE("api/comments/{id}")
+    suspend fun deleteComment(@Path("id") id: String): OkResponse
+
+    // ── Sesión / Términos (paridad con la web) ─────────────────────────────────
+    @GET("api/auth/me")
+    suspend fun me(): MeResponse
+
+    @POST("api/auth/accept-terms")
+    suspend fun acceptTerms(): AcceptTermsResponse
 }
 
 object RetrofitProvider {

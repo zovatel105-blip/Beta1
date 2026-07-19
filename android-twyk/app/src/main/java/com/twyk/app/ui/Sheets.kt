@@ -91,6 +91,10 @@ fun CommentsSheet(postId: String, onClose: () -> Unit, onRequireAuth: () -> Unit
     var loading by remember { mutableStateOf(true) }
     var input by remember { mutableStateOf("") }
     var sending by remember { mutableStateOf(false) }
+    // Comentario al que se está respondiendo (hilo plano de 1 nivel, igual
+    // que la web: el backend aplana automáticamente cualquier parentId a la
+    // raíz, así que basta enviar el id del comentario tocado).
+    var replyTarget by remember { mutableStateOf<Comment?>(null) }
 
     LaunchedEffect(postId) {
         loading = true
@@ -131,12 +135,34 @@ fun CommentsSheet(postId: String, onClose: () -> Unit, onRequireAuth: () -> Unit
                         Text("Sé el primero en comentar", color = Color.White.copy(alpha = 0.25f), fontSize = 13.sp)
                     }
                     else -> LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 20.dp, vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
-                        items(comments) { c -> CommentRow(c) }
+                        items(threadComments(comments), key = { it.first.id }) { (c, isReply) ->
+                            CommentRow(
+                                c = c,
+                                isReply = isReply,
+                                onReply = { replyTarget = c },
+                                onDeleted = { id -> comments = comments.filterNot { it.id == id || it.parentId == id } },
+                            )
+                        }
                     }
                 }
             }
 
             HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
+
+            // Pill "Respondiendo a @usuario" (igual que la web) — solo visible con sesión.
+            if (replyTarget != null && Session.token != null) {
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 20.dp, top = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        "Respondiendo a @${replyTarget?.author?.username ?: "usuario"}",
+                        color = Color.White.copy(alpha = 0.55f), fontSize = 12.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f),
+                    )
+                    Text("Cancelar", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.clickable { replyTarget = null })
+                }
+            }
+
             // Barra de entrada
             Row(
                 Modifier.fillMaxWidth().navigationBarsPadding().imePadding().padding(horizontal = 20.dp, vertical = 14.dp),
@@ -151,7 +177,7 @@ fun CommentsSheet(postId: String, onClose: () -> Unit, onRequireAuth: () -> Unit
                     Box(
                         Modifier.weight(1f).clip(RoundedCornerShape(50)).background(Color.White.copy(alpha = 0.05f)).border(1.dp, Color.White.copy(alpha = 0.05f), RoundedCornerShape(50)).padding(horizontal = 16.dp, vertical = 12.dp),
                     ) {
-                        if (input.isEmpty()) Text("Escribe un comentario...", color = Color.White.copy(alpha = 0.3f), fontSize = 14.sp)
+                        if (input.isEmpty()) Text(if (replyTarget != null) "Escribe una respuesta..." else "Escribe un comentario...", color = Color.White.copy(alpha = 0.3f), fontSize = 14.sp)
                         BasicTextField(value = input, onValueChange = { input = it }, textStyle = TextStyle(color = Color.White, fontSize = 14.sp), cursorBrush = SolidColor(Color.White), maxLines = 4, modifier = Modifier.fillMaxWidth())
                     }
                     Spacer(Modifier.width(8.dp))
@@ -160,10 +186,11 @@ fun CommentsSheet(postId: String, onClose: () -> Unit, onRequireAuth: () -> Unit
                         Modifier.size(44.dp).clip(CircleShape).background(if (canSend) Color.White else Color.White.copy(alpha = 0.10f))
                             .clickable(enabled = canSend) {
                                 val text = input.trim()
+                                val parentId = replyTarget?.id
                                 sending = true
                                 scope.launch {
-                                    runCatching { RetrofitProvider.api.createComment(CreateCommentRequest(postId, text)) }
-                                        .onSuccess { r -> r.comment?.let { comments = listOf(it) + comments }; input = "" }
+                                    runCatching { RetrofitProvider.api.createComment(CreateCommentRequest(postId, text, parentId)) }
+                                        .onSuccess { r -> r.comment?.let { comments = comments + it }; input = ""; replyTarget = null }
                                         .onFailure { onRequireAuth() }
                                     sending = false
                                 }
@@ -179,12 +206,36 @@ fun CommentsSheet(postId: String, onClose: () -> Unit, onRequireAuth: () -> Unit
     }
 }
 
+// Agrupa los comentarios en hilo plano de 1 nivel: cada raíz (parentId=null)
+// seguida INMEDIATAMENTE de sus respuestas (parentId==id de la raíz), en el
+// mismo orden ascendente que ya envía el backend. Réplica de repliesByParent
+// en CommentsModal.jsx. Devuelve pares (comentario, esRespuesta).
+private fun threadComments(list: List<Comment>): List<Pair<Comment, Boolean>> {
+    val roots = list.filter { it.parentId == null }
+    val repliesByParent = list.filter { it.parentId != null }.groupBy { it.parentId }
+    val result = mutableListOf<Pair<Comment, Boolean>>()
+    for (root in roots) {
+        result.add(root to false)
+        repliesByParent[root.id]?.forEach { result.add(it to true) }
+    }
+    // Respuestas "huérfanas" (su raíz no está en esta lista, caso raro) se
+    // muestran igualmente al final en vez de perderse.
+    val knownRootIds = roots.map { it.id }.toSet()
+    list.filter { it.parentId != null && it.parentId !in knownRootIds }.forEach { result.add(it to false) }
+    return result
+}
+
 @Composable
-private fun CommentRow(c: Comment) {
-    Row(Modifier.fillMaxWidth()) {
+private fun CommentRow(c: Comment, isReply: Boolean, onReply: () -> Unit, onDeleted: (String) -> Unit) {
+    val scope = rememberCoroutineScope()
+    var confirmingDelete by remember(c.id) { mutableStateOf(false) }
+    var deleting by remember(c.id) { mutableStateOf(false) }
+    val avatarSize = if (isReply) 26.dp else 32.dp
+
+    Row(Modifier.fillMaxWidth().padding(start = if (isReply) 40.dp else 0.dp)) {
         // Avatar (foto real o degradado morado→azul con inicial)
         val avatar = c.author?.avatarUrl
-        Box(Modifier.size(32.dp).clip(CircleShape), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(avatarSize).clip(CircleShape), contentAlignment = Alignment.Center) {
             if (avatar != null && !isGeneratedAvatar(avatar)) {
                 AsyncImage(model = absoluteUrl(avatar), contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
             } else {
@@ -204,6 +255,34 @@ private fun CommentRow(c: Comment) {
             }
             Spacer(Modifier.height(3.dp))
             Text(c.text, color = Color.White.copy(alpha = 0.7f), fontSize = 14.sp, lineHeight = 18.sp)
+            Spacer(Modifier.height(6.dp))
+            if (Session.token != null) {
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    if (confirmingDelete) {
+                        Text("¿Eliminar?", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp)
+                        if (deleting) {
+                            CircularProgressIndicator(color = Color(0xFFF87171), strokeWidth = 2.dp, modifier = Modifier.size(12.dp))
+                        } else {
+                            Text(
+                                "Sí", color = Color(0xFFF87171), fontSize = 12.sp, fontWeight = FontWeight.Bold,
+                                modifier = Modifier.clickable {
+                                    deleting = true
+                                    scope.launch {
+                                        val ok = runCatching { RetrofitProvider.api.deleteComment(c.id) }.getOrNull()?.ok == true
+                                        if (ok) onDeleted(c.id) else { deleting = false; confirmingDelete = false }
+                                    }
+                                },
+                            )
+                            Text("No", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp, modifier = Modifier.clickable { confirmingDelete = false })
+                        }
+                    } else {
+                        Text("Responder", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.clickable { onReply() })
+                        if (c.canDelete) {
+                            Text("Eliminar", color = Color(0xFFF87171).copy(alpha = 0.85f), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.clickable { confirmingDelete = true })
+                        }
+                    }
+                }
+            }
         }
     }
 }

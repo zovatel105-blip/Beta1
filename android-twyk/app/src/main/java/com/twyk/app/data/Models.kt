@@ -10,6 +10,8 @@ data class Author(
 
 data class Side(
     val videoUrl: String? = null,
+    val imageUrl: String? = null,
+    val mediaType: String? = null, // "video" | "image" — foto o vídeo (paridad con la web)
     val posterUrl: String? = null,
     val author: Author? = null,
     val description: String? = null,
@@ -39,6 +41,7 @@ data class Post(
     val description: String? = null,
     val author: Author? = null,
     val music: String? = null,
+    val mediaType: String? = null, // "video" | "image" (a nivel de post, misma info que sideA/sideB)
     val posterUrl: String? = null,
     val thumbnailUrl: String? = null,
     val stats: Stats? = null,
@@ -63,6 +66,7 @@ data class User(
     val name: String? = null,
     val avatarUrl: String? = null,
     val verified: Boolean = false,
+    val termsAccepted: Boolean = false,
 )
 
 data class LoginRequest(val username: String, val password: String)
@@ -74,14 +78,22 @@ data class AuthResponse(
     val error: String? = null,
     val message: String? = null,
 )
+data class MeResponse(val user: User? = null, val error: String? = null)
+data class AcceptTermsResponse(val ok: Boolean = false, val user: User? = null, val error: String? = null)
 
 // ── Comentarios ───────────────────────────────────────────────────────────────
 data class Comment(
     val id: String = "",
+    val postId: String? = null,
     val text: String = "",
+    val votedSide: String? = null,
+    val parentId: String? = null,
+    val replyToId: String? = null,
+    val replyToUsername: String? = null,
     val likes: Int = 0,
     val userLiked: Boolean = false,
     val isOwn: Boolean = false,
+    val canDelete: Boolean = false,
     val timestamp: String? = null,
     val author: Author? = null,
 )
@@ -98,6 +110,17 @@ data class SaveResponse(val ok: Boolean = false, val saved: Boolean = false)
 
 // ── Subida ────────────────────────────────────────────────────────────────────
 data class UploadPostResponse(val ok: Boolean = false, val post: Post? = null)
+
+// ── Música (iTunes, vía proxy del backend) ─────────────────────────────────────
+data class MusicTrack(
+    val id: String? = null,
+    val title: String? = null,
+    val artist: String? = null,
+    val artwork: String? = null,
+    val previewUrl: String? = null,
+    val duration: Int = 30,
+)
+data class MusicSearchResponse(val results: List<MusicTrack>? = null)
 
 data class UsersResponse(val users: List<User>? = null)
 data class ChallengeResponse(val ok: Boolean = false, val error: String? = null, val message: String? = null)

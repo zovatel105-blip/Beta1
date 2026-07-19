@@ -37,6 +37,8 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Block
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -84,7 +86,10 @@ import coil.compose.AsyncImage
 import com.twyk.app.Config
 import com.twyk.app.R
 import com.twyk.app.absoluteUrl
+import com.twyk.app.data.BlockRequest
+import com.twyk.app.data.CreateReportRequest
 import com.twyk.app.data.Post
+import com.twyk.app.data.PostEvents
 import com.twyk.app.data.QuickChallengeTarget
 import com.twyk.app.data.RetrofitProvider
 import com.twyk.app.data.SaveRequest
@@ -267,6 +272,7 @@ private fun CarouselPage(
             VideoSurface(
                 player = if (p == 0) playerA else playerB,
                 modifier = Modifier.fillMaxSize(),
+                side = if (p == 0) post.sideA else post.sideB,
             ) {
                 val s = if (p == 0) "a" else "b"
                 if (voted == null) {
@@ -362,15 +368,15 @@ private fun DuetPage(
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         if (isHorizontal) {
             Column(Modifier.fillMaxSize()) {
-                VideoSurface(playerA, Modifier.weight(1f).fillMaxWidth().then(ring("a")), useTextureView = true, onVoteA = voteA)
+                VideoSurface(playerA, Modifier.weight(1f).fillMaxWidth().then(ring("a")), useTextureView = true, side = post.sideA, onVoteA = voteA)
                 Box(Modifier.fillMaxWidth().height(2.dp).background(Color.White.copy(alpha = 0.3f)))
-                VideoSurface(playerB, Modifier.weight(1f).fillMaxWidth().then(ring("b")), useTextureView = true, onVoteA = voteB)
+                VideoSurface(playerB, Modifier.weight(1f).fillMaxWidth().then(ring("b")), useTextureView = true, side = post.sideB, onVoteA = voteB)
             }
         } else {
             Row(Modifier.fillMaxSize()) {
-                VideoSurface(playerA, Modifier.weight(1f).fillMaxHeight().then(ring("a")), useTextureView = true, onVoteA = voteA)
+                VideoSurface(playerA, Modifier.weight(1f).fillMaxHeight().then(ring("a")), useTextureView = true, side = post.sideA, onVoteA = voteA)
                 Box(Modifier.fillMaxHeight().width(2.dp).background(Color.White.copy(alpha = 0.3f)))
-                VideoSurface(playerB, Modifier.weight(1f).fillMaxHeight().then(ring("b")), useTextureView = true, onVoteA = voteB)
+                VideoSurface(playerB, Modifier.weight(1f).fillMaxHeight().then(ring("b")), useTextureView = true, side = post.sideB, onVoteA = voteB)
             }
         }
 
@@ -416,6 +422,7 @@ private fun VideoSurface(
     player: ExoPlayer,
     modifier: Modifier = Modifier,
     useTextureView: Boolean = false,
+    side: Side? = null,
     onVoteA: () -> Unit,
 ) {
     Box(
@@ -424,24 +431,36 @@ private fun VideoSurface(
             .background(Color.Black)
             .pointerInput(Unit) { detectTapGestures(onDoubleTap = { onVoteA() }) },
     ) {
-        AndroidView(
-            factory = { ctx ->
-                val view = if (useTextureView) {
-                    android.view.LayoutInflater.from(ctx)
-                        .inflate(R.layout.twyk_texture_player, null) as PlayerView
-                } else {
-                    PlayerView(ctx).apply {
-                        useController = false
-                        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                        setShutterBackgroundColor(android.graphics.Color.BLACK)
+        val imageUrl = if (side?.mediaType == "image") absoluteUrl(side.imageUrl ?: side.posterUrl) else null
+        if (imageUrl != null) {
+            // Lado de tipo FOTO (paridad con la web: la imagen se muestra a
+            // pantalla completa como diapositiva, sin reproductor de vídeo).
+            AsyncImage(
+                model = imageUrl,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+        } else {
+            AndroidView(
+                factory = { ctx ->
+                    val view = if (useTextureView) {
+                        android.view.LayoutInflater.from(ctx)
+                            .inflate(R.layout.twyk_texture_player, null) as PlayerView
+                    } else {
+                        PlayerView(ctx).apply {
+                            useController = false
+                            resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                            setShutterBackgroundColor(android.graphics.Color.BLACK)
+                        }
                     }
-                }
-                view.player = player
-                view
-            },
-            update = { it.player = player },
-            modifier = Modifier.fillMaxSize(),
-        )
+                    view.player = player
+                    view
+                },
+                update = { it.player = player },
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
     }
 }
 
@@ -609,7 +628,15 @@ private fun BoxScope.SocialRail(
         MusicDisc(author?.avatarUrl)
     }
 
-    if (menuOpen) MoreOptionsSheet(onClose = { menuOpen = false })
+    if (menuOpen) {
+        MoreOptionsSheet(
+            postId = post.id,
+            targetUsername = author?.username,
+            isOwnPost = author?.username != null && author.username == Session.user?.username,
+            onClose = { menuOpen = false },
+            onRequireAuth = onRequireAuth,
+        )
+    }
 }
 
 @Composable
@@ -912,10 +939,61 @@ private fun ResultActionButton(label: String, icon: ImageVector, modifier: Modif
     }
 }
 
-// Hoja inferior "Más opciones" (igual que la web).
+// Motivos de reporte — DEBEN coincidir EXACTAMENTE con REPORT_REASONS del
+// backend (lib/db.js), que valida la cadena recibida tal cual.
+private val REPORT_REASONS = listOf(
+    "Spam", "Inappropriate content", "Harassment", "Violence", "Nudity", "False information", "Other",
+)
+
+// Hoja inferior "Más opciones" (igual que la web): en contenido AJENO permite
+// Reportar (con motivo real, POST /api/reports) y Bloquear al autor (POST/DELETE
+// /api/users/block); en el PROPIO permite Eliminar la publicación (DELETE
+// /api/posts/{id}, notifica via PostEvents para quitarla de todas las listas
+// visibles: feed principal y perfil/guardados).
 @Composable
-private fun MoreOptionsSheet(onClose: () -> Unit) {
+private fun MoreOptionsSheet(
+    postId: String,
+    targetUsername: String?,
+    isOwnPost: Boolean,
+    onClose: () -> Unit,
+    onRequireAuth: () -> Unit,
+) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    // menu | report | reporting | reported | blockConfirm | blocking | blocked | error
+    var step by remember { mutableStateOf("menu") }
+    var errorMsg by remember { mutableStateOf("Ha ocurrido un error. Inténtalo de nuevo.") }
+
+    fun requireAuthOrRun(action: () -> Unit) {
+        if (Session.token == null) { onClose(); onRequireAuth() } else action()
+    }
+
+    fun submitReport(reason: String) {
+        step = "reporting"
+        scope.launch {
+            val ok = runCatching { RetrofitProvider.api.createReport(CreateReportRequest("post", postId, reason)) }.getOrNull()?.ok == true
+            if (ok) { step = "reported" } else { errorMsg = "No se pudo enviar el reporte."; step = "error" }
+        }
+    }
+
+    fun submitBlock() {
+        val uname = targetUsername
+        if (uname == null) { step = "menu"; return }
+        step = "blocking"
+        scope.launch {
+            val ok = runCatching { RetrofitProvider.api.blockUser(BlockRequest(uname)) }.getOrNull()?.ok == true
+            if (ok) { step = "blocked" } else { errorMsg = "No se pudo bloquear al usuario."; step = "error" }
+        }
+    }
+
+    fun submitDelete() {
+        step = "deleting"
+        scope.launch {
+            val ok = runCatching { RetrofitProvider.api.deletePost(postId) }.getOrNull()?.ok == true
+            if (ok) { PostEvents.emitPostDeleted(postId); step = "deleted" } else { errorMsg = "No se pudo eliminar la publicación."; step = "error" }
+        }
+    }
+
     Box(
         Modifier
             .fillMaxSize()
@@ -940,26 +1018,113 @@ private fun MoreOptionsSheet(onClose: () -> Unit) {
                     .clip(RoundedCornerShape(2.dp))
                     .background(Color.White.copy(alpha = 0.25f)),
             )
-            SheetItem(Icons.Filled.VisibilityOff, "No me interesa", Color.White, onClose)
-            SheetItem(Icons.Filled.Link, "Copiar enlace", Color.White) {
-                runCatching {
-                    val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                    cm.setPrimaryClip(android.content.ClipData.newPlainText("twyk", Config.BASE_URL))
+
+            when (step) {
+                "menu" -> {
+                    SheetItem(Icons.Filled.VisibilityOff, "No me interesa", Color.White, onClose)
+                    SheetItem(Icons.Filled.Link, "Copiar enlace", Color.White) {
+                        runCatching {
+                            val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                            cm.setPrimaryClip(android.content.ClipData.newPlainText("twyk", Config.BASE_URL))
+                        }
+                        onClose()
+                    }
+                    if (!isOwnPost) {
+                        SheetItem(Icons.Filled.Flag, "Reportar", Color(0xFFF87171)) { requireAuthOrRun { step = "report" } }
+                        if (targetUsername != null) {
+                            SheetItem(Icons.Filled.Block, "Bloquear a @$targetUsername", Color(0xFFF87171)) { requireAuthOrRun { step = "blockConfirm" } }
+                        }
+                    } else {
+                        SheetItem(Icons.Filled.Delete, "Eliminar publicación", Color(0xFFF87171)) { requireAuthOrRun { step = "deleteConfirm" } }
+                    }
+                    SheetCancel(onClose)
                 }
-                onClose()
-            }
-            SheetItem(Icons.Filled.Flag, "Reportar", Color(0xFFF87171), onClose)
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .clickable(onClick = onClose)
-                    .padding(vertical = 14.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text("Cancelar", color = Color.White.copy(alpha = 0.7f), fontWeight = FontWeight.Medium, fontSize = 15.sp)
+                "report" -> {
+                    Text(
+                        "¿Por qué reportas esta publicación?", color = Color.White, fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 6.dp, start = 4.dp),
+                    )
+                    for (reason in REPORT_REASONS) {
+                        Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { submitReport(reason) }.padding(vertical = 13.dp, horizontal = 4.dp)) {
+                            Text(reason, color = Color.White, fontSize = 14.sp)
+                        }
+                    }
+                    SheetBack { step = "menu" }
+                }
+                "reporting", "blocking", "deleting" -> {
+                    Box(Modifier.fillMaxWidth().padding(vertical = 28.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(26.dp))
+                    }
+                }
+                "reported" -> ConfirmMessage(Icons.Filled.Flag, "Reporte enviado", "Gracias, revisaremos esta publicación.", onClose)
+                "blockConfirm" -> {
+                    Text(
+                        "¿Bloquear a @$targetUsername? No verás su contenido y no podrá ver el tuyo.",
+                        color = Color.White, fontSize = 14.sp, modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp),
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    Box(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color(0xFFF87171).copy(alpha = 0.15f)).clickable { submitBlock() }.padding(vertical = 14.dp),
+                        contentAlignment = Alignment.Center,
+                    ) { Text("Bloquear", color = Color(0xFFF87171), fontWeight = FontWeight.SemiBold, fontSize = 15.sp) }
+                    Spacer(Modifier.height(4.dp))
+                    SheetBack { step = "menu" }
+                }
+                "blocked" -> ConfirmMessage(Icons.Filled.Block, "Usuario bloqueado", "Ya no verás publicaciones de @$targetUsername.", onClose)
+                "deleteConfirm" -> {
+                    Text(
+                        "¿Eliminar esta publicación? Esta acción no se puede deshacer.",
+                        color = Color.White, fontSize = 14.sp, modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp),
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    Box(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color(0xFFF87171).copy(alpha = 0.15f)).clickable { submitDelete() }.padding(vertical = 14.dp),
+                        contentAlignment = Alignment.Center,
+                    ) { Text("Eliminar", color = Color(0xFFF87171), fontWeight = FontWeight.SemiBold, fontSize = 15.sp) }
+                    Spacer(Modifier.height(4.dp))
+                    SheetBack { step = "menu" }
+                }
+                "deleted" -> ConfirmMessage(Icons.Filled.Delete, "Publicación eliminada", "Ya no aparecerá en tu perfil ni en el feed.", onClose)
+                else -> {
+                    Text(errorMsg, color = Color(0xFFF87171), fontSize = 14.sp, modifier = Modifier.padding(vertical = 10.dp, horizontal = 4.dp))
+                    SheetBack { step = "menu" }
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun SheetCancel(onClick: () -> Unit) {
+    Box(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable(onClick = onClick).padding(vertical = 14.dp),
+        contentAlignment = Alignment.Center,
+    ) { Text("Cancelar", color = Color.White.copy(alpha = 0.7f), fontWeight = FontWeight.Medium, fontSize = 15.sp) }
+}
+
+@Composable
+private fun SheetBack(onClick: () -> Unit) {
+    Box(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable(onClick = onClick).padding(vertical = 14.dp),
+        contentAlignment = Alignment.Center,
+    ) { Text("Volver", color = Color.White.copy(alpha = 0.7f), fontWeight = FontWeight.Medium, fontSize = 15.sp) }
+}
+
+@Composable
+private fun ConfirmMessage(icon: ImageVector, title: String, desc: String, onClose: () -> Unit) {
+    Column(Modifier.fillMaxWidth().padding(vertical = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(Modifier.size(48.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.06f)), contentAlignment = Alignment.Center) {
+            Icon(icon, null, tint = Color.White, modifier = Modifier.size(22.dp))
+        }
+        Spacer(Modifier.height(10.dp))
+        Text(title, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+        Spacer(Modifier.height(4.dp))
+        Text(desc, color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp, textAlign = TextAlign.Center)
+        Spacer(Modifier.height(16.dp))
+        Box(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(50)).background(Color.White).clickable { onClose() }.padding(vertical = 12.dp),
+            contentAlignment = Alignment.Center,
+        ) { Text("Listo", color = Color.Black, fontWeight = FontWeight.SemiBold, fontSize = 14.sp) }
     }
 }
 
