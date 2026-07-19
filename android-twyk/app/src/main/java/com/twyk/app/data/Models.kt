@@ -49,6 +49,15 @@ data class Post(
     val posterUrl: String? = null,
     val thumbnailUrl: String? = null,
     val stats: Stats? = null,
+    // Música adjunta REAL (preview de iTunes de 30s), devuelta por el backend
+    // vía readMusicFields() en route.js. Antes se descartaba (solo se leía el
+    // campo `music`, que es solo la etiqueta de texto "Título · Artista") ->
+    // el feed nativo NUNCA reproducía la música adjunta, solo la mostraba
+    // como texto. Ver MusicDisc/CarouselPage/DuetPage para la reproducción.
+    val musicPreviewUrl: String? = null,
+    val musicTitle: String? = null,
+    val musicArtist: String? = null,
+    val musicArtwork: String? = null,
 )
 
 data class UploadsResponse(val posts: List<Post>? = null)

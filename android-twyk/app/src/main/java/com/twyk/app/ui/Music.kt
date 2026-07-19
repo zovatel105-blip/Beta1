@@ -1,5 +1,6 @@
 package com.twyk.app.ui
 
+import android.media.MediaPlayer
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -25,11 +26,14 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -60,6 +64,33 @@ fun MusicPickerSheet(onClose: () -> Unit, onSelect: (MusicTrack) -> Unit) {
     var query by remember { mutableStateOf("") }
     var results by remember { mutableStateOf<List<MusicTrack>>(emptyList()) }
     var loading by remember { mutableStateOf(false) }
+    // Reproductor COMPARTIDO para los previews de 30s (réplica de audioRef en
+    // MusicPicker.jsx: 1 solo <audio>, cambiar de canción detiene la
+    // anterior automáticamente). Antes no existía ninguna forma de escuchar
+    // la canción antes de elegirla.
+    var playingId by remember { mutableStateOf<String?>(null) }
+    val player = remember { MediaPlayer() }
+    DisposableEffect(Unit) { onDispose { runCatching { player.release() } } }
+
+    fun togglePreview(t: MusicTrack) {
+        val id = t.id ?: t.previewUrl ?: return
+        val url = t.previewUrl
+        if (playingId == id) {
+            runCatching { player.stop() }
+            playingId = null
+            return
+        }
+        if (url.isNullOrBlank()) return
+        runCatching {
+            player.reset()
+            player.setDataSource(url)
+            player.setOnPreparedListener { it.start() }
+            player.setOnCompletionListener { playingId = null }
+            player.setOnErrorListener { _, _, _ -> playingId = null; true }
+            player.prepareAsync()
+            playingId = id
+        }.onFailure { playingId = null }
+    }
 
     // Debounce de 350ms antes de buscar (mismo criterio que SearchOverlay/Search.kt).
     LaunchedEffect(query) {
@@ -76,7 +107,9 @@ fun MusicPickerSheet(onClose: () -> Unit, onSelect: (MusicTrack) -> Unit) {
     }
 
     Box(
-        Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.6f)).clickable { onClose() },
+        Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.6f)).clickable {
+            runCatching { player.stop() }; playingId = null; onClose()
+        },
         contentAlignment = Alignment.BottomCenter,
     ) {
         Column(
@@ -91,7 +124,10 @@ fun MusicPickerSheet(onClose: () -> Unit, onSelect: (MusicTrack) -> Unit) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text("Añadir música", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
-                Box(Modifier.size(32.dp).clip(CircleShape).clickable { onClose() }, contentAlignment = Alignment.Center) {
+                Box(
+                    Modifier.size(32.dp).clip(CircleShape).clickable { runCatching { player.stop() }; playingId = null; onClose() },
+                    contentAlignment = Alignment.Center,
+                ) {
                     Icon(Icons.Filled.Close, "cerrar", tint = Color.White.copy(alpha = 0.6f), modifier = Modifier.size(18.dp))
                 }
             }
@@ -131,7 +167,12 @@ fun MusicPickerSheet(onClose: () -> Unit, onSelect: (MusicTrack) -> Unit) {
                         verticalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
                         items(results, key = { it.id ?: (it.previewUrl ?: it.title.orEmpty()) }) { t ->
-                            MusicRow(t) { onSelect(t); onClose() }
+                            MusicRow(
+                                t = t,
+                                isPlaying = playingId == (t.id ?: t.previewUrl),
+                                onTogglePreview = { togglePreview(t) },
+                                onClick = { runCatching { player.stop() }; playingId = null; onSelect(t); onClose() },
+                            )
                         }
                     }
                 }
@@ -141,7 +182,7 @@ fun MusicPickerSheet(onClose: () -> Unit, onSelect: (MusicTrack) -> Unit) {
 }
 
 @Composable
-private fun MusicRow(t: MusicTrack, onClick: () -> Unit) {
+private fun MusicRow(t: MusicTrack, isPlaying: Boolean, onTogglePreview: () -> Unit, onClick: () -> Unit) {
     Row(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { onClick() }.padding(vertical = 8.dp, horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -157,6 +198,22 @@ private fun MusicRow(t: MusicTrack, onClick: () -> Unit) {
         Column(Modifier.weight(1f)) {
             Text(t.title ?: "Sin título", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(t.artist ?: "", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        // Reproducir/pausar preview de 30s (réplica del botón Play/Pause de
+        // MusicPicker.jsx) — antes no existía ningún control de reproducción.
+        if (!t.previewUrl.isNullOrBlank()) {
+            Spacer(Modifier.width(8.dp))
+            Box(
+                Modifier.size(32.dp).clip(CircleShape).border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape)
+                    .clickable { onTogglePreview() },
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                    if (isPlaying) "pausar" else "reproducir",
+                    tint = Color.White, modifier = Modifier.size(16.dp),
+                )
+            }
         }
     }
 }

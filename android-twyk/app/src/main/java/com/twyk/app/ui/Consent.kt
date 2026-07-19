@@ -28,10 +28,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.LinkAnnotation
+import androidx.compose.ui.text.TextLinkStyles
+import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.twyk.app.Config
 import com.twyk.app.data.RetrofitProvider
 import com.twyk.app.data.Session
 import kotlinx.coroutines.launch
@@ -72,21 +76,24 @@ fun ConsentGate() {
         ) {
             // Texto EXACTO de components/ConsentBanner.jsx (web), sin cabecera
             // adicional (la web no tiene título "Antes de continuar", solo
-            // este párrafo centrado + el botón).
+            // este párrafo centrado + el botón). "Terms of Use"/"Privacy
+            // Policy"/"Cookies" son enlaces reales (abren el navegador),
+            // igual que los <Link> de la web (antes solo texto en negrita).
+            val linkStyle = TextLinkStyles(style = SpanStyle(color = Color.White, fontWeight = FontWeight.Bold, textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline))
             Text(
                 buildAnnotatedString {
                     withStyle(SpanStyle(color = Color.White.copy(alpha = 0.80f))) {
                         append("By continuing to use Twyk, you acknowledge our ")
                     }
-                    withStyle(SpanStyle(color = Color.White, fontWeight = FontWeight.Bold)) { append("Terms of Use") }
+                    withLink(LinkAnnotation.Url(Config.BASE_URL.trimEnd('/') + "/terms", linkStyle)) { append("Terms of Use") }
                     withStyle(SpanStyle(color = Color.White.copy(alpha = 0.80f))) {
                         append(" and confirm that you have reviewed our ")
                     }
-                    withStyle(SpanStyle(color = Color.White, fontWeight = FontWeight.Bold)) { append("Privacy Policy") }
+                    withLink(LinkAnnotation.Url(Config.BASE_URL.trimEnd('/') + "/privacy", linkStyle)) { append("Privacy Policy") }
                     withStyle(SpanStyle(color = Color.White.copy(alpha = 0.80f))) {
                         append(", which explains how your personal data is collected, processed and shared. You also consent to our use of essential ")
                     }
-                    withStyle(SpanStyle(color = Color.White, fontWeight = FontWeight.Bold)) { append("Cookies") }
+                    withLink(LinkAnnotation.Url(Config.BASE_URL.trimEnd('/') + "/privacy", linkStyle)) { append("Cookies") }
                     withStyle(SpanStyle(color = Color.White.copy(alpha = 0.80f))) {
                         append(" required for the platform to function properly.")
                     }

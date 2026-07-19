@@ -3,9 +3,11 @@
 package com.twyk.app.feed
 
 import android.content.Context
+import android.media.MediaPlayer
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
@@ -50,6 +52,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -61,6 +64,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
@@ -96,6 +100,7 @@ import com.twyk.app.data.SaveRequest
 import com.twyk.app.data.Session
 import com.twyk.app.data.Side
 import com.twyk.app.data.Votes
+import com.twyk.app.ui.ShareSheet
 import com.twyk.app.ui.sharePost
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -216,6 +221,38 @@ private fun buildPlayer(
     return player
 }
 
+// Reproductor de la MÚSICA adjunta (preview de iTunes, 30s) — réplica del
+// <audio loop> independiente de CarouselSlide.jsx/DuetSlide.jsx. Antes esta
+// música NUNCA se reproducía en el feed nativo (solo se guardaba como texto).
+// MediaPlayer.prepareAsync() es asíncrono: el estado devuelto es null hasta
+// que onPrepared confirma que ya se puede reproducir (evita bloquear el hilo
+// de UI con una preparación síncrona de una URL remota).
+@Composable
+private fun rememberMusicPlayer(url: String?): State<MediaPlayer?> {
+    val abs = absoluteUrl(url)
+    val playerState = remember(abs) { mutableStateOf<MediaPlayer?>(null) }
+    DisposableEffect(abs) {
+        var mp: MediaPlayer? = null
+        if (abs != null) {
+            mp = runCatching {
+                MediaPlayer().apply {
+                    isLooping = true
+                    setOnPreparedListener { playerState.value = this }
+                    setOnErrorListener { _, _, _ -> true }
+                    setDataSource(abs)
+                    prepareAsync()
+                }
+            }.getOrNull()
+        }
+        onDispose {
+            playerState.value = null
+            runCatching { mp?.stop() }
+            runCatching { mp?.release() }
+        }
+    }
+    return playerState
+}
+
 // ── Publicación VERSUS (carrusel horizontal A↔B a pantalla completa) ──────────
 @Composable
 private fun CarouselPage(
@@ -237,6 +274,11 @@ private fun CarouselPage(
         onDispose { playerA.release(); playerB.release() }
     }
 
+    // Música adjunta (preview de iTunes, 30s). Si existe, los vídeos van en
+    // mute y suena la música — réplica de `hasMusic` en CarouselSlide.jsx.
+    val hasMusic = !post.musicPreviewUrl.isNullOrBlank()
+    val musicPlayer by rememberMusicPlayer(post.musicPreviewUrl)
+
     val sidePager = rememberPagerState(pageCount = { 2 })
     var voted by remember(post.id) { mutableStateOf<String?>(null) }
     var votes by remember(post.id) { mutableStateOf(post.votes ?: Votes()) }
@@ -250,20 +292,37 @@ private fun CarouselPage(
         }
     }
 
-    // Solo el lado VISIBLE de la publicación ACTIVA reproduce (con audio).
+    // Solo el lado VISIBLE de la publicación ACTIVA reproduce (con audio,
+    // salvo que haya música adjunta: entonces el vídeo va en mute y suena la
+    // música en su lugar, réplica exacta de la web).
     LaunchedEffect(isActive, sidePager.currentPage, showWinner) {
         if (isActive && !showWinner) {
             if (sidePager.currentPage == 0) {
-                playerB.pause(); playerA.volume = 1f; playerA.play()
+                playerB.pause(); playerA.volume = if (hasMusic) 0f else 1f; playerA.play()
             } else {
-                playerA.pause(); playerB.volume = 1f; playerB.play()
+                playerA.pause(); playerB.volume = if (hasMusic) 0f else 1f; playerB.play()
             }
         } else {
             playerA.pause(); playerB.pause()
         }
     }
+    // Música adjunta: play/pausa en sincronía con la tarjeta activa (igual
+    // que el efecto de audioRef en la web); MediaPlayer.isLooping=true ya
+    // repite el preview de 30s mientras la tarjeta esté activa.
+    LaunchedEffect(isActive, showWinner, musicPlayer) {
+        if (hasMusic) {
+            if (isActive && !showWinner) {
+                runCatching { if (musicPlayer?.isPlaying == false) musicPlayer?.start() }
+            } else {
+                runCatching { if (musicPlayer?.isPlaying == true) musicPlayer?.pause() }
+            }
+        }
+    }
 
     val visiblePlayer = if (sidePager.currentPage == 0) playerA else playerB
+    // "¿hay audio sonando ahora?" (música O el vídeo activo sin haber
+    // terminado de votar) — se usa para el pulso sintético del MusicDisc.
+    val audioActive = isActive && !showWinner
     var burstId by remember(post.id) { mutableStateOf(0L) }
     var burstColor by remember(post.id) { mutableStateOf(Color(0xFFA855F7)) }
 
@@ -289,7 +348,7 @@ private fun CarouselPage(
         if (burstId != 0L) VoteBurst(burstId, burstColor) { burstId = 0L }        // burst del doble toque
 
         HeaderOverlay(post, onOpenProfile, onRequireAuth)
-        SocialRail(post, votes, voted, onComments, onRequireAuth, hideChallenge = hideChallenge) {
+        SocialRail(post, votes, voted, onComments, onRequireAuth, hideChallenge = hideChallenge, audioActive = audioActive) {
             val current = if (sidePager.currentPage == 0) post.sideA else post.sideB
             onChallenge(
                 QuickChallengeTarget(
@@ -341,6 +400,11 @@ private fun DuetPage(
         onDispose { playerA.release(); playerB.release() }
     }
 
+    // Música adjunta (preview de iTunes, 30s): si existe, el lado A (el único
+    // con audio en un dueto) va en mute y suena la música en su lugar.
+    val hasMusic = !post.musicPreviewUrl.isNullOrBlank()
+    val musicPlayer by rememberMusicPlayer(post.musicPreviewUrl)
+
     var voted by remember(post.id) { mutableStateOf<String?>(null) }
     var votes by remember(post.id) { mutableStateOf(post.votes ?: Votes()) }
     var showWinner by remember(post.id) { mutableStateOf(false) }
@@ -355,8 +419,25 @@ private fun DuetPage(
     }
 
     LaunchedEffect(isActive, showWinner) {
-        if (isActive && !showWinner) { playerA.play(); playerB.play() } else { playerA.pause(); playerB.pause() }
+        if (isActive && !showWinner) {
+            playerA.volume = if (hasMusic) 0f else 1f
+            playerA.play(); playerB.play()
+        } else {
+            playerA.pause(); playerB.pause()
+        }
     }
+    LaunchedEffect(isActive, showWinner, musicPlayer) {
+        if (hasMusic) {
+            if (isActive && !showWinner) {
+                runCatching { if (musicPlayer?.isPlaying == false) musicPlayer?.start() }
+            } else {
+                runCatching { if (musicPlayer?.isPlaying == true) musicPlayer?.pause() }
+            }
+        }
+    }
+    // "¿hay audio sonando ahora?" (música O el vídeo A del dueto) — se usa
+    // para el pulso sintético del MusicDisc.
+    val audioActive = isActive && !showWinner
 
     val voteA: () -> Unit = { if (voted == null) { voted = "a"; votes = bump(votes, "a"); onVote("a") } }
     val voteB: () -> Unit = { if (voted == null) { voted = "b"; votes = bump(votes, "b"); onVote("b") } }
@@ -381,7 +462,7 @@ private fun DuetPage(
         }
 
         HeaderOverlay(post, onOpenProfile, onRequireAuth)
-        SocialRail(post, votes, voted, onComments, onRequireAuth, hideChallenge = hideChallenge) {
+        SocialRail(post, votes, voted, onComments, onRequireAuth, hideChallenge = hideChallenge, audioActive = audioActive) {
             val current = if (voted == "b") post.sideB else post.sideA
             onChallenge(
                 QuickChallengeTarget(
@@ -588,12 +669,13 @@ private fun BoxScope.SocialRail(
     onComments: () -> Unit,
     onRequireAuth: () -> Unit,
     hideChallenge: Boolean = false,
+    audioActive: Boolean = false,
     onChallengeClick: () -> Unit,
 ) {
-    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var saved by remember(post.id) { mutableStateOf(false) }
     var menuOpen by remember(post.id) { mutableStateOf(false) }
+    var shareOpen by remember(post.id) { mutableStateOf(false) }
 
     val author = post.sideA?.author ?: post.author
 
@@ -621,8 +703,10 @@ private fun BoxScope.SocialRail(
         }
         // Comentar (bocadillo redondo, igual que la web)
         RailItem(ImageVector.vectorResource(R.drawable.ic_comment), label(post.stats?.comments ?: 0, "Comentar"), Color.White, size = 25) { onComments() }
-        // Compartir (flecha estilo TikTok)
-        RailItem(ImageVector.vectorResource(R.drawable.ic_share), label(post.stats?.shares ?: 0, "Compartir"), Color.White, size = 25) { sharePost(context, post) }
+        // Compartir (flecha estilo TikTok) — abre la hoja de opciones (Send
+        // to/Copy link/Instagram/WhatsApp/X), igual que ShareModal.jsx en la
+        // web (antes abría directamente el selector nativo de Android).
+        RailItem(ImageVector.vectorResource(R.drawable.ic_share), label(post.stats?.shares ?: 0, "Compartir"), Color.White, size = 25) { shareOpen = true }
         // Guardar (marcador, igual que la web)
         RailItem(
             ImageVector.vectorResource(if (saved) R.drawable.ic_bookmark_filled else R.drawable.ic_bookmark),
@@ -642,8 +726,9 @@ private fun BoxScope.SocialRail(
         }
         // Más opciones (tres puntos finos, igual que la web)
         RailItem(ImageVector.vectorResource(R.drawable.ic_more), "", Color.White, size = 18) { menuOpen = true }
-        // Disco de música giratorio
-        MusicDisc(author?.avatarUrl)
+        // Disco de música giratorio, con un pulso sintético mientras haya
+        // audio/música real sonando en esta tarjeta (ver MusicDisc).
+        MusicDisc(author?.avatarUrl, active = audioActive)
     }
 
     if (menuOpen) {
@@ -654,6 +739,9 @@ private fun BoxScope.SocialRail(
             onClose = { menuOpen = false },
             onRequireAuth = onRequireAuth,
         )
+    }
+    if (shareOpen) {
+        ShareSheet(postId = post.id, onClose = { shareOpen = false })
     }
 }
 
@@ -700,19 +788,38 @@ private fun TwykAvatar(url: String?, size: androidx.compose.ui.unit.Dp, modifier
 }
 
 @Composable
-private fun MusicDisc(avatarUrl: String?) {
+private fun MusicDisc(avatarUrl: String?, active: Boolean = false) {
     val transition = rememberInfiniteTransition()
     val angle by transition.animateFloat(
         initialValue = 0f,
         targetValue = 360f,
         animationSpec = infiniteRepeatable(animation = tween(durationMillis = 6000, easing = LinearEasing)),
     )
+    // Pulso "reactivo" — NO es amplitud de audio real: android.media.audiofx.
+    // Visualizer exige el permiso RECORD_AUDIO incluso para la sesión de
+    // audio de la propia app (confirmado; ver documentación oficial), lo
+    // cual mostraría al usuario un aviso de "acceso al micrófono" solo para
+    // animar un disco decorativo — un coste de privacidad/confianza
+    // desproporcionado para este detalle visual. En su lugar: una
+    // oscilación sintética continua (0↔1, ~700ms, imita el "latido" de un
+    // ecualizer) que solo se anima mientras `active` es true (hay audio o
+    // música real sonando en esta tarjeta) y queda inmóvil en reposo. Sigue
+    // siendo una mejora real sobre el giro a velocidad constante de antes.
+    val pulse by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(animation = tween(durationMillis = 700, easing = LinearEasing), repeatMode = androidx.compose.animation.core.RepeatMode.Reverse),
+    )
+    val level = if (active) pulse else 0f
+    val animatedLevel by animateFloatAsState(level, animationSpec = tween(durationMillis = 150))
+    val pulseScale = 1f + (animatedLevel * 0.14f)
     Box(
         Modifier
             .size(40.dp)
+            .scale(pulseScale)
             .rotate(angle)
             .clip(CircleShape)
-            .border(1.dp, Color.White.copy(alpha = 0.3f), CircleShape)
+            .border(1.dp, Color.White.copy(alpha = 0.3f + animatedLevel * 0.25f), CircleShape)
             .background(Brush.linearGradient(listOf(Color(0xFF3F3F46), Color.Black))),
         contentAlignment = Alignment.Center,
     ) {

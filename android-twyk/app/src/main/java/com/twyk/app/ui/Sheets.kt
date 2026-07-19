@@ -3,14 +3,18 @@ package com.twyk.app.ui
 import android.app.DatePickerDialog
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -32,11 +36,15 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.Login
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.outlined.Cake
 import androidx.compose.material.icons.outlined.Email
@@ -50,6 +58,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -57,17 +66,26 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.LinkAnnotation
+import androidx.compose.ui.text.TextLinkStyles
+import androidx.compose.ui.text.withLink
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -92,6 +110,105 @@ fun sharePost(context: Context, post: Post) {
         putExtra(Intent.EXTRA_TEXT, text)
     }
     context.startActivity(Intent.createChooser(intent, "Compartir"))
+}
+
+// ── Hoja de COMPARTIR — réplica de ShareModal.jsx: grid de 5 opciones (Send
+// to/Copy link/Instagram/WhatsApp/X) en vez de abrir directamente el selector
+// nativo de Android. Se abre desde el icono de compartir del SocialRail
+// (feed/VersusFeed.kt), igual que ShareModal se abre desde CarouselSlide.jsx.
+@Composable
+fun ShareSheet(postId: String, onClose: () -> Unit) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var copied by remember { mutableStateOf(false) }
+    val shareUrl = Config.BASE_URL.trimEnd('/') + "/?post=" + postId
+
+    fun copyLink() {
+        runCatching {
+            val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+            cm.setPrimaryClip(android.content.ClipData.newPlainText("twyk", shareUrl))
+        }
+        copied = true
+        scope.launch { delay(1800); copied = false }
+    }
+
+    fun openUrl(url: String) {
+        runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+    }
+
+    fun sendTo() {
+        runCatching {
+            val intent = Intent(Intent.ACTION_SEND).apply { type = "text/plain"; putExtra(Intent.EXTRA_TEXT, shareUrl) }
+            context.startActivity(Intent.createChooser(intent, "Share").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        }
+    }
+
+    Box(
+        Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)).clickable(onClick = onClose),
+        contentAlignment = Alignment.BottomCenter,
+    ) {
+        Column(
+            Modifier.fillMaxWidth()
+                .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
+                .background(Color(0xFF18181B))
+                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { }
+                .navigationBarsPadding(),
+        ) {
+            Box(Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 4.dp), contentAlignment = Alignment.Center) {
+                Box(Modifier.size(width = 36.dp, height = 4.dp).clip(RoundedCornerShape(2.dp)).background(Color.White.copy(alpha = 0.2f)))
+            }
+            Text(
+                "Share", color = Color.White.copy(alpha = 0.85f), fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
+            )
+            HorizontalDivider(color = Color.White.copy(alpha = 0.06f))
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 22.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                ShareOptionIcon("Send to", Icons.Filled.Send, Color(0xFF27272A), Color.White) { sendTo(); onClose() }
+                ShareOptionIcon(
+                    if (copied) "Copied" else "Copy link",
+                    if (copied) Icons.Filled.Check else Icons.Filled.Link,
+                    Color(0xFF27272A), if (copied) Color(0xFF4ADE80) else Color.White,
+                ) { copyLink() }
+                ShareOptionIcon(
+                    "Instagram", Icons.Filled.PhotoCamera, null, Color.White,
+                    gradient = Brush.linearGradient(listOf(Color(0xFFFACC15), Color(0xFFEC4899), Color(0xFF9333EA))),
+                ) { openUrl("https://www.instagram.com/"); onClose() }
+                ShareOptionIcon("WhatsApp", Icons.AutoMirrored.Filled.Chat, Color(0xFF25D366), Color.White) {
+                    openUrl("https://wa.me/?text=" + Uri.encode(shareUrl)); onClose()
+                }
+                ShareOptionText("X", Color.Black, Color.White) {
+                    openUrl("https://twitter.com/intent/tweet?url=" + Uri.encode(shareUrl)); onClose()
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ShareOptionIcon(label: String, icon: ImageVector, bg: Color?, tint: Color, gradient: Brush? = null, onClick: () -> Unit) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(56.dp).clickable { onClick() }) {
+        Box(
+            Modifier.size(56.dp).clip(CircleShape)
+                .then(if (gradient != null) Modifier.background(gradient) else Modifier.background(bg ?: Color(0xFF27272A))),
+            contentAlignment = Alignment.Center,
+        ) { Icon(icon, null, tint = tint, modifier = Modifier.size(24.dp)) }
+        Spacer(Modifier.height(6.dp))
+        Text(label, color = Color.White.copy(alpha = 0.75f), fontSize = 11.sp, textAlign = TextAlign.Center)
+    }
+}
+
+@Composable
+private fun ShareOptionText(label: String, bg: Color, tint: Color, onClick: () -> Unit) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(56.dp).clickable { onClick() }) {
+        Box(Modifier.size(56.dp).clip(CircleShape).background(bg), contentAlignment = Alignment.Center) {
+            Text(label, color = tint, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(label, color = Color.White.copy(alpha = 0.75f), fontSize = 11.sp, textAlign = TextAlign.Center)
+    }
 }
 
 // ── Hoja de COMENTARIOS — réplica de CommentsModal.jsx ────────────────────────
@@ -145,14 +262,34 @@ fun CommentsSheet(postId: String, onClose: () -> Unit, onRequireAuth: () -> Unit
                         Spacer(Modifier.height(4.dp))
                         Text("Sé el primero en comentar", color = Color.White.copy(alpha = 0.25f), fontSize = 13.sp)
                     }
-                    else -> LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 20.dp, vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
-                        items(threadComments(comments), key = { it.first.id }) { (c, isReply) ->
-                            CommentRow(
-                                c = c,
-                                isReply = isReply,
-                                onReply = { replyTarget = c },
-                                onDeleted = { id -> comments = comments.filterNot { it.id == id || it.parentId == id } },
-                            )
+                    else -> {
+                        val ordered = threadComments(comments)
+                        // Posiciones reales de cada avatar (medidas con
+                        // onGloballyPositioned, réplica del getBoundingClientRect
+                        // de ReplyThread en CommentsModal.jsx) + la posición del
+                        // contenedor, para dibujar la línea conectora avatar-a-
+                        // avatar SOLO entre una respuesta y la respuesta EXACTA a
+                        // la que respondió (nunca con el comentario raíz). Antes
+                        // no existía ningún conector en la app nativa.
+                        val avatarCoords = remember { mutableStateMapOf<String, LayoutCoordinates>() }
+                        var containerCoords by remember { mutableStateOf<LayoutCoordinates?>(null) }
+                        Box(Modifier.fillMaxSize().onGloballyPositioned { containerCoords = it }) {
+                            Column(
+                                Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+                                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                                verticalArrangement = Arrangement.spacedBy(20.dp),
+                            ) {
+                                ordered.forEach { (c, isReply) ->
+                                    CommentRow(
+                                        c = c,
+                                        isReply = isReply,
+                                        onReply = { replyTarget = c },
+                                        onDeleted = { id -> comments = comments.filterNot { it.id == id || it.parentId == id } },
+                                        onAvatarPositioned = { coords -> avatarCoords[c.id] = coords },
+                                    )
+                                }
+                            }
+                            ReplyConnectors(ordered, avatarCoords, containerCoords)
                         }
                     }
                 }
@@ -236,8 +373,56 @@ private fun threadComments(list: List<Comment>): List<Pair<Comment, Boolean>> {
     return result
 }
 
+// Línea conectora avatar-a-avatar entre una respuesta y la respuesta EXACTA
+// a la que respondió (nunca con el comentario raíz) — réplica nativa de
+// ReplyThread en CommentsModal.jsx. La web mide posiciones reales del DOM
+// (getBoundingClientRect) porque la adyacencia en la lista NO garantiza que
+// el objetivo esté justo antes (dos respuestas distintas al mismo comentario
+// quedan como hermanas, no como padre-hijo consecutivo). Aquí se replica esa
+// misma idea con `onGloballyPositioned`: cada CommentRow reporta la posición
+// real de su propio avatar (avatarCoords[id]); este Canvas mide la distancia
+// EXACTA entre el avatar de destino (replyToId) y el de la respuesta, sin
+// importar cuántas otras filas se interpongan entre medias, y dibuja la
+// línea SOLO si el objetivo es otra respuesta (no la raíz del hilo, que ya
+// se identifica en el propio `parentId` aplanado por el backend).
 @Composable
-private fun CommentRow(c: Comment, isReply: Boolean, onReply: () -> Unit, onDeleted: (String) -> Unit) {
+private fun BoxScope.ReplyConnectors(
+    ordered: List<Pair<Comment, Boolean>>,
+    avatarCoords: Map<String, LayoutCoordinates>,
+    containerCoords: LayoutCoordinates?,
+) {
+    val container = containerCoords ?: return
+    if (!container.isAttached) return
+    Canvas(Modifier.matchParentSize()) {
+        val gapPx = 6.dp.toPx()
+        for ((c, isReply) in ordered) {
+            if (!isReply) continue
+            val targetId = c.replyToId ?: continue
+            if (targetId == c.parentId) continue // responde a la raíz, no a otra respuesta -> sin conector
+            val targetCoords = avatarCoords[targetId] ?: continue
+            val selfCoords = avatarCoords[c.id] ?: continue
+            if (!targetCoords.isAttached || !selfCoords.isAttached) continue
+            val targetBottom = runCatching {
+                container.localPositionOf(targetCoords, Offset(targetCoords.size.width / 2f, targetCoords.size.height.toFloat()))
+            }.getOrNull() ?: continue
+            val selfTop = runCatching {
+                container.localPositionOf(selfCoords, Offset(selfCoords.size.width / 2f, 0f))
+            }.getOrNull() ?: continue
+            // Solo si el objetivo queda REALMENTE arriba (con hueco suficiente
+            // para el gap en ambos extremos); evita líneas invertidas/superpuestas.
+            if (selfTop.y - targetBottom.y <= gapPx * 2) continue
+            drawLine(
+                color = Color.White.copy(alpha = 0.16f),
+                start = Offset(targetBottom.x, targetBottom.y + gapPx),
+                end = Offset(selfTop.x, selfTop.y - gapPx),
+                strokeWidth = 2.dp.toPx(),
+            )
+        }
+    }
+}
+
+@Composable
+private fun CommentRow(c: Comment, isReply: Boolean, onReply: () -> Unit, onDeleted: (String) -> Unit, onAvatarPositioned: (LayoutCoordinates) -> Unit = {}) {
     val scope = rememberCoroutineScope()
     var confirmingDelete by remember(c.id) { mutableStateOf(false) }
     var deleting by remember(c.id) { mutableStateOf(false) }
@@ -250,9 +435,14 @@ private fun CommentRow(c: Comment, isReply: Boolean, onReply: () -> Unit, onDele
     val showReplyTarget = isReply && c.replyToId != null && c.replyToId != c.parentId
 
     Row(Modifier.fillMaxWidth().padding(start = if (isReply) 40.dp else 0.dp)) {
-        // Avatar (foto real o degradado morado→azul con inicial)
+        // Avatar (foto real o degradado morado→azul con inicial). Reporta su
+        // posición real (onGloballyPositioned) para que ReplyConnectors
+        // pueda dibujar la línea avatar-a-avatar cuando corresponda.
         val avatar = c.author?.avatarUrl
-        Box(Modifier.size(avatarSize).clip(CircleShape), contentAlignment = Alignment.Center) {
+        Box(
+            Modifier.size(avatarSize).clip(CircleShape).onGloballyPositioned(onAvatarPositioned),
+            contentAlignment = Alignment.Center,
+        ) {
             if (avatar != null && !isGeneratedAvatar(avatar)) {
                 AsyncImage(model = absoluteUrl(avatar), contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
             } else {
@@ -465,6 +655,24 @@ fun AuthSheet(onClose: () -> Unit, onAuthed: () -> Unit) {
     }
 }
 
+// Texto legal del footer con "Terms of Use"/"Privacy Policy" como enlaces
+// REALES (abren el navegador vía LinkAnnotation.Url, disponible en el BOM de
+// Compose usado por este proyecto) — antes era texto plano no interactivo,
+// a diferencia de los <a href="/terms">/<a href="/privacy"> de AuthModal.jsx.
+@Composable
+private fun LegalFooterText(prefix: String) {
+    val linkStyle = TextLinkStyles(style = SpanStyle(color = Color(0xFF52525B), fontWeight = FontWeight.SemiBold, textDecoration = TextDecoration.Underline))
+    Text(
+        buildAnnotatedString {
+            withStyle(SpanStyle(color = Color(0xFFA1A1AA))) { append(prefix) }
+            withLink(LinkAnnotation.Url(Config.BASE_URL.trimEnd('/') + "/terms", linkStyle)) { append("Terms of Use") }
+            withStyle(SpanStyle(color = Color(0xFFA1A1AA))) { append(" and ") }
+            withLink(LinkAnnotation.Url(Config.BASE_URL.trimEnd('/') + "/privacy", linkStyle)) { append("Privacy Policy") }
+        },
+        fontSize = 12.sp, textAlign = TextAlign.Center, lineHeight = 16.sp,
+    )
+}
+
 @Composable
 private fun AuthMethodsScreen(isRegister: Boolean, onUseForm: () -> Unit, onSwitch: () -> Unit) {
     Column(Modifier.fillMaxSize()) {
@@ -487,10 +695,7 @@ private fun AuthMethodsScreen(isRegister: Boolean, onUseForm: () -> Unit, onSwit
             Spacer(Modifier.height(28.dp))
             AuthGradientButton(if (isRegister) "Use email or username" else "Use username and password", busy = false, onClick = onUseForm)
             Spacer(Modifier.height(20.dp))
-            Text(
-                "By continuing you accept our Terms of Use and Privacy Policy",
-                color = Color(0xFFA1A1AA), fontSize = 12.sp, textAlign = TextAlign.Center, lineHeight = 16.sp,
-            )
+            LegalFooterText("By continuing you accept our ")
         }
         Row(
             Modifier.fillMaxWidth().navigationBarsPadding().padding(vertical = 16.dp),
@@ -594,10 +799,7 @@ private fun AuthRegisterStepScreen(
 
             if (isLast) {
                 Spacer(Modifier.height(20.dp))
-                Text(
-                    "By creating your account you accept our Terms of Use and Privacy Policy",
-                    color = Color(0xFFA1A1AA), fontSize = 11.sp, textAlign = TextAlign.Center, lineHeight = 15.sp,
-                )
+                LegalFooterText("By creating your account you accept our ")
             }
             Spacer(Modifier.height(12.dp))
         }
