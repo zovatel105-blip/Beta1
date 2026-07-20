@@ -128,7 +128,7 @@ fun VersusFeed(
 
     if (posts.isEmpty()) {
         Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
-            Text("Cargando…", color = Color.White)
+            Text("Loading…", color = Color.White)
         }
         return
     }
@@ -362,7 +362,7 @@ private fun CarouselPage(
             )
         }
         Dots(active = sidePager.currentPage)
-        if (voted == null) VoteHint("Desliza para comparar · doble toque para votar")
+        if (voted == null) VoteHint("Swipe to compare · double-tap to vote")
 
         if (showWinner) {
             val chosenSide = if (voted == "b") post.sideB else post.sideA
@@ -475,7 +475,7 @@ private fun DuetPage(
                 ),
             )
         }
-        if (voted == null) VoteHint("Doble toque para votar")
+        if (voted == null) VoteHint("Double-tap to vote")
 
         if (showWinner) {
             val chosenSide = if (voted == "b") post.sideB else post.sideA
@@ -694,23 +694,23 @@ private fun BoxScope.SocialRail(
             else -> Color.White
         }
         // Votar — al votar pasa a icono SÓLIDO (relleno por dentro), como la web.
-        RailItem(ImageVector.vectorResource(if (voted != null) R.drawable.ic_vote_filled else R.drawable.ic_vote), label(total, "Votar"), voteTint, size = 36) { }
-        // Retar (espadas cruzadas) — oculto en "Batallas > Completados" (hideChallenge), igual que la web.
+        RailItem(ImageVector.vectorResource(if (voted != null) R.drawable.ic_vote_filled else R.drawable.ic_vote), label(total, "Vote"), voteTint, size = 36) { }
+        // Challenge (crossed swords) — hidden on "Battles > Completed" (hideChallenge), same as the web.
         if (!hideChallenge) {
-            RailItem(ImageVector.vectorResource(R.drawable.ic_swords), "Retar", Color.White, size = 25) {
+            RailItem(ImageVector.vectorResource(R.drawable.ic_swords), label(post.stats?.challenges ?: 0, "Challenge"), Color.White, size = 25) {
                 if (Session.token == null) onRequireAuth() else onChallengeClick()
             }
         }
-        // Comentar (bocadillo redondo, igual que la web)
-        RailItem(ImageVector.vectorResource(R.drawable.ic_comment), label(post.stats?.comments ?: 0, "Comentar"), Color.White, size = 25) { onComments() }
-        // Compartir (flecha estilo TikTok) — abre la hoja de opciones (Send
-        // to/Copy link/Instagram/WhatsApp/X), igual que ShareModal.jsx en la
-        // web (antes abría directamente el selector nativo de Android).
-        RailItem(ImageVector.vectorResource(R.drawable.ic_share), label(post.stats?.shares ?: 0, "Compartir"), Color.White, size = 25) { shareOpen = true }
-        // Guardar (marcador, igual que la web)
+        // Comment (round bubble, same as the web)
+        RailItem(ImageVector.vectorResource(R.drawable.ic_comment), label(post.stats?.comments ?: 0, "Comment"), Color.White, size = 25) { onComments() }
+        // Share (TikTok-style arrow) — opens the options sheet (Send
+        // to/Copy link/Instagram/WhatsApp/X), same as ShareModal.jsx on the
+        // web (used to open the native Android chooser directly).
+        RailItem(ImageVector.vectorResource(R.drawable.ic_share), label(post.stats?.shares ?: 0, "Share"), Color.White, size = 25) { shareOpen = true }
+        // Save (bookmark, same as the web)
         RailItem(
             ImageVector.vectorResource(if (saved) R.drawable.ic_bookmark_filled else R.drawable.ic_bookmark),
-            label(post.stats?.saves ?: 0, "Guardar"),
+            label(post.stats?.saves ?: 0, "Save"),
             if (saved) Color(0xFFFACC15) else Color.White,
             size = 25,
         ) {
@@ -1087,7 +1087,7 @@ private fun MoreOptionsSheet(
     val scope = rememberCoroutineScope()
     // menu | report | reporting | reported | blockConfirm | blocking | blocked | error
     var step by remember { mutableStateOf("menu") }
-    var errorMsg by remember { mutableStateOf("Ha ocurrido un error. Inténtalo de nuevo.") }
+    var errorMsg by remember { mutableStateOf("Something went wrong. Please try again.") }
 
     fun requireAuthOrRun(action: () -> Unit) {
         if (Session.token == null) { onClose(); onRequireAuth() } else action()
@@ -1097,7 +1097,7 @@ private fun MoreOptionsSheet(
         step = "reporting"
         scope.launch {
             val ok = runCatching { RetrofitProvider.api.createReport(CreateReportRequest("post", postId, reason)) }.getOrNull()?.ok == true
-            if (ok) { step = "reported" } else { errorMsg = "No se pudo enviar el reporte."; step = "error" }
+            if (ok) { step = "reported" } else { errorMsg = "Couldn't send the report."; step = "error" }
         }
     }
 
@@ -1107,7 +1107,7 @@ private fun MoreOptionsSheet(
         step = "blocking"
         scope.launch {
             val ok = runCatching { RetrofitProvider.api.blockUser(BlockRequest(uname)) }.getOrNull()?.ok == true
-            if (ok) { step = "blocked" } else { errorMsg = "No se pudo bloquear al usuario."; step = "error" }
+            if (ok) { step = "blocked" } else { errorMsg = "Couldn't block user."; step = "error" }
         }
     }
 
@@ -1115,7 +1115,7 @@ private fun MoreOptionsSheet(
         step = "deleting"
         scope.launch {
             val ok = runCatching { RetrofitProvider.api.deletePost(postId) }.getOrNull()?.ok == true
-            if (ok) { PostEvents.emitPostDeleted(postId); step = "deleted" } else { errorMsg = "No se pudo eliminar la publicación."; step = "error" }
+            if (ok) { PostEvents.emitPostDeleted(postId); step = "deleted" } else { errorMsg = "Couldn't delete the post."; step = "error" }
         }
     }
 
@@ -1146,8 +1146,8 @@ private fun MoreOptionsSheet(
 
             when (step) {
                 "menu" -> {
-                    SheetItem(Icons.Filled.VisibilityOff, "No me interesa", Color.White, onClose)
-                    SheetItem(Icons.Filled.Link, "Copiar enlace", Color.White) {
+                    SheetItem(Icons.Filled.VisibilityOff, "Not interested", Color.White, onClose)
+                    SheetItem(Icons.Filled.Link, "Copy link", Color.White) {
                         runCatching {
                             val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                             cm.setPrimaryClip(android.content.ClipData.newPlainText("twyk", Config.BASE_URL))
@@ -1155,18 +1155,18 @@ private fun MoreOptionsSheet(
                         onClose()
                     }
                     if (!isOwnPost) {
-                        SheetItem(Icons.Filled.Flag, "Reportar", Color(0xFFF87171)) { requireAuthOrRun { step = "report" } }
+                        SheetItem(Icons.Filled.Flag, "Report", Color(0xFFF87171)) { requireAuthOrRun { step = "report" } }
                         if (targetUsername != null) {
-                            SheetItem(Icons.Filled.Block, "Bloquear a @$targetUsername", Color(0xFFF87171)) { requireAuthOrRun { step = "blockConfirm" } }
+                            SheetItem(Icons.Filled.Block, "Block @$targetUsername", Color(0xFFF87171)) { requireAuthOrRun { step = "blockConfirm" } }
                         }
                     } else {
-                        SheetItem(Icons.Filled.Delete, "Eliminar publicación", Color(0xFFF87171)) { requireAuthOrRun { step = "deleteConfirm" } }
+                        SheetItem(Icons.Filled.Delete, "Delete post", Color(0xFFF87171)) { requireAuthOrRun { step = "deleteConfirm" } }
                     }
                     SheetCancel(onClose)
                 }
                 "report" -> {
                     Text(
-                        "¿Por qué reportas esta publicación?", color = Color.White, fontSize = 15.sp,
+                        "Why are you reporting this post?", color = Color.White, fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 6.dp, start = 4.dp),
                     )
                     for (reason in REPORT_REASONS) {
@@ -1181,35 +1181,35 @@ private fun MoreOptionsSheet(
                         CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(26.dp))
                     }
                 }
-                "reported" -> ConfirmMessage(Icons.Filled.Flag, "Reporte enviado", "Gracias, revisaremos esta publicación.", onClose)
+                "reported" -> ConfirmMessage(Icons.Filled.Flag, "Report sent", "Thanks. We've received your report.", onClose)
                 "blockConfirm" -> {
                     Text(
-                        "¿Bloquear a @$targetUsername? No verás su contenido y no podrá ver el tuyo.",
+                        "Block @$targetUsername? You won't see their content and they won't see yours.",
                         color = Color.White, fontSize = 14.sp, modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp),
                     )
                     Spacer(Modifier.height(10.dp))
                     Box(
                         Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color(0xFFF87171).copy(alpha = 0.15f)).clickable { submitBlock() }.padding(vertical = 14.dp),
                         contentAlignment = Alignment.Center,
-                    ) { Text("Bloquear", color = Color(0xFFF87171), fontWeight = FontWeight.SemiBold, fontSize = 15.sp) }
+                    ) { Text("Block", color = Color(0xFFF87171), fontWeight = FontWeight.SemiBold, fontSize = 15.sp) }
                     Spacer(Modifier.height(4.dp))
                     SheetBack { step = "menu" }
                 }
-                "blocked" -> ConfirmMessage(Icons.Filled.Block, "Usuario bloqueado", "Ya no verás publicaciones de @$targetUsername.", onClose)
+                "blocked" -> ConfirmMessage(Icons.Filled.Block, "User blocked", "You will no longer see posts from @$targetUsername.", onClose)
                 "deleteConfirm" -> {
                     Text(
-                        "¿Eliminar esta publicación? Esta acción no se puede deshacer.",
+                        "Delete this post? This action can't be undone.",
                         color = Color.White, fontSize = 14.sp, modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp),
                     )
                     Spacer(Modifier.height(10.dp))
                     Box(
                         Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color(0xFFF87171).copy(alpha = 0.15f)).clickable { submitDelete() }.padding(vertical = 14.dp),
                         contentAlignment = Alignment.Center,
-                    ) { Text("Eliminar", color = Color(0xFFF87171), fontWeight = FontWeight.SemiBold, fontSize = 15.sp) }
+                    ) { Text("Delete", color = Color(0xFFF87171), fontWeight = FontWeight.SemiBold, fontSize = 15.sp) }
                     Spacer(Modifier.height(4.dp))
                     SheetBack { step = "menu" }
                 }
-                "deleted" -> ConfirmMessage(Icons.Filled.Delete, "Publicación eliminada", "Ya no aparecerá en tu perfil ni en el feed.", onClose)
+                "deleted" -> ConfirmMessage(Icons.Filled.Delete, "Post deleted", "It will no longer appear in your profile or feed.", onClose)
                 else -> {
                     Text(errorMsg, color = Color(0xFFF87171), fontSize = 14.sp, modifier = Modifier.padding(vertical = 10.dp, horizontal = 4.dp))
                     SheetBack { step = "menu" }
@@ -1224,7 +1224,7 @@ private fun SheetCancel(onClick: () -> Unit) {
     Box(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable(onClick = onClick).padding(vertical = 14.dp),
         contentAlignment = Alignment.Center,
-    ) { Text("Cancelar", color = Color.White.copy(alpha = 0.7f), fontWeight = FontWeight.Medium, fontSize = 15.sp) }
+    ) { Text("Cancel", color = Color.White.copy(alpha = 0.7f), fontWeight = FontWeight.Medium, fontSize = 15.sp) }
 }
 
 @Composable
@@ -1232,7 +1232,7 @@ private fun SheetBack(onClick: () -> Unit) {
     Box(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable(onClick = onClick).padding(vertical = 14.dp),
         contentAlignment = Alignment.Center,
-    ) { Text("Volver", color = Color.White.copy(alpha = 0.7f), fontWeight = FontWeight.Medium, fontSize = 15.sp) }
+    ) { Text("Back", color = Color.White.copy(alpha = 0.7f), fontWeight = FontWeight.Medium, fontSize = 15.sp) }
 }
 
 @Composable
@@ -1249,7 +1249,7 @@ private fun ConfirmMessage(icon: ImageVector, title: String, desc: String, onClo
         Box(
             Modifier.fillMaxWidth().clip(RoundedCornerShape(50)).background(Color.White).clickable { onClose() }.padding(vertical = 12.dp),
             contentAlignment = Alignment.Center,
-        ) { Text("Listo", color = Color.Black, fontWeight = FontWeight.SemiBold, fontSize = 14.sp) }
+        ) { Text("Done", color = Color.Black, fontWeight = FontWeight.SemiBold, fontSize = 14.sp) }
     }
 }
 

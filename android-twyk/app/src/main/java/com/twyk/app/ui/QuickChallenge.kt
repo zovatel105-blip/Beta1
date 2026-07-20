@@ -86,7 +86,7 @@ fun QuickChallengeSheet(target: QuickChallengeTarget, onClose: () -> Unit) {
 
     fun send() {
         val uri = fileUri
-        if (uri == null) { error = "Sube tu vídeo para retar"; return }
+        if (uri == null) { error = "Upload your video to challenge"; return }
         if (sending) return
         sending = true
         error = null
@@ -116,7 +116,7 @@ fun QuickChallengeSheet(target: QuickChallengeTarget, onClose: () -> Unit) {
                 onClose()
             } catch (e: Exception) {
                 sending = false
-                error = "No se pudo enviar el reto. Inténtalo de nuevo."
+                error = "Couldn't send the challenge. Please try again."
             }
         }
     }

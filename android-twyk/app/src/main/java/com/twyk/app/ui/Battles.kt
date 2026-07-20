@@ -95,7 +95,7 @@ fun BattlesScreen(
     onChallenge: (QuickChallengeTarget) -> Unit = {},
 ) {
     if (Session.token == null) {
-        LoginPrompt("Inicia sesión para ver tus batallas", onRequireAuth, Icons.Filled.EmojiEvents)
+        LoginPrompt("Sign in to view your battles", onRequireAuth, Icons.Filled.EmojiEvents)
         return
     }
 
@@ -224,7 +224,7 @@ private fun BattlesHeader(
                 Modifier.size(36.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.06f)).border(1.dp, Color.White.copy(alpha = 0.10f), CircleShape)
                     .clickable { onOpenSuggestions() },
                 contentAlignment = Alignment.Center,
-            ) { Icon(Icons.Outlined.PersonAdd, "Sugerencias de usuarios", tint = Color.White, modifier = Modifier.size(18.dp)) }
+            ) { Icon(Icons.Outlined.PersonAdd, "User suggestions", tint = Color.White, modifier = Modifier.size(18.dp)) }
         } else {
             Spacer(Modifier.size(36.dp))
         }
@@ -233,8 +233,8 @@ private fun BattlesHeader(
             Modifier.clip(RoundedCornerShape(50)).background(Color.White.copy(alpha = 0.06f)).border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(50)).padding(4.dp),
             horizontalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            SegBtn("Completados", tab == "completed") { onSelect("completed") }
-            SegBtn("Activos", tab == "active") { onSelect("active") }
+            SegBtn("Completed", tab == "completed") { onSelect("completed") }
+            SegBtn("Active", tab == "active") { onSelect("active") }
         }
 
         // Derecha: añadir reto ("Completados") o contador de pendientes ("Activos").
@@ -243,7 +243,7 @@ private fun BattlesHeader(
                 Modifier.size(36.dp).clip(CircleShape).background(Color.White)
                     .clickable { onOpenUpload() },
                 contentAlignment = Alignment.Center,
-            ) { Icon(Icons.Filled.Add, "añadir reto", tint = Color.Black, modifier = Modifier.size(20.dp)) }
+            ) { Icon(Icons.Filled.Add, "add challenge", tint = Color.Black, modifier = Modifier.size(20.dp)) }
         } else if (pendingCount > 0) {
             Row(
                 Modifier.height(36.dp).clip(RoundedCornerShape(50)).background(Color.Black.copy(alpha = 0.4f)).border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(50)).padding(horizontal = 12.dp),
@@ -338,7 +338,7 @@ private fun ActiveChallengeFrame(c: Challenge, isActiveCard: Boolean, busy: Bool
                 Modifier.clip(RoundedCornerShape(50)).background(Color.Black.copy(alpha = 0.45f)).padding(horizontal = 10.dp, vertical = 4.dp),
             ) {
                 Text(
-                    if (pager.currentPage == 0) "@${c.from?.username ?: "rival"}" else "@${c.to?.username ?: "tú"}",
+                    if (pager.currentPage == 0) "@${c.from?.username ?: "rival"}" else "@${c.to?.username ?: "you"}",
                     color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold,
                 )
             }
@@ -378,7 +378,7 @@ private fun ActiveChallengeFrame(c: Challenge, isActiveCard: Boolean, busy: Bool
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("@${c.from?.username ?: "rival"}", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                     Text("VS", color = Color.White.copy(alpha = 0.8f), fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 8.dp))
-                    Text("@${c.to?.username ?: "tú"}", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
+                    Text("@${c.to?.username ?: "you"}", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
                 }
                 if (needsResponse) {
                     Spacer(Modifier.height(10.dp))
@@ -422,7 +422,7 @@ private fun ActiveChallengeFrame(c: Challenge, isActiveCard: Boolean, busy: Bool
                     Box(
                         Modifier.size(44.dp).clip(CircleShape).border(1.dp, Color.White.copy(alpha = 0.20f), CircleShape).clickable(enabled = !busy) { onReject() },
                         contentAlignment = Alignment.Center,
-                    ) { Icon(Icons.Filled.Close, "rechazar", tint = Color.White, modifier = Modifier.size(18.dp)) }
+                    ) { Icon(Icons.Filled.Close, "reject", tint = Color.White, modifier = Modifier.size(18.dp)) }
                 }
             }
         }
@@ -533,14 +533,14 @@ private fun EmptyActive() {
             contentAlignment = Alignment.Center,
         ) { Icon(ImageVector.vectorResource(R.drawable.ic_swords), null, tint = TwykGold, modifier = Modifier.size(36.dp)) }
         Spacer(Modifier.height(22.dp))
-        Text("Sin retos activos", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
+        Text("No active challenges", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(8.dp))
-        Text("Cuando alguien te rete, la solicitud aparecerá aquí para aceptarla o rechazarla.", color = ZincText, fontSize = 15.sp, textAlign = TextAlign.Center)
+        Text("When someone challenges you, the request will appear here for you to accept or reject.", color = ZincText, fontSize = 15.sp, textAlign = TextAlign.Center)
     }
 }
 
 private fun videoPart(context: Context, name: String, uri: Uri): MultipartBody.Part {
-    val input = context.contentResolver.openInputStream(uri) ?: throw IllegalStateException("No se pudo abrir el vídeo")
+    val input = context.contentResolver.openInputStream(uri) ?: throw IllegalStateException("Could not open the video")
     val file = File.createTempFile("twyk_accept_", ".mp4", context.cacheDir)
     file.outputStream().use { out -> input.use { it.copyTo(out) } }
     val body = file.asRequestBody("video/*".toMediaTypeOrNull())

@@ -73,7 +73,7 @@ fun FollowListScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Box(Modifier.size(36.dp).clip(CircleShape).clickable { onClose() }, contentAlignment = Alignment.Center) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, "atrás", tint = Color.White, modifier = Modifier.size(22.dp))
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, "back", tint = Color.White, modifier = Modifier.size(22.dp))
                 }
                 Row(
                     Modifier.clip(RoundedCornerShape(50)).background(Color.White.copy(alpha = 0.06f)).padding(3.dp),

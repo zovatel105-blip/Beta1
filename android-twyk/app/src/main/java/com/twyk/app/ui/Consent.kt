@@ -103,7 +103,7 @@ fun ConsentGate() {
             )
             if (error) {
                 Text(
-                    "No se pudo guardar. Comprueba tu conexión e inténtalo de nuevo.",
+                    "Couldn't save. Check your connection and try again.",
                     color = Color(0xFFFB7185), fontSize = 12.sp, textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 4.dp),
                 )

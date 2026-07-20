@@ -139,6 +139,7 @@ private fun TwykApp() {
             Tab.Inbox -> InboxScreen(
                 onRequireAuth = { authOpen = true },
                 onAccepted = { feedReloadKey++ },
+                onBack = { tab = Tab.Home },
             )
             Tab.Battles -> BattlesScreen(
                 onRequireAuth = { authOpen = true },

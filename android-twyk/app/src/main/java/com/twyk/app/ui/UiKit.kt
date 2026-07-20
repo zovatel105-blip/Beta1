@@ -128,7 +128,7 @@ fun LoginPrompt(message: String, onRequireAuth: () -> Unit, icon: ImageVector = 
                 Icon(icon, null, tint = TwykGold, modifier = Modifier.size(36.dp))
             }
             Spacer(Modifier.height(22.dp))
-            Text("Inicia sesión", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
+            Text("Sign in", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(8.dp))
             Text(message, color = ZincText, fontSize = 15.sp, textAlign = TextAlign.Center)
             Spacer(Modifier.height(22.dp))
@@ -136,7 +136,7 @@ fun LoginPrompt(message: String, onRequireAuth: () -> Unit, icon: ImageVector = 
                 Modifier.clip(RoundedCornerShape(50)).background(Color.White)
                     .clickable { onRequireAuth() }.padding(horizontal = 32.dp, vertical = 12.dp),
             ) {
-                Text("Entrar", color = Color.Black, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                Text("Log in", color = Color.Black, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
             }
         }
     }

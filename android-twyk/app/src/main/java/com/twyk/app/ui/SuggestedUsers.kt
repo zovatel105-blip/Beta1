@@ -105,7 +105,7 @@ fun SuggestedUsersScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(Modifier.size(36.dp).clip(CircleShape).clickable { onClose() }, contentAlignment = Alignment.Center) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, "cerrar", tint = Color.White.copy(alpha = 0.85f), modifier = Modifier.size(20.dp))
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, "close", tint = Color.White.copy(alpha = 0.85f), modifier = Modifier.size(20.dp))
                 }
                 Spacer(Modifier.width(6.dp))
                 Column {

@@ -109,7 +109,7 @@ fun sharePost(context: Context, post: Post) {
         type = "text/plain"
         putExtra(Intent.EXTRA_TEXT, text)
     }
-    context.startActivity(Intent.createChooser(intent, "Compartir"))
+    context.startActivity(Intent.createChooser(intent, "Share"))
 }
 
 // ── Hoja de COMPARTIR — réplica de ShareModal.jsx: grid de 5 opciones (Send
@@ -245,9 +245,9 @@ fun CommentsSheet(postId: String, onClose: () -> Unit, onRequireAuth: () -> Unit
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 val n = comments.size
-                Text(if (n == 1) "1 Comentario" else "$n Comentarios", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+                Text(if (n == 1) "1 comment" else "$n comments", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
                 Box(Modifier.size(36.dp).clip(CircleShape).clickable { onClose() }, contentAlignment = Alignment.Center) {
-                    Icon(Icons.Filled.Close, "cerrar", tint = Color.White.copy(alpha = 0.6f), modifier = Modifier.size(20.dp))
+                    Icon(Icons.Filled.Close, "close", tint = Color.White.copy(alpha = 0.6f), modifier = Modifier.size(20.dp))
                 }
             }
             HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
@@ -258,9 +258,9 @@ fun CommentsSheet(postId: String, onClose: () -> Unit, onRequireAuth: () -> Unit
                         CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(26.dp))
                     }
                     comments.isEmpty() -> Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                        Text("Sin comentarios", color = Color.White.copy(alpha = 0.4f), fontSize = 14.sp)
+                        Text("No comments yet", color = Color.White.copy(alpha = 0.4f), fontSize = 14.sp)
                         Spacer(Modifier.height(4.dp))
-                        Text("Sé el primero en comentar", color = Color.White.copy(alpha = 0.25f), fontSize = 13.sp)
+                        Text("Be the first to comment", color = Color.White.copy(alpha = 0.25f), fontSize = 13.sp)
                     }
                     else -> {
                         val ordered = threadComments(comments)
@@ -304,10 +304,10 @@ fun CommentsSheet(postId: String, onClose: () -> Unit, onRequireAuth: () -> Unit
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        "Respondiendo a @${replyTarget?.author?.username ?: "usuario"}",
+                        "Replying to @${replyTarget?.author?.username ?: "user"}",
                         color = Color.White.copy(alpha = 0.55f), fontSize = 12.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f),
                     )
-                    Text("Cancelar", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.clickable { replyTarget = null })
+                    Text("Cancel", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.clickable { replyTarget = null })
                 }
             }
 
@@ -320,12 +320,12 @@ fun CommentsSheet(postId: String, onClose: () -> Unit, onRequireAuth: () -> Unit
                     Box(
                         Modifier.fillMaxWidth().clip(RoundedCornerShape(50)).background(Color.White).clickable { onRequireAuth() }.padding(vertical = 12.dp),
                         contentAlignment = Alignment.Center,
-                    ) { Text("Inicia sesión para comentar", color = Color.Black, fontSize = 14.sp, fontWeight = FontWeight.Medium) }
+                    ) { Text("Sign in to comment", color = Color.Black, fontSize = 14.sp, fontWeight = FontWeight.Medium) }
                 } else {
                     Box(
                         Modifier.weight(1f).clip(RoundedCornerShape(50)).background(Color.White.copy(alpha = 0.05f)).border(1.dp, Color.White.copy(alpha = 0.05f), RoundedCornerShape(50)).padding(horizontal = 16.dp, vertical = 12.dp),
                     ) {
-                        if (input.isEmpty()) Text(if (replyTarget != null) "Escribe una respuesta..." else "Escribe un comentario...", color = Color.White.copy(alpha = 0.3f), fontSize = 14.sp)
+                        if (input.isEmpty()) Text(if (replyTarget != null) "Write a reply..." else "Write a comment...", color = Color.White.copy(alpha = 0.3f), fontSize = 14.sp)
                         BasicTextField(value = input, onValueChange = { input = it }, textStyle = TextStyle(color = Color.White, fontSize = 14.sp), cursorBrush = SolidColor(Color.White), maxLines = 4, modifier = Modifier.fillMaxWidth())
                     }
                     Spacer(Modifier.width(8.dp))
@@ -346,7 +346,7 @@ fun CommentsSheet(postId: String, onClose: () -> Unit, onRequireAuth: () -> Unit
                         contentAlignment = Alignment.Center,
                     ) {
                         if (sending) CircularProgressIndicator(color = Color.Black, strokeWidth = 2.dp, modifier = Modifier.size(16.dp))
-                        else Icon(Icons.Filled.Send, "enviar", tint = if (canSend) Color.Black else Color.White.copy(alpha = 0.3f), modifier = Modifier.size(18.dp))
+                        else Icon(Icons.Filled.Send, "send", tint = if (canSend) Color.Black else Color.White.copy(alpha = 0.3f), modifier = Modifier.size(18.dp))
                     }
                 }
             }
@@ -454,7 +454,7 @@ private fun CommentRow(c: Comment, isReply: Boolean, onReply: () -> Unit, onDele
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(c.author?.username ?: "Usuario", color = Color.White.copy(alpha = 0.9f), fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                Text(c.author?.username ?: "User", color = Color.White.copy(alpha = 0.9f), fontSize = 13.sp, fontWeight = FontWeight.Medium)
                 if (showReplyTarget && c.replyToUsername != null) {
                     Icon(Icons.Filled.ChevronRight, null, tint = Color.White.copy(alpha = 0.35f), modifier = Modifier.size(13.dp))
                     Text(c.replyToUsername, color = Color.White.copy(alpha = 0.55f), fontSize = 13.sp, fontWeight = FontWeight.Medium)
@@ -470,12 +470,12 @@ private fun CommentRow(c: Comment, isReply: Boolean, onReply: () -> Unit, onDele
             if (Session.token != null) {
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     if (confirmingDelete) {
-                        Text("¿Eliminar?", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp)
+                        Text("Delete comment?", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp)
                         if (deleting) {
                             CircularProgressIndicator(color = Color(0xFFF87171), strokeWidth = 2.dp, modifier = Modifier.size(12.dp))
                         } else {
                             Text(
-                                "Sí", color = Color(0xFFF87171), fontSize = 12.sp, fontWeight = FontWeight.Bold,
+                                "Yes", color = Color(0xFFF87171), fontSize = 12.sp, fontWeight = FontWeight.Bold,
                                 modifier = Modifier.clickable {
                                     deleting = true
                                     scope.launch {
@@ -487,9 +487,9 @@ private fun CommentRow(c: Comment, isReply: Boolean, onReply: () -> Unit, onDele
                             Text("No", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp, modifier = Modifier.clickable { confirmingDelete = false })
                         }
                     } else {
-                        Text("Responder", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.clickable { onReply() })
+                        Text("Reply", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.clickable { onReply() })
                         if (c.canDelete) {
-                            Text("Eliminar", color = Color(0xFFF87171).copy(alpha = 0.85f), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.clickable { confirmingDelete = true })
+                            Text("Delete", color = Color(0xFFF87171).copy(alpha = 0.85f), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.clickable { confirmingDelete = true })
                         }
                     }
                 }
@@ -620,7 +620,7 @@ fun AuthSheet(onClose: () -> Unit, onAuthed: () -> Unit) {
                     }
                 } else {
                     Box(Modifier.align(Alignment.CenterStart).padding(start = 6.dp).size(36.dp).clip(CircleShape).clickable { goBack() }, contentAlignment = Alignment.Center) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "atrás", tint = Color(0xFF18181B), modifier = Modifier.size(22.dp))
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "back", tint = Color(0xFF18181B), modifier = Modifier.size(22.dp))
                     }
                 }
             }

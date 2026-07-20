@@ -123,12 +123,12 @@ fun MusicPickerSheet(onClose: () -> Unit, onSelect: (MusicTrack) -> Unit) {
                 Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("Añadir música", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+                Text("Add music", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
                 Box(
                     Modifier.size(32.dp).clip(CircleShape).clickable { runCatching { player.stop() }; playingId = null; onClose() },
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(Icons.Filled.Close, "cerrar", tint = Color.White.copy(alpha = 0.6f), modifier = Modifier.size(18.dp))
+                    Icon(Icons.Filled.Close, "close", tint = Color.White.copy(alpha = 0.6f), modifier = Modifier.size(18.dp))
                 }
             }
             Row(
@@ -139,7 +139,7 @@ fun MusicPickerSheet(onClose: () -> Unit, onSelect: (MusicTrack) -> Unit) {
             ) {
                 Icon(Icons.Filled.Search, null, tint = Color.White.copy(alpha = 0.4f), modifier = Modifier.size(16.dp))
                 Box(Modifier.weight(1f)) {
-                    if (query.isEmpty()) Text("Buscar canción o artista", color = Color.White.copy(alpha = 0.3f), fontSize = 14.sp)
+                    if (query.isEmpty()) Text("Search songs or artists", color = Color.White.copy(alpha = 0.3f), fontSize = 14.sp)
                     BasicTextField(
                         value = query, onValueChange = { query = it }, singleLine = true,
                         textStyle = TextStyle(color = Color.White, fontSize = 14.sp), cursorBrush = SolidColor(Color.White),
@@ -154,11 +154,11 @@ fun MusicPickerSheet(onClose: () -> Unit, onSelect: (MusicTrack) -> Unit) {
                         CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(24.dp))
                     }
                     query.isBlank() -> Text(
-                        "Busca una canción para añadirla a tu publicación", color = Color.White.copy(alpha = 0.4f), fontSize = 13.sp,
+                        "Search for a song to add it to your post", color = Color.White.copy(alpha = 0.4f), fontSize = 13.sp,
                         textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 40.dp, start = 32.dp, end = 32.dp),
                     )
                     results.isEmpty() -> Text(
-                        "Sin resultados para \"$query\"", color = Color.White.copy(alpha = 0.4f), fontSize = 13.sp,
+                        "No results for \"$query\"", color = Color.White.copy(alpha = 0.4f), fontSize = 13.sp,
                         modifier = Modifier.fillMaxWidth().padding(top = 40.dp), textAlign = TextAlign.Center,
                     )
                     else -> LazyColumn(
@@ -196,7 +196,7 @@ private fun MusicRow(t: MusicTrack, isPlaying: Boolean, onTogglePreview: () -> U
         }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            Text(t.title ?: "Sin título", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(t.title ?: "Untitled", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(t.artist ?: "", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         // Reproducir/pausar preview de 30s (réplica del botón Play/Pause de
@@ -210,7 +210,7 @@ private fun MusicRow(t: MusicTrack, isPlaying: Boolean, onTogglePreview: () -> U
             ) {
                 Icon(
                     if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                    if (isPlaying) "pausar" else "reproducir",
+                    if (isPlaying) "pause" else "play",
                     tint = Color.White, modifier = Modifier.size(16.dp),
                 )
             }

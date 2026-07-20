@@ -126,10 +126,10 @@ fun EditProfileScreen(
                 if (res.ok && res.user != null) {
                     onSaved(res.user)
                 } else {
-                    error = "No se pudo guardar. Inténtalo de nuevo."
+                    error = "Couldn't save. Please try again."
                 }
             } catch (e: Exception) {
-                error = "No se pudo guardar. Inténtalo de nuevo."
+                error = "Couldn't save. Please try again."
             } finally {
                 saving = false
             }

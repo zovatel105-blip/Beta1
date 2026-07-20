@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
@@ -64,11 +65,11 @@ import kotlinx.coroutines.launch
 private data class NotiFilter(val key: String, val label: String, val types: List<String>?)
 
 private val NOTI_FILTERS = listOf(
-    NotiFilter("all", "Todo", null),
-    NotiFilter("challenge", "Retos", listOf("challenge", "accepted")),
-    NotiFilter("vote", "Votos", listOf("vote")),
-    NotiFilter("follow", "Seguidores", listOf("follow")),
-    NotiFilter("comment", "Comentarios", listOf("comment", "reply")),
+    NotiFilter("all", "All", null),
+    NotiFilter("challenge", "Challenges", listOf("challenge", "accepted")),
+    NotiFilter("vote", "Votes", listOf("vote")),
+    NotiFilter("follow", "Followers", listOf("follow")),
+    NotiFilter("comment", "Comments", listOf("comment", "reply")),
 )
 
 // Solo las notificaciones de comentario/respuesta con post+comentario
@@ -78,9 +79,9 @@ private fun isReplyable(n: NotificationItem) =
 
 // BUZÓN / NOTIFICACIONES — réplica de NotificationsInbox.jsx.
 @Composable
-fun InboxScreen(onRequireAuth: () -> Unit, onAccepted: () -> Unit) {
+fun InboxScreen(onRequireAuth: () -> Unit, onAccepted: () -> Unit, onBack: () -> Unit = {}) {
     if (Session.token == null) {
-        LoginPrompt("Necesitas iniciar sesión para ver tus notificaciones", onRequireAuth)
+        LoginPrompt("Sign in to view your notifications", onRequireAuth)
         return
     }
 
@@ -139,10 +140,14 @@ fun InboxScreen(onRequireAuth: () -> Unit, onAccepted: () -> Unit) {
         Column(Modifier.fillMaxSize().statusBarsPadding()) {
             // Header
             Row(
-                Modifier.fillMaxWidth().padding(start = 14.dp, end = 8.dp, top = 8.dp, bottom = 10.dp),
+                Modifier.fillMaxWidth().padding(start = 4.dp, end = 8.dp, top = 8.dp, bottom = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("Notificaciones", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                Box(Modifier.size(36.dp).clip(CircleShape).clickable { onBack() }, contentAlignment = Alignment.Center) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = Color.White, modifier = Modifier.size(22.dp))
+                }
+                Spacer(Modifier.width(2.dp))
+                Text("Notifications", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                 if (hasUnread) {
                     Box(
                         Modifier.clip(RoundedCornerShape(50)).clickable {
@@ -150,7 +155,7 @@ fun InboxScreen(onRequireAuth: () -> Unit, onAccepted: () -> Unit) {
                             scope.launch { runCatching { RetrofitProvider.api.markNotificationsRead(MarkReadRequest(all = true)) } }
                         }.padding(horizontal = 10.dp, vertical = 6.dp),
                     ) {
-                        Text("Marcar leídas", color = ZincText, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                        Text("Mark as read", color = ZincText, fontSize = 13.sp, fontWeight = FontWeight.Medium)
                     }
                 }
             }
@@ -253,7 +258,7 @@ private fun NotificationCard(
             Column(Modifier.weight(1f)) {
                 Text(
                     buildAnnotatedString {
-                        withStyle(SpanStyle(fontWeight = FontWeight.SemiBold, color = Color.White)) { append("@${n.user?.username ?: "usuario"}") }
+                        withStyle(SpanStyle(fontWeight = FontWeight.SemiBold, color = Color.White)) { append("@${n.user?.username ?: "user"}") }
                         append("  ")
                         withStyle(SpanStyle(color = Color(0xFFD4D4D8))) { append(n.text ?: "") }
                     },
@@ -266,7 +271,7 @@ private fun NotificationCard(
                     if (isReplyable(n) && !replying) {
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            if (replied) "Respuesta enviada ✓" else "Responder",
+                            if (replied) "Reply sent ✓" else "Reply",
                             color = Color(0xFF9F9FA8), fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
                             modifier = Modifier.clickable { onStartReply() },
                         )
@@ -290,7 +295,7 @@ private fun NotificationCard(
                         .padding(horizontal = 14.dp),
                     contentAlignment = Alignment.CenterStart,
                 ) {
-                    if (replyText.isEmpty()) Text("Responder a @${n.user?.username ?: "usuario"}…", color = Color(0xFF71717A), fontSize = 13.sp)
+                    if (replyText.isEmpty()) Text("Reply to @${n.user?.username ?: "user"}…", color = Color(0xFF71717A), fontSize = 13.sp)
                     BasicTextField(
                         value = replyText,
                         onValueChange = onReplyTextChange,
@@ -313,7 +318,7 @@ private fun NotificationCard(
                 }
                 Spacer(Modifier.width(6.dp))
                 Text(
-                    "Cancelar", color = Color(0xFF71717A), fontSize = 12.sp,
+                    "Cancel", color = Color(0xFF71717A), fontSize = 12.sp,
                     modifier = Modifier.clickable(enabled = !replySubmitting) { onCancelReply() },
                 )
             }
@@ -348,10 +353,10 @@ private fun NotiEmpty(filter: String, label: String) {
             Icon(Icons.Outlined.Notifications, null, tint = TwykGold, modifier = Modifier.size(36.dp))
         }
         Spacer(Modifier.height(22.dp))
-        Text(if (filter == "all") "Sin notificaciones" else "Nada por aquí", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
+        Text(if (filter == "all") "No notifications" else "Nothing here yet", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(8.dp))
         Text(
-            if (filter == "all") "Cuando haya actividad en tus retos, aparecerá aquí." else "No tienes notificaciones de tipo \"$label\".",
+            if (filter == "all") "When there's activity on your challenges, it will appear here." else "You don't have any \"$label\" notifications.",
             color = ZincText, fontSize = 15.sp,
             modifier = Modifier.fillMaxWidth(),
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,

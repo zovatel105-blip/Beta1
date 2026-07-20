@@ -90,7 +90,7 @@ import java.util.UUID
 @Composable
 fun UploadScreen(onRequireAuth: () -> Unit, onDone: () -> Unit) {
     if (Session.token == null) {
-        LoginPrompt("Inicia sesión para publicar", onRequireAuth, Icons.Filled.Movie)
+        LoginPrompt("Sign in to post", onRequireAuth, Icons.Filled.Movie)
         return
     }
 
@@ -121,13 +121,13 @@ fun UploadScreen(onRequireAuth: () -> Unit, onDone: () -> Unit) {
         val kind = mediaKindOf(context, uri)
         val otherKind = if (isSideA) mediaKindB else mediaKindA
         if (mode != "challenge" && otherKind != null && kind != otherKind) {
-            error = "Ambos lados deben ser del mismo tipo: 2 vídeos o 2 fotos."
+            error = "Both sides must be the same type: 2 videos or 2 photos."
             return
         }
         val maxBytes = if (kind == "image") MAX_IMAGE_BYTES else MAX_VIDEO_BYTES
         val size = fileSizeOf(context, uri)
         if (size > 0 && size > maxBytes) {
-            error = if (kind == "image") "La foto no puede superar 15MB." else "El vídeo no puede superar 80MB."
+            error = if (kind == "image") "Photo can't exceed 15MB." else "Video can't exceed 80MB."
             return
         }
         error = null
@@ -150,12 +150,12 @@ fun UploadScreen(onRequireAuth: () -> Unit, onDone: () -> Unit) {
         error = null
         scope.launch {
             try {
-                val a = uriA ?: throw IllegalStateException("Falta vídeo")
+                val a = uriA ?: throw IllegalStateException("Missing video")
                 val queueId = UUID.randomUUID().toString()
                 val descFinal = when (mode) {
-                    "duet" -> description.ifBlank { "¿Quién gana? 🥊 #1vs1" }
+                    "duet" -> description.ifBlank { "Who wins? 🥊 #1vs1" }
                     "challenge" -> description
-                    else -> description.ifBlank { "¿Cuál prefieres? 🅰️🆚🅱️" }
+                    else -> description.ifBlank { "Which do you prefer? 🅰️🆚🅱️" }
                 }
                 val dataBuilder = Data.Builder()
                     .putString(UploadWorker.KEY_QUEUE_ID, queueId)
@@ -173,13 +173,13 @@ fun UploadScreen(onRequireAuth: () -> Unit, onDone: () -> Unit) {
                     }
                     when (mode) {
                         "challenge" -> {
-                            val tgt = target ?: throw IllegalStateException("Sin objetivo")
+                            val tgt = target ?: throw IllegalStateException("No target")
                             dataBuilder.putString(UploadWorker.KEY_TARGET_USERNAME, tgt.username ?: "")
                             dataBuilder.putString(UploadWorker.KEY_TARGET_NAME, tgt.name ?: tgt.username ?: "")
                             dataBuilder.putString(UploadWorker.KEY_TARGET_AVATAR, tgt.avatarUrl ?: "")
                         }
                         else -> {
-                            val b = uriB ?: throw IllegalStateException("Falta vídeo B")
+                            val b = uriB ?: throw IllegalStateException("Missing video B")
                             dataBuilder.putString(UploadWorker.KEY_FILE_B, persistPickedFile(context, "b", b).absolutePath)
                             if (mode == "duet") dataBuilder.putString(UploadWorker.KEY_LAYOUT, layout)
                         }
@@ -197,16 +197,16 @@ fun UploadScreen(onRequireAuth: () -> Unit, onDone: () -> Unit) {
 
                 onDone()
             } catch (e: Exception) {
-                error = "Error al subir. Revisa tu sesión y los vídeos."
+                error = "Upload failed. Check your session and videos."
             }
         }
     }
 
     val title = when (step) {
-        "mode" -> "Crear contenido"
-        "target" -> "Elige a quién retar"
-        "file" -> if (mode == "versus") "Tus 2 vídeos" else if (mode == "challenge") "Tu vídeo del reto" else "Tu 1vs1"
-        else -> if (mode == "challenge") "Enviando reto" else "Subiendo"
+        "mode" -> "Create content"
+        "target" -> "Choose who to challenge"
+        "file" -> if (mode == "versus") "Your 2 videos" else if (mode == "challenge") "Your challenge" else "Your 1vs1"
+        else -> if (mode == "challenge") "Sending challenge" else "Uploading"
     }
 
     Box(Modifier.fillMaxSize().background(TwykBg)) {
@@ -217,14 +217,14 @@ fun UploadScreen(onRequireAuth: () -> Unit, onDone: () -> Unit) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (step == "file" || step == "target") {
                     Box(Modifier.size(36.dp).clip(CircleShape).clickable { step = if (step == "target") "file" else "mode" }, contentAlignment = Alignment.Center) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "atrás", tint = Color.White, modifier = Modifier.size(20.dp))
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "back", tint = Color.White, modifier = Modifier.size(20.dp))
                     }
                 } else {
                     Spacer(Modifier.width(6.dp))
                 }
                 Text(title, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f).padding(start = 4.dp))
                 Box(Modifier.size(36.dp).clip(CircleShape).clickable { onDone() }, contentAlignment = Alignment.Center) {
-                    Icon(Icons.Filled.Close, "cerrar", tint = ZincText, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Filled.Close, "close", tint = ZincText, modifier = Modifier.size(20.dp))
                 }
             }
 
@@ -244,7 +244,7 @@ fun UploadScreen(onRequireAuth: () -> Unit, onDone: () -> Unit) {
                     error = error,
                     onPickA = { pickA.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)) },
                     onPickB = { pickB.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)) },
-                    onPublish = { if (mode == "challenge") { if (uriA != null) step = "target" else error = "Sube tu vídeo o foto del reto" } else doUpload(null) },
+                    onPublish = { if (mode == "challenge") { if (uriA != null) step = "target" else error = "Upload your challenge video or photo" } else doUpload(null) },
                 )
                 "target" -> TargetStep(
                     users = users,
@@ -299,16 +299,16 @@ private fun ModeStep(selected: String, onSelect: (String) -> Unit, onContinue: (
             Spacer(Modifier.height(28.dp))
             Text(
                 when (selected) {
-                    "versus" -> "Sube 2 vídeos o 2 fotos (A y B) y deja que la gente vote deslizando entre ellos."
-                    "duet" -> "Sube 2 vídeos o 2 fotos (A y B) con el formato que elijas y deja que la gente vote quién gana."
-                    else -> "Sube tu vídeo o foto y reta a un creador. Aparecerá en sus retos activos para que lo acepte."
+                    "versus" -> "Upload 2 videos or 2 photos (A and B) and let people vote by swiping between them."
+                    "duet" -> "Upload 2 videos or 2 photos (A and B) in the format you choose and let people vote who wins."
+                    else -> "Upload your video or photo and challenge a creator. It will appear in their active challenges for them to accept."
                 },
                 color = ZincText, fontSize = 15.sp, textAlign = TextAlign.Center,
             )
             Spacer(Modifier.height(40.dp))
             if (selected == "challenge") {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    MiniTile("TÚ", strong = true)
+                    MiniTile("YOU", strong = true)
                     Text("VS", color = Color.White.copy(alpha = 0.6f), fontSize = 16.sp, fontWeight = FontWeight.Black)
                     MiniTile("RIVAL", strong = false)
                 }
@@ -328,7 +328,7 @@ private fun ModeStep(selected: String, onSelect: (String) -> Unit, onContinue: (
             contentAlignment = Alignment.Center,
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("Continuar", color = Color.Black, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                Text("Continue", color = Color.Black, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                 Icon(Icons.Filled.ChevronRight, null, tint = Color.Black, modifier = Modifier.size(20.dp))
             }
         }
@@ -385,11 +385,11 @@ private fun FileStep(
         }
 
         if (mode == "challenge") {
-            VideoSlot("Tu vídeo", uriA != null, Modifier.fillMaxWidth().aspectRatio(1.2f), onPickA)
+            VideoSlot("your video", uriA != null, Modifier.fillMaxWidth().aspectRatio(1.2f), onPickA)
         } else {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                VideoSlot("Vídeo A", uriA != null, Modifier.weight(1f).aspectRatio(0.62f), onPickA)
-                VideoSlot("Vídeo B", uriB != null, Modifier.weight(1f).aspectRatio(0.62f), onPickB)
+                VideoSlot("Video A", uriA != null, Modifier.weight(1f).aspectRatio(0.62f), onPickA)
+                VideoSlot("Video B", uriB != null, Modifier.weight(1f).aspectRatio(0.62f), onPickB)
             }
         }
 
@@ -399,7 +399,7 @@ private fun FileStep(
         ) {
             if (description.isEmpty()) {
                 Text(
-                    when (mode) { "duet" -> "¿Quién gana? 🥊 #1vs1"; "challenge" -> "Reto 🔥 ¿Aceptas?"; else -> "¿Cuál prefieres? 🅰️🆚🅱️" },
+                    when (mode) { "duet" -> "Who wins? 🥊 #1vs1"; "challenge" -> "Challenge 🔥 Do you accept?"; else -> "Which do you prefer? 🅰️🆚🅱️" },
                     color = ZincText, fontSize = 15.sp,
                 )
             }
@@ -425,7 +425,7 @@ private fun FileStep(
             contentAlignment = Alignment.Center,
         ) {
             Text(
-                when (mode) { "duet" -> "Publicar 1vs1"; "challenge" -> "Elegir a quién retar"; else -> "Publicar versus" },
+                when (mode) { "duet" -> "Publish 1vs1"; "challenge" -> "Choose who to challenge"; else -> "Publish versus" },
                 color = if (enabled) Color.Black else Color.White.copy(alpha = 0.40f), fontSize = 16.sp, fontWeight = FontWeight.Bold,
             )
         }
@@ -445,7 +445,7 @@ private fun MusicRowPicker(music: MusicTrack?, onPick: () -> Unit, onRemove: () 
         if (music == null) {
             Icon(Icons.Filled.MusicNote, null, tint = TwykGold, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(10.dp))
-            Text("Añadir música", color = ZincText, fontSize = 14.sp, modifier = Modifier.weight(1f))
+            Text("Add music", color = ZincText, fontSize = 14.sp, modifier = Modifier.weight(1f))
             Icon(Icons.Filled.ChevronRight, null, tint = Color.White.copy(alpha = 0.3f), modifier = Modifier.size(18.dp))
         } else {
             Box(Modifier.size(32.dp).clip(RoundedCornerShape(6.dp)).background(Color.White.copy(alpha = 0.06f)), contentAlignment = Alignment.Center) {
@@ -457,11 +457,11 @@ private fun MusicRowPicker(music: MusicTrack?, onPick: () -> Unit, onRemove: () 
             }
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
-                Text(music.title ?: "Canción", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(music.title ?: "Song", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(music.artist ?: "", color = ZincText, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Box(Modifier.size(28.dp).clip(CircleShape).clickable { onRemove() }, contentAlignment = Alignment.Center) {
-                Icon(Icons.Filled.Close, "quitar música", tint = Color.White.copy(alpha = 0.6f), modifier = Modifier.size(16.dp))
+                Icon(Icons.Filled.Close, "remove music", tint = Color.White.copy(alpha = 0.6f), modifier = Modifier.size(16.dp))
             }
         }
     }
@@ -485,10 +485,10 @@ private fun VideoSlot(label: String, selected: Boolean, modifier: Modifier, onCl
                 else Icon(Icons.Filled.Movie, null, tint = Color(0xFFD4D4D8), modifier = Modifier.size(22.dp))
             }
             Spacer(Modifier.height(8.dp))
-            Text(if (selected) "$label listo" else "Subir $label", color = if (selected) Color.White else Color(0xFFD4D4D8), fontSize = 13.sp, fontWeight = FontWeight.Medium)
+            Text(if (selected) "$label ready" else "Upload $label", color = if (selected) Color.White else Color(0xFFD4D4D8), fontSize = 13.sp, fontWeight = FontWeight.Medium)
             if (!selected) {
                 Spacer(Modifier.height(2.dp))
-                Text("Vídeo o foto · máx 80MB / 15MB", color = Color(0xFF71717A), fontSize = 10.sp)
+                Text("Video or photo · max 80MB / 15MB", color = Color(0xFF71717A), fontSize = 10.sp)
             }
         }
     }
@@ -509,16 +509,16 @@ private fun TargetStep(
     }
 
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
-        Text("Elige a quién retar. Le aparecerá en sus retos activos para aceptar.", color = Color(0xFF71717A), fontSize = 13.sp)
+        Text("Choose who to challenge. It will appear in their active challenges to accept.", color = Color(0xFF71717A), fontSize = 13.sp)
         Spacer(Modifier.height(14.dp))
-        // Buscador
+        // Search bar
         Row(
             Modifier.fillMaxWidth().height(44.dp).clip(RoundedCornerShape(50)).background(Color.White.copy(alpha = 0.04f)).border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(50)).padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Icon(Icons.Filled.Search, null, tint = Color(0xFF71717A), modifier = Modifier.size(16.dp))
             Box(Modifier.weight(1f)) {
-                if (query.isEmpty()) Text("Buscar por nombre o @usuario", color = Color(0xFF71717A), fontSize = 14.sp)
+                if (query.isEmpty()) Text("Search user by name or @username", color = Color(0xFF71717A), fontSize = 14.sp)
                 BasicTextField(value = query, onValueChange = onQuery, singleLine = true, textStyle = TextStyle(color = Color.White, fontSize = 14.sp), cursorBrush = SolidColor(Color.White), modifier = Modifier.fillMaxWidth())
             }
         }
@@ -532,11 +532,11 @@ private fun TargetStep(
                     Icon(Icons.Filled.People, null, tint = Color(0xFF71717A), modifier = Modifier.size(24.dp))
                 }
                 Spacer(Modifier.height(14.dp))
-                Text("Aún no hay usuarios para retar", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                Text("No users to challenge yet", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.height(4.dp))
-                Text("Cuando se registren más creadores, aparecerán aquí.", color = Color(0xFF71717A), fontSize = 13.sp, textAlign = TextAlign.Center)
+                Text("When more creators sign up, they'll appear here.", color = Color(0xFF71717A), fontSize = 13.sp, textAlign = TextAlign.Center)
             }
-            filtered.isEmpty() -> Text("Sin resultados para \"$query\".", color = ZincText, fontSize = 14.sp, modifier = Modifier.padding(top = 24.dp))
+            filtered.isEmpty() -> Text("No results for \"$query\".", color = ZincText, fontSize = 14.sp, modifier = Modifier.padding(top = 24.dp))
             else -> LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                 items(filtered) { u -> UserRow(u) { onPick(u) } }
             }
@@ -553,7 +553,7 @@ private fun UserRow(u: User, onPick: () -> Unit) {
         TwykAvatar(u.avatarUrl, Modifier.size(44.dp).border(1.dp, Color.White.copy(alpha = 0.10f), CircleShape))
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            Text(u.name ?: u.username ?: "usuario", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(u.name ?: u.username ?: "user", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text("@" + (u.username ?: ""), color = Color(0xFF71717A), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         Row(
@@ -561,7 +561,7 @@ private fun UserRow(u: User, onPick: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp),
         ) {
             Icon(ImageVector.vectorResource(R.drawable.ic_swords), null, tint = Color.Black, modifier = Modifier.size(13.dp))
-            Text("Retar", color = Color.Black, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            Text("Challenge", color = Color.Black, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
         }
     }
 }
@@ -575,7 +575,7 @@ private fun UploadingStep(mode: String) {
         ) { CircularProgressIndicator(color = TwykGold, strokeWidth = 3.dp, modifier = Modifier.size(28.dp)) }
         Spacer(Modifier.height(20.dp))
         Text(
-            when (mode) { "challenge" -> "Enviando tu reto…"; "duet" -> "Creando tu 1vs1…"; else -> "Subiendo tu versus…" },
+            when (mode) { "challenge" -> "Sending your challenge…"; "duet" -> "Creating your 1vs1…"; else -> "Uploading your versus…" },
             color = ZincText, fontSize = 14.sp,
         )
     }
@@ -624,4 +624,6 @@ fun persistPickedFile(context: Context, prefix: String, uri: Uri): File {
     val file = File(dir, "twyk_${prefix}_${System.currentTimeMillis()}_${(0..9999).random()}.$ext")
     file.outputStream().use { out -> input.use { it.copyTo(out) } }
     return file
+}
+
 }

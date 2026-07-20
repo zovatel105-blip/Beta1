@@ -91,7 +91,7 @@ fun ProfileScreen(
     val target = username ?: Session.user?.username
 
     if (target == null) {
-        LoginPrompt("Inicia sesión para ver tu perfil", onRequireAuth)
+        LoginPrompt("Sign in to view your profile", onRequireAuth)
         return
     }
 
@@ -187,9 +187,9 @@ fun ProfileScreen(
     val onShare: () -> Unit = {
         val i = Intent(Intent.ACTION_SEND).apply {
             type = "text/plain"
-            putExtra(Intent.EXTRA_TEXT, "@$target en Twyk\n${Config.BASE_URL}")
+            putExtra(Intent.EXTRA_TEXT, "@$target on Twyk\n${Config.BASE_URL}")
         }
-        context.startActivity(Intent.createChooser(i, "Compartir"))
+        context.startActivity(Intent.createChooser(i, "Share"))
     }
 
     // ── Header colapsable estilo TikTok ────────────────────────────────────────
@@ -245,7 +245,7 @@ fun ProfileScreen(
                         }
                     }
                     posts.isEmpty() && !(isOwn && UploadQueue.items.isNotEmpty()) -> item(span = { GridItemSpan(maxLineSpan) }) {
-                        EmptyTab(title = "Aún no hay publicaciones", desc = if (isOwn) "Empieza a crear contenido" else "Este usuario aún no ha publicado")
+                        EmptyTab(title = "No posts yet", desc = if (isOwn) "Start creating content" else "This user hasn't posted yet")
                     }
                     else -> itemsIndexed(posts) { idx, p -> ProfileGridItem(p) { viewerList = posts; viewerIndex = idx } }
                 }
@@ -257,13 +257,13 @@ fun ProfileScreen(
                         }
                     }
                     savedPosts.isEmpty() -> item(span = { GridItemSpan(maxLineSpan) }) {
-                        EmptyTab(title = "No hay guardados", desc = "Guarda vídeos para verlos luego", bookmark = true)
+                        EmptyTab(title = "No saved posts", desc = "Save videos to watch them later", bookmark = true)
                     }
                     else -> itemsIndexed(savedPosts) { idx, p -> ProfileGridItem(p) { viewerList = savedPosts; viewerIndex = idx } }
                 }
             } else {
                 item(span = { GridItemSpan(maxLineSpan) }) {
-                    EmptyTab(title = "No hay enlaces", desc = "Añade tus enlaces aquí", link = true)
+                    EmptyTab(title = "No links", desc = "Add your links here", link = true)
                 }
             }
         }
@@ -392,7 +392,7 @@ private fun CollapsedTopBar(
     onEditProfile: () -> Unit,
     onOpenMenu: () -> Unit,
 ) {
-    val name = profile?.name?.takeIf { it.isNotBlank() } ?: profile?.username ?: "Usuario"
+    val name = profile?.name?.takeIf { it.isNotBlank() } ?: profile?.username ?: "User"
     val actionsEnabled = progress > 0.5f
 
     Box(
@@ -405,7 +405,7 @@ private fun CollapsedTopBar(
         ) {
             if (isOverlay && !isOwn) {
                 Box(Modifier.size(40.dp).clip(CircleShape).clickable { onClose() }, contentAlignment = Alignment.Center) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, "atrás", tint = Color.White, modifier = Modifier.size(24.dp))
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, "back", tint = Color.White, modifier = Modifier.size(24.dp))
                 }
             } else {
                 Spacer(Modifier.size(40.dp))
@@ -442,7 +442,7 @@ private fun CollapsedTopBar(
 
             if (isOwn) {
                 Box(Modifier.size(40.dp).clip(CircleShape).clickable { onOpenMenu() }, contentAlignment = Alignment.Center) {
-                    Icon(Icons.Filled.Menu, "menú", tint = Color.White, modifier = Modifier.size(24.dp))
+                    Icon(Icons.Filled.Menu, "menu", tint = Color.White, modifier = Modifier.size(24.dp))
                 }
             } else {
                 Spacer(Modifier.size(40.dp))
@@ -489,8 +489,8 @@ private fun ProfileHeaderSection(
     onEditProfile: () -> Unit,
     onOpenFollowList: (String) -> Unit,
 ) {
-    val name = profile?.name?.takeIf { it.isNotBlank() } ?: profile?.username ?: "Usuario"
-    val handle = "@" + (profile?.username ?: "usuario")
+    val name = profile?.name?.takeIf { it.isNotBlank() } ?: profile?.username ?: "User"
+    val handle = "@" + (profile?.username ?: "user")
 
     Column(Modifier.fillMaxWidth().statusBarsPadding()) {
         // Espacio reservado para la barra superior FIJA (ver CollapsedTopBar,
@@ -503,18 +503,19 @@ private fun ProfileHeaderSection(
             Modifier.fillMaxWidth().widthIn(max = 380.dp).padding(horizontal = 20.dp).height(196.dp),
         ) {
             Row(Modifier.fillMaxWidth().align(Alignment.TopCenter), horizontalArrangement = Arrangement.SpaceBetween) {
-                StatItem(drawable = R.drawable.ic_vote, value = formatCount(votos), label = "Votos", iconSize = 34.dp)
-                StatItem(drawable = R.drawable.ic_swords, value = formatCount(retos), label = "Retos", iconSize = 28.dp, alignEnd = true)
+                StatItem(drawable = R.drawable.ic_vote, value = formatCount(votos), label = "Votes", iconSize = 36.dp)
+                StatItem(drawable = R.drawable.ic_swords, value = formatCount(retos), label = "Challenges", iconSize = 28.dp, alignEnd = true)
             }
-            // Avatar centro con anillo degradado
-            Box(Modifier.align(Alignment.Center).size(104.dp).clip(CircleShape).background(Brush.linearGradient(listOf(Color.White.copy(alpha = 0.15f), Color.White.copy(alpha = 0.03f)))).padding(3.dp)) {
-                Box(Modifier.fillMaxSize().clip(CircleShape).border(2.dp, Color.White.copy(alpha = 0.10f), CircleShape).background(Color(0xFF18181B))) {
-                    TwykAvatar(profile?.avatarUrl, Modifier.fillMaxSize())
-                }
+            // Avatar centro (sin halo/degradado, igual que la web: círculo plano
+            // con fondo zinc-900 y sombra sutil).
+            Box(
+                Modifier.align(Alignment.Center).size(104.dp).clip(CircleShape).background(Color(0xFF18181B)),
+            ) {
+                TwykAvatar(profile?.avatarUrl, Modifier.fillMaxSize())
             }
             Row(Modifier.fillMaxWidth().align(Alignment.BottomCenter), horizontalArrangement = Arrangement.SpaceBetween) {
-                StatItem(icon = Icons.Outlined.People, value = formatCount(followers), label = "Followers", iconSize = 26.dp, onClick = { onOpenFollowList("followers") })
-                StatItem(icon = Icons.Outlined.PersonAdd, value = formatCount(profile?.following ?: 0), label = "Following", iconSize = 26.dp, alignEnd = true, onClick = { onOpenFollowList("following") })
+                StatItem(icon = Icons.Outlined.People, value = formatCount(followers), label = "Followers", iconSize = 28.dp, onClick = { onOpenFollowList("followers") })
+                StatItem(icon = Icons.Outlined.PersonAdd, value = formatCount(profile?.following ?: 0), label = "Following", iconSize = 28.dp, alignEnd = true, onClick = { onOpenFollowList("following") })
             }
         }
 
@@ -539,35 +540,38 @@ private fun ProfileHeaderSection(
         Spacer(Modifier.height(18.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
             if (isOwn) {
-                PillButton("Editar perfil", filled = true, onClick = onEditProfile)
+                PillButton("Edit profile", filled = true, onClick = onEditProfile)
                 Spacer(Modifier.width(8.dp))
-                PillButton("Compartir", filled = false, onClick = onShare)
+                PillButton("Share", filled = false, onClick = onShare)
             } else {
-                PillButton(if (following) "Siguiendo" else "Seguir", filled = !following, enabled = !followBusy, onClick = onFollow)
+                PillButton(if (following) "Following" else "Follow", filled = !following, enabled = !followBusy, onClick = onFollow)
                 Spacer(Modifier.width(8.dp))
-                PillButton("Retar", filled = false, leadingDrawable = R.drawable.ic_swords) { }
+                PillButton("Challenge", filled = false, leadingDrawable = R.drawable.ic_swords) { }
             }
         }
 
-        // ── Pestañas ──
+        // ── Tabs — active: transparent bg + white border (matches web exactly:
+        // `bg-transparent border border-white`); inactive: black bg + faint
+        // border (web: `bg-black border-white/[0.07]`). Each tab owns its own
+        // background/border (no shared wrapper pill), height 32dp = web h-8.
         Spacer(Modifier.height(26.dp))
         val tabs = if (isOwn) listOf("polls", "saved", "links") else listOf("polls")
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 2.dp).clip(RoundedCornerShape(12.dp))
-                .background(Color.White.copy(alpha = 0.03f))
-                .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
-                .padding(2.dp),
-            horizontalArrangement = Arrangement.spacedBy(2.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 2.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             tabs.forEach { key ->
                 val active = activeTab == key
                 Box(
-                    Modifier.weight(1f).height(36.dp).clip(RoundedCornerShape(8.dp))
-                        .background(if (active) Color.White else Color.Transparent)
+                    Modifier.weight(1f).height(32.dp).clip(RoundedCornerShape(8.dp))
+                        .then(
+                            if (active) Modifier.background(Color.Transparent).border(1.dp, Color.White, RoundedCornerShape(8.dp))
+                            else Modifier.background(Color.Black).border(1.dp, Color.White.copy(alpha = 0.07f), RoundedCornerShape(8.dp)),
+                        )
                         .clickable { onTab(key) },
                     contentAlignment = Alignment.Center,
                 ) {
-                    val tint = if (active) Color.Black else Color(0xFF71717A)
+                    val tint = if (active) Color.White else ZincText
                     when (key) {
                         "polls" -> ColumnsIcon(Modifier.size(20.dp), tint)
                         "saved" -> Icon(if (active) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder, null, tint = tint, modifier = Modifier.size(20.dp))

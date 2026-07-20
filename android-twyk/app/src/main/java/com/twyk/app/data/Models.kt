@@ -32,6 +32,7 @@ data class Stats(
     val comments: Int = 0,
     val shares: Int = 0,
     val saves: Int = 0,
+    val challenges: Int = 0,
 )
 
 data class Post(

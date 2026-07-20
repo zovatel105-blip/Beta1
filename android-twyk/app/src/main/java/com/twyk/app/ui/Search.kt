@@ -85,7 +85,7 @@ fun SearchScreen(onClose: () -> Unit, onOpenProfile: (String) -> Unit) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(Modifier.size(36.dp).clip(CircleShape).clickable { onClose() }, contentAlignment = Alignment.Center) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, "cerrar búsqueda", tint = Color.White.copy(alpha = 0.85f), modifier = Modifier.size(20.dp))
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, "close search", tint = Color.White.copy(alpha = 0.85f), modifier = Modifier.size(20.dp))
                 }
                 Spacer(Modifier.width(6.dp))
                 Row(
@@ -95,7 +95,7 @@ fun SearchScreen(onClose: () -> Unit, onOpenProfile: (String) -> Unit) {
                     Icon(Icons.Filled.Search, null, tint = Color.White.copy(alpha = 0.5f), modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
                     Box(Modifier.weight(1f)) {
-                        if (query.isEmpty()) Text("Buscar usuarios", color = Color.White.copy(alpha = 0.4f), fontSize = 15.sp)
+                        if (query.isEmpty()) Text("Search users", color = Color.White.copy(alpha = 0.4f), fontSize = 15.sp)
                         BasicTextField(
                             value = query,
                             onValueChange = { query = it },
@@ -111,7 +111,7 @@ fun SearchScreen(onClose: () -> Unit, onOpenProfile: (String) -> Unit) {
                                 .clickable { query = "" },
                             contentAlignment = Alignment.Center,
                         ) {
-                            Icon(Icons.Filled.Close, "borrar", tint = Color.White.copy(alpha = 0.8f), modifier = Modifier.size(12.dp))
+                            Icon(Icons.Filled.Close, "clear", tint = Color.White.copy(alpha = 0.8f), modifier = Modifier.size(12.dp))
                         }
                     }
                 }
@@ -119,7 +119,7 @@ fun SearchScreen(onClose: () -> Unit, onOpenProfile: (String) -> Unit) {
 
             // ── Resultados ──
             if (query.isBlank()) {
-                Text("Sugerencias", color = Color.White.copy(alpha = 0.4f), fontSize = 13.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 2.dp))
+                Text("Suggestions", color = Color.White.copy(alpha = 0.4f), fontSize = 13.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 2.dp))
             }
             when {
                 loading && results.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -134,12 +134,12 @@ fun SearchScreen(onClose: () -> Unit, onOpenProfile: (String) -> Unit) {
                     }
                     Spacer(Modifier.height(12.dp))
                     Text(
-                        if (query.isNotBlank()) "Sin resultados" else "No hay usuarios todavía",
+                        if (query.isNotBlank()) "No results" else "No users yet",
                         color = Color.White.copy(alpha = 0.7f), fontSize = 15.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center,
                     )
                     if (query.isNotBlank()) {
                         Spacer(Modifier.height(4.dp))
-                        Text("Prueba con otro nombre o usuario", color = Color.White.copy(alpha = 0.4f), fontSize = 13.sp, textAlign = TextAlign.Center)
+                        Text("Try another name or username", color = Color.White.copy(alpha = 0.4f), fontSize = 13.sp, textAlign = TextAlign.Center)
                     }
                 }
                 else -> LazyColumn(contentPadding = PaddingValues(vertical = 4.dp)) {
@@ -163,7 +163,7 @@ private fun SearchResultRow(u: User, onClick: () -> Unit) {
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    u.name?.takeIf { it.isNotBlank() } ?: u.username ?: "usuario",
+                    u.name?.takeIf { it.isNotBlank() } ?: u.username ?: "user",
                     color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
                     maxLines = 1, overflow = TextOverflow.Ellipsis,
                 )
