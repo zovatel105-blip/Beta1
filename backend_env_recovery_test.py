@@ -31,7 +31,7 @@ except Exception as e:
     print(f"Warning: Could not read .env file: {e}")
 
 if not BASE_URL:
-    BASE_URL = os.getenv('NEXT_PUBLIC_BASE_URL', 'https://native-mirror.preview.emergentagent.com')
+    BASE_URL = os.getenv('NEXT_PUBLIC_BASE_URL', 'https://profile-unify-1.preview.emergentagent.com')
 
 API_URL = f"{BASE_URL}/api"
 
