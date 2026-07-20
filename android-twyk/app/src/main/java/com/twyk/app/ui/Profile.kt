@@ -246,7 +246,7 @@ fun ProfileScreen(
                 when {
                     loading -> item(span = { GridItemSpan(maxLineSpan) }) {
                         Box(Modifier.fillMaxWidth().height(160.dp), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(color = TwykGold, strokeWidth = 2.dp, modifier = Modifier.size(30.dp))
+                            CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(32.dp))
                         }
                     }
                     posts.isEmpty() && !(isOwn && UploadQueue.items.isNotEmpty()) -> item(span = { GridItemSpan(maxLineSpan) }) {
@@ -258,7 +258,7 @@ fun ProfileScreen(
                 when {
                     savedLoading -> item(span = { GridItemSpan(maxLineSpan) }) {
                         Box(Modifier.fillMaxWidth().height(160.dp), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(color = TwykGold, strokeWidth = 2.dp, modifier = Modifier.size(30.dp))
+                            CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(32.dp))
                         }
                     }
                     savedPosts.isEmpty() -> item(span = { GridItemSpan(maxLineSpan) }) {
@@ -384,6 +384,13 @@ private const val COLLAPSE_DIST_DP = 180
 // Barra superior FIJA (no se desplaza con el grid) — réplica del "barRef" de
 // la web: siempre visible; al colapsar (progress 0→1) revela el mini-perfil
 // (avatar+nombre) y la acción (Editar/Seguir), con fondo que se va opacando.
+// NOTA (paridad con la web): en ProfilePage.jsx el fondo de la barra es SIEMPRE
+// sólido (`bg-[#0a0a0b]`, sin depender del scroll); lo único que se revela
+// progresivamente con el scroll es el CONTENIDO (nombre/avatar/acciones vía
+// `style={{opacity:revealP}}`). Además el nombre está SIEMPRE a la izquierda
+// (nunca centrado junto al avatar) y el avatar está SIEMPRE perfectamente
+// centrado en la barra de forma independiente (`absolute left-1/2
+// -translate-x-1/2`), y la altura de contenido es 44px (`h-11`), no 56dp.
 @Composable
 private fun CollapsedTopBar(
     progress: Float,
@@ -401,8 +408,8 @@ private fun CollapsedTopBar(
     val actionsEnabled = progress > 0.5f
 
     Box(
-        Modifier.fillMaxWidth().statusBarsPadding().height(56.dp)
-            .background(TwykBg.copy(alpha = progress)),
+        Modifier.fillMaxWidth().statusBarsPadding().height(44.dp)
+            .background(TwykBg),
     ) {
         Row(
             Modifier.fillMaxSize().padding(horizontal = 6.dp),
@@ -416,32 +423,28 @@ private fun CollapsedTopBar(
                 Spacer(Modifier.size(40.dp))
             }
 
-            // Mini avatar + nombre centrados, revelados con el scroll.
+            // Nombre: SIEMPRE a la izquierda (mitad izquierda del espacio restante),
+            // nunca centrado — igual que la web (`pl-2`, truncado antes del centro).
             Row(
-                Modifier.weight(1f).graphicsLayer(alpha = progress),
+                Modifier.weight(1f).graphicsLayer(alpha = progress).padding(start = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center,
             ) {
-                Box(Modifier.size(28.dp).clip(CircleShape).border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape)) {
-                    TwykAvatar(profile?.avatarUrl, Modifier.fillMaxSize())
-                }
-                Spacer(Modifier.width(8.dp))
                 Text(name, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
 
-            // Acción (Editar o Seguir/Retar), revelada igual que el mini-perfil.
+            // Acción (Editar o Seguir/Retar): mitad derecha del espacio restante.
             Row(
-                Modifier.graphicsLayer(alpha = progress),
+                Modifier.weight(1f).graphicsLayer(alpha = progress),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.End),
             ) {
                 if (isOwn) {
-                    MiniPill("Edit", filled = true, enabled = actionsEnabled, onClick = onEditProfile)
+                    MiniPill("Edit", filled = true, enabled = actionsEnabled, horizontalPadding = 16.dp, onClick = onEditProfile)
                 } else {
                     MiniIconButton(enabled = actionsEnabled, onClick = { }) {
-                        Icon(ImageVector.vectorResource(R.drawable.ic_swords), null, tint = Color.White, modifier = Modifier.size(14.dp))
+                        Icon(ImageVector.vectorResource(R.drawable.ic_swords), null, tint = Color.White, modifier = Modifier.size(15.dp))
                     }
-                    MiniPill(if (following) "Following" else "Follow", filled = !following, enabled = actionsEnabled && !followBusy, onClick = onFollow)
+                    MiniPill(if (following) "Following" else "Follow", filled = !following, enabled = actionsEnabled && !followBusy, horizontalPadding = 20.dp, onClick = onFollow)
                 }
             }
 
@@ -453,16 +456,25 @@ private fun CollapsedTopBar(
                 Spacer(Modifier.size(40.dp))
             }
         }
+
+        // Avatar: SIEMPRE centrado en la barra, en posición ABSOLUTA e
+        // independiente del ancho que ocupe el nombre o las acciones — igual
+        // que la web (`absolute left-1/2 -translate-x-1/2`).
+        Box(Modifier.align(Alignment.Center).graphicsLayer(alpha = progress)) {
+            Box(Modifier.size(28.dp).clip(CircleShape).border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape)) {
+                TwykAvatar(profile?.avatarUrl, Modifier.fillMaxSize())
+            }
+        }
     }
 }
 
 @Composable
-private fun MiniPill(text: String, filled: Boolean, enabled: Boolean, onClick: () -> Unit) {
+private fun MiniPill(text: String, filled: Boolean, enabled: Boolean, horizontalPadding: androidx.compose.ui.unit.Dp = 14.dp, onClick: () -> Unit) {
     Box(
         Modifier.height(28.dp).clip(RoundedCornerShape(50))
             .then(if (filled) Modifier.background(Color.White) else Modifier.border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(50)))
             .clickable(enabled = enabled) { onClick() }
-            .padding(horizontal = 14.dp),
+            .padding(horizontal = horizontalPadding),
         contentAlignment = Alignment.Center,
     ) {
         Text(text, color = if (filled) Color.Black else Color.White, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
@@ -500,12 +512,12 @@ private fun ProfileHeaderSection(
     Column(Modifier.fillMaxWidth().statusBarsPadding()) {
         // Espacio reservado para la barra superior FIJA (ver CollapsedTopBar,
         // renderizada como overlay encima del grid) — evita que el contenido
-        // aparezca oculto detrás de ella al inicio.
-        Spacer(Modifier.height(56.dp))
+        // aparezca oculto detrás de ella al inicio. Altura 44dp = web h-11.
+        Spacer(Modifier.height(44.dp))
 
-        // ── Stats alrededor del avatar ──
+        // ── Stats alrededor del avatar (max-w-[360px] igual que la web) ──
         Box(
-            Modifier.fillMaxWidth().widthIn(max = 380.dp).padding(horizontal = 20.dp).height(196.dp),
+            Modifier.fillMaxWidth().widthIn(max = 360.dp).padding(horizontal = 20.dp).height(226.dp),
         ) {
             Row(Modifier.fillMaxWidth().align(Alignment.TopCenter), horizontalArrangement = Arrangement.SpaceBetween) {
                 StatItem(drawable = R.drawable.ic_vote, value = formatCount(votos), label = "Votes", iconSize = 36.dp)
@@ -524,14 +536,14 @@ private fun ProfileHeaderSection(
             }
         }
 
-        // ── Nombre + handle + bio ──
-        Spacer(Modifier.height(20.dp))
+        // ── Nombre + handle + bio (web: mt-6=24dp antes del nombre) ──
+        Spacer(Modifier.height(24.dp))
         Text(name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
         Spacer(Modifier.height(2.dp))
         Text(handle, color = ZincText, fontSize = 13.sp, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
         val bio = profile?.bio?.trim().orEmpty()
         if (bio.isNotEmpty()) {
-            Spacer(Modifier.height(6.dp))
+            Spacer(Modifier.height(8.dp))
             Text(
                 bio,
                 color = Color(0xFFD4D4D8),
@@ -541,15 +553,15 @@ private fun ProfileHeaderSection(
             )
         }
 
-        // ── Botones ──
-        Spacer(Modifier.height(18.dp))
+        // ── Botones (web: mt-5=20dp antes; Follow=px-7=28dp, resto=px-6=24dp) ──
+        Spacer(Modifier.height(20.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
             if (isOwn) {
                 PillButton("Edit profile", filled = true, onClick = onEditProfile)
                 Spacer(Modifier.width(8.dp))
                 PillButton("Share", filled = false, onClick = onShare)
             } else {
-                PillButton(if (following) "Following" else "Follow", filled = !following, enabled = !followBusy, onClick = onFollow)
+                PillButton(if (following) "Following" else "Follow", filled = !following, enabled = !followBusy, horizontalPadding = 28.dp, onClick = onFollow)
                 Spacer(Modifier.width(8.dp))
                 PillButton("Challenge", filled = false, leadingDrawable = R.drawable.ic_swords) { }
             }
@@ -559,10 +571,14 @@ private fun ProfileHeaderSection(
         // `bg-transparent border border-white`); inactive: black bg + faint
         // border (web: `bg-black border-white/[0.07]`). Each tab owns its own
         // background/border (no shared wrapper pill), height 32dp = web h-8.
-        Spacer(Modifier.height(26.dp))
-        val tabs = if (isOwn) listOf("polls", "saved", "links") else listOf("polls")
+        // Solo 2 pestañas para el perfil propio (polls, saved) — la web NO
+        // tiene 3ª pestaña de "links"; perfil ajeno = solo "polls" (igual que
+        // web, ver TABS/TABS.filter en ProfilePage.jsx). Gap antes = web
+        // mb-7(28)+pt-1(4)=32dp; gap después = web pb-2.5(10)+mt-4(16)=26dp.
+        Spacer(Modifier.height(32.dp))
+        val tabs = if (isOwn) listOf("polls", "saved") else listOf("polls")
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 2.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             tabs.forEach { key ->
@@ -578,14 +594,13 @@ private fun ProfileHeaderSection(
                 ) {
                     val tint = if (active) Color.White else ZincText
                     when (key) {
-                        "polls" -> ColumnsIcon(Modifier.size(20.dp), tint)
-                        "saved" -> Icon(if (active) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder, null, tint = tint, modifier = Modifier.size(20.dp))
-                        else -> Icon(Icons.Filled.Link, null, tint = tint, modifier = Modifier.size(20.dp))
+                        "polls" -> ColumnsIcon(Modifier.size(18.dp), tint)
+                        else -> Icon(if (active) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder, null, tint = tint, modifier = Modifier.size(18.dp))
                     }
                 }
             }
         }
-        Spacer(Modifier.height(14.dp))
+        Spacer(Modifier.height(26.dp))
     }
 }
 
@@ -627,13 +642,14 @@ private fun PillButton(
     filled: Boolean,
     enabled: Boolean = true,
     leadingDrawable: Int? = null,
+    horizontalPadding: androidx.compose.ui.unit.Dp = 24.dp,
     onClick: () -> Unit,
 ) {
     Row(
         Modifier.height(36.dp).clip(RoundedCornerShape(50))
             .then(if (filled) Modifier.background(Color.White) else Modifier.border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(50)))
             .clickable(enabled = enabled) { onClick() }
-            .padding(horizontal = 24.dp),
+            .padding(horizontal = horizontalPadding),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
@@ -647,7 +663,7 @@ private fun PillButton(
 @Composable
 private fun EmptyTab(title: String, desc: String, bookmark: Boolean = false, link: Boolean = false) {
     Column(
-        Modifier.fillMaxWidth().padding(vertical = 56.dp, horizontal = 16.dp),
+        Modifier.fillMaxWidth().padding(vertical = 64.dp, horizontal = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(
@@ -664,7 +680,7 @@ private fun EmptyTab(title: String, desc: String, bookmark: Boolean = false, lin
         Spacer(Modifier.height(16.dp))
         Text(title, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
         Spacer(Modifier.height(4.dp))
-        Text(desc, color = Color(0xFF71717A), fontSize = 13.sp)
+        Text(desc, color = Color(0xFF71717A), fontSize = 14.sp)
     }
 }
 
@@ -672,20 +688,23 @@ private fun EmptyTab(title: String, desc: String, bookmark: Boolean = false, lin
 private fun UploadPlaceholderItem(item: UploadQueueItem, onDismiss: () -> Unit) {
     Box(
         Modifier.padding(2.dp).fillMaxWidth().aspectRatio(9f / 16f)
-            .clip(RoundedCornerShape(12.dp)).background(Color.White.copy(alpha = 0.06f))
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color.White.copy(alpha = 0.04f))
+            .border(1.dp, Color.White.copy(alpha = 0.05f), RoundedCornerShape(8.dp))
             .then(if (item.failed) Modifier.clickable { onDismiss() } else Modifier),
-        contentAlignment = Alignment.Center,
     ) {
-        if (item.failed) {
-            Text(
-                "Upload failed", color = Color(0xFFFB7185), fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
-                textAlign = TextAlign.Center, modifier = Modifier.padding(10.dp),
-            )
-        } else {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                CircularProgressIndicator(color = TwykGold, strokeWidth = 2.dp, modifier = Modifier.size(28.dp))
-                Spacer(Modifier.height(6.dp))
-                Text("${item.progress}%", color = ZincText, fontSize = 11.sp)
+        Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.40f)), contentAlignment = Alignment.Center) {
+            if (item.failed) {
+                Text(
+                    "Upload failed", color = Color(0xFFFDA4AF), fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.Center, modifier = Modifier.padding(10.dp),
+                )
+            } else {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(24.dp))
+                    Spacer(Modifier.height(6.dp))
+                    Text("${item.progress}%", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                }
             }
         }
     }
@@ -699,7 +718,9 @@ private fun ProfileGridItem(post: Post, onClick: () -> Unit) {
 
     Box(
         Modifier.padding(2.dp).fillMaxWidth().aspectRatio(9f / 16f)
-            .clip(RoundedCornerShape(12.dp)).background(Color.White.copy(alpha = 0.04f))
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color.White.copy(alpha = 0.04f))
+            .border(1.dp, Color.White.copy(alpha = 0.05f), RoundedCornerShape(8.dp))
             .clickable { onClick() },
     ) {
         if (isDuet) {
@@ -727,15 +748,15 @@ private fun ProfileGridItem(post: Post, onClick: () -> Unit) {
             }
         }
 
-        Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.18f)))
+        Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.20f)))
 
         if (totalVotes > 0) {
             Row(
-                Modifier.align(Alignment.BottomStart).padding(5.dp).clip(RoundedCornerShape(50))
+                Modifier.align(Alignment.BottomStart).padding(4.dp).clip(RoundedCornerShape(50))
                     .background(Color.Black.copy(alpha = 0.55f)).padding(horizontal = 6.dp, vertical = 2.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(ImageVector.vectorResource(R.drawable.ic_vote), null, tint = Color.White, modifier = Modifier.size(13.dp))
+                Icon(ImageVector.vectorResource(R.drawable.ic_vote), null, tint = Color.White, modifier = Modifier.size(14.dp))
                 Spacer(Modifier.width(3.dp))
                 Text(formatCount(totalVotes), color = Color.White, fontSize = 11.sp)
             }
