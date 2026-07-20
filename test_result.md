@@ -178,10 +178,16 @@ backend:
     implemented: true
     working: true
     file: ".env, memory/ENV_BACKUP.md, scripts/seed-core-users.mjs, memory/test_credentials.md"
-    stuck_count: 6
+    stuck_count: 7
     priority: "high"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "BUG (7ª recurrencia): 'Falta el archivo env y el ffmpeg' (Android/glow task no relacionado, esta vez el usuario NO pidió evitar el agente de testing)."
+        -working: "NA"
+        -agent: "main"
+        -comment: "Misma causa raíz recurrente (persistencia efímera de MongoDB + .env gitignored, ver memory/ENV_BACKUP.md). FIX: (1) recreado /app/.env con MONGO_URL=mongodb://localhost:27017/twyk, ADMIN_EMAILS=twyk.apk@gmail.com, NEXT_PUBLIC_BASE_URL/CORS_ORIGINS = nueva URL de preview leída de APP_URL en /etc/supervisor/conf.d/supervisord.conf (https://df84e07c-58f5-431a-8f48-6aa4cae3e668.preview.emergentagent.com, cambió respecto a sesiones anteriores). (2) ffmpeg reinstalado vía apt-get install -y ffmpeg (confirmado con ffmpeg -version -> 5.1.9). (3) nextjs reiniciado (log confirma 'Environments: .env' cargado, sin el error previo 'Please define MONGO_URL in .env'). (4) MongoDB estaba vacía (0 usuarios) -> re-ejecutado scripts/seed-core-users.mjs (4 usuarios + 3 follows creados). (5) memory/ENV_BACKUP.md actualizado con la nueva URL; memory/test_credentials.md recreado (no existía). Esta vez el usuario NO pidió evitar el agente de testing -> se solicita deep_testing_backend_nextjs para verificar login (4 cuentas), GET /api/feed, GET /api/uploads, y que la generación de poster con ffmpeg funcione en una subida real (POST /api/versus con 2 vídeos)."
         -working: "NA"
         -agent: "user"
         -comment: "NUEVA PÉRDIDA (6ª vez): 'No llamar al agente de testing, instala el env y ffmpeg'."
@@ -1245,13 +1251,15 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Línea vertical de conexión entre respuestas (avatar a avatar) solo cuando una respuesta responde específicamente a OTRA respuesta (nuevo campo replyToId)"
+    - "Recuperación de entorno: .env perdido + MongoDB vacío (persistencia efímera)"
   stuck_tasks:
     - "Recuperación de entorno: .env perdido + MongoDB vacío (persistencia efímera)"
   test_all: false
   test_priority: "high_first"
 
 agent_communication:
+    -agent: "main"
+    -message: "BUG (7ª recurrencia de la misma causa raíz, ver memory/ENV_BACKUP.md): usuario reportó 'Falta el archivo env y el ffmpeg' (sesión centrada en la app nativa Android, este bug es de infraestructura del entorno Next.js/Mongo). Restaurado /app/.env (nueva URL de preview https://df84e07c-58f5-431a-8f48-6aa4cae3e668.preview.emergentagent.com), ffmpeg reinstalado (apt-get, confirmado 5.1.9), nextjs reiniciado, MongoDB re-sembrada (scripts/seed-core-users.mjs: twykadmin/lucia/marcos/laura), memory/test_credentials.md y memory/ENV_BACKUP.md actualizados. A diferencia de recurrencias anteriores, el usuario NO pidió esta vez evitar el agente de testing -> se solicita deep_testing_backend_nextjs: (1) login con las 4 cuentas semilla (ver test_credentials.md); (2) GET /api/feed y GET /api/uploads sin sesión -> 200; (3) GET /api/auth/me con cada sesión -> 200; (4) POST /api/versus con 2 vídeos reales (multipart) autenticado -> 200 y verificar que sideA.posterUrl/sideB.posterUrl se generan y son accesibles (200) unos segundos después (confirma que ffmpeg funciona de verdad, no solo que el binario existe). NO modificar el Testing Protocol."
     -agent: "main"
     -message: "FEATURE completada (línea vertical de conexión entre avatares de respuestas, ver detalle en el task de backend correspondiente). El usuario pidió EXPLÍCITAMENTE 'No usar el testing agent solo guardar' -> se respeta la instrucción, NO se invoca deep_testing_backend_nextjs para esta tarea. Verificación realizada SOLO con lint (0 issues en lib/db.js, app/api/[[...path]]/route.js y components/CommentsModal.jsx) y logs de supervisor (varios 'Compiled' exitosos tras cada edición, sin excepciones). NOTA aparte, PENDIENTE sin resolver: el usuario reportó antes ('Acabo de publicar un comentario normal sin hacer reply y los comentarios con reply se aplican al nuevo comentario') un posible bug de comentario duplicado (2 comentarios idénticos 'Hello' de twykadmin aparecían como top-level en su captura); se le pidieron detalles de reproducción pero el usuario cambió de tema hacia el ajuste de la línea de conexión sin responder. NO se ha investigado ni corregido ese posible bug de duplicado todavía; queda pendiente de que el usuario confirme si sigue ocurriendo. NO modificar el Testing Protocol."
     -agent: "main"
