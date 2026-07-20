@@ -11,7 +11,7 @@ import os
 from io import BytesIO
 
 # Get base URL from environment
-BASE_URL = os.getenv('NEXT_PUBLIC_BASE_URL', 'https://content-creator-673.preview.emergentagent.com')
+BASE_URL = os.getenv('NEXT_PUBLIC_BASE_URL', 'https://cross-platform-audit-2.preview.emergentagent.com')
 API_URL = f"{BASE_URL}/api"
 
 print(f"Testing backend at: {API_URL}")

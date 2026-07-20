@@ -6,7 +6,7 @@ Tests 5 critical endpoints to confirm no backend regressions.
 import requests
 import sys
 
-BASE_URL = "https://content-creator-673.preview.emergentagent.com/api"
+BASE_URL = "https://cross-platform-audit-2.preview.emergentagent.com/api"
 
 def test_backend_regression():
     print("=" * 80)
