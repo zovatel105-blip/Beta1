@@ -36,9 +36,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -57,10 +54,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -144,7 +143,7 @@ fun EditProfileScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(Modifier.size(40.dp).clip(CircleShape).clickable { onClose() }, contentAlignment = Alignment.Center) {
-                    Icon(Icons.Filled.Close, "cancelar", tint = Color.White, modifier = Modifier.size(20.dp))
+                    Icon(ImageVector.vectorResource(com.twyk.app.R.drawable.ic_x), "cancelar", tint = Color.White, modifier = Modifier.size(20.dp))
                 }
                 Text(
                     "Edit profile", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 15.sp,
@@ -182,7 +181,7 @@ fun EditProfileScreen(
                             TwykAvatar(remoteAvatarUrl, Modifier.fillMaxSize())
                         }
                         Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.35f)), contentAlignment = Alignment.Center) {
-                            Icon(Icons.Filled.CameraAlt, null, tint = Color.White, modifier = Modifier.size(22.dp))
+                            Icon(ImageVector.vectorResource(com.twyk.app.R.drawable.ic_camera), null, tint = Color.White, modifier = Modifier.size(22.dp))
                         }
                     }
                     Spacer(Modifier.height(10.dp))

@@ -19,20 +19,24 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -110,18 +114,33 @@ fun GoldGlow(height: androidx.compose.ui.unit.Dp = 320.dp, alpha: Float = 0.09f)
     }
 }
 
-// Icono de columnas (4 verticales + 1 horizontal) usado en el perfil — igual a la web.
+// Icono de "cuadrícula" (pestaña de publicaciones) — réplica EXACTA del SVG
+// personalizado de la web (ver ColumnsIcon en components/ProfilePage.jsx):
+// 6 rectángulos redondeados en una cuadrícula de 3x2 (NO líneas cruzadas,
+// que es lo que dibujaba esta función antes por error). viewBox de referencia
+// 24x24, coordenadas escaladas al tamaño real del composable.
 @Composable
 fun ColumnsIcon(modifier: Modifier = Modifier, color: Color = Color.White) {
     Canvas(modifier) {
-        val w = size.width
-        val h = size.height
-        val sw = w * 0.075f
-        val xs = listOf(0.125f, 0.375f, 0.625f, 0.875f)
-        xs.forEach { fx ->
-            drawLine(color, Offset(w * fx, h * 0.13f), Offset(w * fx, h * 0.87f), strokeWidth = sw, cap = StrokeCap.Round)
+        val scale = size.width / 24f
+        val strokeW = 1.1f * scale
+        val rectW = 4.4f * scale
+        val rectH = 7.3f * scale
+        val radius = 1.1f * scale
+        val xs = listOf(3.7f, 9.8f, 15.9f)
+        val ys = listOf(3.85f, 12.85f)
+        val stroke = Stroke(width = strokeW, cap = StrokeCap.Round, join = StrokeJoin.Round)
+        ys.forEach { fy ->
+            xs.forEach { fx ->
+                drawRoundRect(
+                    color = color,
+                    topLeft = Offset(fx * scale, fy * scale),
+                    size = Size(rectW, rectH),
+                    cornerRadius = CornerRadius(radius, radius),
+                    style = stroke,
+                )
+            }
         }
-        drawLine(color, Offset(w * 0.125f, h * 0.5f), Offset(w * 0.875f, h * 0.5f), strokeWidth = sw, cap = StrokeCap.Round)
     }
 }
 
@@ -138,7 +157,7 @@ private fun trimZero(v: Double): String {
 
 // Estado "Inicia sesión" premium (centrado, icono en círculo dorado) — estilo web.
 @Composable
-fun LoginPrompt(message: String, onRequireAuth: () -> Unit, icon: ImageVector = Icons.Outlined.Notifications) {
+fun LoginPrompt(message: String, onRequireAuth: () -> Unit, icon: ImageVector? = null) {
     Box(Modifier.fillMaxSize().background(TwykBg), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp)) {
             Box(
@@ -146,7 +165,10 @@ fun LoginPrompt(message: String, onRequireAuth: () -> Unit, icon: ImageVector = 
                     .border(1.dp, Color.White.copy(alpha = 0.10f), CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(icon, null, tint = TwykGold, modifier = Modifier.size(36.dp))
+                // Icono por defecto: mismo ic_circle_user_round (lucide `circle-user-round`)
+                // que usa la web en el perfil propio de invitado; se puede
+                // sobreescribir por llamador para otras pantallas.
+                Icon(icon ?: ImageVector.vectorResource(com.twyk.app.R.drawable.ic_circle_user_round), null, tint = TwykGold, modifier = Modifier.size(36.dp))
             }
             Spacer(Modifier.height(22.dp))
             Text("Sign in", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)

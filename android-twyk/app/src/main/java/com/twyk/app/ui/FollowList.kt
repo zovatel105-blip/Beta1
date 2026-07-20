@@ -20,9 +20,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.outlined.People
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -36,6 +33,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -73,7 +72,7 @@ fun FollowListScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Box(Modifier.size(36.dp).clip(CircleShape).clickable { onClose() }, contentAlignment = Alignment.Center) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, "back", tint = Color.White, modifier = Modifier.size(22.dp))
+                    Icon(ImageVector.vectorResource(com.twyk.app.R.drawable.ic_arrow_left), "back", tint = Color.White, modifier = Modifier.size(22.dp))
                 }
                 Row(
                     Modifier.clip(RoundedCornerShape(50)).background(Color.White.copy(alpha = 0.06f)).padding(3.dp),
@@ -98,7 +97,7 @@ fun FollowListScreen(
                         Modifier.size(64.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.04f)),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Icon(Icons.Outlined.People, null, tint = Color(0xFF71717A), modifier = Modifier.size(28.dp))
+                        Icon(ImageVector.vectorResource(com.twyk.app.R.drawable.ic_users), null, tint = Color(0xFF71717A), modifier = Modifier.size(28.dp))
                     }
                     Spacer(Modifier.height(16.dp))
                     Text(

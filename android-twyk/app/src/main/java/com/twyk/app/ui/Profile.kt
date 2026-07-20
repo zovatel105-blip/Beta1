@@ -28,14 +28,6 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Bookmark
-import androidx.compose.material.icons.filled.Link
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.outlined.BookmarkBorder
-import androidx.compose.material.icons.outlined.People
-import androidx.compose.material.icons.outlined.PersonAdd
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -266,10 +258,6 @@ fun ProfileScreen(
                     }
                     else -> itemsIndexed(savedPosts) { idx, p -> ProfileGridItem(p) { viewerList = savedPosts; viewerIndex = idx } }
                 }
-            } else {
-                item(span = { GridItemSpan(maxLineSpan) }) {
-                    EmptyTab(title = "No links", desc = "Add your links here", link = true)
-                }
             }
         }
 
@@ -284,6 +272,7 @@ fun ProfileScreen(
             followBusy = followBusy,
             onClose = onClose,
             onFollow = onFollow,
+            onShare = onShare,
             onEditProfile = { editOpen = true },
             onOpenMenu = { menuOpen = true },
         )
@@ -338,7 +327,7 @@ fun ProfileScreen(
                         .clickable { viewerIndex = null },
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, "cerrar", tint = Color.White, modifier = Modifier.size(20.dp))
+                    Icon(ImageVector.vectorResource(R.drawable.ic_arrow_left), "cerrar", tint = Color.White, modifier = Modifier.size(20.dp))
                 }
             }
             viewerCommentsPostId?.let { pid ->
@@ -401,6 +390,7 @@ private fun CollapsedTopBar(
     followBusy: Boolean,
     onClose: () -> Unit,
     onFollow: () -> Unit,
+    onShare: () -> Unit,
     onEditProfile: () -> Unit,
     onOpenMenu: () -> Unit,
 ) {
@@ -417,7 +407,7 @@ private fun CollapsedTopBar(
         ) {
             if (isOverlay && !isOwn) {
                 Box(Modifier.size(40.dp).clip(CircleShape).clickable { onClose() }, contentAlignment = Alignment.Center) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, "back", tint = Color.White, modifier = Modifier.size(24.dp))
+                    Icon(ImageVector.vectorResource(R.drawable.ic_arrow_left), "back", tint = Color.White, modifier = Modifier.size(24.dp))
                 }
             } else {
                 Spacer(Modifier.size(40.dp))
@@ -432,7 +422,10 @@ private fun CollapsedTopBar(
                 Text(name, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
 
-            // Acción (Editar o Seguir/Retar): mitad derecha del espacio restante.
+            // Acción (Editar+Compartir o Seguir/Retar): mitad derecha del espacio
+            // restante — igual que la web, que SIEMPRE muestra Editar Y Compartir
+            // juntos para el perfil propio (antes solo se mostraba "Edit", faltaba
+            // el botón circular de Compartir).
             Row(
                 Modifier.weight(1f).graphicsLayer(alpha = progress),
                 verticalAlignment = Alignment.CenterVertically,
@@ -440,6 +433,9 @@ private fun CollapsedTopBar(
             ) {
                 if (isOwn) {
                     MiniPill("Edit", filled = true, enabled = actionsEnabled, horizontalPadding = 16.dp, onClick = onEditProfile)
+                    MiniIconButton(enabled = actionsEnabled, onClick = onShare) {
+                        Icon(ImageVector.vectorResource(R.drawable.ic_share), null, tint = Color.White, modifier = Modifier.size(15.dp))
+                    }
                 } else {
                     MiniIconButton(enabled = actionsEnabled, onClick = { }) {
                         Icon(ImageVector.vectorResource(R.drawable.ic_swords), null, tint = Color.White, modifier = Modifier.size(15.dp))
@@ -450,7 +446,7 @@ private fun CollapsedTopBar(
 
             if (isOwn) {
                 Box(Modifier.size(40.dp).clip(CircleShape).clickable { onOpenMenu() }, contentAlignment = Alignment.Center) {
-                    Icon(Icons.Filled.Menu, "menu", tint = Color.White, modifier = Modifier.size(24.dp))
+                    Icon(ImageVector.vectorResource(R.drawable.ic_menu), "menu", tint = Color.White, modifier = Modifier.size(24.dp))
                 }
             } else {
                 Spacer(Modifier.size(40.dp))
@@ -531,8 +527,8 @@ private fun ProfileHeaderSection(
                 TwykAvatar(profile?.avatarUrl, Modifier.fillMaxSize())
             }
             Row(Modifier.fillMaxWidth().align(Alignment.BottomCenter), horizontalArrangement = Arrangement.SpaceBetween) {
-                StatItem(icon = Icons.Outlined.People, value = formatCount(followers), label = "Followers", iconSize = 28.dp, onClick = { onOpenFollowList("followers") })
-                StatItem(icon = Icons.Outlined.PersonAdd, value = formatCount(profile?.following ?: 0), label = "Following", iconSize = 28.dp, alignEnd = true, onClick = { onOpenFollowList("following") })
+                StatItem(drawable = R.drawable.ic_users, value = formatCount(followers), label = "Followers", iconSize = 28.dp, onClick = { onOpenFollowList("followers") })
+                StatItem(drawable = R.drawable.ic_user_plus, value = formatCount(profile?.following ?: 0), label = "Following", iconSize = 28.dp, alignEnd = true, onClick = { onOpenFollowList("following") })
             }
         }
 
@@ -595,7 +591,10 @@ private fun ProfileHeaderSection(
                     val tint = if (active) Color.White else ZincText
                     when (key) {
                         "polls" -> ColumnsIcon(Modifier.size(18.dp), tint)
-                        else -> Icon(if (active) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder, null, tint = tint, modifier = Modifier.size(18.dp))
+                        else -> Icon(
+                            ImageVector.vectorResource(if (active) R.drawable.ic_bookmark_filled else R.drawable.ic_bookmark),
+                            null, tint = tint, modifier = Modifier.size(18.dp),
+                        )
                     }
                 }
             }
@@ -661,7 +660,7 @@ private fun PillButton(
 }
 
 @Composable
-private fun EmptyTab(title: String, desc: String, bookmark: Boolean = false, link: Boolean = false) {
+private fun EmptyTab(title: String, desc: String, bookmark: Boolean = false) {
     Column(
         Modifier.fillMaxWidth().padding(vertical = 64.dp, horizontal = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -671,10 +670,10 @@ private fun EmptyTab(title: String, desc: String, bookmark: Boolean = false, lin
                 .border(1.dp, Color.White.copy(alpha = 0.10f), CircleShape),
             contentAlignment = Alignment.Center,
         ) {
-            when {
-                bookmark -> Icon(Icons.Outlined.BookmarkBorder, null, tint = Color(0xFF71717A), modifier = Modifier.size(28.dp))
-                link -> Icon(Icons.Filled.Link, null, tint = Color(0xFF71717A), modifier = Modifier.size(28.dp))
-                else -> ColumnsIcon(Modifier.size(28.dp), Color(0xFF71717A))
+            if (bookmark) {
+                Icon(ImageVector.vectorResource(R.drawable.ic_bookmark), null, tint = Color(0xFF71717A), modifier = Modifier.size(28.dp))
+            } else {
+                ColumnsIcon(Modifier.size(28.dp), Color(0xFF71717A))
             }
         }
         Spacer(Modifier.height(16.dp))
@@ -695,10 +694,13 @@ private fun UploadPlaceholderItem(item: UploadQueueItem, onDismiss: () -> Unit) 
     ) {
         Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.40f)), contentAlignment = Alignment.Center) {
             if (item.failed) {
-                Text(
-                    "Upload failed", color = Color(0xFFFDA4AF), fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold,
-                    textAlign = TextAlign.Center, modifier = Modifier.padding(10.dp),
-                )
+                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Icon(ImageVector.vectorResource(R.drawable.ic_alert_circle), null, tint = Color(0xFFFB7185), modifier = Modifier.size(24.dp))
+                    Text(
+                        "Upload failed", color = Color(0xFFFDA4AF), fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold,
+                        textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 10.dp),
+                    )
+                }
             } else {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(24.dp))
