@@ -621,7 +621,7 @@ private fun BoxScope.HeaderOverlay(post: Post, onOpenProfile: (String) -> Unit, 
                 // ── Publicación normal: un solo avatar + nombre ──
                 TwykAvatar(
                     author?.avatarUrl,
-                    38.dp,
+                    30.dp,
                     Modifier.clickable(enabled = uname != null) { uname?.let { onOpenProfile(it) } },
                 )
                 Spacer(Modifier.width(8.dp))
@@ -694,25 +694,25 @@ private fun BoxScope.SocialRail(
             else -> Color.White
         }
         // Votar — al votar pasa a icono SÓLIDO (relleno por dentro), como la web.
-        RailItem(ImageVector.vectorResource(if (voted != null) R.drawable.ic_vote_filled else R.drawable.ic_vote), label(total, "Vote"), voteTint, size = 36) { }
+        RailItem(ImageVector.vectorResource(if (voted != null) R.drawable.ic_vote_filled else R.drawable.ic_vote), label(total, "Vote"), voteTint, size = 40) { }
         // Challenge (crossed swords) — hidden on "Battles > Completed" (hideChallenge), same as the web.
         if (!hideChallenge) {
-            RailItem(ImageVector.vectorResource(R.drawable.ic_swords), label(post.stats?.challenges ?: 0, "Challenge"), Color.White, size = 25) {
+            RailItem(ImageVector.vectorResource(R.drawable.ic_swords), label(post.stats?.challenges ?: 0, "Challenge"), Color.White, size = 30) {
                 if (Session.token == null) onRequireAuth() else onChallengeClick()
             }
         }
         // Comment (round bubble, same as the web)
-        RailItem(ImageVector.vectorResource(R.drawable.ic_comment), label(post.stats?.comments ?: 0, "Comment"), Color.White, size = 25) { onComments() }
+        RailItem(ImageVector.vectorResource(R.drawable.ic_comment), label(post.stats?.comments ?: 0, "Comment"), Color.White, size = 30) { onComments() }
         // Share (TikTok-style arrow) — opens the options sheet (Send
         // to/Copy link/Instagram/WhatsApp/X), same as ShareModal.jsx on the
         // web (used to open the native Android chooser directly).
-        RailItem(ImageVector.vectorResource(R.drawable.ic_share), label(post.stats?.shares ?: 0, "Share"), Color.White, size = 25) { shareOpen = true }
+        RailItem(ImageVector.vectorResource(R.drawable.ic_share), label(post.stats?.shares ?: 0, "Share"), Color.White, size = 30) { shareOpen = true }
         // Save (bookmark, same as the web)
         RailItem(
             ImageVector.vectorResource(if (saved) R.drawable.ic_bookmark_filled else R.drawable.ic_bookmark),
             label(post.stats?.saves ?: 0, "Save"),
             if (saved) Color(0xFFFACC15) else Color.White,
-            size = 25,
+            size = 30,
         ) {
             if (Session.token == null) {
                 onRequireAuth()
@@ -937,7 +937,7 @@ private fun BoxScope.VoteHint(text: String) {
     Box(
         Modifier
             .align(Alignment.TopCenter)
-            .padding(top = 14.dp)
+            .padding(top = 40.dp)
             .clip(RoundedCornerShape(20.dp))
             .background(Color.Black.copy(alpha = 0.45f))
             .padding(horizontal = 12.dp, vertical = 5.dp),
