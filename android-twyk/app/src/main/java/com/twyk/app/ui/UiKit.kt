@@ -6,6 +6,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -31,6 +32,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -39,7 +41,14 @@ import coil.compose.AsyncImage
 import com.twyk.app.absoluteUrl
 
 // ─── Paleta Twyk (idéntica a la web) ─────────────────────────────────────────
-val TwykGold = Color(0xFFE4C79B)
+// La web reemplazó el dorado por blanco puro en toda la app (UploadDialog.jsx
+// `const GOLD = '#FFFFFF'`, NotificationsInbox.jsx `color: '#FFFFFF'`,
+// ActiveChallengesPage.jsx `const GOLD = '#FFFFFF'`, etc.). Se mantiene el
+// NOMBRE `TwykGold` (misma "deuda técnica de naming" que la web conservó al
+// renombrar su propia constante `GOLD` sin cambiarle el nombre) pero ahora
+// vale blanco, de modo que TODOS los usos existentes (glow, iconos vacíos,
+// spinners, pastilla "Challenge", etc.) se actualizan automáticamente.
+val TwykGold = Color.White
 val TwykBg = Color(0xFF0A0A0B)
 val TwykPurple = Color(0xFFA855F7)
 val TwykBlue = Color(0xFF3B82F6)
@@ -74,19 +83,31 @@ fun TwykAvatar(src: String?, modifier: Modifier = Modifier) {
     }
 }
 
-// Glow cálido dorado en la parte superior (igual que el radial-gradient de la web).
+// Glow blanco muy sutil en la parte superior — réplica del
+// `radial-gradient(60% 100% at 50% 0%, rgba(255,255,255,0.07|0.10), transparent 70%)`
+// que usa la web (NotificationsInbox.jsx/UploadDialog.jsx=0.07,
+// CompletedBattlesPage.jsx=0.10). Antes era un `verticalGradient` (banda
+// horizontal de arriba a abajo); ahora es un radial centrado en el borde
+// superior (BoxWithConstraints para conocer el ancho real en dp -> px y
+// calcular el centro/radio como hace la web con posición y tamaño en %).
 @Composable
 fun GoldGlow(height: androidx.compose.ui.unit.Dp = 320.dp, alpha: Float = 0.09f) {
-    Box(
-        Modifier
-            .fillMaxWidth()
-            .height(height)
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(TwykGold.copy(alpha = alpha), Color.Transparent),
+    BoxWithConstraints(Modifier.fillMaxWidth().height(height)) {
+        val density = LocalDensity.current
+        val widthPx = with(density) { maxWidth.toPx() }
+        val heightPx = with(density) { maxHeight.toPx() }
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.radialGradient(
+                        colors = listOf(TwykGold.copy(alpha = alpha), Color.Transparent),
+                        center = Offset(widthPx / 2f, 0f),
+                        radius = maxOf(widthPx * 0.6f, heightPx).coerceAtLeast(1f),
+                    ),
                 ),
-            ),
-    )
+        )
+    }
 }
 
 // Icono de columnas (4 verticales + 1 horizontal) usado en el perfil — igual a la web.

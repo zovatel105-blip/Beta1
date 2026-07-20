@@ -443,16 +443,18 @@ private fun MusicRowPicker(music: MusicTrack?, onPick: () -> Unit, onRemove: () 
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (music == null) {
-            Icon(Icons.Filled.MusicNote, null, tint = TwykGold, modifier = Modifier.size(18.dp))
+            Icon(Icons.Filled.MusicNote, null, tint = Color.White, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(10.dp))
-            Text("Add music", color = ZincText, fontSize = 14.sp, modifier = Modifier.weight(1f))
+            Text("Add music", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
             Icon(Icons.Filled.ChevronRight, null, tint = Color.White.copy(alpha = 0.3f), modifier = Modifier.size(18.dp))
         } else {
             Box(Modifier.size(32.dp).clip(RoundedCornerShape(6.dp)).background(Color.White.copy(alpha = 0.06f)), contentAlignment = Alignment.Center) {
                 if (!music.artwork.isNullOrBlank()) {
                     AsyncImage(model = music.artwork, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
                 } else {
-                    Icon(Icons.Filled.MusicNote, null, tint = TwykGold, modifier = Modifier.size(14.dp))
+                    // Fallback sin portada: la web usa zinc-400 aquí (no el
+                    // blanco/dorado del icono "Add music" de arriba).
+                    Icon(Icons.Filled.MusicNote, null, tint = ZincText, modifier = Modifier.size(14.dp))
                 }
             }
             Spacer(Modifier.width(10.dp))

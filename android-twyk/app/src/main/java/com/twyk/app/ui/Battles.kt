@@ -138,6 +138,12 @@ fun BattlesScreen(
     }
 
     Box(Modifier.fillMaxSize().background(if (tab == "completed" && completed.isEmpty()) TwykBg else Color.Black)) {
+        // Glow blanco sutil (10%) igual que CompletedBattlesPage.jsx — solo
+        // tiene sentido sobre el estado vacío/carga (fondo TwykBg); nunca
+        // sobre el feed de vídeo real, para no ensuciar el contenido.
+        if (tab == "completed" && completed.isEmpty()) {
+            GoldGlow(height = 320.dp, alpha = 0.10f)
+        }
         when {
             loading -> Box(Modifier.fillMaxSize().background(TwykBg), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = ZincText, strokeWidth = 2.dp, modifier = Modifier.size(28.dp))

@@ -204,7 +204,12 @@ fun ProfileScreen(
         else (gridState.firstVisibleItemScrollOffset / collapseDistPx).coerceIn(0f, 1f)
 
     Box(Modifier.fillMaxSize().background(TwykBg)) {
-        GoldGlow()
+        // NOTA: la web (ProfilePage.jsx) NO tiene ningún glow superior en el
+        // perfil principal ("todo el perfil usa el mismo negro grisáceo
+        // sólido #0a0a0b", ver comentario en el propio código de la web);
+        // el único glow real de esa pantalla es uno morado, pequeño y en la
+        // esquina, dentro del panel de Ajustes (SettingsDrawer), no aquí.
+        // Se quita el GoldGlow() que había antes por error.
 
         LazyVerticalGrid(
             state = gridState,
