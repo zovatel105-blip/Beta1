@@ -1119,6 +1119,15 @@ private fun MoreOptionsSheet(
         }
     }
 
+    // Paleta CLARA (blanca) — réplica exacta de OptionsModal.jsx (BottomSheet
+    // blanco de la web), no del resto de hojas oscuras de la app.
+    val zinc900 = Color(0xFF18181B)
+    val zinc700 = Color(0xFF3F3F46)
+    val zinc500 = Color(0xFF71717A)
+    val zinc400 = Color(0xFFA1A1AA)
+    val zinc100 = Color(0xFFF4F4F5)
+    val red600 = Color(0xFFDC2626)
+
     Box(
         Modifier
             .fillMaxSize()
@@ -1129,8 +1138,8 @@ private fun MoreOptionsSheet(
         Column(
             Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
-                .background(Color(0xFF0A0A0B))
+                .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
+                .background(Color.White)
                 .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { }
                 .navigationBarsPadding()
                 .padding(horizontal = 12.dp, vertical = 8.dp),
@@ -1138,16 +1147,16 @@ private fun MoreOptionsSheet(
             Box(
                 Modifier
                     .align(Alignment.CenterHorizontally)
-                    .padding(bottom = 10.dp)
+                    .padding(top = 4.dp, bottom = 10.dp)
                     .size(width = 40.dp, height = 4.dp)
                     .clip(RoundedCornerShape(2.dp))
-                    .background(Color.White.copy(alpha = 0.25f)),
+                    .background(zinc400),
             )
 
             when (step) {
                 "menu" -> {
-                    SheetItem(Icons.Filled.VisibilityOff, "Not interested", Color.White, onClose)
-                    SheetItem(Icons.Filled.Link, "Copy link", Color.White) {
+                    SheetItem(Icons.Filled.VisibilityOff, "Not interested", zinc900, onClose)
+                    SheetItem(Icons.Filled.Link, "Copy link", zinc900) {
                         runCatching {
                             val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                             cm.setPrimaryClip(android.content.ClipData.newPlainText("twyk", Config.BASE_URL))
@@ -1155,64 +1164,78 @@ private fun MoreOptionsSheet(
                         onClose()
                     }
                     if (!isOwnPost) {
-                        SheetItem(Icons.Filled.Flag, "Report", Color(0xFFF87171)) { requireAuthOrRun { step = "report" } }
+                        SheetItem(Icons.Filled.Flag, "Report", red600) { requireAuthOrRun { step = "report" } }
                         if (targetUsername != null) {
-                            SheetItem(Icons.Filled.Block, "Block @$targetUsername", Color(0xFFF87171)) { requireAuthOrRun { step = "blockConfirm" } }
+                            SheetItem(Icons.Filled.Block, "Block user", red600) { requireAuthOrRun { step = "blockConfirm" } }
                         }
                     } else {
-                        SheetItem(Icons.Filled.Delete, "Delete post", Color(0xFFF87171)) { requireAuthOrRun { step = "deleteConfirm" } }
+                        SheetItem(Icons.Filled.Delete, "Delete", red600) { requireAuthOrRun { step = "deleteConfirm" } }
                     }
-                    SheetCancel(onClose)
+                    SheetCancel(zinc500, onClose)
                 }
                 "report" -> {
                     Text(
-                        "Why are you reporting this post?", color = Color.White, fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 6.dp, start = 4.dp),
+                        "Why are you reporting this post?", color = zinc500, fontSize = 13.sp,
+                        modifier = Modifier.padding(bottom = 4.dp, start = 8.dp, top = 4.dp),
                     )
                     for (reason in REPORT_REASONS) {
-                        Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { submitReport(reason) }.padding(vertical = 13.dp, horizontal = 4.dp)) {
-                            Text(reason, color = Color.White, fontSize = 14.sp)
+                        Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { submitReport(reason) }.padding(vertical = 13.dp, horizontal = 8.dp)) {
+                            Text(reason, color = zinc900, fontSize = 15.sp, fontWeight = FontWeight.Medium)
                         }
                     }
-                    SheetBack { step = "menu" }
+                    SheetBack(zinc500) { step = "menu" }
                 }
                 "reporting", "blocking", "deleting" -> {
                     Box(Modifier.fillMaxWidth().padding(vertical = 28.dp), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(26.dp))
+                        CircularProgressIndicator(color = zinc700, strokeWidth = 2.dp, modifier = Modifier.size(26.dp))
                     }
                 }
                 "reported" -> ConfirmMessage(Icons.Filled.Flag, "Report sent", "Thanks. We've received your report.", onClose)
                 "blockConfirm" -> {
                     Text(
                         "Block @$targetUsername? You won't see their content and they won't see yours.",
-                        color = Color.White, fontSize = 14.sp, modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp),
+                        color = zinc900, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 10.dp),
                     )
-                    Spacer(Modifier.height(10.dp))
+                    Spacer(Modifier.height(6.dp))
                     Box(
-                        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color(0xFFF87171).copy(alpha = 0.15f)).clickable { submitBlock() }.padding(vertical = 14.dp),
+                        Modifier.fillMaxWidth().height(48.dp).clip(RoundedCornerShape(50)).background(red600).clickable { submitBlock() },
                         contentAlignment = Alignment.Center,
-                    ) { Text("Block", color = Color(0xFFF87171), fontWeight = FontWeight.SemiBold, fontSize = 15.sp) }
+                    ) { Text("Block", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 15.sp) }
+                    Spacer(Modifier.height(8.dp))
+                    Box(
+                        Modifier.fillMaxWidth().height(48.dp).clip(RoundedCornerShape(50)).background(zinc100).clickable { step = "menu" },
+                        contentAlignment = Alignment.Center,
+                    ) { Text("Cancel", color = zinc900, fontWeight = FontWeight.SemiBold, fontSize = 15.sp) }
                     Spacer(Modifier.height(4.dp))
-                    SheetBack { step = "menu" }
                 }
                 "blocked" -> ConfirmMessage(Icons.Filled.Block, "User blocked", "You will no longer see posts from @$targetUsername.", onClose)
                 "deleteConfirm" -> {
                     Text(
-                        "Delete this post? This action can't be undone.",
-                        color = Color.White, fontSize = 14.sp, modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp),
+                        "Delete this post?",
+                        color = zinc900, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, top = 6.dp),
                     )
-                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        "This action can't be undone. Your post will be removed permanently.",
+                        color = zinc500, fontSize = 13.sp, textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, top = 4.dp, bottom = 14.dp),
+                    )
                     Box(
-                        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color(0xFFF87171).copy(alpha = 0.15f)).clickable { submitDelete() }.padding(vertical = 14.dp),
+                        Modifier.fillMaxWidth().height(48.dp).clip(RoundedCornerShape(50)).background(red600).clickable { submitDelete() },
                         contentAlignment = Alignment.Center,
-                    ) { Text("Delete", color = Color(0xFFF87171), fontWeight = FontWeight.SemiBold, fontSize = 15.sp) }
+                    ) { Text("Delete", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 15.sp) }
+                    Spacer(Modifier.height(8.dp))
+                    Box(
+                        Modifier.fillMaxWidth().height(48.dp).clip(RoundedCornerShape(50)).background(zinc100).clickable { step = "menu" },
+                        contentAlignment = Alignment.Center,
+                    ) { Text("Cancel", color = zinc900, fontWeight = FontWeight.SemiBold, fontSize = 15.sp) }
                     Spacer(Modifier.height(4.dp))
-                    SheetBack { step = "menu" }
                 }
                 "deleted" -> ConfirmMessage(Icons.Filled.Delete, "Post deleted", "It will no longer appear in your profile or feed.", onClose)
                 else -> {
-                    Text(errorMsg, color = Color(0xFFF87171), fontSize = 14.sp, modifier = Modifier.padding(vertical = 10.dp, horizontal = 4.dp))
-                    SheetBack { step = "menu" }
+                    Text(errorMsg, color = red600, fontSize = 14.sp, modifier = Modifier.padding(vertical = 10.dp, horizontal = 8.dp))
+                    SheetBack(zinc500) { step = "menu" }
                 }
             }
         }
@@ -1220,36 +1243,36 @@ private fun MoreOptionsSheet(
 }
 
 @Composable
-private fun SheetCancel(onClick: () -> Unit) {
+private fun SheetCancel(tint: Color, onClick: () -> Unit) {
     Box(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable(onClick = onClick).padding(vertical = 14.dp),
         contentAlignment = Alignment.Center,
-    ) { Text("Cancel", color = Color.White.copy(alpha = 0.7f), fontWeight = FontWeight.Medium, fontSize = 15.sp) }
+    ) { Text("Cancel", color = tint, fontWeight = FontWeight.Medium, fontSize = 15.sp) }
 }
 
 @Composable
-private fun SheetBack(onClick: () -> Unit) {
+private fun SheetBack(tint: Color, onClick: () -> Unit) {
     Box(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable(onClick = onClick).padding(vertical = 14.dp),
         contentAlignment = Alignment.Center,
-    ) { Text("Back", color = Color.White.copy(alpha = 0.7f), fontWeight = FontWeight.Medium, fontSize = 15.sp) }
+    ) { Text("Back", color = tint, fontWeight = FontWeight.Medium, fontSize = 15.sp) }
 }
 
 @Composable
 private fun ConfirmMessage(icon: ImageVector, title: String, desc: String, onClose: () -> Unit) {
     Column(Modifier.fillMaxWidth().padding(vertical = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(Modifier.size(48.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.06f)), contentAlignment = Alignment.Center) {
-            Icon(icon, null, tint = Color.White, modifier = Modifier.size(22.dp))
+        Box(Modifier.size(48.dp).clip(CircleShape).background(Color(0xFFF4F4F5)), contentAlignment = Alignment.Center) {
+            Icon(icon, null, tint = Color(0xFF3F3F46), modifier = Modifier.size(22.dp))
         }
         Spacer(Modifier.height(10.dp))
-        Text(title, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+        Text(title, color = Color(0xFF18181B), fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(4.dp))
-        Text(desc, color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp, textAlign = TextAlign.Center)
+        Text(desc, color = Color(0xFF71717A), fontSize = 13.sp, textAlign = TextAlign.Center)
         Spacer(Modifier.height(16.dp))
         Box(
-            Modifier.fillMaxWidth().clip(RoundedCornerShape(50)).background(Color.White).clickable { onClose() }.padding(vertical = 12.dp),
+            Modifier.fillMaxWidth().height(48.dp).clip(RoundedCornerShape(50)).background(Color(0xFF18181B)).clickable { onClose() },
             contentAlignment = Alignment.Center,
-        ) { Text("Done", color = Color.Black, fontWeight = FontWeight.SemiBold, fontSize = 14.sp) }
+        ) { Text("Done", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp) }
     }
 }
 
