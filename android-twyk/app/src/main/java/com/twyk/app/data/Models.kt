@@ -81,6 +81,12 @@ data class User(
     val avatarUrl: String? = null,
     val verified: Boolean = false,
     val termsAccepted: Boolean = false,
+    // Rol de la cuenta ('admin' | 'user'). El backend ya lo incluye en el
+    // usuario devuelto por /api/auth/login, /api/auth/register y /api/auth/me
+    // (ver createUser en lib/db.js); se usa para mostrar la sección
+    // "Administration" del panel de Ajustes, igual que isAdmin en la web
+    // (ProfilePage.jsx: user?.role === 'admin').
+    val role: String? = null,
 )
 
 data class LoginRequest(val username: String, val password: String)

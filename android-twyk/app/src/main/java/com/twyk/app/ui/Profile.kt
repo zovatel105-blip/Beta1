@@ -356,13 +356,18 @@ fun ProfileScreen(
             )
         }
 
-        // Menú (☰, solo perfil propio) — acción principal: cerrar sesión.
-        if (menuOpen) {
-            ProfileMenuSheet(
-                onClose = { menuOpen = false },
-                onLogout = { Session.clear() },
-            )
-        }
+        // Menú (☰, solo perfil propio) — panel de Ajustes. Se monta SIEMPRE
+        // (no solo cuando menuOpen==true) para que la animación de SALIDA
+        // (deslizar hacia la derecha) pueda reproducirse; la visibilidad real
+        // la controla el parámetro `open` (ver ProfileMenu.kt). `isAdmin` viene
+        // del rol de la sesión (backend ya lo incluye en el usuario, igual que
+        // `user?.role === 'admin'` en ProfilePage.jsx).
+        ProfileMenuSheet(
+            open = menuOpen,
+            onClose = { menuOpen = false },
+            onLogout = { Session.clear() },
+            isAdmin = Session.user?.role == "admin",
+        )
     }
 }
 
