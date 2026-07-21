@@ -11,7 +11,7 @@ import os
 from io import BytesIO
 
 # Get base URL from environment
-BASE_URL = os.getenv('NEXT_PUBLIC_BASE_URL', 'https://profile-unify-1.preview.emergentagent.com')
+BASE_URL = os.getenv('NEXT_PUBLIC_BASE_URL', 'https://cross-platform-feed.preview.emergentagent.com')
 API_URL = f"{BASE_URL}/api"
 
 print(f"Testing backend at: {API_URL}")
