@@ -11,18 +11,23 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -38,7 +43,9 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.twyk.app.feed.VersusFeed
@@ -50,6 +57,7 @@ import com.twyk.app.ui.InboxScreen
 import com.twyk.app.ui.ProfileScreen
 import com.twyk.app.ui.SearchScreen
 import com.twyk.app.ui.UploadScreen
+import kotlinx.coroutines.delay
 
 // Twyk Android — app NATIVA (Jetpack Compose + Media3/ExoPlayer).
 // El feed se adapta al formato de cada publicación; la barra inferior navega
@@ -92,6 +100,29 @@ private fun TwykApp() {
     var feedReloadKey by remember { mutableStateOf(0) }
     var searchOpen by remember { mutableStateOf(false) } // buscador de usuarios (lupa del feed)
     var quickChallengeTarget by remember { mutableStateOf<com.twyk.app.data.QuickChallengeTarget?>(null) } // "Retar rápido" a una publicación
+    // Globos rojos de la barra inferior (Battle = retos pendientes por responder,
+    // Inbox = notificaciones no leídas) — réplica de BottomNav.jsx (que hace
+    // polling de /api/notifications/unread cada 30s) y de refreshChallenges()
+    // en Feed.jsx (GET /api/challenges, rol 'to' por defecto = dirigidos a mí).
+    var unreadCount by remember { mutableStateOf(0) }
+    var pendingChallengesCount by remember { mutableStateOf(0) }
+    suspend fun refreshBadges() {
+        if (com.twyk.app.data.Session.token == null) { unreadCount = 0; pendingChallengesCount = 0; return }
+        runCatching { com.twyk.app.data.RetrofitProvider.api.unreadNotificationsCount() }.getOrNull()?.let { unreadCount = it.count }
+        runCatching { com.twyk.app.data.RetrofitProvider.api.challenges() }.getOrNull()?.let { pendingChallengesCount = it.challenges?.size ?: 0 }
+    }
+    // Vuelve a arrancar (con una lectura inmediata) cada vez que cambia la
+    // sesión (login/logout), y repite cada 30s mientras se mantenga igual.
+    LaunchedEffect(com.twyk.app.data.Session.token) {
+        while (true) {
+            refreshBadges()
+            delay(30_000)
+        }
+    }
+    // Recalcula también tras eventos que cambian los retos pendientes (aceptar/
+    // rechazar uno, terminar de enviar uno) — mismos eventos que ya disparan
+    // feedReloadKey en el resto de la app.
+    LaunchedEffect(feedReloadKey) { refreshBadges() }
     // Tocar TU propio autor abre tu perfil propio (no la vista de perfil ajeno).
     val openProfile: (String) -> Unit = { uname ->
         if (uname == com.twyk.app.data.Session.user?.username) tab = Tab.Profile
@@ -163,7 +194,15 @@ private fun TwykApp() {
         }
         TwykBottomNav(
             current = tab,
-            onSelect = { tab = it },
+            onSelect = {
+                // Al abrir Inbox, el globo se descuenta al instante (igual que
+                // handleInboxClick en BottomNav.jsx: reset optimista, sin
+                // esperar a que el usuario marque cada notificación leída).
+                if (it == Tab.Inbox) unreadCount = 0
+                tab = it
+            },
+            unreadCount = unreadCount,
+            pendingChallengesCount = pendingChallengesCount,
             modifier = Modifier.align(Alignment.BottomCenter),
         )
         // Perfil ajeno (al tocar un autor en el feed) como overlay sobre todo.
@@ -204,7 +243,13 @@ private fun TwykApp() {
 }
 
 @Composable
-private fun TwykBottomNav(current: Tab, onSelect: (Tab) -> Unit, modifier: Modifier = Modifier) {
+private fun TwykBottomNav(
+    current: Tab,
+    onSelect: (Tab) -> Unit,
+    unreadCount: Int = 0,
+    pendingChallengesCount: Int = 0,
+    modifier: Modifier = Modifier,
+) {
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -221,8 +266,14 @@ private fun TwykBottomNav(current: Tab, onSelect: (Tab) -> Unit, modifier: Modif
             selected = current == Tab.Home,
         ) { onSelect(Tab.Home) }
 
-        // Batallas — espadas cruzadas (icono de la web).
-        NavIcon(icon = ImageVector.vectorResource(R.drawable.ic_swords), selected = current == Tab.Battles) { onSelect(Tab.Battles) }
+        // Batallas — espadas cruzadas (icono de la web) + globo con el número
+        // de retos pendientes por responder (réplica de challengesCount en
+        // BottomNav.jsx).
+        NavIcon(
+            icon = ImageVector.vectorResource(R.drawable.ic_swords),
+            selected = current == Tab.Battles,
+            badgeCount = pendingChallengesCount,
+        ) { onSelect(Tab.Battles) }
 
         // Crear / Subir — borde con degradado lila → azul.
         Box(
@@ -240,8 +291,13 @@ private fun TwykBottomNav(current: Tab, onSelect: (Tab) -> Unit, modifier: Modif
             Icon(Icons.Filled.Add, contentDescription = "Subir", tint = Color.White, modifier = Modifier.size(22.dp))
         }
 
-        // Buzón
-        NavIcon(icon = ImageVector.vectorResource(R.drawable.ic_inbox), selected = current == Tab.Inbox) { onSelect(Tab.Inbox) }
+        // Buzón + globo con notificaciones no leídas (réplica de
+        // notificationsCount en BottomNav.jsx).
+        NavIcon(
+            icon = ImageVector.vectorResource(R.drawable.ic_inbox),
+            selected = current == Tab.Inbox,
+            badgeCount = unreadCount,
+        ) { onSelect(Tab.Inbox) }
 
         // Perfil
         NavIcon(icon = ImageVector.vectorResource(R.drawable.ic_user), selected = current == Tab.Profile) { onSelect(Tab.Profile) }
@@ -249,7 +305,7 @@ private fun TwykBottomNav(current: Tab, onSelect: (Tab) -> Unit, modifier: Modif
 }
 
 @Composable
-private fun NavIcon(icon: ImageVector, selected: Boolean, onClick: () -> Unit) {
+private fun NavIcon(icon: ImageVector, selected: Boolean, badgeCount: Int = 0, onClick: () -> Unit) {
     Box(
         Modifier.size(36.dp).clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
@@ -260,5 +316,25 @@ private fun NavIcon(icon: ImageVector, selected: Boolean, onClick: () -> Unit) {
             tint = if (selected) Color.White else Color.White.copy(alpha = 0.5f),
             modifier = Modifier.size(24.dp),
         )
+        // Globo rojo con el contador — réplica exacta del <span> de
+        // BottomNav.jsx (fondo rojo, texto blanco, "9+" a partir de 10).
+        if (badgeCount > 0) {
+            Box(
+                Modifier
+                    .align(Alignment.TopEnd)
+                    .offset(x = 3.dp, y = (-2).dp)
+                    .defaultMinSize(minWidth = 16.dp)
+                    .height(16.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFFEF4444))
+                    .padding(horizontal = 3.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    if (badgeCount > 9) "9+" else badgeCount.toString(),
+                    color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold,
+                )
+            }
+        }
     }
 }

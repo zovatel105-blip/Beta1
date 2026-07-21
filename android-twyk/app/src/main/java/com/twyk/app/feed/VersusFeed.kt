@@ -16,6 +16,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -72,6 +73,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -138,7 +140,7 @@ fun VersusFeed(
         onOpenComments = onOpenComments,
         onRequireAuth = onRequireAuth,
         onOpenProfile = onOpenProfile,
-        onVote = { id, side -> vm.vote(id, side) },
+        onVote = { id, side, previousSide -> vm.vote(id, side, previousSide) },
         onNearEnd = { vm.loadMore() },
         onChallenge = onChallenge,
     )
@@ -152,7 +154,7 @@ fun FeedPager(
     onOpenComments: (String) -> Unit,
     onRequireAuth: () -> Unit,
     onOpenProfile: (String) -> Unit,
-    onVote: (String, String) -> Unit = { _, _ -> },
+    onVote: (String, String, String?) -> Unit = { _, _, _ -> },
     onNearEnd: () -> Unit = {},
     initialPage: Int = 0,
     onChallenge: (QuickChallengeTarget) -> Unit = {},
@@ -181,7 +183,7 @@ fun FeedPager(
         if (post.type == "duet") {
             DuetPage(
                 post, active, dataSourceFactory,
-                onVote = { onVote(post.id, it) },
+                onVote = { side, previousSide -> onVote(post.id, side, previousSide) },
                 onComments = { onOpenComments(post.id) },
                 onRequireAuth = onRequireAuth,
                 onOpenProfile = onOpenProfile,
@@ -192,7 +194,7 @@ fun FeedPager(
         } else {
             CarouselPage(
                 post, active, dataSourceFactory,
-                onVote = { onVote(post.id, it) },
+                onVote = { side, previousSide -> onVote(post.id, side, previousSide) },
                 onComments = { onOpenComments(post.id) },
                 onRequireAuth = onRequireAuth,
                 onOpenProfile = onOpenProfile,
@@ -259,7 +261,7 @@ private fun CarouselPage(
     post: Post,
     isActive: Boolean,
     dataSourceFactory: CacheDataSource.Factory,
-    onVote: (String) -> Unit,
+    onVote: (String, String?) -> Unit,
     onComments: () -> Unit,
     onRequireAuth: () -> Unit,
     onOpenProfile: (String) -> Unit,
@@ -283,8 +285,30 @@ private fun CarouselPage(
     var voted by remember(post.id) { mutableStateOf<String?>(null) }
     var votes by remember(post.id) { mutableStateOf(post.votes ?: Votes()) }
     var showWinner by remember(post.id) { mutableStateOf(false) }
+    var burstId by remember(post.id) { mutableStateOf(0L) }
+    var burstColor by remember(post.id) { mutableStateOf(Color(0xFFA855F7)) }
+
+    // Votar / CAMBIAR de voto — réplica exacta de submitVote() en
+    // CarouselSlide.jsx: (1) sin sesión, abre el login (antes ni se
+    // comprobaba: se podía votar como invitado, a diferencia de la web); (2)
+    // re-tocar la MISMA opción ya votada solo repite la animación del icono,
+    // sin cambiar nada; (3) tocar la OTRA opción CAMBIA el voto (resta al
+    // lado anterior, suma al nuevo, se lo dice al backend con `previousSide`
+    // para que lo aplique como un cambio atómico, no como un voto extra).
+    fun submitVote(side: String) {
+        if (Session.token == null) { onRequireAuth(); return }
+        burstColor = if (side == "b") Color(0xFF3B82F6) else Color(0xFFA855F7)
+        burstId = System.currentTimeMillis()
+        if (voted == side) return
+        val previous = voted
+        votes = if (previous != null) switchVote(votes, previous, side) else bump(votes, side)
+        voted = side
+        onVote(side, previous)
+    }
 
     // Tarjeta de ganador: aparece ~650ms después de votar (igual que la web).
+    // Se re-dispara en cada voto REAL (primero o cambio de opción), no en un
+    // simple re-toque de la misma opción (voted no cambia -> no se re-lanza).
     LaunchedEffect(post.id, voted) {
         if (voted != null) {
             delay(650)
@@ -323,8 +347,6 @@ private fun CarouselPage(
     // "¿hay audio sonando ahora?" (música O el vídeo activo sin haber
     // terminado de votar) — se usa para el pulso sintético del MusicDisc.
     val audioActive = isActive && !showWinner
-    var burstId by remember(post.id) { mutableStateOf(0L) }
-    var burstColor by remember(post.id) { mutableStateOf(Color(0xFFA855F7)) }
 
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         HorizontalPager(state = sidePager, modifier = Modifier.fillMaxSize()) { p ->
@@ -333,12 +355,7 @@ private fun CarouselPage(
                 modifier = Modifier.fillMaxSize(),
                 side = if (p == 0) post.sideA else post.sideB,
             ) {
-                val s = if (p == 0) "a" else "b"
-                if (voted == null) {
-                    voted = s; votes = bump(votes, s); onVote(s)
-                    burstColor = if (s == "b") Color(0xFF3B82F6) else Color(0xFFA855F7)
-                    burstId = System.currentTimeMillis()
-                }
+                submitVote(if (p == 0) "a" else "b")
             }
         }
 
@@ -362,13 +379,23 @@ private fun CarouselPage(
             )
         }
         Dots(active = sidePager.currentPage)
-        if (voted == null) VoteHint("Swipe to compare · double-tap to vote")
+        // Aviso: distinto según se haya votado ya o no, igual que la web
+        // (antes de votar invita a comparar/votar; tras votar, si el lado
+        // visible NO es el votado, invita a cambiar el voto).
+        val currentSide = if (sidePager.currentPage == 0) "a" else "b"
+        if (voted == null) {
+            VoteHint("Swipe to compare · double-tap to vote")
+        } else if (voted != currentSide) {
+            VoteHint("Double-tap to switch your vote")
+        }
 
         if (showWinner) {
             val chosenSide = if (voted == "b") post.sideB else post.sideA
+            val otherSide = if (voted == "b") post.sideA else post.sideB
             VoteResultOverlay(
                 votedSide = voted ?: "a",
                 chosenSide = chosenSide,
+                otherSide = otherSide,
                 votes = votes,
                 onClose = { showWinner = false },
                 onShare = { sharePost(context, post) },
@@ -385,7 +412,7 @@ private fun DuetPage(
     post: Post,
     isActive: Boolean,
     dataSourceFactory: CacheDataSource.Factory,
-    onVote: (String) -> Unit,
+    onVote: (String, String?) -> Unit,
     onComments: () -> Unit,
     onRequireAuth: () -> Unit,
     onOpenProfile: (String) -> Unit,
@@ -408,7 +435,23 @@ private fun DuetPage(
     var voted by remember(post.id) { mutableStateOf<String?>(null) }
     var votes by remember(post.id) { mutableStateOf(post.votes ?: Votes()) }
     var showWinner by remember(post.id) { mutableStateOf(false) }
+    var burstId by remember(post.id) { mutableStateOf(0L) }
+    var burstColor by remember(post.id) { mutableStateOf(Color(0xFFA855F7)) }
     val isHorizontal = (post.layout ?: "horizontal") == "horizontal"
+
+    // Votar / CAMBIAR de voto — misma lógica que CarouselPage (réplica de
+    // submitVote() en DuetSlide.jsx): exige sesión, re-tocar el mismo lado
+    // solo repite la animación, tocar el otro lado CAMBIA el voto.
+    fun submitVote(side: String) {
+        if (Session.token == null) { onRequireAuth(); return }
+        burstColor = if (side == "b") Color(0xFF3B82F6) else Color(0xFFA855F7)
+        burstId = System.currentTimeMillis()
+        if (voted == side) return
+        val previous = voted
+        votes = if (previous != null) switchVote(votes, previous, side) else bump(votes, side)
+        voted = side
+        onVote(side, previous)
+    }
 
     // Tarjeta de ganador: aparece ~650ms después de votar (igual que la web).
     LaunchedEffect(post.id, voted) {
@@ -439,8 +482,8 @@ private fun DuetPage(
     // para el pulso sintético del MusicDisc.
     val audioActive = isActive && !showWinner
 
-    val voteA: () -> Unit = { if (voted == null) { voted = "a"; votes = bump(votes, "a"); onVote("a") } }
-    val voteB: () -> Unit = { if (voted == null) { voted = "b"; votes = bump(votes, "b"); onVote("b") } }
+    val voteA: () -> Unit = { submitVote("a") }
+    val voteB: () -> Unit = { submitVote("b") }
 
     // Borde de color en el lado VOTADO (igual que el "ring" de la web).
     fun ring(side: String): Modifier =
@@ -461,6 +504,8 @@ private fun DuetPage(
             }
         }
 
+        if (burstId != 0L) VoteBurst(burstId, burstColor) { burstId = 0L }        // burst del doble toque
+
         HeaderOverlay(post, onOpenProfile, onRequireAuth)
         SocialRail(post, votes, voted, onComments, onRequireAuth, hideChallenge = hideChallenge, audioActive = audioActive) {
             val current = if (voted == "b") post.sideB else post.sideA
@@ -475,13 +520,22 @@ private fun DuetPage(
                 ),
             )
         }
-        if (voted == null) VoteHint("Double-tap to vote")
+        // Aviso: "Double-tap to vote" antes de votar; tras votar, invita a
+        // cambiar si se quiere (siempre visible en el dueto, ya que AMBOS
+        // lados están siempre a la vista a la vez, a diferencia del carrusel).
+        if (voted == null) {
+            VoteHint("Double-tap to vote")
+        } else {
+            VoteHint("Double-tap the other side to switch your vote")
+        }
 
         if (showWinner) {
             val chosenSide = if (voted == "b") post.sideB else post.sideA
+            val otherSide = if (voted == "b") post.sideA else post.sideB
             VoteResultOverlay(
                 votedSide = voted ?: "a",
                 chosenSide = chosenSide,
+                otherSide = otherSide,
                 votes = votes,
                 onClose = { showWinner = false },
                 onShare = { sharePost(context, post) },
@@ -954,6 +1008,7 @@ private fun BoxScope.VoteHint(text: String) {
 private fun VoteResultOverlay(
     votedSide: String,
     chosenSide: Side?,
+    otherSide: Side? = null,
     votes: Votes,
     onClose: () -> Unit,
     onShare: () -> Unit,
@@ -964,13 +1019,43 @@ private fun VoteResultOverlay(
     val aPct = if (total > 0) (votes.a * 100f / total).roundToInt() else 50
     val bPct = 100 - aPct
     val chosenPct = if (votedSide == "b") bPct else aPct
+    val otherPct = 100 - chosenPct
     val chosenColor = if (votedSide == "b") Color(0xFF3B82F6) else Color(0xFFA855F7)
     val chosenName = chosenSide?.author?.name?.takeIf { it.isNotBlank() }
         ?: chosenSide?.author?.username?.let { "@$it" } ?: ""
+    // Nombre del lado NO elegido, para la línea "vs {rival} · {pct}%" (réplica
+    // de `loserName`/`loserPercentage` en VSWinnerCard.jsx) — se omite si es
+    // el MISMO autor en ambos lados (versus/1vs1 normales: no aporta nada
+    // decir "vs tu mismo nombre"), igual que `sameAuthorBothSides` en la web.
+    val otherName = otherSide?.author?.name?.takeIf { it.isNotBlank() }
+        ?: otherSide?.author?.username?.let { "@$it" } ?: ""
+    val sameAuthorBothSides = !chosenSide?.author?.username.isNullOrBlank() &&
+        chosenSide?.author?.username == otherSide?.author?.username
     val posterUrl = absoluteUrl(chosenSide?.posterUrl)
 
+    // Gesto: deslizar hacia ARRIBA (>60dp) pasa al siguiente duelo — réplica
+    // exacta del umbral (SWIPE_THRESHOLD=60) y la dirección de VSWinnerCard.jsx.
+    var dragY by remember { mutableStateOf(0f) }
+    val density = LocalDensity.current
+    val swipeThresholdPx = with(density) { 60.dp.toPx() }
+
     Box(
-        Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.82f)).clickable { onClose() },
+        Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.82f))
+            .pointerInput(Unit) {
+                detectVerticalDragGestures(
+                    onDragEnd = {
+                        if (-dragY > swipeThresholdPx) onNext()
+                        dragY = 0f
+                    },
+                    onDragCancel = { dragY = 0f },
+                ) { change, amount ->
+                    change.consume()
+                    dragY += amount
+                }
+            }
+            .clickable { onClose() },
         contentAlignment = Alignment.Center,
     ) {
         Box(
@@ -1027,6 +1112,16 @@ private fun VoteResultOverlay(
                         Row(Modifier.fillMaxWidth().height(9.dp).clip(RoundedCornerShape(50)).background(Color.White.copy(alpha = 0.15f))) {
                             Box(Modifier.weight(aPct.coerceIn(1, 99).toFloat()).fillMaxHeight().background(Color(0xFFA855F7)))
                             Box(Modifier.weight((100 - aPct.coerceIn(1, 99)).toFloat()).fillMaxHeight().background(Color(0xFF3B82F6)))
+                        }
+                        // Línea "vs {rival} · {pct}%" bajo la barra — réplica de
+                        // loserName/loserPercentage en VSWinnerCard.jsx; se omite
+                        // si ambos lados son del MISMO autor (versus/1vs1
+                        // normales, no un reto real entre 2 usuarios distintos).
+                        if (!sameAuthorBothSides && otherName.isNotEmpty()) {
+                            Text(
+                                "vs $otherName · $otherPct%", color = Color.White.copy(alpha = 0.55f), fontSize = 11.sp,
+                                modifier = Modifier.padding(top = 6.dp),
+                            )
                         }
                     }
 
@@ -1295,6 +1390,17 @@ private fun SheetItem(icon: ImageVector, text: String, tint: Color, onClick: () 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 private fun bump(v: Votes, side: String): Votes =
     if (side == "a") v.copy(a = v.a + 1) else v.copy(b = v.b + 1)
+
+// CAMBIO de voto (A<->B): resta 1 al lado anterior y suma 1 al nuevo, en el
+// MISMO objeto — réplica del cómputo optimista de submitVote() en
+// CarouselSlide.jsx/DuetSlide.jsx (el total de votos no varía).
+private fun switchVote(v: Votes, previous: String, next: String): Votes {
+    if (previous == next) return v
+    var result = v
+    result = if (previous == "a") result.copy(a = (result.a - 1).coerceAtLeast(0)) else result.copy(b = (result.b - 1).coerceAtLeast(0))
+    result = if (next == "a") result.copy(a = result.a + 1) else result.copy(b = result.b + 1)
+    return result
+}
 
 @Suppress("unused")
 private fun pctFor(votes: Votes, side: Int): Int {

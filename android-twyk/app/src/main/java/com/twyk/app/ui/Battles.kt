@@ -158,7 +158,7 @@ fun BattlesScreen(
                         onOpenComments = onOpenComments,
                         onRequireAuth = onRequireAuth,
                         onOpenProfile = onOpenProfile,
-                        onVote = { id, side -> scope.launch { runCatching { RetrofitProvider.api.vote(VoteRequest(id, side)) } } },
+                        onVote = { id, side, prev -> scope.launch { runCatching { RetrofitProvider.api.vote(VoteRequest(id, side, prev)) } } },
                         onChallenge = onChallenge,
                         hideChallenge = true,
                     )

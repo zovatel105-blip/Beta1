@@ -317,8 +317,8 @@ fun ProfileScreen(
                     onOpenComments = { viewerCommentsPostId = it },
                     onRequireAuth = onRequireAuth,
                     onOpenProfile = { uname -> nestedProfileUsername = uname },
-                    onVote = { id, side ->
-                        scope.launch { runCatching { RetrofitProvider.api.vote(VoteRequest(id, side)) } }
+                    onVote = { id, side, prev ->
+                        scope.launch { runCatching { RetrofitProvider.api.vote(VoteRequest(id, side, prev)) } }
                     },
                 )
                 Box(

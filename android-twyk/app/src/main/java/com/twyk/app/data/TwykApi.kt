@@ -121,6 +121,9 @@ interface TwykApi {
     @GET("api/notifications")
     suspend fun notifications(): NotificationsResponse
 
+    @GET("api/notifications/unread")
+    suspend fun unreadNotificationsCount(): UnreadCountResponse
+
     @POST("api/notifications/read")
     suspend fun markNotificationsRead(@Body body: MarkReadRequest): OkResponse
 

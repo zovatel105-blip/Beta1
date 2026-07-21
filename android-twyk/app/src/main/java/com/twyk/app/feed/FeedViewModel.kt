@@ -61,9 +61,9 @@ class FeedViewModel : ViewModel() {
         }
     }
 
-    fun vote(id: String, side: String) {
+    fun vote(id: String, side: String, previousSide: String? = null) {
         viewModelScope.launch {
-            runCatching { api.vote(VoteRequest(id, side)) }
+            runCatching { api.vote(VoteRequest(id, side, previousSide)) }
         }
     }
 }

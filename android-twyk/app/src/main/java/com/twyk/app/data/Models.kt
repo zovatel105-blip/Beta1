@@ -69,7 +69,12 @@ data class FeedResponse(
     val hasMore: Boolean? = null,
 )
 
-data class VoteRequest(val id: String, val side: String)
+// previousSide: lado que este mismo usuario había votado ANTES en esta
+// publicación (null si es su primer voto). El backend lo usa para CAMBIAR de
+// opción en una sola operación atómica (resta al anterior, suma al nuevo) en
+// vez de sumar un voto extra — ver handleVote en route.js. Réplica exacta del
+// body { id, side, previousSide } que ya envía CarouselSlide.jsx/DuetSlide.jsx.
+data class VoteRequest(val id: String, val side: String, val previousSide: String? = null)
 
 data class VoteResponse(val votes: Votes? = null)
 
@@ -174,6 +179,10 @@ data class NotificationItem(
 )
 data class NotificationsResponse(val notifications: List<NotificationItem>? = null)
 data class MarkReadRequest(val all: Boolean? = null, val id: String? = null, val types: List<String>? = null)
+// GET /api/notifications/unread — contador de notificaciones no leídas, usado
+// para el globo rojo del icono "Inbox" en la barra inferior (réplica de
+// BottomNav.jsx, que hace polling de este mismo endpoint cada 30s).
+data class UnreadCountResponse(val count: Int = 0)
 
 data class Challenge(
     val id: String = "",
