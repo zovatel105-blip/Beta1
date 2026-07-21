@@ -4,6 +4,7 @@ import android.app.DatePickerDialog
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.Canvas
@@ -36,15 +37,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.Login
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Link
-import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.outlined.Cake
 import androidx.compose.material.icons.outlined.Email
@@ -75,6 +75,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -90,6 +91,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.twyk.app.Config
+import com.twyk.app.R
 import com.twyk.app.data.Comment
 import com.twyk.app.data.CreateCommentRequest
 import com.twyk.app.data.LoginRequest
@@ -110,10 +112,13 @@ fun sharePost(context: Context, post: Post) {
     context.startActivity(Intent.createChooser(intent, "Share"))
 }
 
-// ── Hoja de COMPARTIR — réplica de ShareModal.jsx: grid de 5 opciones (Send
-// to/Copy link/Instagram/WhatsApp/X) en vez de abrir directamente el selector
-// nativo de Android. Se abre desde el icono de compartir del SocialRail
-// (feed/VersusFeed.kt), igual que ShareModal se abre desde CarouselSlide.jsx.
+// ── Hoja de COMPARTIR — réplica EXACTA de ShareModal.jsx: hoja BLANCA (no
+// oscura, como estaba antes) con flecha-abajo para cerrar, título "Share",
+// grid de 5 opciones (Send to/Copy link/Instagram/WhatsApp/X) con círculos
+// gris claro (zinc-100) e icono oscuro (zinc-700), en vez de abrir
+// directamente el selector nativo de Android. Se abre desde el icono de
+// compartir del SocialRail (feed/VersusFeed.kt), igual que ShareModal se
+// abre desde CarouselSlide.jsx.
 @Composable
 fun ShareSheet(postId: String, onClose: () -> Unit) {
     val context = LocalContext.current
@@ -141,43 +146,51 @@ fun ShareSheet(postId: String, onClose: () -> Unit) {
         }
     }
 
+    val zinc100 = Color(0xFFF4F4F5)
+    val zinc700 = Color(0xFF3F3F46)
+    val zinc800 = Color(0xFF27272A)
+    val zinc500 = Color(0xFF71717A)
+    val green600 = Color(0xFF16A34A)
+
     Box(
         Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)).clickable(onClick = onClose),
         contentAlignment = Alignment.BottomCenter,
     ) {
         Column(
             Modifier.fillMaxWidth()
-                .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
-                .background(Color(0xFF18181B))
+                .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+                .background(Color.White)
                 .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { }
                 .navigationBarsPadding(),
         ) {
-            Box(Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 4.dp), contentAlignment = Alignment.Center) {
-                Box(Modifier.size(width = 36.dp, height = 4.dp).clip(RoundedCornerShape(2.dp)).background(Color.White.copy(alpha = 0.2f)))
-            }
+            // Flecha abajo para cerrar — réplica exacta del botón "close" de ShareModal.jsx.
+            Box(
+                Modifier.fillMaxWidth().clickable(onClick = onClose).padding(top = 10.dp, bottom = 2.dp),
+                contentAlignment = Alignment.Center,
+            ) { Icon(Icons.Filled.KeyboardArrowDown, "close", tint = zinc500, modifier = Modifier.size(18.dp)) }
             Text(
-                "Share", color = Color.White.copy(alpha = 0.85f), fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
-                textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
+                "Share", color = zinc800, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp),
             )
-            HorizontalDivider(color = Color.White.copy(alpha = 0.06f))
+            HorizontalDivider(color = zinc100)
             Row(
-                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 22.dp),
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 24.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                ShareOptionIcon("Send to", Icons.Filled.Send, Color(0xFF27272A), Color.White) { sendTo(); onClose() }
+                ShareOptionIcon("Send to", Icons.Filled.Send, zinc100, zinc700) { sendTo(); onClose() }
                 ShareOptionIcon(
                     if (copied) "Copied" else "Copy link",
                     if (copied) Icons.Filled.Check else Icons.Filled.Link,
-                    Color(0xFF27272A), if (copied) Color(0xFF4ADE80) else Color.White,
+                    zinc100, if (copied) green600 else zinc700,
                 ) { copyLink() }
                 ShareOptionIcon(
-                    "Instagram", Icons.Filled.PhotoCamera, null, Color.White,
+                    "Instagram", ImageVector.vectorResource(R.drawable.ic_instagram), null, Color.White,
                     gradient = Brush.linearGradient(listOf(Color(0xFFFACC15), Color(0xFFEC4899), Color(0xFF9333EA))),
                 ) { openUrl("https://www.instagram.com/"); onClose() }
-                ShareOptionIcon("WhatsApp", Icons.AutoMirrored.Filled.Chat, Color(0xFF25D366), Color.White) {
+                ShareOptionIcon("WhatsApp", ImageVector.vectorResource(R.drawable.ic_whatsapp), Color(0xFF25D366), Color.White) {
                     openUrl("https://wa.me/?text=" + Uri.encode(shareUrl)); onClose()
                 }
-                ShareOptionText("X", Color.Black, Color.White) {
+                ShareOptionIcon("X", ImageVector.vectorResource(R.drawable.ic_x_logo), Color.Black, Color.White) {
                     openUrl("https://twitter.com/intent/tweet?url=" + Uri.encode(shareUrl)); onClose()
                 }
             }
@@ -194,18 +207,9 @@ private fun ShareOptionIcon(label: String, icon: ImageVector, bg: Color?, tint: 
             contentAlignment = Alignment.Center,
         ) { Icon(icon, null, tint = tint, modifier = Modifier.size(24.dp)) }
         Spacer(Modifier.height(6.dp))
-        Text(label, color = Color.White.copy(alpha = 0.75f), fontSize = 11.sp, textAlign = TextAlign.Center)
-    }
-}
-
-@Composable
-private fun ShareOptionText(label: String, bg: Color, tint: Color, onClick: () -> Unit) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(56.dp).clickable { onClick() }) {
-        Box(Modifier.size(56.dp).clip(CircleShape).background(bg), contentAlignment = Alignment.Center) {
-            Text(label, color = tint, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-        }
-        Spacer(Modifier.height(6.dp))
-        Text(label, color = Color.White.copy(alpha = 0.75f), fontSize = 11.sp, textAlign = TextAlign.Center)
+        // Etiqueta oscura (zinc-600) — la hoja ahora es BLANCA, ya no oscura;
+        // antes este texto quedaba en blanco sobre blanco (invisible).
+        Text(label, color = Color(0xFF52525B), fontSize = 11.sp, textAlign = TextAlign.Center)
     }
 }
 
@@ -217,10 +221,24 @@ fun CommentsSheet(postId: String, onClose: () -> Unit, onRequireAuth: () -> Unit
     var loading by remember { mutableStateOf(true) }
     var input by remember { mutableStateOf("") }
     var sending by remember { mutableStateOf(false) }
+    // Expandir/contraer la hoja (75% <-> 95%) — réplica del botón
+    // ChevronUp/ChevronDown de CommentsModal.jsx (antes la app nativa tenía
+    // una altura fija del 80%, sin esta opción).
+    var expanded by remember { mutableStateOf(false) }
+    val sheetHeightFraction by animateFloatAsState(if (expanded) 0.95f else 0.75f, label = "commentsHeight")
+    // Hilos de respuestas ABIERTOS (por id del comentario raíz) — réplica de
+    // expandedReplies en CommentsModal.jsx: las respuestas empiezan OCULTAS
+    // detrás de "View N replies" (antes la app nativa las mostraba siempre,
+    // todas expandidas de una).
+    var expandedReplies by remember { mutableStateOf(setOf<String>()) }
     // Comentario al que se está respondiendo (hilo plano de 1 nivel, igual
     // que la web: el backend aplana automáticamente cualquier parentId a la
     // raíz, así que basta enviar el id del comentario tocado).
     var replyTarget by remember { mutableStateOf<Comment?>(null) }
+
+    fun toggleReplies(rootId: String) {
+        expandedReplies = if (expandedReplies.contains(rootId)) expandedReplies - rootId else expandedReplies + rootId
+    }
 
     LaunchedEffect(postId) {
         loading = true
@@ -228,28 +246,56 @@ fun CommentsSheet(postId: String, onClose: () -> Unit, onRequireAuth: () -> Unit
         loading = false
     }
 
+    val roots = remember(comments) { comments.filter { it.parentId == null } }
+    val repliesByParent = remember(comments) { comments.filter { it.parentId != null }.groupBy { it.parentId!! } }
+    val orphanReplies = remember(comments, roots) {
+        val knownRootIds = roots.map { it.id }.toSet()
+        comments.filter { it.parentId != null && it.parentId !in knownRootIds }
+    }
+    // Lista PLANA de solo lo VISIBLE ahora mismo (raíces + respuestas de los
+    // hilos abiertos) para el conector avatar-a-avatar — réplica del mismo
+    // propósito que threadComments() tenía antes, pero respetando qué hilos
+    // están colapsados.
+    val visibleForConnectors = remember(roots, repliesByParent, expandedReplies, orphanReplies) {
+        val out = mutableListOf<Pair<Comment, Boolean>>()
+        roots.forEach { root ->
+            out.add(root to false)
+            if (expandedReplies.contains(root.id)) repliesByParent[root.id]?.forEach { out.add(it to true) }
+        }
+        orphanReplies.forEach { out.add(it to false) }
+        out
+    }
+
     Box(
         Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)).pointerInput(Unit) { detectTapGestures(onTap = { onClose() }) },
     ) {
         Column(
-            Modifier.align(Alignment.BottomCenter).fillMaxWidth().fillMaxHeight(0.80f)
+            Modifier.align(Alignment.BottomCenter).fillMaxWidth().fillMaxHeight(sheetHeightFraction)
                 .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
                 .background(Color.White)
                 .pointerInput(Unit) { detectTapGestures(onTap = {}) },
         ) {
-            Box(Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 2.dp), contentAlignment = Alignment.Center) {
-                Box(Modifier.size(width = 40.dp, height = 4.dp).clip(RoundedCornerShape(2.dp)).background(Color(0xFFA1A1AA)))
+            // Flecha expandir/contraer — SOLO esto arriba (sin botón "X" al lado
+            // del título, a diferencia de la versión anterior de esta hoja
+            // nativa) — réplica exacta de CommentsModal.jsx.
+            Box(
+                Modifier.fillMaxWidth().clickable { expanded = !expanded }.padding(top = 8.dp, bottom = 2.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    if (expanded) Icons.Filled.KeyboardArrowDown else Icons.Filled.KeyboardArrowUp,
+                    if (expanded) "collapse" else "expand",
+                    tint = Color(0xFF71717A), modifier = Modifier.size(18.dp),
+                )
             }
             // Header
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
+            Box(Modifier.fillMaxWidth().padding(horizontal = 20.dp, bottom = 6.dp)) {
                 val n = comments.size
-                Text(if (n == 1) "1 comment" else "$n comments", color = Color(0xFF27272A), fontSize = 16.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
-                Box(Modifier.size(36.dp).clip(CircleShape).clickable { onClose() }, contentAlignment = Alignment.Center) {
-                    Icon(Icons.Filled.Close, "close", tint = Color(0xFF71717A), modifier = Modifier.size(20.dp))
-                }
+                Text(
+                    if (n == 1) "1 comment" else "$n comments",
+                    color = Color(0xFF27272A), fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth(),
+                )
             }
             HorizontalDivider(color = Color(0xFFF4F4F5))
 
@@ -264,33 +310,72 @@ fun CommentsSheet(postId: String, onClose: () -> Unit, onRequireAuth: () -> Unit
                         Text("Be the first to comment", color = Color(0xFFA1A1AA), fontSize = 13.sp)
                     }
                     else -> {
-                        val ordered = threadComments(comments)
                         // Posiciones reales de cada avatar (medidas con
                         // onGloballyPositioned, réplica del getBoundingClientRect
                         // de ReplyThread en CommentsModal.jsx) + la posición del
                         // contenedor, para dibujar la línea conectora avatar-a-
                         // avatar SOLO entre una respuesta y la respuesta EXACTA a
-                        // la que respondió (nunca con el comentario raíz). Antes
-                        // no existía ningún conector en la app nativa.
+                        // la que respondió (nunca con el comentario raíz).
                         val avatarCoords = remember { mutableStateMapOf<String, LayoutCoordinates>() }
                         var containerCoords by remember { mutableStateOf<LayoutCoordinates?>(null) }
                         Box(Modifier.fillMaxSize().onGloballyPositioned { containerCoords = it }) {
                             Column(
                                 Modifier.fillMaxSize().verticalScroll(rememberScrollState())
                                     .padding(horizontal = 20.dp, vertical = 16.dp),
-                                verticalArrangement = Arrangement.spacedBy(20.dp),
+                                verticalArrangement = Arrangement.spacedBy(16.dp),
                             ) {
-                                ordered.forEach { (c, isReply) ->
+                                roots.forEach { root ->
+                                    Column {
+                                        CommentRow(
+                                            c = root,
+                                            isReply = false,
+                                            onReply = { replyTarget = root },
+                                            onDeleted = { id -> comments = comments.filterNot { it.id == id || it.parentId == id } },
+                                            onAvatarPositioned = { coords -> avatarCoords[root.id] = coords },
+                                        )
+                                        val replies = repliesByParent[root.id].orEmpty()
+                                        if (replies.isNotEmpty()) {
+                                            val isExpanded = expandedReplies.contains(root.id)
+                                            // "View N replies" / "Hide replies" — réplica exacta
+                                            // del botón con línea corta de CommentsModal.jsx.
+                                            Row(
+                                                Modifier.padding(start = 44.dp, top = 8.dp).clickable { toggleReplies(root.id) },
+                                                verticalAlignment = Alignment.CenterVertically,
+                                            ) {
+                                                Box(Modifier.width(24.dp).height(1.dp).background(Color(0xFFD4D4D8)))
+                                                Spacer(Modifier.width(8.dp))
+                                                Text(
+                                                    if (isExpanded) "Hide replies" else "View ${replies.size} ${if (replies.size == 1) "reply" else "replies"}",
+                                                    color = Color(0xFF71717A), fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                                                )
+                                            }
+                                            if (isExpanded) {
+                                                Column(Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                                                    replies.forEach { r ->
+                                                        CommentRow(
+                                                            c = r,
+                                                            isReply = true,
+                                                            onReply = { replyTarget = r },
+                                                            onDeleted = { id -> comments = comments.filterNot { it.id == id || it.parentId == id } },
+                                                            onAvatarPositioned = { coords -> avatarCoords[r.id] = coords },
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                orphanReplies.forEach { o ->
                                     CommentRow(
-                                        c = c,
-                                        isReply = isReply,
-                                        onReply = { replyTarget = c },
+                                        c = o,
+                                        isReply = false,
+                                        onReply = { replyTarget = o },
                                         onDeleted = { id -> comments = comments.filterNot { it.id == id || it.parentId == id } },
-                                        onAvatarPositioned = { coords -> avatarCoords[c.id] = coords },
+                                        onAvatarPositioned = { coords -> avatarCoords[o.id] = coords },
                                     )
                                 }
                             }
-                            ReplyConnectors(ordered, avatarCoords, containerCoords)
+                            ReplyConnectors(visibleForConnectors, avatarCoords, containerCoords)
                         }
                     }
                 }
@@ -298,7 +383,8 @@ fun CommentsSheet(postId: String, onClose: () -> Unit, onRequireAuth: () -> Unit
 
             HorizontalDivider(color = Color(0xFFF4F4F5))
 
-            // Pill "Replying to @username" (igual que la web) — solo visible con sesión.
+            // Pill "Replying to @username" (igual que la web) — solo visible con
+            // sesión. Icono "X" para cancelar (antes un texto "Cancel").
             if (replyTarget != null && Session.token != null) {
                 Row(
                     Modifier.fillMaxWidth().padding(horizontal = 20.dp, top = 10.dp),
@@ -308,7 +394,9 @@ fun CommentsSheet(postId: String, onClose: () -> Unit, onRequireAuth: () -> Unit
                         "Replying to @${replyTarget?.author?.username ?: "user"}",
                         color = Color(0xFF71717A), fontSize = 12.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f),
                     )
-                    Text("Cancel", color = Color(0xFF3F3F46), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.clickable { replyTarget = null })
+                    Box(Modifier.size(24.dp).clickable { replyTarget = null }, contentAlignment = Alignment.Center) {
+                        Icon(Icons.Filled.Close, "cancel reply", tint = Color(0xFFA1A1AA), modifier = Modifier.size(14.dp))
+                    }
                 }
             }
 
@@ -339,7 +427,15 @@ fun CommentsSheet(postId: String, onClose: () -> Unit, onRequireAuth: () -> Unit
                                 sending = true
                                 scope.launch {
                                     runCatching { RetrofitProvider.api.createComment(CreateCommentRequest(postId, text, parentId)) }
-                                        .onSuccess { r -> r.comment?.let { comments = comments + it }; input = ""; replyTarget = null }
+                                        .onSuccess { r ->
+                                            r.comment?.let { newComment ->
+                                                comments = comments + newComment
+                                                // Abre el hilo raíz al instante si era una respuesta,
+                                                // igual que la web.
+                                                newComment.parentId?.let { pid -> expandedReplies = expandedReplies + pid }
+                                            }
+                                            input = ""; replyTarget = null
+                                        }
                                         .onFailure { onRequireAuth() }
                                     sending = false
                                 }
@@ -353,25 +449,6 @@ fun CommentsSheet(postId: String, onClose: () -> Unit, onRequireAuth: () -> Unit
             }
         }
     }
-}
-
-// Agrupa los comentarios en hilo plano de 1 nivel: cada raíz (parentId=null)
-// seguida INMEDIATAMENTE de sus respuestas (parentId==id de la raíz), en el
-// mismo orden ascendente que ya envía el backend. Réplica de repliesByParent
-// en CommentsModal.jsx. Devuelve pares (comentario, esRespuesta).
-private fun threadComments(list: List<Comment>): List<Pair<Comment, Boolean>> {
-    val roots = list.filter { it.parentId == null }
-    val repliesByParent = list.filter { it.parentId != null }.groupBy { it.parentId }
-    val result = mutableListOf<Pair<Comment, Boolean>>()
-    for (root in roots) {
-        result.add(root to false)
-        repliesByParent[root.id]?.forEach { result.add(it to true) }
-    }
-    // Respuestas "huérfanas" (su raíz no está en esta lista, caso raro) se
-    // muestran igualmente al final en vez de perderse.
-    val knownRootIds = roots.map { it.id }.toSet()
-    list.filter { it.parentId != null && it.parentId !in knownRootIds }.forEach { result.add(it to false) }
-    return result
 }
 
 // Línea conectora avatar-a-avatar entre una respuesta y la respuesta EXACTA
@@ -434,6 +511,14 @@ private fun CommentRow(c: Comment, isReply: Boolean, onReply: () -> Unit, onDele
     // `parentId` ya que el backend aplana cualquier respuesta a la raíz),
     // nunca cuando responde directamente al comentario principal.
     val showReplyTarget = isReply && c.replyToId != null && c.replyToId != c.parentId
+    // Punto de color según el lado por el que votó el autor del comentario
+    // (réplica de sideColor/effectiveSide en CommentsModal.jsx) — antes este
+    // indicador no existía en la app nativa.
+    val voteDotColor = when (c.votedSide) {
+        "a" -> Color(0xFFA855F7)
+        "b" -> Color(0xFF3B82F6)
+        else -> null
+    }
 
     Row(Modifier.fillMaxWidth().padding(start = if (isReply) 40.dp else 0.dp)) {
         // Avatar (foto real, o silueta gris por defecto vía TwykAvatar —
@@ -453,6 +538,10 @@ private fun CommentRow(c: Comment, isReply: Boolean, onReply: () -> Unit, onDele
             Box(Modifier.clip(RoundedCornerShape(16.dp)).background(Color(0xFFF4F4F5)).padding(horizontal = 14.dp, vertical = 10.dp)) {
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (voteDotColor != null) {
+                            Box(Modifier.size(8.dp).clip(CircleShape).background(voteDotColor))
+                            Spacer(Modifier.width(6.dp))
+                        }
                         Text(c.author?.username ?: "User", color = Color(0xFF18181B), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                         if (showReplyTarget && c.replyToUsername != null) {
                             Icon(Icons.Filled.ChevronRight, null, tint = Color(0xFFA1A1AA), modifier = Modifier.size(13.dp))

@@ -5,8 +5,18 @@ import { Send, Link2, Instagram, Check, ChevronDown } from 'lucide-react'
 import BottomSheet from './BottomSheet'
 
 const WhatsAppIcon = () => (
+  // Glifo REAL de WhatsApp (path oficial de simple-icons) — antes era una
+  // aproximación dibujada a mano que no coincidía exactamente con el logo real.
   <svg viewBox="0 0 24 24" className="w-6 h-6" fill="white" aria-hidden>
-    <path d="M17.6 6.3A7.9 7.9 0 0 0 12 4a7.9 7.9 0 0 0-6.8 11.9L4 20l4.2-1.1A7.9 7.9 0 1 0 17.6 6.3zM12 18.5c-1.2 0-2.4-.3-3.4-.9l-.2-.1-2.5.6.7-2.4-.2-.3A6.5 6.5 0 1 1 12 18.5zm3.6-4.9c-.2-.1-1.2-.6-1.3-.6-.2-.1-.3-.1-.4.1l-.6.7c-.1.1-.2.2-.4.1a5.3 5.3 0 0 1-2.6-2.3c-.2-.3.2-.3.5-.9.1-.1 0-.3 0-.4l-.6-1.4c-.2-.4-.3-.3-.5-.3h-.3c-.1 0-.4.1-.6.3-.2.2-.8.8-.8 1.9s.8 2.2.9 2.4c.1.1 1.6 2.5 4 3.4.6.2 1 .4 1.3.5.6.2 1 .1 1.4.1.4 0 1.2-.5 1.4-1 .2-.5.2-.9.1-1z" />
+    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.395-.025-.545-.075-.149-.67-1.62-1.12-2.57-.214-.46-.447-.48-.593-.48-.134 0-.278-.005-.42-.005-.143 0-.372.054-.569.266-.197.212-.754.734-.754 1.79s.754 2.37 1.046 2.77c.292.4.883 1.255 1.836 2.098 1.93 1.695 2.914 2.032 4.33 2.46.84.252 1.64.227 2.308.127.746-.112 1.758-.614 1.983-1.24.225-.626.225-1.16.157-1.26s-.297-.15-.594-.299z" />
+  </svg>
+)
+
+const XIcon = () => (
+  // Logo REAL de X (antes Twitter) — path oficial (simple-icons); antes se
+  // usaba solo la letra "X" en texto, que no coincidía con el logo real.
+  <svg viewBox="0 0 24 24" className="w-[18px] h-[18px]" fill="white" aria-hidden>
+    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
   </svg>
 )
 
@@ -39,7 +49,7 @@ export default function ShareModal({ open, postId, onClose, onShared }) {
     { key: 'copy', label: copied ? 'Copied' : 'Copy link', onClick: copyLink, bg: 'bg-zinc-100', icon: copied ? <Check className="w-6 h-6 text-green-600" strokeWidth={2} /> : <Link2 className="w-6 h-6 text-zinc-700" strokeWidth={1.6} /> },
     { key: 'ig', label: 'Instagram', onClick: () => openUrl('https://www.instagram.com/'), bg: 'bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600', icon: <Instagram className="w-6 h-6 text-white" strokeWidth={1.8} /> },
     { key: 'wa', label: 'WhatsApp', onClick: () => openUrl(`https://wa.me/?text=${encodeURIComponent(shareUrl)}`), bg: 'bg-[#25D366]', icon: <WhatsAppIcon /> },
-    { key: 'x', label: 'X', onClick: () => openUrl(`https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}`), bg: 'bg-black', icon: <span className="text-white text-[20px] font-bold leading-none">X</span> },
+    { key: 'x', label: 'X', onClick: () => openUrl(`https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}`), bg: 'bg-black', icon: <XIcon /> },
   ]
 
   return (

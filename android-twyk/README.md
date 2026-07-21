@@ -28,6 +28,25 @@ estado queda intacta** y el vídeo se ve por detrás (edge-to-edge).
 > y Bloquear usuario reales (antes "Reportar" no llamaba a ningún endpoint),
 > Eliminar publicación propia, Responder/Eliminar comentarios, modal de
 > Términos y Condiciones, y selector de música (iTunes) al publicar.
+>
+> 🆕 Sesión más reciente (modales — paridad 1:1 con la web):
+> - **Retar**: oculto en tu PROPIA publicación (antes se veía siempre); mismo
+>   check `headAuthor !== user` que CarouselSlide.jsx/DuetSlide.jsx.
+> - **Compartir**: hoja BLANCA (antes oscura, no coincidía con ShareModal.jsx),
+>   flecha para cerrar, logos REALES de WhatsApp y X (antes aproximados/letra
+>   de texto) — mismos paths oficiales que la web.
+> - **Más opciones**: mismo orden de filas que OptionsModal.jsx, cabecera con
+>   flecha atrás + título en Reportar/Eliminar, bloqueo DIRECTO sin paso de
+>   confirmación (igual que la web), feedback "Link copied".
+> - **Comentarios**: flecha para expandir/contraer (75%↔95%), respuestas
+>   ocultas detrás de "View N replies" (antes siempre expandidas), punto de
+>   color según el voto del autor del comentario.
+> - **Retar rápido**: flecha para cerrar (antes un tirador), icono de espadas
+>   en "Send challenge".
+> - Pendiente conocido: el paso de fecha de nacimiento del registro usa el
+>   `DatePickerDialog` nativo en vez de la rueda de 3 columnas de la web
+>   (decisión deliberada por fiabilidad, ya que este entorno no compila
+>   Android).
 
 > 👉 Compila la **Fase 1** primero y confirma que arranca; así validamos el
 > toolchain antes de añadir las siguientes fases.

@@ -26,6 +26,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.CircularProgressIndicator
@@ -44,8 +45,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -58,6 +61,7 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import coil.compose.AsyncImage
+import com.twyk.app.R
 import com.twyk.app.absoluteUrl
 import com.twyk.app.data.ChallengeBanner
 import com.twyk.app.data.QuickChallengeTarget
@@ -128,9 +132,12 @@ fun QuickChallengeSheet(target: QuickChallengeTarget, onClose: () -> Unit) {
                 .clickable(enabled = false) {}
                 .padding(bottom = 8.dp),
         ) {
-            Box(Modifier.fillMaxWidth().statusBarsPadding().padding(top = 10.dp), contentAlignment = Alignment.Center) {
-                Box(Modifier.size(width = 36.dp, height = 4.dp).clip(RoundedCornerShape(2.dp)).background(Color(0xFFD4D4D8)))
-            }
+            // Flecha abajo para cerrar — réplica exacta de ChallengeDialog.jsx
+            // (antes había un tirador/asa, sin acción de cerrar explícita).
+            Box(
+                Modifier.fillMaxWidth().statusBarsPadding().clickable { onClose() }.padding(top = 10.dp, bottom = 2.dp),
+                contentAlignment = Alignment.Center,
+            ) { Icon(Icons.Filled.KeyboardArrowDown, "close", tint = Color(0xFF71717A), modifier = Modifier.size(20.dp)) }
 
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 14.dp),
@@ -247,7 +254,15 @@ fun QuickChallengeSheet(target: QuickChallengeTarget, onClose: () -> Unit) {
                 if (sending) {
                     CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
                 } else {
-                    Text("Send challenge", color = if (fileUri != null) Color.White else Color(0xFFA1A1AA), fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        // Icono de espadas — réplica exacta del botón "Send challenge"
+                        // de ChallengeDialog.jsx (antes solo tenía el texto, sin icono).
+                        Icon(
+                            ImageVector.vectorResource(R.drawable.ic_swords), null,
+                            tint = if (fileUri != null) Color.White else Color(0xFFA1A1AA), modifier = Modifier.size(18.dp),
+                        )
+                        Text("Send challenge", color = if (fileUri != null) Color.White else Color(0xFFA1A1AA), fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    }
                 }
             }
         }

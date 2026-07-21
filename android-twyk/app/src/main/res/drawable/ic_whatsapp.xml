@@ -1,0 +1,16 @@
+<vector xmlns:android="http://schemas.org/apis/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Glifo REAL de WhatsApp — path oficial (simple-icons, viewBox 24x24)
+         copiado TAL CUAL (Android soporta la misma sintaxis relativa que
+         SVG), relleno blanco. Se dibuja sobre el círculo verde ya provisto
+         por ShareOptionIcon, igual que el SVG inline de ShareModal.jsx en la
+         web (que también solo dibuja este mismo glifo del teléfono en
+         blanco sobre un div verde). Sustituye la aproximación dibujada a
+         mano anterior, que no coincidía con el logo real. -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.395-.025-.545-.075-.149-.67-1.62-1.12-2.57-.214-.46-.447-.48-.593-.48-.134 0-.278-.005-.42-.005-.143 0-.372.054-.569.266-.197.212-.754.734-.754 1.79s.754 2.37 1.046 2.77c.292.4.883 1.255 1.836 2.098 1.93 1.695 2.914 2.032 4.33 2.46.84.252 1.64.227 2.308.127.746-.112 1.758-.614 1.983-1.24.225-.626.225-1.16.157-1.26s-.297-.15-.594-.299z"/>
+</vector>
