@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -42,12 +43,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import coil.compose.AsyncImage
 import com.twyk.app.feed.VersusFeed
 import com.twyk.app.ui.AuthSheet
 import com.twyk.app.ui.BattlesScreen
@@ -361,8 +364,49 @@ private fun TwykBottomNav(
             badgeCount = unreadCount,
         ) { onSelect(Tab.Inbox) }
 
-        // Perfil
-        NavIcon(icon = ImageVector.vectorResource(R.drawable.ic_user), selected = current == Tab.Profile) { onSelect(Tab.Profile) }
+        // Perfil — muestra el avatar REAL si hay sesión (foto subida o silueta
+        // gris por defecto), igual que la web; icono genérico solo de invitado.
+        // Antes SIEMPRE mostraba el icono genérico, incluso con sesión iniciada.
+        ProfileNavIcon(selected = current == Tab.Profile) { onSelect(Tab.Profile) }
+    }
+}
+
+@Composable
+private fun ProfileNavIcon(selected: Boolean, onClick: () -> Unit) {
+    val user = com.twyk.app.data.Session.user
+    Box(
+        Modifier.size(36.dp).clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (user != null) {
+            val abs = absoluteUrl(user.avatarUrl)
+            // Igual que <Avatar>/DefaultAvatar en la web: solo se muestra la
+            // imagen real si NO es un avatar autogenerado (dicebear/pravatar).
+            val generated = user.avatarUrl.isNullOrBlank() || user.avatarUrl.contains("dicebear") || user.avatarUrl.contains("pravatar")
+            if (abs != null && !generated) {
+                AsyncImage(
+                    model = abs,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.size(23.dp).clip(CircleShape).background(Color(0xFF18181B))
+                        .border(1.dp, Color.White.copy(alpha = 0.2f), CircleShape),
+                )
+            } else {
+                Image(
+                    imageVector = ImageVector.vectorResource(R.drawable.ic_avatar_default),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.size(23.dp).clip(CircleShape),
+                )
+            }
+        } else {
+            Icon(
+                ImageVector.vectorResource(R.drawable.ic_user),
+                contentDescription = null,
+                tint = if (selected) Color.White else Color.White.copy(alpha = 0.5f),
+                modifier = Modifier.size(24.dp),
+            )
+        }
     }
 }
 
@@ -372,30 +416,36 @@ private fun NavIcon(icon: ImageVector, selected: Boolean, badgeCount: Int = 0, o
         Modifier.size(36.dp).clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(
-            icon,
-            contentDescription = null,
-            tint = if (selected) Color.White else Color.White.copy(alpha = 0.5f),
-            modifier = Modifier.size(24.dp),
-        )
-        // Globo rojo con el contador — réplica exacta del <span> de
-        // BottomNav.jsx (fondo rojo, texto blanco, "9+" a partir de 10).
-        if (badgeCount > 0) {
-            Box(
-                Modifier
-                    .align(Alignment.TopEnd)
-                    .offset(x = 3.dp, y = (-2).dp)
-                    .defaultMinSize(minWidth = 16.dp)
-                    .height(16.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFFEF4444))
-                    .padding(horizontal = 3.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    if (badgeCount > 9) "9+" else badgeCount.toString(),
-                    color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold,
-                )
+        // Envoltorio del tamaño EXACTO del glifo (24dp) — antes el globo se
+        // alineaba respecto al área táctil de 36dp, quedando "flotando" lejos
+        // del icono. Ahora se ancla justo a la esquina del icono, igual que
+        // el <span className="absolute -top-0.5 -right-0.5"> de BottomNav.jsx.
+        Box(Modifier.size(24.dp)) {
+            Icon(
+                icon,
+                contentDescription = null,
+                tint = if (selected) Color.White else Color.White.copy(alpha = 0.5f),
+                modifier = Modifier.fillMaxSize(),
+            )
+            // Globo rojo con el contador — réplica exacta del <span> de
+            // BottomNav.jsx (fondo rojo, texto blanco, "9+" a partir de 10).
+            if (badgeCount > 0) {
+                Box(
+                    Modifier
+                        .align(Alignment.TopEnd)
+                        .offset(x = 6.dp, y = (-4).dp)
+                        .defaultMinSize(minWidth = 16.dp)
+                        .height(16.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFEF4444))
+                        .padding(horizontal = 3.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        if (badgeCount > 9) "9+" else badgeCount.toString(),
+                        color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold,
+                    )
+                }
             }
         }
     }
