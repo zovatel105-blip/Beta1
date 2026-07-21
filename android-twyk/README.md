@@ -60,6 +60,10 @@ estado queda intacta** y el vídeo se ve por detrás (edge-to-edge).
 > - **Globos rojos de notificación**: ahora se anclan al tamaño EXACTO del
 >   icono (24dp), no al área táctil completa (36dp) — antes quedaban
 >   "flotando" separados del icono (Batallas y Buzón).
+> - **Contadores grises de los filtros de Notificaciones** (Challenges/Votes/
+>   Followers/Comments): ahora usan ancho MÍNIMO en vez de tamaño FIJO — con
+>   2+ dígitos (10, 23…) el número no cabía en el círculo fijo de 18dp y se
+>   salía de él, pareciendo un número suelto flotando junto a la pestaña.
 
 > 👉 Compila la **Fase 1** primero y confirma que arranca; así validamos el
 > toolchain antes de añadir las siguientes fases.

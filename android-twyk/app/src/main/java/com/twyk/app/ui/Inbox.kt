@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -216,8 +217,15 @@ private fun FilterChip(label: String, count: Int, active: Boolean, onClick: () -
     ) {
         Text(label, color = if (active) Color.Black else ZincText, fontSize = 13.sp, fontWeight = FontWeight.Medium)
         if (count > 0) {
+            // Ancho MÍNIMO (no fijo) — réplica exacta de `min-w-[18px] h-[18px] px-1`
+            // en NotificationsInbox.jsx. Antes usaba un círculo de tamaño FIJO
+            // (18dp): con 2+ dígitos (10, 23...) el número no cabía y se salía
+            // del círculo, pareciendo un número "flotando" suelto junto a la
+            // pestaña en vez de dentro de su propia insignia.
             Box(
-                Modifier.size(18.dp).clip(CircleShape).background(if (active) Color.Black.copy(alpha = 0.10f) else Color.White.copy(alpha = 0.10f)),
+                Modifier.defaultMinSize(minWidth = 18.dp).height(18.dp).clip(RoundedCornerShape(50))
+                    .background(if (active) Color.Black.copy(alpha = 0.10f) else Color.White.copy(alpha = 0.10f))
+                    .padding(horizontal = 4.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(count.toString(), color = if (active) Color.Black else Color(0xFFD4D4D8), fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold)
