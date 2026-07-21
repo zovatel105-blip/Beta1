@@ -93,8 +93,15 @@ fun BattlesScreen(
     onOpenProfile: (String) -> Unit = {},
     onOpenUpload: () -> Unit = {},
     onChallenge: (QuickChallengeTarget) -> Unit = {},
+    // Reporta si la barra de navegación inferior debe verse: en la web,
+    // CompletedBattlesPage.jsx SÍ tiene su propia <BottomNav> (barra visible),
+    // pero ActiveChallengesPage.jsx y SuggestedUsersPage.jsx NO la tienen (barra
+    // oculta) — réplica exacta de esa diferencia, antes inexistente en la app
+    // nativa (la barra se veía SIEMPRE, sin importar la pestaña interna).
+    onShowNavChange: (Boolean) -> Unit = {},
 ) {
     if (Session.token == null) {
+        LaunchedEffect(Unit) { onShowNavChange(true) }
         LoginPrompt("Sign in to view your battles", onRequireAuth, Icons.Filled.EmojiEvents)
         return
     }
@@ -107,6 +114,12 @@ fun BattlesScreen(
     var loading by remember { mutableStateOf(true) }
     var busy by remember { mutableStateOf(false) }
     var suggestionsOpen by remember { mutableStateOf(false) } // página "Sugeridos" (icono superior izquierdo)
+
+    // Barra de navegación inferior: visible SOLO en "Completados" (igual que
+    // CompletedBattlesPage.jsx, que tiene su propia <BottomNav>); oculta en
+    // "Activos" y al abrir "Sugeridos" (ActiveChallengesPage.jsx/
+    // SuggestedUsersPage.jsx no la tienen).
+    LaunchedEffect(tab, suggestionsOpen) { onShowNavChange(tab == "completed" && !suggestionsOpen) }
 
     fun reload() {
         scope.launch {

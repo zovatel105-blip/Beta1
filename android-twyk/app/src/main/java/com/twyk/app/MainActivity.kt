@@ -100,6 +100,9 @@ private fun TwykApp() {
     var feedReloadKey by remember { mutableStateOf(0) }
     var searchOpen by remember { mutableStateOf(false) } // buscador de usuarios (lupa del feed)
     var quickChallengeTarget by remember { mutableStateOf<com.twyk.app.data.QuickChallengeTarget?>(null) } // "Retar rápido" a una publicación
+    // Barra de navegación inferior visible SOLO en la pestaña "Completados"
+    // dentro de Batallas (BattlesScreen la reporta vía onShowNavChange).
+    var battlesShowNav by remember { mutableStateOf(true) }
     // Globos rojos de la barra inferior (Battle = retos pendientes por responder,
     // Inbox = notificaciones no leídas) — réplica de BottomNav.jsx (que hace
     // polling de /api/notifications/unread cada 30s) y de refreshChallenges()
@@ -134,6 +137,25 @@ private fun TwykApp() {
         if (authorUsername != null && authorUsername != com.twyk.app.data.Session.user?.username) {
             quickChallengeTarget = target
         }
+    }
+
+    // Réplica EXACTA de qué páginas muestran la barra de navegación inferior
+    // en la web: Feed.jsx pinta <BottomNav> SIEMPRE, pero cada pantalla que
+    // se abre ENCIMA la tapa o no según su z-index/si tiene su propia copia:
+    //   · Inicio, Perfil (propio o ajeno), Batallas > Completados -> VISIBLE
+    //     (ProfilePage.jsx usa z-40, por debajo del z-50 de BottomNav;
+    //     CompletedBattlesPage.jsx tiene su PROPIA <BottomNav>).
+    //   · Subir, Buzón, Batallas > Activos, Buscador -> OCULTA
+    //     (UploadDialog.jsx/NotificationsInbox.jsx/ActiveChallengesPage.jsx/
+    //     SearchOverlay.jsx usan z-index > 50 y NO tienen <BottomNav> propia).
+    // Antes la app nativa mostraba la barra SIEMPRE, en cualquier pantalla.
+    val showBottomNav = when {
+        searchOpen -> false
+        profileUsername != null -> true
+        tab == Tab.Upload -> false
+        tab == Tab.Inbox -> false
+        tab == Tab.Battles -> battlesShowNav
+        else -> true // Tab.Home, Tab.Profile
     }
 
     // Al abrir la app con una sesión guardada, refresca el usuario desde el
@@ -179,6 +201,7 @@ private fun TwykApp() {
                 onOpenProfile = openProfile,
                 onOpenUpload = { tab = Tab.Upload },
                 onChallenge = onChallenge,
+                onShowNavChange = { battlesShowNav = it },
             )
         }
         // Buscador de usuarios: lupa fija arriba a la derecha (solo en Inicio,
@@ -192,19 +215,21 @@ private fun TwykApp() {
                 Icon(Icons.Filled.Search, "Buscar usuarios", tint = Color.White, modifier = Modifier.size(24.dp))
             }
         }
-        TwykBottomNav(
-            current = tab,
-            onSelect = {
-                // Al abrir Inbox, el globo se descuenta al instante (igual que
-                // handleInboxClick en BottomNav.jsx: reset optimista, sin
-                // esperar a que el usuario marque cada notificación leída).
-                if (it == Tab.Inbox) unreadCount = 0
-                tab = it
-            },
-            unreadCount = unreadCount,
-            pendingChallengesCount = pendingChallengesCount,
-            modifier = Modifier.align(Alignment.BottomCenter),
-        )
+        if (showBottomNav) {
+            TwykBottomNav(
+                current = tab,
+                onSelect = {
+                    // Al abrir Inbox, el globo se descuenta al instante (igual que
+                    // handleInboxClick en BottomNav.jsx: reset optimista, sin
+                    // esperar a que el usuario marque cada notificación leída).
+                    if (it == Tab.Inbox) unreadCount = 0
+                    tab = it
+                },
+                unreadCount = unreadCount,
+                pendingChallengesCount = pendingChallengesCount,
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
+        }
         // Perfil ajeno (al tocar un autor en el feed) como overlay sobre todo.
         profileUsername?.let { uname ->
             ProfileScreen(
