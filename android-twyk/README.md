@@ -47,6 +47,19 @@ estado queda intacta** y el vídeo se ve por detrás (edge-to-edge).
 >   `DatePickerDialog` nativo en vez de la rueda de 3 columnas de la web
 >   (decisión deliberada por fiabilidad, ya que este entorno no compila
 >   Android).
+>
+> 🆕 Sesión más reciente (barra de navegación inferior — paridad 1:1 con la web):
+> - **Visibilidad por pantalla**: la barra ahora es CONDICIONAL, replicando
+>   exactamente qué páginas la muestran en la web — antes se veía SIEMPRE, en
+>   cualquier pantalla.
+>   - Visible: Inicio, Perfil (propio o ajeno), Batallas > Completados.
+>   - Oculta: Subir, Buzón, Batallas > Activos, Buscador de usuarios.
+> - **Avatar de perfil**: con sesión iniciada, el icono de Perfil de la barra
+>   ahora muestra tu avatar REAL (foto subida o silueta gris por defecto),
+>   igual que la web — antes mostraba siempre el icono genérico de invitado.
+> - **Globos rojos de notificación**: ahora se anclan al tamaño EXACTO del
+>   icono (24dp), no al área táctil completa (36dp) — antes quedaban
+>   "flotando" separados del icono (Batallas y Buzón).
 
 > 👉 Compila la **Fase 1** primero y confirma que arranca; así validamos el
 > toolchain antes de añadir las siguientes fases.
