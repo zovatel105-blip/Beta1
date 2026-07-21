@@ -499,7 +499,7 @@ private fun EmptyCompleted(onCreate: () -> Unit, onActive: () -> Unit) {
         Box(
             Modifier.size(80.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.03f)).border(1.dp, Color.White.copy(alpha = 0.10f), CircleShape),
             contentAlignment = Alignment.Center,
-        ) { Icon(Icons.Filled.EmojiEvents, null, tint = Color.White, modifier = Modifier.size(36.dp)) }
+        ) { Icon(ImageVector.vectorResource(R.drawable.ic_trophy), null, tint = Color.White, modifier = Modifier.size(36.dp)) }
         Spacer(Modifier.height(22.dp))
         Text("No completed challenges yet", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
         Spacer(Modifier.height(10.dp))
