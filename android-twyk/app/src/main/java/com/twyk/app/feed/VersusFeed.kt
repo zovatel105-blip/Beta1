@@ -94,6 +94,8 @@ import com.twyk.app.R
 import com.twyk.app.absoluteUrl
 import com.twyk.app.data.BlockRequest
 import com.twyk.app.data.CreateReportRequest
+import com.twyk.app.data.FeedOverlays
+import com.twyk.app.data.MoreOptionsRequest
 import com.twyk.app.data.Post
 import com.twyk.app.data.PostEvents
 import com.twyk.app.data.QuickChallengeTarget
@@ -102,7 +104,7 @@ import com.twyk.app.data.SaveRequest
 import com.twyk.app.data.Session
 import com.twyk.app.data.Side
 import com.twyk.app.data.Votes
-import com.twyk.app.ui.ShareSheet
+import com.twyk.app.data.WinnerRequest
 import com.twyk.app.ui.sharePost
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -273,7 +275,13 @@ private fun CarouselPage(
     val playerA = remember(post.id) { buildPlayer(context, dataSourceFactory, post.sideA?.videoUrl, muted = false) }
     val playerB = remember(post.id) { buildPlayer(context, dataSourceFactory, post.sideB?.videoUrl, muted = false) }
     DisposableEffect(post.id) {
-        onDispose { playerA.release(); playerB.release() }
+        onDispose {
+            playerA.release(); playerB.release()
+            // Si esta tarjeta se descarta (se sale del viewport del pager)
+            // mientras su overlay de "Ganador" seguía abierto, hay que
+            // cerrarlo también en el singleton global (ver FeedOverlays.kt).
+            FeedOverlays.closeWinnerFor(post.id)
+        }
     }
 
     // Música adjunta (preview de iTunes, 30s). Si existe, los vídeos van en
@@ -313,6 +321,32 @@ private fun CarouselPage(
         if (voted != null) {
             delay(650)
             showWinner = true
+        }
+    }
+
+    // Sincroniza el overlay de "Ganador" con el singleton global
+    // FeedOverlays (ver data/FeedOverlays.kt): MainActivity lo pinta por
+    // encima de la barra de navegación inferior, en vez de aquí mismo (donde
+    // quedaba tapado por ella al estar anidado dentro del feed).
+    LaunchedEffect(showWinner, voted, votes) {
+        if (showWinner) {
+            val chosenSide = if (voted == "b") post.sideB else post.sideA
+            val otherSide = if (voted == "b") post.sideA else post.sideB
+            FeedOverlays.showWinner(
+                WinnerRequest(
+                    postId = post.id,
+                    votedSide = voted ?: "a",
+                    chosenSide = chosenSide,
+                    otherSide = otherSide,
+                    votes = votes,
+                    onShare = { sharePost(context, post) },
+                    onComments = onComments,
+                    onClose = { showWinner = false },
+                    onNext = { showWinner = false; onRequestNext() },
+                ),
+            )
+        } else {
+            FeedOverlays.closeWinnerFor(post.id)
         }
     }
 
@@ -388,21 +422,9 @@ private fun CarouselPage(
         } else if (voted != currentSide) {
             VoteHint("Double-tap to switch your vote")
         }
-
-        if (showWinner) {
-            val chosenSide = if (voted == "b") post.sideB else post.sideA
-            val otherSide = if (voted == "b") post.sideA else post.sideB
-            VoteResultOverlay(
-                votedSide = voted ?: "a",
-                chosenSide = chosenSide,
-                otherSide = otherSide,
-                votes = votes,
-                onClose = { showWinner = false },
-                onShare = { sharePost(context, post) },
-                onComments = onComments,
-                onNext = { showWinner = false; onRequestNext() },
-            )
-        }
+        // La tarjeta de "Ganador" YA NO se pinta aquí: se sincroniza con
+        // FeedOverlays (ver el LaunchedEffect de más arriba) y MainActivity
+        // la renderiza por encima de la barra de navegación inferior.
     }
 }
 
@@ -424,7 +446,10 @@ private fun DuetPage(
     val playerA = remember(post.id) { buildPlayer(context, dataSourceFactory, post.sideA?.videoUrl, muted = false) }
     val playerB = remember(post.id) { buildPlayer(context, dataSourceFactory, post.sideB?.videoUrl, muted = true) }
     DisposableEffect(post.id) {
-        onDispose { playerA.release(); playerB.release() }
+        onDispose {
+            playerA.release(); playerB.release()
+            FeedOverlays.closeWinnerFor(post.id)
+        }
     }
 
     // Música adjunta (preview de iTunes, 30s): si existe, el lado A (el único
@@ -458,6 +483,32 @@ private fun DuetPage(
         if (voted != null) {
             delay(650)
             showWinner = true
+        }
+    }
+
+    // Sincroniza el overlay de "Ganador" con el singleton global
+    // FeedOverlays (ver data/FeedOverlays.kt) — mismo motivo que en
+    // CarouselPage: MainActivity lo pinta por encima de la barra de
+    // navegación inferior.
+    LaunchedEffect(showWinner, voted, votes) {
+        if (showWinner) {
+            val chosenSide = if (voted == "b") post.sideB else post.sideA
+            val otherSide = if (voted == "b") post.sideA else post.sideB
+            FeedOverlays.showWinner(
+                WinnerRequest(
+                    postId = post.id,
+                    votedSide = voted ?: "a",
+                    chosenSide = chosenSide,
+                    otherSide = otherSide,
+                    votes = votes,
+                    onShare = { sharePost(context, post) },
+                    onComments = onComments,
+                    onClose = { showWinner = false },
+                    onNext = { showWinner = false; onRequestNext() },
+                ),
+            )
+        } else {
+            FeedOverlays.closeWinnerFor(post.id)
         }
     }
 
@@ -528,21 +579,9 @@ private fun DuetPage(
         } else {
             VoteHint("Double-tap the other side to switch your vote")
         }
-
-        if (showWinner) {
-            val chosenSide = if (voted == "b") post.sideB else post.sideA
-            val otherSide = if (voted == "b") post.sideA else post.sideB
-            VoteResultOverlay(
-                votedSide = voted ?: "a",
-                chosenSide = chosenSide,
-                otherSide = otherSide,
-                votes = votes,
-                onClose = { showWinner = false },
-                onShare = { sharePost(context, post) },
-                onComments = onComments,
-                onNext = { showWinner = false; onRequestNext() },
-            )
-        }
+        // La tarjeta de "Ganador" YA NO se pinta aquí: se sincroniza con
+        // FeedOverlays (ver el LaunchedEffect de más arriba) y MainActivity
+        // la renderiza por encima de la barra de navegación inferior.
     }
 }
 
@@ -728,8 +767,6 @@ private fun BoxScope.SocialRail(
 ) {
     val scope = rememberCoroutineScope()
     var saved by remember(post.id) { mutableStateOf(false) }
-    var menuOpen by remember(post.id) { mutableStateOf(false) }
-    var shareOpen by remember(post.id) { mutableStateOf(false) }
 
     val author = post.sideA?.author ?: post.author
 
@@ -757,10 +794,13 @@ private fun BoxScope.SocialRail(
         }
         // Comment (round bubble, same as the web)
         RailItem(ImageVector.vectorResource(R.drawable.ic_comment), label(post.stats?.comments ?: 0, "Comment"), Color.White, size = 30) { onComments() }
-        // Share (TikTok-style arrow) — opens the options sheet (Send
-        // to/Copy link/Instagram/WhatsApp/X), same as ShareModal.jsx on the
-        // web (used to open the native Android chooser directly).
-        RailItem(ImageVector.vectorResource(R.drawable.ic_share), label(post.stats?.shares ?: 0, "Share"), Color.White, size = 30) { shareOpen = true }
+        // Share (TikTok-style arrow) — abre la hoja de opciones (Send to/Copy
+        // link/Instagram/WhatsApp/X), igual que ShareModal.jsx en la web. Se
+        // pide vía el singleton FeedOverlays (ver data/FeedOverlays.kt) para
+        // que MainActivity la pinte POR ENCIMA de la barra de navegación
+        // inferior, en vez de renderizarla aquí mismo (anidada dentro del
+        // feed, donde quedaba tapada por esa barra).
+        RailItem(ImageVector.vectorResource(R.drawable.ic_share), label(post.stats?.shares ?: 0, "Share"), Color.White, size = 30) { FeedOverlays.openShare(post.id) }
         // Save (bookmark, same as the web)
         RailItem(
             ImageVector.vectorResource(if (saved) R.drawable.ic_bookmark_filled else R.drawable.ic_bookmark),
@@ -778,24 +818,21 @@ private fun BoxScope.SocialRail(
                 }
             }
         }
-        // Más opciones (tres puntos finos, igual que la web)
-        RailItem(ImageVector.vectorResource(R.drawable.ic_more), "", Color.White, size = 18) { menuOpen = true }
+        // Más opciones (tres puntos finos, igual que la web) — mismo motivo
+        // que "Share" arriba: se pide vía el singleton para que se pinte por
+        // encima de la barra de navegación.
+        RailItem(ImageVector.vectorResource(R.drawable.ic_more), "", Color.White, size = 18) {
+            FeedOverlays.openMoreOptions(
+                MoreOptionsRequest(
+                    postId = post.id,
+                    targetUsername = author?.username,
+                    isOwnPost = author?.username != null && author.username == Session.user?.username,
+                ),
+            )
+        }
         // Disco de música giratorio, con un pulso sintético mientras haya
         // audio/música real sonando en esta tarjeta (ver MusicDisc).
         MusicDisc(author?.avatarUrl, active = audioActive)
-    }
-
-    if (menuOpen) {
-        MoreOptionsSheet(
-            postId = post.id,
-            targetUsername = author?.username,
-            isOwnPost = author?.username != null && author.username == Session.user?.username,
-            onClose = { menuOpen = false },
-            onRequireAuth = onRequireAuth,
-        )
-    }
-    if (shareOpen) {
-        ShareSheet(postId = post.id, onClose = { shareOpen = false })
     }
 }
 
@@ -1005,7 +1042,7 @@ private fun BoxScope.VoteHint(text: String) {
 // con acciones Compartir / Comentar / Siguiente duelo. Se usa tanto en
 // publicaciones "versus" (carrusel) como "duet" (pantalla partida).
 @Composable
-private fun VoteResultOverlay(
+fun VoteResultOverlay(
     votedSide: String,
     chosenSide: Side?,
     otherSide: Side? = null,
@@ -1171,7 +1208,7 @@ private val REPORT_REASONS = listOf(
 // /api/posts/{id}, notifica via PostEvents para quitarla de todas las listas
 // visibles: feed principal y perfil/guardados).
 @Composable
-private fun MoreOptionsSheet(
+fun MoreOptionsSheet(
     postId: String,
     targetUsername: String?,
     isOwnPost: Boolean,

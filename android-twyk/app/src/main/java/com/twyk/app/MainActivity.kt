@@ -222,6 +222,43 @@ private fun TwykApp() {
                 onRequireAuth = { authOpen = true },
             )
         }
+        // Overlays "modales" del FEED (Más opciones ⋮ / Compartir / tarjeta de
+        // Ganador tras votar) — se piden desde SocialRail/CarouselPage/
+        // DuetPage (feed/VersusFeed.kt) a través del singleton FeedOverlays en
+        // vez de renderizarse ahí mismo, PRECISAMENTE para que se dibujen aquí
+        // (como hermanos DESPUÉS de TwykBottomNav en este mismo Box) y así
+        // queden por encima de la barra de navegación inferior — antes, al
+        // estar anidados varios niveles dentro del feed (una rama ANTERIOR de
+        // este Box), la barra siempre los tapaba por debajo, sin importar
+        // cuán "encima" pareciera estar el modal en su propio árbol. Aplica a
+        // cualquier pantalla que reutilice el feed nativo (Inicio, Battles >
+        // Completados, el visor de publicaciones del propio perfil), igual
+        // que CommentsSheet/AuthSheet ya funcionaban correctamente por estar
+        // también declarados aquí.
+        com.twyk.app.data.FeedOverlays.moreOptions?.let { req ->
+            com.twyk.app.feed.MoreOptionsSheet(
+                postId = req.postId,
+                targetUsername = req.targetUsername,
+                isOwnPost = req.isOwnPost,
+                onClose = { com.twyk.app.data.FeedOverlays.closeMoreOptions() },
+                onRequireAuth = { authOpen = true },
+            )
+        }
+        com.twyk.app.data.FeedOverlays.share?.let { pid ->
+            com.twyk.app.ui.ShareSheet(postId = pid, onClose = { com.twyk.app.data.FeedOverlays.closeShare() })
+        }
+        com.twyk.app.data.FeedOverlays.winner?.let { w ->
+            com.twyk.app.feed.VoteResultOverlay(
+                votedSide = w.votedSide,
+                chosenSide = w.chosenSide,
+                otherSide = w.otherSide,
+                votes = w.votes,
+                onClose = w.onClose,
+                onShare = w.onShare,
+                onComments = w.onComments,
+                onNext = w.onNext,
+            )
+        }
         if (authOpen) {
             AuthSheet(onClose = { authOpen = false }, onAuthed = { authOpen = false })
         }
