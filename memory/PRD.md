@@ -98,3 +98,36 @@ Ver `/app/memory/test_credentials.md` (twykadmin/Admin12345, lucia/marcos/laura 
 ## Notas de infraestructura
 Ver `/app/memory/ENV_BACKUP.md` — causa raíz y procedimiento si `.env` o los datos de MongoDB desaparecen
 de nuevo (almacenamiento efímero del pod).
+
+## Ronda: paridad 100% pantalla de creación/subida (Upload.kt vs UploadDialog.jsx) — COMPLETADA (pendiente compilación del usuario)
+- **Rediseño completo del paso "file"** para replicar la vista previa a PANTALLA COMPLETA de la web
+  (`fixed inset-0 z-30`): el header genérico del diálogo queda cubierto y el paso muestra su propio
+  header superpuesto (círculos negros 35% con flecha atrás y X).
+- **Vista previa en vivo del media**: vídeo local con ExoPlayer (autoplay + loop + silenciado, TextureView
+  `twyk_texture_player` con resize_mode=zoom = object-cover) y fotos con Coil `AsyncImage` (crop).
+- **1vs1 (duet)**: split en vivo 50/50 con gap de 2px (fondo blanco 20% visible en el gap) horizontal o
+  vertical, y conmutador de formato centrado en el header (pill negro 45% + iconos TableRows/ViewColumn
+  ≈ Rows3/Columns3 de lucide, activo = fondo blanco texto negro).
+- **Versus**: carrusel de 1 vídeo a la vez con swipe horizontal (umbral 40, igual que la web) y puntitos
+  clicables abajo (activo 20x6dp blanco, inactivo 6dp blanco 40%).
+- **Reto**: vídeo/foto único a pantalla completa (placeholder grande 64dp "Tap to upload…").
+- **Botón "Change"** sobre el media (pill negro 55%, 11sp semibold, arriba-derecha de cada slot).
+- **Degradados de legibilidad**: superior 176dp (negro 85%→30%→transparente) e inferior 320dp
+  (transparente→negro 65%→negro), como los `bg-gradient-to-*` de la web.
+- **Panel inferior flotante** (fondo del degradado): error rose-300, textarea descripción (negro 45%,
+  borde blanco 10%, radio 16, texto 15sp zinc-100, placeholder zinc-400), fila de música y botón publicar
+  (blanco redondo py-14dp, bold 16sp; deshabilitado blanco 20% / texto blanco 40%).
+- **Fila de música réplica exacta**: sin música → botón centrado "Add music" (icono 17 + 14sp semibold);
+  con música → artwork 40dp radio 8 (fondo zinc-800), título 13sp semibold + artista 11.5sp zinc-400,
+  botón "Change" (12sp, blanco 80%) y X (16dp zinc-400) — antes faltaba "Change" y el artwork era 32dp.
+- **Paso "mode"**: pestaña "Retos"→"Challenges", textos descriptivos EXACTOS de la web (sin "or 2 photos"),
+  ancho máx. 304dp + lineHeight 24sp (max-w-[19rem] leading-relaxed), glow radial blanco detrás de la caja
+  del icono (box-shadow web), ChevronRight 18dp, segmentado sin gap.
+- **Lógica**: la descripción se envía TAL CUAL (antes Android auto-rellenaba el placeholder; la web manda
+  `description || ''`). El resto del pipeline (WorkManager, UploadQueue, música iTunes) intacto.
+- **Infra restaurada en esta sesión**: `/app/.env` había desaparecido de nuevo (causa raíz conocida) →
+  restaurado con la NUEVA URL de preview (77b55a13-….preview.emergentagent.com), nextjs reiniciado,
+  usuarios re-sembrados (seed-core-users.mjs), ENV_BACKUP.md y test_credentials.md actualizados.
+  Verificado: GET /, /api/feed, POST /api/auth/login → 200.
+- Archivos: `ui/Upload.kt` (reescrito FileStep + nuevos MediaSlot/LocalVideoPreview/LayoutSeg/MusicRow,
+  eliminados VideoSlot/MusicRowPicker). Verificación: llaves 201/201, paréntesis 788/788, imports OK.
