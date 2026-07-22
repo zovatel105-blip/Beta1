@@ -1,6 +1,7 @@
 package com.twyk.app.ui
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -18,7 +19,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -68,14 +68,19 @@ fun isGeneratedAvatar(src: String?): Boolean =
 fun TwykAvatar(src: String?, modifier: Modifier = Modifier) {
     Box(modifier.clip(CircleShape), contentAlignment = Alignment.Center) {
         if (isGeneratedAvatar(src)) {
-            Box(Modifier.fillMaxSize().background(Color(0xFFE5E7EB)), contentAlignment = Alignment.Center) {
-                Icon(
-                    Icons.Filled.Person,
-                    contentDescription = null,
-                    tint = Color(0xFF9CA3AF),
-                    modifier = Modifier.fillMaxSize(0.82f),
-                )
-            }
+            // Réplica EXACTA del <DefaultAvatar> de la web (Avatar.jsx /
+            // BottomNav.jsx): fondo gris claro (#E5E7EB) + silueta SVG
+            // personalizada (cabeza circular + hombros triangulares en #9CA3AF).
+            // Se usa el mismo vector `ic_avatar_default.xml` que el feed y el
+            // botón de perfil de la barra inferior — antes se dibujaba el
+            // `Icons.Filled.Person` de Material (círculo lleno) que NO
+            // coincidía con la silueta de la web.
+            Image(
+                imageVector = ImageVector.vectorResource(com.twyk.app.R.drawable.ic_avatar_default),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
         } else {
             AsyncImage(
                 model = absoluteUrl(src),

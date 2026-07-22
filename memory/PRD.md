@@ -131,3 +131,19 @@ de nuevo (almacenamiento efímero del pod).
   Verificado: GET /, /api/feed, POST /api/auth/login → 200.
 - Archivos: `ui/Upload.kt` (reescrito FileStep + nuevos MediaSlot/LocalVideoPreview/LayoutSeg/MusicRow,
   eliminados VideoSlot/MusicRowPicker). Verificación: llaves 201/201, paréntesis 788/788, imports OK.
+
+## Avatares y barra inferior — paridad 100% con la web (session actual)
+- **`ui/UiKit.kt` → `TwykAvatar`**: reemplazado `Icons.Filled.Person` de Material (círculo lleno) por
+  `ImageVector.vectorResource(R.drawable.ic_avatar_default)` — silueta SVG idéntica a la web
+  (`components/Avatar.jsx`: circle cx50 cy40 r16 + path M16,100 C16,75 31,62 50,62 S84,75 84,100).
+  Ahora el avatar por defecto en **búsqueda** (`Search.kt` → `SearchResultRow`) y **perfil**
+  (`Profile.kt`, header y sticky) coincide 100% con `SearchOverlay.jsx` y `ProfilePage.jsx` de la web.
+- **`MainActivity.kt` → `NavIcon`**: icono interior 24.dp → **20.dp** (`w-5 h-5` de la web).
+  Esto restaura la proporción correcta con el avatar de perfil (23dp): en la web el avatar es 1.15×
+  más grande que los iconos, no al revés como estaba.
+- **`MainActivity.kt` → botón `+` (Upload)**: contenedor 38.dp → **36.dp** (`w-9 h-9`); Plus 22.dp → **20.dp**
+  (`w-5 h-5`). Ahora el botón queda alineado con el resto de iconos y el gradiente lila→azul rodea un
+  glifo del tamaño correcto.
+- **`MainActivity.kt` → `ProfileNavIcon`** (invitado): User icon 24.dp → **20.dp** para igualar iconos.
+- Verificación: llaves y paréntesis balanceados en `UiKit.kt` (20/20, 106/106) y `MainActivity.kt`
+  (97/97, 208/208). Sin compilación local (limitación del contenedor); requiere validación del usuario.

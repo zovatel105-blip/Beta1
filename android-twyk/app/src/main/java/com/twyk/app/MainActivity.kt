@@ -346,10 +346,13 @@ private fun TwykBottomNav(
             badgeCount = pendingChallengesCount,
         ) { onSelect(Tab.Battles) }
 
-        // Crear / Subir — borde con degradado lila → azul.
+        // Crear / Subir — borde con degradado lila → azul. Tamaño 36dp con
+        // icono de 20dp para replicar EXACTAMENTE la web (BottomNav.jsx:
+        // `w-9 h-9` = 36px con Plus `w-5 h-5` = 20px). Antes era 38dp/22dp,
+        // desalineando el botón respecto al resto de iconos (20dp).
         Box(
             Modifier
-                .size(38.dp)
+                .size(36.dp)
                 .clip(RoundedCornerShape(12.dp))
                 .border(
                     width = 2.dp,
@@ -359,7 +362,7 @@ private fun TwykBottomNav(
                 .clickable { onSelect(Tab.Upload) },
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Filled.Add, contentDescription = "Subir", tint = Color.White, modifier = Modifier.size(22.dp))
+            Icon(Icons.Filled.Add, contentDescription = "Subir", tint = Color.White, modifier = Modifier.size(20.dp))
         }
 
         // Buzón + globo con notificaciones no leídas (réplica de
@@ -410,7 +413,7 @@ private fun ProfileNavIcon(selected: Boolean, onClick: () -> Unit) {
                 ImageVector.vectorResource(R.drawable.ic_user),
                 contentDescription = null,
                 tint = if (selected) Color.White else Color.White.copy(alpha = 0.5f),
-                modifier = Modifier.size(24.dp),
+                modifier = Modifier.size(20.dp),
             )
         }
     }
@@ -422,11 +425,12 @@ private fun NavIcon(icon: ImageVector, selected: Boolean, badgeCount: Int = 0, o
         Modifier.size(36.dp).clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        // Envoltorio del tamaño EXACTO del glifo (24dp) — antes el globo se
-        // alineaba respecto al área táctil de 36dp, quedando "flotando" lejos
-        // del icono. Ahora se ancla justo a la esquina del icono, igual que
-        // el <span className="absolute -top-0.5 -right-0.5"> de BottomNav.jsx.
-        Box(Modifier.size(24.dp)) {
+        // Envoltorio del tamaño EXACTO del glifo (20dp = w-5 h-5 de la web).
+        // Antes era 24dp, lo que hacía que los iconos se vieran DEMASIADO
+        // grandes respecto al avatar de perfil (23dp), invirtiendo la
+        // proporción de la web (iconos 20px, avatar 23px → avatar 1.15x más
+        // grande que los iconos). Con 20dp la barra queda idéntica a la web.
+        Box(Modifier.size(20.dp)) {
             Icon(
                 icon,
                 contentDescription = null,
