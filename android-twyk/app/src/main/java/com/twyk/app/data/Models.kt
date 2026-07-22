@@ -127,7 +127,11 @@ data class Comment(
 )
 
 data class CommentsResponse(val comments: List<Comment>? = null)
-data class CreateCommentRequest(val postId: String, val text: String, val parentId: String? = null)
+// votedSide: voto ACTUAL del usuario sobre la publicación en el momento de
+// comentar (réplica exacta de `votedSide` en el body que envía
+// CommentsModal.jsx al POST /api/comments) — así el nuevo comentario queda
+// con el punto de color de equipo desde el primer instante, igual que en la web.
+data class CreateCommentRequest(val postId: String, val text: String, val parentId: String? = null, val votedSide: String? = null)
 data class CreateCommentResponse(val ok: Boolean = false, val comment: Comment? = null)
 data class LikeCommentRequest(val commentId: String)
 data class LikeResponse(val ok: Boolean = false, val likes: Int = 0, val userLiked: Boolean = false)

@@ -46,6 +46,42 @@ App tipo "versus" (compara y vota entre A/B, estilo TikTok) con:
   `NotificationsInbox.jsx`). La barra inferior (con sus globos) ya no aparece en absoluto en esta pantalla
   por la Ronda 2, así que no hay nada más "flotando" ahí.
 
+### Ronda 4 — Paridad EXACTA del modal de comentarios del feed (`CommentsSheet` vs `CommentsModal.jsx`)
+Petición del usuario: "En el feed el modal de comentarios con todas las funciones de la web y diseño debe
+ser exactamente igual con cada pequeño detalle en la aplicación nativa". `CommentsSheet` (`ui/Sheets.kt`) ya
+estaba bastante avanzado de rondas anteriores (hilos con conector avatar-a-avatar, expandir/contraer 75%↔95%,
+respuestas colapsadas, borrar en cascada); esta ronda cierra las diferencias reales que quedaban:
+- **Fecha relativa del comentario (bug visual)**: `relativeTime()` solo cortaba el ISO string
+  (`ts.take(10)`, mostraba "2025-07-15" siempre). Ahora replica `formatTime()` de `CommentsModal.jsx`:
+  "Now" / "Xmin" / "Xh" / "Xd" / fecha corta, parseando el ISO con `SimpleDateFormat` (sin `java.time`,
+  por compatibilidad con `minSdk 24`).
+- **Punto de color por voto EN VIVO + comentarios nuevos con voto actual**: `CommentsSheet` ahora recibe
+  `votedSide` (voto ACTUAL del usuario sobre la publicación, igual que `votedSide={userVote}` que
+  `CarouselSlide.jsx`/`DuetSlide.jsx` pasan a `<CommentsModal>`). Se usa en `CommentRow` para
+  `effectiveSide` (tus propios comentarios muestran tu voto ACTUAL, no el guardado al comentar) y se envía
+  en `CreateCommentRequest.votedSide` al crear un comentario nuevo. Hilo completo: `voted` (estado local de
+  `CarouselPage`/`DuetPage`) → `onOpenComments(postId, voted)` → `commentsVotedSide`
+  (`MainActivity`)/`viewerVotedSide` (`Profile.kt`) → `CommentsSheet(votedSide = ...)`.
+- **Contador de comentarios del rail sin refrescar**: comentar/borrar desde `CommentsSheet` no actualizaba
+  el número junto al icono de comentarios hasta recargar el feed. Nuevo evento
+  `PostEvents.commentCountChanged` (mismo patrón que `postDeleted`), emitido al cargar/crear/borrar
+  comentarios; `FeedViewModel` (Inicio), `BattlesScreen` (Completados) y `ProfileScreen` (visor) lo
+  suscriben para parchear `post.stats.comments` al instante.
+- **Botón "Reply" oculto para invitados**: antes la fila Reply/Delete entera desaparecía sin sesión; ahora
+  "Reply" se ve SIEMPRE (réplica de `startReply()` en la web) y, sin sesión, pide login (`onRequireAuth`)
+  en vez de responder directamente.
+- **Ajustes finos de diseño** (pixel-parity): indentación de respuestas 44dp (antes 40dp, ya no coincidía
+  con el indent de "View replies"); espacio vertical entre respuestas de un mismo hilo 12dp (antes 16dp,
+  la web usa `space-y-3` ahí y `space-y-4` solo en la lista raíz); icono expandir/contraer 16dp (antes
+  18dp, la web usa `w-4 h-4`); icono "▶" del reply-target 12dp (antes 13dp, la web usa `w-3 h-3`); texto
+  "No comments yet" 15sp (antes 14sp, la web usa `text-[15px]`).
+- Archivos: `ui/Sheets.kt` (`CommentsSheet`, `CommentRow`, `relativeTime`), `feed/VersusFeed.kt` (hilo
+  `onOpenComments`/`onCommentsLocal` en `CarouselPage`/`DuetPage`/`FeedPager`), `MainActivity.kt`,
+  `ui/Profile.kt`, `ui/Battles.kt` (wiring + suscripción a `commentCountChanged`), `data/Models.kt`
+  (`CreateCommentRequest.votedSide`), `data/UploadQueue.kt` (`PostEvents.commentCountChanged`),
+  `feed/FeedViewModel.kt` (suscripción). Backend SIN cambios: `votedSide` ya estaba soportado en
+  `POST /api/comments` desde una ronda anterior de la web.
+
 ## Pendiente conocido
 - El paso de fecha de nacimiento del registro (`AuthSheet`) usa el `DatePickerDialog` nativo de Android en
   vez de la rueda de 3 columnas (día/mes/año) de la web (`DateWheelPicker.jsx`) — decisión deliberada por

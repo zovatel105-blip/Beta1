@@ -96,11 +96,16 @@ import com.twyk.app.data.Comment
 import com.twyk.app.data.CreateCommentRequest
 import com.twyk.app.data.LoginRequest
 import com.twyk.app.data.Post
+import com.twyk.app.data.PostEvents
 import com.twyk.app.data.RegisterRequest
 import com.twyk.app.data.RetrofitProvider
 import com.twyk.app.data.Session
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
 import java.util.Calendar
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 
 // Compartir una publicación con el selector nativo de Android.
 fun sharePost(context: Context, post: Post) {
@@ -215,7 +220,18 @@ private fun ShareOptionIcon(label: String, icon: ImageVector, bg: Color?, tint: 
 
 // ── Hoja de COMENTARIOS — réplica de CommentsModal.jsx ────────────────────────
 @Composable
-fun CommentsSheet(postId: String, onClose: () -> Unit, onRequireAuth: () -> Unit) {
+fun CommentsSheet(
+    postId: String,
+    onClose: () -> Unit,
+    onRequireAuth: () -> Unit,
+    // Voto ACTUAL del usuario sobre esta publicación (réplica de
+    // votedSide={userVote} que CarouselSlide.jsx/DuetSlide.jsx pasan a
+    // <CommentsModal>): (1) tus propios comentarios muestran el punto de
+    // color según tu voto ACTUAL, no el guardado al comentar; (2) los
+    // comentarios NUEVOS se envían con este voto para llevar el punto de
+    // color desde el primer instante.
+    votedSide: String? = null,
+) {
     val scope = rememberCoroutineScope()
     var comments by remember { mutableStateOf<List<Comment>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
@@ -244,6 +260,15 @@ fun CommentsSheet(postId: String, onClose: () -> Unit, onRequireAuth: () -> Unit
         loading = true
         comments = runCatching { RetrofitProvider.api.comments(postId).comments.orEmpty() }.getOrDefault(emptyList())
         loading = false
+        PostEvents.emitCommentCountChanged(postId, comments.size)
+    }
+
+    // Borra un comentario (o hilo padre completo, en cascada) y refleja al
+    // instante el nuevo total en el icono de comentarios del feed/rail —
+    // réplica de onCountChange en la web.
+    fun handleCommentDeleted(id: String) {
+        comments = comments.filterNot { it.id == id || it.parentId == id }
+        scope.launch { PostEvents.emitCommentCountChanged(postId, comments.size) }
     }
 
     val roots = remember(comments) { comments.filter { it.parentId == null } }
@@ -285,7 +310,7 @@ fun CommentsSheet(postId: String, onClose: () -> Unit, onRequireAuth: () -> Unit
                 Icon(
                     if (expanded) Icons.Filled.KeyboardArrowDown else Icons.Filled.KeyboardArrowUp,
                     if (expanded) "collapse" else "expand",
-                    tint = Color(0xFF71717A), modifier = Modifier.size(18.dp),
+                    tint = Color(0xFF71717A), modifier = Modifier.size(16.dp),
                 )
             }
             // Header
@@ -305,7 +330,7 @@ fun CommentsSheet(postId: String, onClose: () -> Unit, onRequireAuth: () -> Unit
                         CircularProgressIndicator(color = Color(0xFF3F3F46), strokeWidth = 2.dp, modifier = Modifier.size(26.dp))
                     }
                     comments.isEmpty() -> Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                        Text("No comments yet", color = Color(0xFF71717A), fontSize = 14.sp)
+                        Text("No comments yet", color = Color(0xFF71717A), fontSize = 15.sp)
                         Spacer(Modifier.height(4.dp))
                         Text("Be the first to comment", color = Color(0xFFA1A1AA), fontSize = 13.sp)
                     }
@@ -330,7 +355,9 @@ fun CommentsSheet(postId: String, onClose: () -> Unit, onRequireAuth: () -> Unit
                                             c = root,
                                             isReply = false,
                                             onReply = { replyTarget = root },
-                                            onDeleted = { id -> comments = comments.filterNot { it.id == id || it.parentId == id } },
+                                            onDeleted = ::handleCommentDeleted,
+                                            viewerVotedSide = votedSide,
+                                            onRequireAuth = onRequireAuth,
                                             onAvatarPositioned = { coords -> avatarCoords[root.id] = coords },
                                         )
                                         val replies = repliesByParent[root.id].orEmpty()
@@ -350,13 +377,15 @@ fun CommentsSheet(postId: String, onClose: () -> Unit, onRequireAuth: () -> Unit
                                                 )
                                             }
                                             if (isExpanded) {
-                                                Column(Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                                                Column(Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                                     replies.forEach { r ->
                                                         CommentRow(
                                                             c = r,
                                                             isReply = true,
                                                             onReply = { replyTarget = r },
-                                                            onDeleted = { id -> comments = comments.filterNot { it.id == id || it.parentId == id } },
+                                                            onDeleted = ::handleCommentDeleted,
+                                                            viewerVotedSide = votedSide,
+                                                            onRequireAuth = onRequireAuth,
                                                             onAvatarPositioned = { coords -> avatarCoords[r.id] = coords },
                                                         )
                                                     }
@@ -370,7 +399,9 @@ fun CommentsSheet(postId: String, onClose: () -> Unit, onRequireAuth: () -> Unit
                                         c = o,
                                         isReply = false,
                                         onReply = { replyTarget = o },
-                                        onDeleted = { id -> comments = comments.filterNot { it.id == id || it.parentId == id } },
+                                        onDeleted = ::handleCommentDeleted,
+                                        viewerVotedSide = votedSide,
+                                        onRequireAuth = onRequireAuth,
                                         onAvatarPositioned = { coords -> avatarCoords[o.id] = coords },
                                     )
                                 }
@@ -426,7 +457,7 @@ fun CommentsSheet(postId: String, onClose: () -> Unit, onRequireAuth: () -> Unit
                                 val parentId = replyTarget?.id
                                 sending = true
                                 scope.launch {
-                                    runCatching { RetrofitProvider.api.createComment(CreateCommentRequest(postId, text, parentId)) }
+                                    runCatching { RetrofitProvider.api.createComment(CreateCommentRequest(postId, text, parentId, votedSide)) }
                                         .onSuccess { r ->
                                             r.comment?.let { newComment ->
                                                 comments = comments + newComment
@@ -435,6 +466,7 @@ fun CommentsSheet(postId: String, onClose: () -> Unit, onRequireAuth: () -> Unit
                                                 newComment.parentId?.let { pid -> expandedReplies = expandedReplies + pid }
                                             }
                                             input = ""; replyTarget = null
+                                            PostEvents.emitCommentCountChanged(postId, comments.size)
                                         }
                                         .onFailure { onRequireAuth() }
                                     sending = false
@@ -500,7 +532,21 @@ private fun BoxScope.ReplyConnectors(
 }
 
 @Composable
-private fun CommentRow(c: Comment, isReply: Boolean, onReply: () -> Unit, onDeleted: (String) -> Unit, onAvatarPositioned: (LayoutCoordinates) -> Unit = {}) {
+private fun CommentRow(
+    c: Comment,
+    isReply: Boolean,
+    onReply: () -> Unit,
+    onDeleted: (String) -> Unit,
+    // Voto ACTUAL del usuario que tiene abierta la hoja (réplica de
+    // `votedSide` en CommentsModal.jsx): solo se usa para TUS PROPIOS
+    // comentarios (ver effectiveSide más abajo).
+    viewerVotedSide: String? = null,
+    // Réplica de startReply() en CommentsModal.jsx: un invitado SÍ ve el
+    // botón "Reply" (a diferencia de antes, que ocultaba la fila entera sin
+    // sesión); al tocarlo se le pide iniciar sesión en vez de responder.
+    onRequireAuth: () -> Unit = {},
+    onAvatarPositioned: (LayoutCoordinates) -> Unit = {},
+) {
     val scope = rememberCoroutineScope()
     var confirmingDelete by remember(c.id) { mutableStateOf(false) }
     var deleting by remember(c.id) { mutableStateOf(false) }
@@ -511,16 +557,19 @@ private fun CommentRow(c: Comment, isReply: Boolean, onReply: () -> Unit, onDele
     // `parentId` ya que el backend aplana cualquier respuesta a la raíz),
     // nunca cuando responde directamente al comentario principal.
     val showReplyTarget = isReply && c.replyToId != null && c.replyToId != c.parentId
-    // Punto de color según el lado por el que votó el autor del comentario
-    // (réplica de sideColor/effectiveSide en CommentsModal.jsx) — antes este
-    // indicador no existía en la app nativa.
-    val voteDotColor = when (c.votedSide) {
+    // Punto de color según el voto: para TUS PROPIOS comentarios se usa tu
+    // voto ACTUAL (viewerVotedSide, prop en vivo desde la tarjeta del feed),
+    // no el que tenías guardado al comentar — réplica exacta de
+    // `effectiveSide` en CommentsModal.jsx. Para comentarios AJENOS se usa
+    // siempre el voto guardado en el propio comentario (c.votedSide).
+    val effectiveSide = if (c.isOwn && viewerVotedSide != null) viewerVotedSide else c.votedSide
+    val voteDotColor = when (effectiveSide) {
         "a" -> Color(0xFFA855F7)
         "b" -> Color(0xFF3B82F6)
         else -> null
     }
 
-    Row(Modifier.fillMaxWidth().padding(start = if (isReply) 40.dp else 0.dp)) {
+    Row(Modifier.fillMaxWidth().padding(start = if (isReply) 44.dp else 0.dp)) {
         // Avatar (foto real, o silueta gris por defecto vía TwykAvatar —
         // igual que el resto de la app y que <Avatar> en la web). Reporta
         // su posición real (onGloballyPositioned) para que ReplyConnectors
@@ -544,7 +593,7 @@ private fun CommentRow(c: Comment, isReply: Boolean, onReply: () -> Unit, onDele
                         }
                         Text(c.author?.username ?: "User", color = Color(0xFF18181B), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                         if (showReplyTarget && c.replyToUsername != null) {
-                            Icon(Icons.Filled.ChevronRight, null, tint = Color(0xFFA1A1AA), modifier = Modifier.size(13.dp))
+                            Icon(Icons.Filled.ChevronRight, null, tint = Color(0xFFA1A1AA), modifier = Modifier.size(12.dp))
                             Text(c.replyToUsername, color = Color(0xFF71717A), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                         }
                         c.timestamp?.let {
@@ -557,30 +606,37 @@ private fun CommentRow(c: Comment, isReply: Boolean, onReply: () -> Unit, onDele
                 }
             }
             Spacer(Modifier.height(6.dp))
-            if (Session.token != null) {
-                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    if (confirmingDelete) {
-                        Text("Delete this comment?", color = Color(0xFF71717A), fontSize = 12.sp)
-                        if (deleting) {
-                            Text("Deleting…", color = Color(0xFFDC2626), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                        } else {
-                            Text(
-                                "Delete", color = Color(0xFFDC2626), fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.clickable {
-                                    deleting = true
-                                    scope.launch {
-                                        val ok = runCatching { RetrofitProvider.api.deleteComment(c.id) }.getOrNull()?.ok == true
-                                        if (ok) onDeleted(c.id) else { deleting = false; confirmingDelete = false }
-                                    }
-                                },
-                            )
-                            Text("Cancel", color = Color(0xFFA1A1AA), fontSize = 12.sp, fontWeight = FontWeight.Medium, modifier = Modifier.clickable { confirmingDelete = false })
-                        }
+            // Fila de acciones (Reply/Delete) — visible SIEMPRE, también para
+            // invitados: réplica exacta de la web, donde un invitado SÍ ve
+            // "Reply" (al tocarlo se le pide iniciar sesión); antes esta fila
+            // entera desaparecía sin sesión, a diferencia de CommentsModal.jsx.
+            if (confirmingDelete) {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Delete this comment?", color = Color(0xFF71717A), fontSize = 12.sp)
+                    if (deleting) {
+                        Text("Deleting…", color = Color(0xFFDC2626), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     } else {
-                        Text("Reply", color = Color(0xFF71717A), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.clickable { onReply() })
-                        if (c.canDelete) {
-                            Text("Delete", color = Color(0xFFA1A1AA), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.clickable { confirmingDelete = true })
-                        }
+                        Text(
+                            "Delete", color = Color(0xFFDC2626), fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.clickable {
+                                deleting = true
+                                scope.launch {
+                                    val ok = runCatching { RetrofitProvider.api.deleteComment(c.id) }.getOrNull()?.ok == true
+                                    if (ok) onDeleted(c.id) else { deleting = false; confirmingDelete = false }
+                                }
+                            },
+                        )
+                        Text("Cancel", color = Color(0xFFA1A1AA), fontSize = 12.sp, fontWeight = FontWeight.Medium, modifier = Modifier.clickable { confirmingDelete = false })
+                    }
+                }
+            } else {
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Text(
+                        "Reply", color = Color(0xFF71717A), fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.clickable { if (Session.token == null) onRequireAuth() else onReply() },
+                    )
+                    if (c.canDelete) {
+                        Text("Delete", color = Color(0xFFA1A1AA), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.clickable { confirmingDelete = true })
                     }
                 }
             }
@@ -588,9 +644,37 @@ private fun CommentRow(c: Comment, isReply: Boolean, onReply: () -> Unit, onDele
     }
 }
 
+// Réplica de formatTime() en CommentsModal.jsx: "Now" (<1min), "Xmin" (<1h),
+// "Xh" (<24h), "Xd" (<7d), o una fecha corta para comentarios más antiguos.
+// ANTES esta función solo cortaba el string ISO (ts.take(10)), mostrando algo
+// como "2025-07-15" en TODOS los casos — bug visual claro frente a la web.
+private val ISO_TIMESTAMP_FORMATS = listOf("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", "yyyy-MM-dd'T'HH:mm:ss'Z'")
+
+private fun parseIsoMillis(ts: String): Long? {
+    for (pattern in ISO_TIMESTAMP_FORMATS) {
+        try {
+            val sdf = SimpleDateFormat(pattern, Locale.US)
+            sdf.timeZone = TimeZone.getTimeZone("UTC")
+            return sdf.parse(ts)?.time
+        } catch (_: Exception) {
+        }
+    }
+    return null
+}
+
 private fun relativeTime(ts: String): String {
-    // El backend envía un ISO date; mostramos algo corto sin parsear con precisión.
-    return ts.take(10)
+    val millis = parseIsoMillis(ts) ?: return ""
+    val diff = System.currentTimeMillis() - millis
+    val minutes = diff / 60000
+    val hours = diff / 3600000
+    val days = diff / 86400000
+    return when {
+        minutes < 1 -> "Now"
+        minutes < 60 -> "${minutes}min"
+        hours < 24 -> "${hours}h"
+        days < 7 -> "${days}d"
+        else -> SimpleDateFormat("M/d/yy", Locale.getDefault()).format(Date(millis))
+    }
 }
 
 // ── Hoja de LOGIN / REGISTRO — réplica EXACTA de AuthModal.jsx: hoja inferior

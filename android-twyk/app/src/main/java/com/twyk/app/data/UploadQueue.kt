@@ -66,6 +66,18 @@ object PostEvents {
     suspend fun emitPostDeleted(postId: String) {
         _postDeleted.emit(postId)
     }
+
+    // Notifica cuando cambia el NÚMERO TOTAL de comentarios de una
+    // publicación (crear/borrar uno desde CommentsSheet), para reflejarlo AL
+    // INSTANTE en el icono de comentarios de la tarjeta del feed/rail, sin
+    // esperar a recargar — réplica nativa del callback `onCountChange` que
+    // CommentsModal.jsx recibe de CarouselSlide.jsx/DuetSlide.jsx en la web.
+    private val _commentCountChanged = MutableSharedFlow<Pair<String, Int>>(extraBufferCapacity = 8)
+    val commentCountChanged = _commentCountChanged.asSharedFlow()
+
+    suspend fun emitCommentCountChanged(postId: String, count: Int) {
+        _commentCountChanged.emit(postId to count)
+    }
 }
 
 // Banner de "reto enviado en segundo plano" (equivalente a `challengeUpload`

@@ -98,6 +98,11 @@ private enum class Tab {
 private fun TwykApp() {
     var tab by remember { mutableStateOf(Tab.Home) }
     var commentsPostId by remember { mutableStateOf<String?>(null) }
+    // Voto ACTUAL del usuario sobre esa publicación en el momento de abrir el
+    // modal (réplica de votedSide={userVote} que CarouselSlide.jsx/DuetSlide.jsx
+    // pasan a <CommentsModal>): se usa para el punto de color de tus propios
+    // comentarios y para etiquetar los comentarios nuevos con tu voto actual.
+    var commentsVotedSide by remember { mutableStateOf<String?>(null) }
     var authOpen by remember { mutableStateOf(false) }
     var profileUsername by remember { mutableStateOf<String?>(null) }
     var feedReloadKey by remember { mutableStateOf(0) }
@@ -176,7 +181,7 @@ private fun TwykApp() {
         when (tab) {
             Tab.Home -> key(feedReloadKey) {
                 VersusFeed(
-                    onOpenComments = { commentsPostId = it },
+                    onOpenComments = { id, side -> commentsPostId = id; commentsVotedSide = side },
                     onRequireAuth = { authOpen = true },
                     onOpenProfile = openProfile,
                     onChallenge = onChallenge,
@@ -200,7 +205,7 @@ private fun TwykApp() {
             Tab.Battles -> BattlesScreen(
                 onRequireAuth = { authOpen = true },
                 onChanged = { feedReloadKey++ },
-                onOpenComments = { commentsPostId = it },
+                onOpenComments = { id, side -> commentsPostId = id; commentsVotedSide = side },
                 onOpenProfile = openProfile,
                 onOpenUpload = { tab = Tab.Upload },
                 onChallenge = onChallenge,
@@ -246,7 +251,8 @@ private fun TwykApp() {
         commentsPostId?.let { pid ->
             CommentsSheet(
                 postId = pid,
-                onClose = { commentsPostId = null },
+                votedSide = commentsVotedSide,
+                onClose = { commentsPostId = null; commentsVotedSide = null },
                 onRequireAuth = { authOpen = true },
             )
         }

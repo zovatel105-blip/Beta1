@@ -126,7 +126,7 @@ import kotlin.math.roundToInt
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
 fun VersusFeed(
-    onOpenComments: (String) -> Unit,
+    onOpenComments: (String, String?) -> Unit,
     onRequireAuth: () -> Unit,
     onOpenProfile: (String) -> Unit,
     onChallenge: (QuickChallengeTarget) -> Unit = {},
@@ -157,7 +157,7 @@ fun VersusFeed(
 @Composable
 fun FeedPager(
     posts: List<Post>,
-    onOpenComments: (String) -> Unit,
+    onOpenComments: (String, String?) -> Unit,
     onRequireAuth: () -> Unit,
     onOpenProfile: (String) -> Unit,
     onVote: (String, String, String?) -> Unit = { _, _, _ -> },
@@ -190,7 +190,7 @@ fun FeedPager(
             DuetPage(
                 post, active, dataSourceFactory,
                 onVote = { side, previousSide -> onVote(post.id, side, previousSide) },
-                onComments = { onOpenComments(post.id) },
+                onOpenComments = onOpenComments,
                 onRequireAuth = onRequireAuth,
                 onOpenProfile = onOpenProfile,
                 onRequestNext = requestNext,
@@ -201,7 +201,7 @@ fun FeedPager(
             CarouselPage(
                 post, active, dataSourceFactory,
                 onVote = { side, previousSide -> onVote(post.id, side, previousSide) },
-                onComments = { onOpenComments(post.id) },
+                onOpenComments = onOpenComments,
                 onRequireAuth = onRequireAuth,
                 onOpenProfile = onOpenProfile,
                 onRequestNext = requestNext,
@@ -268,7 +268,7 @@ private fun CarouselPage(
     isActive: Boolean,
     dataSourceFactory: CacheDataSource.Factory,
     onVote: (String, String?) -> Unit,
-    onComments: () -> Unit,
+    onOpenComments: (String, String?) -> Unit,
     onRequireAuth: () -> Unit,
     onOpenProfile: (String) -> Unit,
     onRequestNext: () -> Unit,
@@ -295,6 +295,9 @@ private fun CarouselPage(
 
     val sidePager = rememberPagerState(pageCount = { 2 })
     var voted by remember(post.id) { mutableStateOf<String?>(null) }
+    // Cierra sobre el post.id y el voto ACTUAL de esta tarjeta (réplica de
+    // votedSide={userVote} que CarouselSlide.jsx pasa a <CommentsModal>).
+    val onCommentsLocal: () -> Unit = { onOpenComments(post.id, voted) }
     var votes by remember(post.id) { mutableStateOf(post.votes ?: Votes()) }
     var showWinner by remember(post.id) { mutableStateOf(false) }
     var burstId by remember(post.id) { mutableStateOf(0L) }
@@ -344,7 +347,7 @@ private fun CarouselPage(
                     otherSide = otherSide,
                     votes = votes,
                     onShare = { sharePost(context, post) },
-                    onComments = onComments,
+                    onComments = onCommentsLocal,
                     onClose = { showWinner = false },
                     onNext = { showWinner = false; onRequestNext() },
                 ),
@@ -409,7 +412,7 @@ private fun CarouselPage(
         // Retar debe ocultarse (es tu propia publicación).
         val currentSideForChallenge = if (sidePager.currentPage == 0) post.sideA else post.sideB
         SocialRail(
-            post, votes, voted, onComments, onRequireAuth,
+            post, votes, voted, onCommentsLocal, onRequireAuth,
             hideChallenge = hideChallenge, audioActive = audioActive,
             headAuthorUsername = (currentSideForChallenge?.author ?: post.author)?.username,
         ) {
@@ -447,7 +450,7 @@ private fun DuetPage(
     isActive: Boolean,
     dataSourceFactory: CacheDataSource.Factory,
     onVote: (String, String?) -> Unit,
-    onComments: () -> Unit,
+    onOpenComments: (String, String?) -> Unit,
     onRequireAuth: () -> Unit,
     onOpenProfile: (String) -> Unit,
     onRequestNext: () -> Unit,
@@ -470,6 +473,8 @@ private fun DuetPage(
     val musicPlayer by rememberMusicPlayer(post.musicPreviewUrl)
 
     var voted by remember(post.id) { mutableStateOf<String?>(null) }
+    // Réplica de votedSide={userVote} que DuetSlide.jsx pasa a <CommentsModal>.
+    val onCommentsLocal: () -> Unit = { onOpenComments(post.id, voted) }
     var votes by remember(post.id) { mutableStateOf(post.votes ?: Votes()) }
     var showWinner by remember(post.id) { mutableStateOf(false) }
     var burstId by remember(post.id) { mutableStateOf(0L) }
@@ -514,7 +519,7 @@ private fun DuetPage(
                     otherSide = otherSide,
                     votes = votes,
                     onShare = { sharePost(context, post) },
-                    onComments = onComments,
+                    onComments = onCommentsLocal,
                     onClose = { showWinner = false },
                     onNext = { showWinner = false; onRequestNext() },
                 ),
@@ -571,7 +576,7 @@ private fun DuetPage(
 
         HeaderOverlay(post, onOpenProfile, onRequireAuth)
         SocialRail(
-            post, votes, voted, onComments, onRequireAuth,
+            post, votes, voted, onCommentsLocal, onRequireAuth,
             hideChallenge = hideChallenge, audioActive = audioActive,
             headAuthorUsername = (post.sideA?.author ?: post.author)?.username,
         ) {

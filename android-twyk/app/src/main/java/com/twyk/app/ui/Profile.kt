@@ -63,6 +63,7 @@ import com.twyk.app.data.PostEvents
 import com.twyk.app.data.ProfileUser
 import com.twyk.app.data.RetrofitProvider
 import com.twyk.app.data.Session
+import com.twyk.app.data.Stats
 import com.twyk.app.data.UploadEvents
 import com.twyk.app.data.UploadQueue
 import com.twyk.app.data.UploadQueueItem
@@ -101,6 +102,10 @@ fun ProfileScreen(
     // reproductor nativo del feed principal (ver feed/VersusFeed.kt::FeedPager).
     var viewerIndex by remember(target) { mutableStateOf<Int?>(null) }
     var viewerCommentsPostId by remember(target) { mutableStateOf<String?>(null) }
+    // Voto ACTUAL del usuario sobre la publicación abierta en el visor (misma
+    // idea que commentsVotedSide en MainActivity.kt) — se pasa al modal de
+    // comentarios para el punto de color y para etiquetar comentarios nuevos.
+    var viewerVotedSide by remember(target) { mutableStateOf<String?>(null) }
     var nestedProfileUsername by remember(target) { mutableStateOf<String?>(null) }
     var followListType by remember(target) { mutableStateOf<String?>(null) } // "followers" | "following" | null
     var menuOpen by remember(target) { mutableStateOf(false) } // hoja de "Settings" (☰, cerrar sesión)
@@ -155,6 +160,18 @@ fun ProfileScreen(
             posts = posts.filterNot { it.id == id }
             savedPosts = savedPosts.filterNot { it.id == id }
             viewerList = viewerList.filterNot { it.id == id }
+        }
+    }
+
+    // Comentar/borrar un comentario desde el visor de este perfil actualiza al
+    // instante el número junto al icono, sin recargar (mismo patrón que
+    // FeedViewModel/BattlesScreen).
+    LaunchedEffect(Unit) {
+        PostEvents.commentCountChanged.collect { (id, count) ->
+            fun patch(list: List<Post>) = list.map { p -> if (p.id == id) p.copy(stats = (p.stats ?: Stats()).copy(comments = count)) else p }
+            posts = patch(posts)
+            savedPosts = patch(savedPosts)
+            viewerList = patch(viewerList)
         }
     }
 
@@ -314,7 +331,7 @@ fun ProfileScreen(
                 FeedPager(
                     posts = viewerList,
                     initialPage = idx,
-                    onOpenComments = { viewerCommentsPostId = it },
+                    onOpenComments = { id, side -> viewerCommentsPostId = id; viewerVotedSide = side },
                     onRequireAuth = onRequireAuth,
                     onOpenProfile = { uname -> nestedProfileUsername = uname },
                     onVote = { id, side, prev ->
@@ -331,7 +348,12 @@ fun ProfileScreen(
                 }
             }
             viewerCommentsPostId?.let { pid ->
-                CommentsSheet(postId = pid, onClose = { viewerCommentsPostId = null }, onRequireAuth = onRequireAuth)
+                CommentsSheet(
+                    postId = pid,
+                    votedSide = viewerVotedSide,
+                    onClose = { viewerCommentsPostId = null; viewerVotedSide = null },
+                    onRequireAuth = onRequireAuth,
+                )
             }
         }
 

@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.twyk.app.data.Post
 import com.twyk.app.data.PostEvents
 import com.twyk.app.data.RetrofitProvider
+import com.twyk.app.data.Stats
 import com.twyk.app.data.VoteRequest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -29,6 +30,16 @@ class FeedViewModel : ViewModel() {
         // instante, sin esperar a recargar.
         viewModelScope.launch {
             PostEvents.postDeleted.collect { id -> _posts.value = _posts.value.filterNot { it.id == id } }
+        }
+        // Comentar/borrar un comentario desde CommentsSheet actualiza al
+        // instante el número junto al icono de comentarios del feed, sin
+        // esperar a recargar (réplica de onCountChange en la web).
+        viewModelScope.launch {
+            PostEvents.commentCountChanged.collect { (id, count) ->
+                _posts.value = _posts.value.map { p ->
+                    if (p.id == id) p.copy(stats = (p.stats ?: Stats()).copy(comments = count)) else p
+                }
+            }
         }
     }
 

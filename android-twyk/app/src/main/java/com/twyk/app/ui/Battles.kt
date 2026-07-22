@@ -71,9 +71,11 @@ import com.twyk.app.R
 import com.twyk.app.absoluteUrl
 import com.twyk.app.data.Challenge
 import com.twyk.app.data.Post
+import com.twyk.app.data.PostEvents
 import com.twyk.app.data.QuickChallengeTarget
 import com.twyk.app.data.RetrofitProvider
 import com.twyk.app.data.Session
+import com.twyk.app.data.Stats
 import com.twyk.app.data.VoteRequest
 import com.twyk.app.feed.FeedPager
 import kotlinx.coroutines.Dispatchers
@@ -89,7 +91,7 @@ import java.io.File
 fun BattlesScreen(
     onRequireAuth: () -> Unit,
     onChanged: () -> Unit = {},
-    onOpenComments: (String) -> Unit = {},
+    onOpenComments: (String, String?) -> Unit = { _, _ -> },
     onOpenProfile: (String) -> Unit = {},
     onOpenUpload: () -> Unit = {},
     onChallenge: (QuickChallengeTarget) -> Unit = {},
@@ -131,6 +133,15 @@ fun BattlesScreen(
     }
 
     LaunchedEffect(Unit) { reload() }
+
+    // Comentar/borrar un comentario desde CommentsSheet (abierto sobre este
+    // mismo feed de "Completados") actualiza al instante el número junto al
+    // icono, sin recargar — mismo patrón que FeedViewModel.
+    LaunchedEffect(Unit) {
+        PostEvents.commentCountChanged.collect { (id, count) ->
+            completed = completed.map { p -> if (p.id == id) p.copy(stats = (p.stats ?: Stats()).copy(comments = count)) else p }
+        }
+    }
 
     // Aceptar un reto: si ya trae contenido objetivo (targetVideoUrl/targetImageUrl)
     // no hace falta subir nada (uri=null); si es un reto "de mención", uri es el
