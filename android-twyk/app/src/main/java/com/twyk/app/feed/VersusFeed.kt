@@ -70,10 +70,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -840,26 +843,51 @@ private fun BoxScope.HeaderOverlay(post: Post, onOpenProfile: (String) -> Unit, 
                 val authorA = post.sideA?.author ?: post.author
                 val authorB = post.sideB?.author ?: post.author
                 Box(Modifier.size(39.dp)) {
-                    // Avatar secundario (arriba-izquierda, detrás)
+                    // Avatar secundario (arriba-izquierda, detrás) — con un
+                    // "mordisco" circular recortado donde se solapa el avatar
+                    // principal, réplica EXACTA de `mask-image: radial-
+                    // gradient(circle 15px at 27px 27px, transparent 0 15px,
+                    // #000 15px)` de CarouselSlide.jsx/DuetSlide.jsx. ANTES el
+                    // nativo no recortaba nada aquí y en su lugar le pintaba
+                    // un ANILLO NEGRO al avatar de DELANTE (fondo negro +
+                    // padding) para separarlos — ese anillo NO existe en la
+                    // web (bug reportado: "aparece un anillo negro alrededor
+                    // del avatar de abajo"). `compositingStrategy = Offscreen`
+                    // es imprescindible para que `BlendMode.DstOut` recorte
+                    // transparencia real (sin capa offscreen, el blend mode
+                    // se mezclaría con lo que haya detrás en vez de agujerear
+                    // este layer).
                     Box(
                         Modifier
                             .align(Alignment.TopStart)
                             .size(24.dp)
-                            .clickable(enabled = authorB?.username != null) { authorB?.username?.let(onOpenProfile) },
+                            .clickable(enabled = authorB?.username != null) { authorB?.username?.let(onOpenProfile) }
+                            .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
+                            .drawWithContent {
+                                drawContent()
+                                drawCircle(
+                                    color = Color.Black,
+                                    radius = 15.dp.toPx(),
+                                    center = Offset(27.dp.toPx(), 27.dp.toPx()),
+                                    blendMode = BlendMode.DstOut,
+                                )
+                            },
                     ) {
                         TwykAvatar(authorB?.avatarUrl, 24.dp)
                     }
-                    // Avatar principal (abajo-derecha, delante) con anillo negro que los separa
+                    // Avatar principal (abajo-derecha, delante) — SIN ningún
+                    // anillo ni fondo añadido, igual que la web: al dibujarse
+                    // DESPUÉS (hijo posterior del mismo Box) ya queda
+                    // naturalmente por encima del de atrás sin necesitar nada
+                    // extra. Mismo tamaño (24dp) que el avatar de atrás,
+                    // réplica exacta de `w-[24px] h-[24px]` en ambos lados.
                     Box(
                         Modifier
                             .align(Alignment.BottomEnd)
-                            .size(26.dp)
-                            .clip(CircleShape)
-                            .background(Color.Black)
-                            .padding(2.dp)
+                            .size(24.dp)
                             .clickable(enabled = authorA?.username != null) { authorA?.username?.let(onOpenProfile) },
                     ) {
-                        TwykAvatar(authorA?.avatarUrl, 22.dp)
+                        TwykAvatar(authorA?.avatarUrl, 24.dp)
                     }
                 }
                 Spacer(Modifier.width(8.dp))
