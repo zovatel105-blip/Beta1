@@ -11,6 +11,18 @@ App tipo "versus" (compara y vota entre A/B, estilo TikTok) con:
 - Web: funcional (feed, votar, comentar, retar, subir, perfil, batallas, buzón, admin).
 - Nativa: fase de **paridad visual/funcional con la web**, en progreso por rondas.
 
+## Ronda: anillo negro del avatar + tipografía "A vs B" en publicaciones tipo Reto
+Usuario reportó (con captura) que en publicaciones tipo Reto, el avatar de delante (abajo-derecha) de
+la cabecera mostraba un anillo negro que no existe en la web; corregido en `HeaderOverlay`
+(VersusFeed.kt) quitando el fondo negro/padding artificial y añadiendo un recorte circular
+(`drawCircle`+`BlendMode.DstOut` sobre capa offscreen) en el avatar de atrás, réplica exacta del
+`mask-image` CSS de CarouselSlide.jsx/DuetSlide.jsx. Después pidió que la TIPOGRAFÍA del texto
+"usuario vs usuario" también fuera 100% igual: corregidos tamaño (13.sp->14.sp), peso ("vs" en Light
+vs nombre en SemiBold, antes todo igual) y orden (el "vs" ahora se coloca junto al nombre más corto,
+antes siempre tras A). Detalle completo en `test_result.md`. El usuario pidió explícitamente NO usar
+el agente de testing para estos cambios nativos (no compilable en este entorno de todas formas).
+
+
 ## Sesión actual — cambios aplicados (app nativa Android)
 
 ### Ronda 1 — Modales + botón Retar

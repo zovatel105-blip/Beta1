@@ -79,15 +79,20 @@ import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -891,23 +896,48 @@ private fun BoxScope.HeaderOverlay(post: Post, onOpenProfile: (String) -> Unit, 
                     }
                 }
                 Spacer(Modifier.width(8.dp))
+                // Tipografía EXACTA de la web (CarouselSlide.jsx/DuetSlide.jsx):
+                // 14px (antes 13.sp — la web usa 13px SOLO para el nombre único
+                // de una publicación normal; el par "A vs B" de un reto usa
+                // 14px, un tamaño distinto que el nativo no diferenciaba), el
+                // nombre en SemiBold pero el "vs" en peso LIGERO ("font-light",
+                // antes el nativo pintaba TODO —incluido el "vs"— en SemiBold,
+                // sin distinguir pesos), y el "vs" se coloca junto al nombre
+                // MÁS CORTO (arriba si es A, abajo si es B — antes el nativo
+                // SIEMPRE lo ponía tras A sin importar la longitud de cada
+                // nombre), réplica exacta de `shortNameIsA`. También se añade
+                // una sombra de texto sutil (réplica de `drop-shadow-md`).
+                val nameA = authorA?.username ?: authorA?.name ?: "twyk"
+                val nameB = authorB?.username ?: authorB?.name ?: "twyk"
+                val shortNameIsA = nameA.length <= nameB.length
+                val nameShadow = Shadow(color = Color.Black.copy(alpha = 0.35f), offset = Offset(0f, 2f), blurRadius = 3f)
                 Column {
                     Text(
-                        (authorA?.username ?: authorA?.name ?: "twyk") + " vs",
+                        buildAnnotatedString {
+                            withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) { append(nameA) }
+                            if (shortNameIsA) {
+                                withStyle(SpanStyle(fontWeight = FontWeight.Light)) { append(" vs") }
+                            }
+                        },
                         color = Color.White,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 14.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
+                        style = TextStyle(shadow = nameShadow),
                         modifier = Modifier.clickable(enabled = authorA?.username != null) { authorA?.username?.let(onOpenProfile) },
                     )
                     Text(
-                        authorB?.username ?: authorB?.name ?: "twyk",
+                        buildAnnotatedString {
+                            if (!shortNameIsA) {
+                                withStyle(SpanStyle(fontWeight = FontWeight.Light)) { append("vs ") }
+                            }
+                            withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) { append(nameB) }
+                        },
                         color = Color.White,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 14.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
+                        style = TextStyle(shadow = nameShadow),
                         modifier = Modifier.clickable(enabled = authorB?.username != null) { authorB?.username?.let(onOpenProfile) },
                     )
                 }
