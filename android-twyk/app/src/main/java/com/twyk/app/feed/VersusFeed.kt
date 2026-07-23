@@ -4,6 +4,7 @@ package com.twyk.app.feed
 
 import android.content.Context
 import android.media.MediaPlayer
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
@@ -110,6 +111,7 @@ import com.twyk.app.Config
 import com.twyk.app.R
 import com.twyk.app.absoluteUrl
 import com.twyk.app.data.BlockRequest
+import com.twyk.app.data.ContentCardRequest
 import com.twyk.app.data.CreateReportRequest
 import com.twyk.app.data.FeedOverlays
 import com.twyk.app.data.MoreOptionsRequest
@@ -521,6 +523,7 @@ private fun DuetPage(
         onDispose {
             playerA.release(); playerB.release()
             FeedOverlays.closeWinnerFor(post.id)
+            FeedOverlays.closeContentCardFor(post.id)
         }
     }
 
@@ -554,6 +557,15 @@ private fun DuetPage(
     // Pausa MANUAL (toque simple sobre el lado que YA tiene el audio) —
     // réplica de `paused` en DuetSlide.jsx.
     var paused by remember(post.id) { mutableStateOf(false) }
+    // Content card (VSContentCard.jsx): se abre MANTENIENDO PULSADA una opción
+    // (long-press) y muestra el contenido A/B a pantalla. `contentIdx` recuerda
+    // qué lado se pulsó para arrancar el carrusel en él (réplica de
+    // `showContent`/`contentIdx` en DuetSlide.jsx). Antes NO existía ningún
+    // gesto de mantener pulsado en la app nativa (bug reportado: "cuando
+    // mantengo presionado en las publicaciones 1vs1 debería mostrarme el
+    // vscontent card como lo hace la web").
+    var showContent by remember(post.id) { mutableStateOf(false) }
+    var contentIdx by remember(post.id) { mutableStateOf(0) }
 
     // Votar / CAMBIAR de voto — misma lógica que CarouselPage (réplica de
     // submitVote() en DuetSlide.jsx): exige sesión, re-tocar el mismo lado
@@ -610,8 +622,29 @@ private fun DuetPage(
         }
     }
 
-    LaunchedEffect(isActive, showWinner, paused, audibleSide, hasMusic) {
-        if (isActive && !showWinner && !paused) {
+    // Sincroniza la content card (long-press) con el singleton global
+    // FeedOverlays: MainActivity la pinta por encima de la barra de
+    // navegación inferior (mismo motivo que la tarjeta de Ganador). El estado
+    // local `showContent` sigue siendo la fuente de verdad para pausar los
+    // vídeos del feed mientras la card esté abierta.
+    LaunchedEffect(showContent, contentIdx) {
+        if (showContent) {
+            FeedOverlays.showContentCard(
+                ContentCardRequest(
+                    postId = post.id,
+                    optionA = post.sideA,
+                    optionB = post.sideB,
+                    initialIndex = contentIdx,
+                    onClose = { showContent = false },
+                ),
+            )
+        } else {
+            FeedOverlays.closeContentCardFor(post.id)
+        }
+    }
+
+    LaunchedEffect(isActive, showWinner, paused, audibleSide, hasMusic, showContent) {
+        if (isActive && !showWinner && !paused && !showContent) {
             // El audio suena en el lado `audibleSide` (cambiable con un
             // toque simple sobre el lado que NO lo tiene, o automáticamente
             // al votar por ese lado); si hay música adjunta, AMBOS vídeos
@@ -623,9 +656,9 @@ private fun DuetPage(
             playerA.pause(); playerB.pause()
         }
     }
-    LaunchedEffect(isActive, showWinner, musicPlayer) {
+    LaunchedEffect(isActive, showWinner, musicPlayer, showContent) {
         if (hasMusic) {
-            if (isActive && !showWinner) {
+            if (isActive && !showWinner && !showContent) {
                 runCatching { if (musicPlayer?.isPlaying == false) musicPlayer?.start() }
             } else {
                 runCatching { if (musicPlayer?.isPlaying == true) musicPlayer?.pause() }
@@ -634,7 +667,7 @@ private fun DuetPage(
     }
     // "¿hay audio sonando ahora?" (música O el vídeo audible del dueto, y
     // sin estar en pausa manual) — se usa para el pulso sintético del MusicDisc.
-    val audioActive = isActive && !showWinner && !paused
+    val audioActive = isActive && !showWinner && !paused && !showContent
 
     val voteA: (Offset) -> Boolean = { submitVote("a") }
     val voteB: (Offset) -> Boolean = { submitVote("b") }
@@ -654,6 +687,7 @@ private fun DuetPage(
                     // toque simple estaba conectado: el audio B siempre
                     // estaba muteado a fuego y nunca se podía pausar).
                     onSingleTap = { if (audibleSide != "a") audibleSide = "a" else paused = !paused },
+                    onLongPress = { contentIdx = 0; showContent = true },
                     onVoteA = voteA,
                 )
                 Box(Modifier.fillMaxWidth().height(2.dp).background(Color.White.copy(alpha = 0.3f)))
@@ -661,6 +695,7 @@ private fun DuetPage(
                     playerB, Modifier.weight(1f).fillMaxWidth().then(ring("b")), useTextureView = true, side = post.sideB,
                     voteColor = Color(0xFF3B82F6),
                     onSingleTap = { if (audibleSide != "b") audibleSide = "b" else paused = !paused },
+                    onLongPress = { contentIdx = 1; showContent = true },
                     onVoteA = voteB,
                 )
             }
@@ -670,6 +705,7 @@ private fun DuetPage(
                     playerA, Modifier.weight(1f).fillMaxHeight().then(ring("a")), useTextureView = true, side = post.sideA,
                     voteColor = Color(0xFFA855F7),
                     onSingleTap = { if (audibleSide != "a") audibleSide = "a" else paused = !paused },
+                    onLongPress = { contentIdx = 0; showContent = true },
                     onVoteA = voteA,
                 )
                 Box(Modifier.fillMaxHeight().width(2.dp).background(Color.White.copy(alpha = 0.3f)))
@@ -677,6 +713,7 @@ private fun DuetPage(
                     playerB, Modifier.weight(1f).fillMaxHeight().then(ring("b")), useTextureView = true, side = post.sideB,
                     voteColor = Color(0xFF3B82F6),
                     onSingleTap = { if (audibleSide != "b") audibleSide = "b" else paused = !paused },
+                    onLongPress = { contentIdx = 1; showContent = true },
                     onVoteA = voteB,
                 )
             }
@@ -751,6 +788,11 @@ private fun VideoSurface(
     // `setTimeout` manual de 280ms que usa la web para diferenciarlos
     // (CarouselSlide.jsx/DuetSlide.jsx).
     onSingleTap: () -> Unit = {},
+    // Mantener pulsado (long-press) — abre la content card (VSContentCard.jsx
+    // en la web) que muestra el contenido A/B a pantalla. detectTapGestures
+    // usa el mismo umbral de tiempo/movimiento que el `setTimeout(450)` de la
+    // web para distinguirlo del toque simple y del doble toque.
+    onLongPress: () -> Unit = {},
     // Doble toque -> intenta votar; devuelve true SOLO si había sesión
     // iniciada. Si no (invitado), abre el login y NO se muestra el burst —
     // réplica exacta de submitVote() en la web, que solo llama a
@@ -766,6 +808,7 @@ private fun VideoSurface(
             .pointerInput(Unit) {
                 detectTapGestures(
                     onTap = { onSingleTap() },
+                    onLongPress = { onLongPress() },
                     onDoubleTap = { offset ->
                         if (onVoteA(offset)) {
                             burstOffset = offset
@@ -1817,4 +1860,134 @@ private fun formatCount(n: Int): String = when {
     n >= 1_000_000 -> String.format("%.1f", n / 1_000_000.0).removeSuffix(".0") + "M"
     n >= 1_000 -> String.format("%.1f", n / 1_000.0).removeSuffix(".0") + "K"
     else -> n.toString()
+}
+
+
+// ── Content card (long-press en un 1vs1) ─────────────────────────────────────
+// Réplica NATIVA de VSContentCard.jsx: al MANTENER PULSADA una opción de un
+// dueto, se abre esta tarjeta central que muestra "solo el contenido" (vídeo o
+// imagen) de A y B en un carrusel horizontal deslizable, con marco blanco
+// tenue + resplandor, indicadores neutros (sin color) y botón "atrás". Arranca
+// en la opción que se pulsó (initialIndex). Se dibuja desde MainActivity (vía
+// FeedOverlays) para quedar POR ENCIMA de la barra de navegación inferior,
+// igual que en la web es un portal a document.body con z-[60].
+@Composable
+fun VSContentCard(
+    optionA: Side?,
+    optionB: Side?,
+    initialIndex: Int,
+    onClose: () -> Unit,
+) {
+    val context = LocalContext.current
+    val dataSourceFactory = remember { VideoCache.cacheDataSourceFactory(context) }
+    val pagerState = rememberPagerState(initialPage = initialIndex.coerceIn(0, 1), pageCount = { 2 })
+    val playerA = remember { buildPlayer(context, dataSourceFactory, optionA?.videoUrl, muted = false) }
+    val playerB = remember { buildPlayer(context, dataSourceFactory, optionB?.videoUrl, muted = false) }
+    DisposableEffect(Unit) {
+        onDispose { playerA.release(); playerB.release() }
+    }
+    // Solo el lado VISIBLE reproduce (con audio), igual que OptionMedia en la
+    // web pausa el <video> no activo.
+    LaunchedEffect(pagerState.currentPage) {
+        if (pagerState.currentPage == 0) {
+            playerB.pause(); playerA.play()
+        } else {
+            playerA.pause(); playerB.play()
+        }
+    }
+    // El botón/gesto "Atrás" del sistema cierra la card (réplica de la
+    // integración con window.history de VSContentCard.jsx).
+    BackHandler(onBack = onClose)
+
+    val slides = listOf(optionA, optionB)
+
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.8f))
+            // Tocar FUERA de la card la cierra (réplica de onClick sobre el
+            // backdrop en la web).
+            .pointerInput(Unit) { detectTapGestures { onClose() } },
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            Modifier
+                .fillMaxHeight(0.85f)
+                .aspectRatio(9f / 17.5f, matchHeightConstraintsFirst = true)
+                .clip(RoundedCornerShape(24.dp))
+                .background(Color.Black)
+                .border(1.dp, Color.White.copy(alpha = 0.18f), RoundedCornerShape(24.dp))
+                // Consume los toques sobre la card para que NO cierren (solo
+                // los del backdrop cierran); el carrusel sigue deslizándose
+                // porque el gesto de arrastre lo maneja HorizontalPager aparte.
+                .pointerInput(Unit) { detectTapGestures { } },
+        ) {
+            HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { p ->
+                ContentOption(
+                    option = slides[p],
+                    player = if (p == 0) playerA else playerB,
+                )
+            }
+
+            // Indicadores neutros (sin color), réplica de los dots de la web.
+            Row(
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                for (i in 0..1) {
+                    val activeDot = pagerState.currentPage == i
+                    Box(
+                        Modifier
+                            .size(width = if (activeDot) 16.dp else 6.dp, height = 6.dp)
+                            .clip(RoundedCornerShape(3.dp))
+                            .background(Color.White.copy(alpha = if (activeDot) 0.9f else 0.35f)),
+                    )
+                }
+            }
+
+            // Botón atrás — sin fondo, solo el icono (réplica de la web).
+            Icon(
+                Icons.Filled.ChevronLeft,
+                contentDescription = "Back",
+                tint = Color.White,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(6.dp)
+                    .size(32.dp)
+                    .clickable { onClose() },
+            )
+        }
+    }
+}
+
+// Contenido puro de una opción dentro de la content card: vídeo (reproductor
+// nativo) o imagen a pantalla, sin nombres ni %.
+@Composable
+private fun ContentOption(option: Side?, player: ExoPlayer) {
+    val videoUrl = absoluteUrl(option?.videoUrl)
+    val imageUrl = absoluteUrl(option?.imageUrl ?: option?.posterUrl)
+    Box(Modifier.fillMaxSize().background(Color.Black)) {
+        if (videoUrl != null) {
+            AndroidView(
+                factory = { ctx ->
+                    PlayerView(ctx).apply {
+                        useController = false
+                        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                        setShutterBackgroundColor(android.graphics.Color.BLACK)
+                    }.also { it.player = player }
+                },
+                update = { it.player = player },
+                modifier = Modifier.fillMaxSize(),
+            )
+        } else if (imageUrl != null) {
+            AsyncImage(
+                model = imageUrl,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+    }
 }

@@ -299,6 +299,17 @@ private fun TwykApp() {
                 onNext = w.onNext,
             )
         }
+        // Content card (long-press en un 1vs1) — se pide desde DuetPage vía el
+        // singleton FeedOverlays para pintarse aquí, por encima de la barra de
+        // navegación inferior (igual que Ganador/Compartir).
+        com.twyk.app.data.FeedOverlays.contentCard?.let { c ->
+            com.twyk.app.feed.VSContentCard(
+                optionA = c.optionA,
+                optionB = c.optionB,
+                initialIndex = c.initialIndex,
+                onClose = c.onClose,
+            )
+        }
         if (authOpen) {
             AuthSheet(onClose = { authOpen = false }, onAuthed = { authOpen = false })
         }

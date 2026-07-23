@@ -43,12 +43,28 @@ data class WinnerRequest(
     val onNext: () -> Unit,
 )
 
+// Tarjeta de "solo contenido" (VSContentCard.jsx en la web) que se abre al
+// MANTENER PULSADA una opción de un 1vs1 (dueto): muestra los vídeos/imágenes
+// A y B a pantalla (carrusel horizontal deslizable), sin nombres ni %. Se
+// eleva a este singleton por el mismo motivo que Ganador/Compartir: así
+// MainActivity la pinta por encima de la barra de navegación inferior (en la
+// web es un PORTAL a document.body con z-[60], por encima de todo).
+data class ContentCardRequest(
+    val postId: String,
+    val optionA: Side?,
+    val optionB: Side?,
+    val initialIndex: Int,
+    val onClose: () -> Unit,
+)
+
 object FeedOverlays {
     var moreOptions by mutableStateOf<MoreOptionsRequest?>(null)
         private set
     var share by mutableStateOf<String?>(null)
         private set
     var winner by mutableStateOf<WinnerRequest?>(null)
+        private set
+    var contentCard by mutableStateOf<ContentCardRequest?>(null)
         private set
 
     fun openMoreOptions(req: MoreOptionsRequest) { moreOptions = req }
@@ -65,4 +81,12 @@ object FeedOverlays {
     // reciclada/descartada borre por error el overlay de otra distinta.
     fun showWinner(req: WinnerRequest) { winner = req }
     fun closeWinnerFor(postId: String) { if (winner?.postId == postId) winner = null }
+
+    // Mismo patrón que `winner`: el emisor (DuetPage) mantiene su estado local
+    // `showContent` como fuente de verdad (para pausar sus vídeos mientras la
+    // card esté abierta) y esto solo refleja ESE estado hacia fuera para
+    // poder pintarlo por encima de la barra de navegación. El check de postId
+    // evita que una tarjeta ya reciclada borre por error la card de otra.
+    fun showContentCard(req: ContentCardRequest) { contentCard = req }
+    fun closeContentCardFor(postId: String) { if (contentCard?.postId == postId) contentCard = null }
 }
