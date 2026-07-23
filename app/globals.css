@@ -90,6 +90,19 @@ html, body, #__next {
     animation: ringPulse 1.8s ease-out infinite;
 }
 
+/* Disco de música con aspecto de VINILO REAL: gira mientras se reproduce
+   audio/música y se congela (sin resetear el ángulo) en pausa. La animación
+   se aplica SIEMPRE y solo se alterna animation-play-state (inline, en el
+   componente) -> al pausar, el disco se queda exactamente en el ángulo en el
+   que estaba (como una aguja que deja de girar), en vez de saltar a 0deg. */
+@keyframes vinylSpin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+}
+.vinyl-spin {
+    animation: vinylSpin 2.8s linear infinite;
+}
+
 /* Anillo (único) REACTIVO AL AUDIO REAL (AudioReactiveRings.jsx): estilo
    "ecualizador circular" (trazos radiales cortos, referencia visual del
    usuario) — el atributo `d` (largo de cada trazo) se recalcula por JS en

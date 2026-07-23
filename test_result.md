@@ -1564,6 +1564,22 @@ agent_communication:
         -comment: "VERIFICADO SIN AGENTE DE TESTING (petición explícita y reiterada del usuario). Usado mcp_screenshot_tool (Playwright real, no curl) para ejecutar el flujo end-to-end completo contra el servidor real: (1) POST /api/auth/register con usuario nuevo -> 200, user.termsAccepted===false (confirmado). (2) POST /api/auth/accept-terms con su sesión -> GET /api/auth/me posterior confirma termsAccepted===true persistido en Mongo. (3) POST /api/auth/login con 'marcos' (usuario semilla SIN el campo, nunca aceptó) -> user.termsAccepted===None/undefined (no true). (4) Tras aceptar como marcos y volver a loguear -> GET /api/auth/login devuelve termsAccepted===true (persistido correctamente, no se resetea entre sesiones). Los 4 escenarios de la persistencia backend quedan confirmados con datos reales de MongoDB, sin usar ningún agente de testing."
 
 frontend:
+  - task: "Disco de música con aspecto de vinilo real (surcos + agujero central) que gira mientras se reproduce el audio/música y se detiene en pausa"
+    implemented: true
+    working: "NA"
+    file: "components/CarouselSlide.jsx, components/DuetSlide.jsx, app/globals.css"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'Ahora quiero que el reproductor sea un disco de vinilo en la web'. Aclarado tras 3 preguntas: (1) debe girar mientras se reproduce audio/música y detenerse en pausa; (2) la portada sigue ocupando TODO el disco (no una etiqueta pequeña), con líneas de surco superpuestas + un círculo pequeño en el centro (el 'agujero' de un vinilo real); (3) solo en el disco pequeño de la columna social (CarouselSlide.jsx/DuetSlide.jsx)."
+        -working: "NA"
+        -agent: "main"
+        -comment: "NUEVA FEATURE (100% frontend). app/globals.css: nuevo @keyframes vinylSpin (rotate 0->360deg) + clase .vinyl-spin (2.8s linear infinite). CarouselSlide.jsx y DuetSlide.jsx (idéntico en ambos): el div del disco (antes fijo, con el comentario 'ya NO gira' de una decisión anterior) ahora SIEMPRE lleva la clase vinyl-spin, y se alterna animationPlayState:'running'/'paused' vía style inline según isAudioPlaying (así, al pausar, el disco se congela en el ángulo exacto en el que estaba, sin saltar a 0deg — igual que una aguja real que deja de girar). Añadidos 2 overlays absolute inset-0 pointer-events-none DENTRO del disco (por encima de la portada/imagen existente, sin sustituirla): (a) surcos concéntricos vía repeating-radial-gradient (anillos cada ~3px, negro semitransparente 0.32 alpha) y una viñeta interior sutil (inset box-shadow) para dar profundidad; (b) un círculo pequeño (5px, negro con borde blanco 40%) centrado, réplica del agujero/eje de un vinilo original. Las ondas reactivas (AudioReactiveRings) y toda la lógica de audio/isAudioPlaying quedan intactas, sin cambios. Verificado: lint limpio en ambos archivos (0 problemas nuevos, solo 2 warnings preexistentes de eslint-disable no relacionados); nextjs compila sin errores (GET / -> 200, Compiled sin excepciones). Captura headless de Playwright no pudo confirmar visualmente el giro (limitación YA documentada muchas veces en este archivo: el feed no monta vídeo/contenido dinámico en el navegador headless de screenshot, sea o no relacionado con este cambio)."
+
+
   - task: "Subida de publicaciones (Versus/1vs1) en segundo plano: cerrar el diálogo al instante y mostrar el progreso como placeholder en el grid de perfil"
     implemented: true
     working: true
