@@ -113,6 +113,7 @@ import com.twyk.app.data.SaveRequest
 import com.twyk.app.data.Session
 import com.twyk.app.data.Side
 import com.twyk.app.data.Votes
+import com.twyk.app.data.VoteStore
 import com.twyk.app.data.WinnerRequest
 import com.twyk.app.ui.sharePost
 import kotlinx.coroutines.delay
@@ -299,12 +300,23 @@ private fun CarouselPage(
     val musicPlayer by rememberMusicPlayer(post.musicPreviewUrl)
 
     val sidePager = rememberPagerState(pageCount = { 2 })
-    var voted by remember(post.id) { mutableStateOf<String?>(null) }
+    // Voto restaurado de SharedPreferences (réplica de leer
+    // `localStorage.getItem('versus_vote_'+id)` en el `useEffect` de montaje
+    // de CarouselSlide.jsx) — antes SIEMPRE arrancaba en null, así que un
+    // voto ya emitido dejaba de verse como votado en cuanto la tarjeta se
+    // recomponía desde cero (reabrir la app, o reciclado del pager).
+    var voted by remember(post.id) { mutableStateOf(VoteStore.get(post.id)) }
     // Cierra sobre el post.id y el voto ACTUAL de esta tarjeta (réplica de
     // votedSide={userVote} que CarouselSlide.jsx pasa a <CommentsModal>).
     val onCommentsLocal: () -> Unit = { onOpenComments(post.id, voted) }
     var votes by remember(post.id) { mutableStateOf(post.votes ?: Votes()) }
     var showWinner by remember(post.id) { mutableStateOf(false) }
+    // Se actualiza SOLO cuando `submitVote` procesa un voto REAL (nuevo o
+    // cambiado) — NUNCA al restaurar `voted` desde disco al montar. Así el
+    // LaunchedEffect de abajo (que abre la tarjeta de "Ganador") solo se
+    // dispara justo después de votar de verdad, exactamente como en la web
+    // (el `useEffect` que restaura desde localStorage NUNCA abre el ganador).
+    var voteTrigger by remember(post.id) { mutableStateOf(0L) }
     // Pausa MANUAL (toque simple sobre el vídeo) — antes esta pantalla solo
     // manejaba el DOBLE toque (votar); no había ningún gesto de un solo
     // toque, así que era IMPOSIBLE pausar el vídeo tocándolo (bug reportado:
@@ -327,6 +339,8 @@ private fun CarouselPage(
             val previous = voted
             votes = if (previous != null) switchVote(votes, previous, side) else bump(votes, side)
             voted = side
+            VoteStore.set(post.id, side)
+            voteTrigger = System.currentTimeMillis()
             onVote(side, previous)
         }
         return true
@@ -334,9 +348,11 @@ private fun CarouselPage(
 
     // Tarjeta de ganador: aparece ~650ms después de votar (igual que la web).
     // Se re-dispara en cada voto REAL (primero o cambio de opción), no en un
-    // simple re-toque de la misma opción (voted no cambia -> no se re-lanza).
-    LaunchedEffect(post.id, voted) {
-        if (voted != null) {
+    // simple re-toque de la misma opción (voted no cambia -> no se re-lanza)
+    // NI al restaurar un voto antiguo desde disco al abrir/volver a la
+    // tarjeta (por eso la clave es `voteTrigger`, no `voted`).
+    LaunchedEffect(post.id, voteTrigger) {
+        if (voteTrigger != 0L) {
             delay(650)
             showWinner = true
         }
@@ -505,17 +521,27 @@ private fun DuetPage(
     val hasMusic = !post.musicPreviewUrl.isNullOrBlank()
     val musicPlayer by rememberMusicPlayer(post.musicPreviewUrl)
 
-    var voted by remember(post.id) { mutableStateOf<String?>(null) }
+    // Voto restaurado de SharedPreferences (réplica de leer
+    // `localStorage.getItem('duet_vote_'+id)` en el `useEffect` de montaje
+    // de DuetSlide.jsx) — antes SIEMPRE arrancaba en null.
+    var voted by remember(post.id) { mutableStateOf(VoteStore.get(post.id)) }
     // Réplica de votedSide={userVote} que DuetSlide.jsx pasa a <CommentsModal>.
     val onCommentsLocal: () -> Unit = { onOpenComments(post.id, voted) }
     var votes by remember(post.id) { mutableStateOf(post.votes ?: Votes()) }
     var showWinner by remember(post.id) { mutableStateOf(false) }
+    // Se actualiza SOLO cuando `submitVote` procesa un voto REAL — NUNCA al
+    // restaurar `voted` desde disco al montar (misma razón que en
+    // CarouselPage: la web tampoco reabre el ganador al restaurar desde
+    // localStorage, solo justo después de votar de verdad).
+    var voteTrigger by remember(post.id) { mutableStateOf(0L) }
     val isHorizontal = (post.layout ?: "horizontal") == "horizontal"
     // Lado que tiene el audio ahora mismo ('a'|'b') — antes NO existía este
     // estado: el lado A siempre tenía el audio FIJO y B siempre iba muted a
     // fuego, sin ninguna forma de cambiarlo (bug reportado por el usuario:
     // "en las publicaciones 1vs1 no puedo cambiar el audio haciendo click
     // sobre la otra opción"). Réplica de `audibleSide` en DuetSlide.jsx.
+    // Empieza SIEMPRE en 'a' aunque haya un voto restaurado (misma web: el
+    // useEffect de restauración solo toca userVote, NUNCA audibleSide).
     var audibleSide by remember(post.id) { mutableStateOf("a") }
     // Pausa MANUAL (toque simple sobre el lado que YA tiene el audio) —
     // réplica de `paused` en DuetSlide.jsx.
@@ -534,14 +560,17 @@ private fun DuetPage(
             votes = if (previous != null) switchVote(votes, previous, side) else bump(votes, side)
             voted = side
             audibleSide = side
+            VoteStore.set(post.id, side)
+            voteTrigger = System.currentTimeMillis()
             onVote(side, previous)
         }
         return true
     }
 
-    // Tarjeta de ganador: aparece ~650ms después de votar (igual que la web).
-    LaunchedEffect(post.id, voted) {
-        if (voted != null) {
+    // Tarjeta de ganador: aparece ~650ms después de votar (igual que la
+    // web); NUNCA al restaurar un voto antiguo desde disco (ver `voteTrigger`).
+    LaunchedEffect(post.id, voteTrigger) {
+        if (voteTrigger != 0L) {
             delay(650)
             showWinner = true
         }
@@ -1211,25 +1240,55 @@ private fun VoteBurst(id: Long, tapOffset: Offset, color: Color, onEnd: () -> Un
         delay(800)
         onEnd()
     }
-    Icon(
-        ImageVector.vectorResource(R.drawable.ic_vote_filled),
-        contentDescription = null,
-        tint = color,
-        modifier = Modifier
-            .size(iconSizeDp)
-            .offset {
-                IntOffset(
-                    (tapOffset.x - iconSizePx / 2f).roundToInt(),
-                    (tapOffset.y - upPx - iconSizePx / 2f).roundToInt(),
-                )
-            }
-            .graphicsLayer {
-                scaleX = scaleAnim.value
-                scaleY = scaleAnim.value
-                rotationZ = rotationAnim.value
-                alpha = opacityAnim.value
-            },
-    )
+    val shadowDownPx = with(density) { 6.dp.toPx() }
+    val burstOffsetModifier = Modifier.offset {
+        IntOffset(
+            (tapOffset.x - iconSizePx / 2f).roundToInt(),
+            (tapOffset.y - upPx - iconSizePx / 2f).roundToInt(),
+        )
+    }
+    Box {
+        // Sombra APROXIMADA — réplica ligera de `filter: drop-shadow(0 6px
+        // 20px rgba(0,0,0,.55))` de VoteBurstEffect.jsx. Sin desenfoque real
+        // (un blur nativo con `RenderEffect` exige API 31+ y esta app da
+        // soporte desde minSdk 24), pero una silueta oscura ligeramente
+        // desplazada hacia abajo aporta la misma sensación de profundidad
+        // que antes faltaba por completo (bug reportado: "no tiene la misma
+        // animación/tamaño que la web").
+        Icon(
+            ImageVector.vectorResource(R.drawable.ic_vote_filled),
+            contentDescription = null,
+            tint = Color.Black.copy(alpha = 0.45f),
+            modifier = Modifier
+                .size(iconSizeDp)
+                .offset {
+                    IntOffset(
+                        (tapOffset.x - iconSizePx / 2f).roundToInt(),
+                        (tapOffset.y - upPx - iconSizePx / 2f + shadowDownPx).roundToInt(),
+                    )
+                }
+                .graphicsLayer {
+                    scaleX = scaleAnim.value
+                    scaleY = scaleAnim.value
+                    rotationZ = rotationAnim.value
+                    alpha = opacityAnim.value * 0.7f
+                },
+        )
+        Icon(
+            ImageVector.vectorResource(R.drawable.ic_vote_filled),
+            contentDescription = null,
+            tint = color,
+            modifier = Modifier
+                .size(iconSizeDp)
+                .then(burstOffsetModifier)
+                .graphicsLayer {
+                    scaleX = scaleAnim.value
+                    scaleY = scaleAnim.value
+                    rotationZ = rotationAnim.value
+                    alpha = opacityAnim.value
+                },
+        )
+    }
 }
 
 @Composable

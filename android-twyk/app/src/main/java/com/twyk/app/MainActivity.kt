@@ -72,6 +72,11 @@ class MainActivity : ComponentActivity() {
 
         // Restaura la sesión guardada (token + usuario) -> sobrevive al cerrar la app.
         com.twyk.app.data.Session.init(applicationContext)
+        // Restaura tu voto por publicación (SharedPreferences) -> réplica de
+        // localStorage en la web: si ya votaste un post, sigue mostrándose
+        // como votado (icono relleno, borde, aviso) al reabrir la app o al
+        // volver a esa tarjeta tras alejarte mucho en el scroll.
+        com.twyk.app.data.VoteStore.init(applicationContext)
 
         // Edge-to-edge: el contenido se dibuja detrás de las barras del sistema.
         WindowCompat.setDecorFitsSystemWindows(window, false)

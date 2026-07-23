@@ -132,6 +132,27 @@ de nuevo (almacenamiento efímero del pod).
 - Archivos: `ui/Upload.kt` (reescrito FileStep + nuevos MediaSlot/LocalVideoPreview/LayoutSeg/MusicRow,
   eliminados VideoSlot/MusicRowPicker). Verificación: llaves 201/201, paréntesis 788/788, imports OK.
 
+## Ronda: persistencia del voto (SharedPreferences) + sombra del burst
+Petición del usuario: "El voto de la aplicación nativa debe ser igual en todo a la web aplicando cada
+pequeño detalle". Auditoría de `submitVote()`/`handleTapSide()` (web) vs `CarouselPage`/`DuetPage`
+(nativo) encontró:
+- **Persistencia del voto**: la web restaura `userVote` de `localStorage` al montar (`versus_vote_<id>`
+  / `duet_vote_<id>`); el nativo SIEMPRE arrancaba `voted=null`, perdiendo la marca visual de "ya
+  votado" al reabrir la app o reciclar la tarjeta lejos en el scroll. Nuevo `data/VoteStore.kt`
+  (SharedPreferences, mismo patrón que `Session.kt`), inicializado en `MainActivity.onCreate`.
+  CUIDADO evitado: la restauración NO debe reabrir la tarjeta de "Ganador" (la web tampoco lo hace) —
+  se separó un nuevo estado `voteTrigger` (solo se actualiza al votar de verdad) del que depende ese
+  `LaunchedEffect`, en vez de depender directamente de `voted`.
+- **Sombra del burst**: añadida una aproximación (icono negro duplicado, offset 6dp) de
+  `drop-shadow(0 6px 20px rgba(0,0,0,.55))` — sin blur real (requeriría API 31+, la app da soporte
+  desde minSdk 24), documentado como limitación deliberada.
+- Confirmado que otros detalles YA coincidían: sin ring en CarouselSlide (solo en dueto, ya estaba);
+  `audibleSide` del dueto sigue arrancando siempre en 'a' aunque se restaure un voto en 'b' (así lo
+  hace también la web).
+NO COMPILABLE aquí; requiere rebuild del APK. Verificado por revisión manual + recuento de llaves/
+paréntesis balanceado. INFRA: `.env` había desaparecido de nuevo durante la sesión (misma causa raíz
+recurrente); restaurado + nextjs reiniciado + usuarios re-sembrados.
+
 ## Ronda: pausar vídeo (toque simple), cambiar audio en 1vs1, y animación de voto igual a la web
 Petición del usuario: "En la aplicación nativa no puedo parar el vídeo y en las publicaciones 1vs1 no
 puedo cambiar el audio haciendo click sobre la otra opción y cuando realizo un voto no tiene la misma
