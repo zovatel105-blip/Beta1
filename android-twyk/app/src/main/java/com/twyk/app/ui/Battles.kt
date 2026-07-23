@@ -49,6 +49,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -254,7 +255,7 @@ private fun BattlesHeader(
                 Modifier.size(36.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.06f)).border(1.dp, Color.White.copy(alpha = 0.10f), CircleShape)
                     .clickable { onOpenSuggestions() },
                 contentAlignment = Alignment.Center,
-            ) { Icon(Icons.Outlined.PersonAdd, "User suggestions", tint = Color.White, modifier = Modifier.size(18.dp)) }
+            ) { Icon(ImageVector.vectorResource(R.drawable.ic_user_plus), "User suggestions", tint = Color.White, modifier = Modifier.size(18.dp)) }
         } else {
             Spacer(Modifier.size(36.dp))
         }
@@ -528,7 +529,11 @@ private fun EmptyCompleted(onCreate: () -> Unit, onActive: () -> Unit) {
         verticalArrangement = Arrangement.Center,
     ) {
         Box(
-            Modifier.size(80.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.03f)).border(1.dp, Color.White.copy(alpha = 0.10f), CircleShape),
+            Modifier.size(80.dp)
+                // Glow blanco alrededor (réplica de boxShadow '0 0 48px -14px
+                // rgba(255,255,255,0.45)' de la web) — spot/ambient blancos.
+                .shadow(24.dp, CircleShape, spotColor = Color.White, ambientColor = Color.White)
+                .clip(CircleShape).background(Color.White.copy(alpha = 0.03f)).border(1.dp, Color.White.copy(alpha = 0.10f), CircleShape),
             contentAlignment = Alignment.Center,
         ) { Icon(ImageVector.vectorResource(R.drawable.ic_trophy), null, tint = Color.White, modifier = Modifier.size(36.dp)) }
         Spacer(Modifier.height(22.dp))
