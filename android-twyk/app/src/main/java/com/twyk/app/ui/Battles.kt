@@ -381,26 +381,28 @@ private fun ActiveChallengeFrame(c: Challenge, isActiveCard: Boolean, busy: Bool
             }
         }
 
-        // Puntitos del carrusel horizontal A/B.
-        Row(
-            Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 70.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            for (i in 0..1) {
-                Box(
-                    Modifier.size(width = if (pager.currentPage == i) 16.dp else 3.dp, height = 3.dp)
-                        .clip(RoundedCornerShape(1.5.dp)).background(if (pager.currentPage == i) Color.White else Color.White.copy(alpha = 0.4f)),
-                )
-            }
-        }
-
-        // Panel inferior de acciones
+        // Panel inferior de acciones — degradado a todo el ancho (SIN tarjeta
+        // redondeada con borde: la web usa un overlay `bottom-0` con gradiente,
+        // no un "marco" flotante). Incluye los puntitos del carrusel ARRIBA del
+        // todo (igual que la web: los indicadores van ABAJO, no en la cabecera).
         Column(
-            Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding().padding(start = 16.dp, end = 16.dp, bottom = 20.dp),
+            Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f))))
+                .navigationBarsPadding().padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 20.dp),
         ) {
-            Column(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Color.Black.copy(alpha = 0.45f)).border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(18.dp)).padding(12.dp),
+            // Puntitos del carrusel A/B (abajo, réplica de la web).
+            Row(
+                Modifier.align(Alignment.CenterHorizontally).padding(bottom = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
+                for (i in 0..1) {
+                    Box(
+                        Modifier.size(width = if (pager.currentPage == i) 20.dp else 3.dp, height = 3.dp)
+                            .clip(RoundedCornerShape(1.5.dp)).background(if (pager.currentPage == i) Color.White else Color.White.copy(alpha = 0.4f)),
+                    )
+                }
+            }
+            Column(Modifier.fillMaxWidth()) {
                 c.message?.takeIf { it.isNotBlank() }?.let {
                     Text("“$it”", color = Color.White.copy(alpha = 0.75f), fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     Spacer(Modifier.height(10.dp))
@@ -496,7 +498,12 @@ private fun ChallengeMediaBox(
                     }
                 }
                 DisposableEffect(mediaUrl) { onDispose { player.release() } }
-                LaunchedEffect(isVisible) { if (isVisible) player.play() else player.pause() }
+                // El lado VISIBLE reproduce CON audio; el otro va en silencio y
+                // pausado (antes el volumen estaba fijo a 0f -> nunca se oía nada
+                // en Retos activos, bug reportado).
+                LaunchedEffect(isVisible) {
+                    if (isVisible) { player.volume = 1f; player.play() } else { player.volume = 0f; player.pause() }
+                }
                 AndroidView(
                     factory = { ctx ->
                         PlayerView(ctx).apply {
