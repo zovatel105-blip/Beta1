@@ -32,6 +32,12 @@ class UploadWorker(appContext: Context, params: WorkerParameters) : CoroutineWor
         const val KEY_TARGET_POSTER_URL = "targetPosterUrl"
         const val KEY_TARGET_DESCRIPTION = "targetDescription"
         const val KEY_TARGET_MUSIC = "targetMusic"
+        // postId de la publicación retada (flujo "Retar rápido" desde el rail
+        // del feed) — se usa para emitir PostEvents.emitChallenged(postId) al
+        // completar la subida y así incrementar el contador de "Retar" en esa
+        // tarjeta, igual que el evento `twyk:challenged` de la web. Vacío en el
+        // flujo de reto normal (elegir a quién retar sin partir de un post).
+        const val KEY_TARGET_POST_ID = "targetPostId"
         // Música elegida por el propio usuario al publicar (iTunes, ver
         // ui/Music.kt) — NO confundir con KEY_TARGET_MUSIC (la música YA
         // adjunta al contenido retado, en el flujo de "Retar rápido").
@@ -117,7 +123,15 @@ class UploadWorker(appContext: Context, params: WorkerParameters) : CoroutineWor
             fileA?.delete()
             fileB?.delete()
             UploadQueue.remove(queueId)
-            if (type == "challenge") ChallengeBanner.show("done", 100, targetUsername)
+            if (type == "challenge") {
+                ChallengeBanner.show("done", 100, targetUsername)
+                // Incrementa el contador de "Retar" en la tarjeta del feed cuyo
+                // postId coincida (réplica del evento `twyk:challenged` que la
+                // web dispara al completar la subida del reto).
+                inputData.getString(KEY_TARGET_POST_ID)?.takeIf { it.isNotBlank() }?.let {
+                    PostEvents.emitChallenged(it)
+                }
+            }
             response?.let { UploadEvents.emitPostCreated(it) }
             Result.success()
         } catch (e: Exception) {

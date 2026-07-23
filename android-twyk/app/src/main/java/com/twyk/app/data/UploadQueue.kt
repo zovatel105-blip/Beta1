@@ -78,6 +78,19 @@ object PostEvents {
     suspend fun emitCommentCountChanged(postId: String, count: Int) {
         _commentCountChanged.emit(postId to count)
     }
+
+    // Notifica cuando se ha CREADO un reto CONTRA una publicación concreta
+    // (flujo "Retar rápido"), para incrementar AL INSTANTE el contador de
+    // "Retar" en la tarjeta cuyo postId coincida — réplica nativa del evento
+    // global `twyk:challenged` que Feed.jsx dispara y que
+    // CarouselSlide.jsx/DuetSlide.jsx escuchan. Se emite desde UploadWorker
+    // cuando la subida del reto termina con éxito.
+    private val _challenged = MutableSharedFlow<String>(extraBufferCapacity = 8)
+    val challenged = _challenged.asSharedFlow()
+
+    suspend fun emitChallenged(postId: String) {
+        _challenged.emit(postId)
+    }
 }
 
 // Banner de "reto enviado en segundo plano" (equivalente a `challengeUpload`

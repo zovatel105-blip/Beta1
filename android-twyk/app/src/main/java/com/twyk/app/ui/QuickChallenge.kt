@@ -110,6 +110,7 @@ fun QuickChallengeSheet(target: QuickChallengeTarget, onClose: () -> Unit) {
                     .putString(UploadWorker.KEY_TARGET_POSTER_URL, target.posterUrl ?: "")
                     .putString(UploadWorker.KEY_TARGET_DESCRIPTION, target.description ?: "")
                     .putString(UploadWorker.KEY_TARGET_MUSIC, target.music ?: "")
+                    .putString(UploadWorker.KEY_TARGET_POST_ID, target.postId)
                     .build()
                 ChallengeBanner.show("uploading", 0, username)
                 val request = OneTimeWorkRequestBuilder<UploadWorker>()

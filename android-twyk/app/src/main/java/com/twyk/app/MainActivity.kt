@@ -78,6 +78,9 @@ class MainActivity : ComponentActivity() {
         // como votado (icono relleno, borde, aviso) al reabrir la app o al
         // volver a esa tarjeta tras alejarte mucho en el scroll.
         com.twyk.app.data.VoteStore.init(applicationContext)
+        // Contadores sociales por publicación (guardados/retos) persistidos —
+        // ver data/SocialCountStore.kt.
+        com.twyk.app.data.SocialCountStore.init(applicationContext)
 
         // Edge-to-edge: el contenido se dibuja detrás de las barras del sistema.
         WindowCompat.setDecorFitsSystemWindows(window, false)

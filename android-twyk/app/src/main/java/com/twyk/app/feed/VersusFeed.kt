@@ -120,6 +120,7 @@ import com.twyk.app.data.PostEvents
 import com.twyk.app.data.QuickChallengeTarget
 import com.twyk.app.data.RetrofitProvider
 import com.twyk.app.data.SaveRequest
+import com.twyk.app.data.SocialCountStore
 import com.twyk.app.data.Session
 import com.twyk.app.data.Side
 import com.twyk.app.data.Votes
@@ -1045,6 +1046,29 @@ private fun BoxScope.SocialRail(
 ) {
     val scope = rememberCoroutineScope()
     var saved by remember(post.id) { mutableStateOf(false) }
+    // Contadores sociales EN VIVO (guardados/retos): parten del valor del
+    // backend fusionado con el incremento propio persistido (SocialCountStore),
+    // y muestran el NÚMERO solo cuando ya hubo interacción — réplica exacta de
+    // `saveCount`/`challengeCount` en CarouselSlide.jsx/DuetSlide.jsx. Antes el
+    // nativo leía siempre `post.stats` estático: guardar no cambiaba el número
+    // y retar nunca mostraba ninguno.
+    var saveCount by remember(post.id) {
+        mutableStateOf(maxOf(post.stats?.saves ?: 0, SocialCountStore.getInt(SocialCountStore.savesKey(post.id))))
+    }
+    var challengeCount by remember(post.id) {
+        mutableStateOf(maxOf(post.stats?.challenges ?: 0, SocialCountStore.getInt(SocialCountStore.challengesKey(post.id))))
+    }
+    // Escucha los retos creados contra ESTA publicación para incrementar el
+    // contador al instante (réplica del listener de `twyk:challenged` en la web).
+    LaunchedEffect(post.id) {
+        PostEvents.challenged.collect { pid ->
+            if (pid == post.id) {
+                val next = challengeCount + 1
+                challengeCount = next
+                SocialCountStore.setInt(SocialCountStore.challengesKey(post.id), next)
+            }
+        }
+    }
 
     val author = post.sideA?.author ?: post.author
 
@@ -1071,7 +1095,7 @@ private fun BoxScope.SocialRail(
         // CarouselSlide.jsx/DuetSlide.jsx. Before, the native app always
         // showed this button even on your own posts.
         if (!hideChallenge && headAuthorUsername != Session.user?.username) {
-            RailItem(ImageVector.vectorResource(R.drawable.ic_swords), label(post.stats?.challenges ?: 0, "Challenge"), Color.White, size = 30) {
+            RailItem(ImageVector.vectorResource(R.drawable.ic_swords), label(challengeCount, "Challenge"), Color.White, size = 30) {
                 if (Session.token == null) onRequireAuth() else onChallengeClick()
             }
         }
@@ -1084,20 +1108,30 @@ private fun BoxScope.SocialRail(
         // inferior, en vez de renderizarla aquí mismo (anidada dentro del
         // feed, donde quedaba tapada por esa barra).
         RailItem(ImageVector.vectorResource(R.drawable.ic_share), label(post.stats?.shares ?: 0, "Share"), Color.White, size = 30) { FeedOverlays.openShare(post.id) }
-        // Save (bookmark, same as the web)
+        // Save (bookmark, same as the web) — actualización OPTIMISTA del
+        // número + persistencia (SocialCountStore) y reversión si la API falla,
+        // réplica de handleSaveToggle en la web.
         RailItem(
             ImageVector.vectorResource(if (saved) R.drawable.ic_bookmark_filled else R.drawable.ic_bookmark),
-            label(post.stats?.saves ?: 0, "Save"),
+            label(saveCount, "Save"),
             if (saved) Color(0xFFFACC15) else Color.White,
             size = 30,
         ) {
             if (Session.token == null) {
                 onRequireAuth()
             } else {
+                val newSaved = !saved
+                saved = newSaved
+                saveCount = (saveCount + if (newSaved) 1 else -1).coerceAtLeast(0)
+                SocialCountStore.setInt(SocialCountStore.savesKey(post.id), saveCount)
                 scope.launch {
                     runCatching { RetrofitProvider.api.save(SaveRequest(post.id)) }
-                        .onSuccess { saved = it.saved }
-                        .onFailure { onRequireAuth() }
+                        .onFailure {
+                            // Revertir el cambio optimista si la llamada falla.
+                            saved = !newSaved
+                            saveCount = (saveCount + if (newSaved) -1 else 1).coerceAtLeast(0)
+                            SocialCountStore.setInt(SocialCountStore.savesKey(post.id), saveCount)
+                        }
                 }
             }
         }
