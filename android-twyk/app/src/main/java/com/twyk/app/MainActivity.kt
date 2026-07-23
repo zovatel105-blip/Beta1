@@ -45,6 +45,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -443,22 +444,42 @@ private fun NavIcon(icon: ImageVector, selected: Boolean, badgeCount: Int = 0, o
                 modifier = Modifier.fillMaxSize(),
             )
             // Globo rojo con el contador — réplica exacta del <span> de
-            // BottomNav.jsx (fondo rojo, texto blanco, "9+" a partir de 10).
+            // BottomNav.jsx: `absolute -top-0.5 -right-0.5` está anclado al
+            // CONTENEDOR de 36dp del botón (w-9 h-9), no al glifo de 20dp
+            // (w-5 h-5) que queda centrado DENTRO de ese botón con 8dp de
+            // margen por lado — por eso, medido desde el propio icono de
+            // 20dp, el globo debe sobresalir claramente por su esquina
+            // superior-derecha (centro del globo en x=22dp/y=-2dp respecto al
+            // icono). ANTES el offset (6dp,-4dp) lo dejaba demasiado metido
+            // hacia dentro/abajo (bug reportado: "la burbuja... no se ve bien
+            // como en la web"); con align(TopEnd)+offset(10dp,-10dp) el
+            // globo queda exactamente en esa posición (10,-10 respecto a la
+            // esquina del icono = centro en 22,-2, la misma matemática que
+            // usa la web al posicionarlo sobre el botón de 36dp completo).
             if (badgeCount > 0) {
                 Box(
                     Modifier
                         .align(Alignment.TopEnd)
-                        .offset(x = 6.dp, y = (-4).dp)
+                        .offset(x = 10.dp, y = (-10).dp)
                         .defaultMinSize(minWidth = 16.dp)
                         .height(16.dp)
                         .clip(CircleShape)
                         .background(Color(0xFFEF4444))
-                        .padding(horizontal = 3.dp),
+                        .padding(horizontal = 4.dp),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
                         if (badgeCount > 9) "9+" else badgeCount.toString(),
                         color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold,
+                        // lineHeight = fontSize: Compose reserva por defecto
+                        // un espacio vertical de línea MAYOR que el tamaño
+                        // real del glifo (el "font padding" de la fuente),
+                        // así que sin esto el número queda visualmente
+                        // descentrado (más hacia abajo) dentro de un globo
+                        // tan pequeño y ajustado (16dp) — otra causa real de
+                        // que "no se viera bien" comparado con el <span> de
+                        // la web (que sí centra perfecto vía flexbox+CSS).
+                        style = TextStyle(fontSize = 10.sp, lineHeight = 10.sp),
                     )
                 }
             }

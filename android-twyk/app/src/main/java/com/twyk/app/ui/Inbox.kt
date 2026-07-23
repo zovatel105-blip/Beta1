@@ -228,7 +228,17 @@ private fun FilterChip(label: String, count: Int, active: Boolean, onClick: () -
                     .padding(horizontal = 4.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(count.toString(), color = if (active) Color.Black else Color(0xFFD4D4D8), fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold)
+                Text(
+                    count.toString(),
+                    color = if (active) Color.Black else Color(0xFFD4D4D8),
+                    fontSize = 10.5.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    // lineHeight = fontSize evita el descentrado vertical
+                    // por defecto de Compose (el "font padding" de línea)
+                    // dentro de una insignia tan ajustada (18dp) — mismo
+                    // motivo que el globo rojo de la barra inferior.
+                    style = TextStyle(fontSize = 10.5.sp, lineHeight = 10.5.sp),
+                )
             }
         }
     }
