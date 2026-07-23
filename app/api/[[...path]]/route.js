@@ -1743,6 +1743,16 @@ async function handleAcceptChallenge(cid, request) {
     if (idx === -1) return NextResponse.json({ error: 'not_found' }, { status: 404 })
     const c = list[idx]
 
+    // Quien ACEPTA el reto es el usuario autenticado (el retado, c.to). Se
+    // captura aquí para usar su id REAL en la notificación "aceptó tu reto":
+    // antes se usaba c.to?.id, que en los retos creados desde la app nativa
+    // llega SIN id (targetAuthor solo trae username/name/avatarUrl), por lo que
+    // createNotification no encontraba al usuario y `fromUser` quedaba null →
+    // la notificación se mostraba como "@user ... " con avatar genérico (bug
+    // reportado con captura). Con el id del usuario autenticado la búsqueda
+    // siempre resuelve al aceptante real.
+    const accepter = await getCurrentUser(request)
+
     // Media de respuesta del retado (lado B): la subida al aceptar (imagen o
     // vídeo, auto-detectada), o la del contenido retado si ya se conocía.
     let respMediaType = c.targetMediaType || (c.targetVideoUrl ? 'video' : (c.targetImageUrl ? 'image' : null))
@@ -1804,14 +1814,15 @@ async function handleAcceptChallenge(cid, request) {
     await deleteChallenge(cid)
 
     // Notificar al RETADOR (c.from) que su reto fue aceptado. El que acepta es
-    // el retado (c.to).
+    // el retado (c.to) = el usuario autenticado `accepter` (id real).
     try {
       const challengerId = c.from?.id
+      const accepterId = accepter?.id || c.to?.id || null
       if (challengerId && challengerId !== 'anonymous') {
         await createNotification({
           userId: challengerId,
           type: 'accepted',
-          fromUserId: c.to?.id || null,
+          fromUserId: accepterId,
           postId: post.id,
         })
       }
