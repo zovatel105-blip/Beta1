@@ -132,6 +132,27 @@ de nuevo (almacenamiento efímero del pod).
 - Archivos: `ui/Upload.kt` (reescrito FileStep + nuevos MediaSlot/LocalVideoPreview/LayoutSeg/MusicRow,
   eliminados VideoSlot/MusicRowPicker). Verificación: llaves 201/201, paréntesis 788/788, imports OK.
 
+## Ronda: pausar vídeo (toque simple), cambiar audio en 1vs1, y animación de voto igual a la web
+Petición del usuario: "En la aplicación nativa no puedo parar el vídeo y en las publicaciones 1vs1 no
+puedo cambiar el audio haciendo click sobre la otra opción y cuando realizo un voto no tiene la misma
+animación tamaño etc que la web debe ser igual a la web 100%". Los 3 fixes viven en
+`feed/VersusFeed.kt` (`VideoSurface`, `CarouselPage`, `DuetPage`, `VoteBurst`):
+- **Toque simple para pausar** (versus Y 1vs1): antes `VideoSurface` solo tenía `onDoubleTap` (votar);
+  ningún toque simple estaba conectado, por eso era imposible pausar. Ahora acepta `onSingleTap`;
+  Compose espera la ventana de doble-toque automáticamente al haber ambos callbacks. Nuevo estado
+  `paused` + overlay `PlayArrow` (72dp) igual que el `<Play size={72}/>` de la web.
+- **Cambiar audio en 1vs1**: nuevo estado `audibleSide` en `DuetPage` (antes A tenía el audio fijo y B
+  siempre muted, sin forma de cambiarlo). Tocar el lado sin audio se lo pasa; tocarlo si YA lo tiene
+  pausa/reanuda ambos. Votar por un lado también le pasa el audio (réplica de `setAudibleSide` en
+  DuetSlide.jsx).
+- **Animación de voto**: la `VoteBurst` antigua era un tween lineal 750ms sin rebote/rotación, siempre
+  centrada en pantalla. Reescrita con 3 `Animatable` (escala/opacidad/rotación) vía `keyframes{}`
+  replicando EXACTAMENTE `voteIconPop` de globals.css (rebote elástico 0.15→1.4→0.92→1.1→1→1.08,
+  rotación -18°→8°→-4°→2°→0°, 800ms), posicionada en el punto real del doble toque (60dp por encima),
+  y solo se muestra si había sesión iniciada (igual que la web).
+NO COMPILABLE en este contenedor; requiere rebuild del APK del usuario. Verificado solo por revisión
+manual + recuento de llaves/paréntesis balanceado (352/352, 1097/1097). Sin cambios de backend/web.
+
 ## Avatares y barra inferior — paridad 100% con la web (session actual)
 - **`ui/UiKit.kt` → `TwykAvatar`**: reemplazado `Icons.Filled.Person` de Material (círculo lleno) por
   `ImageVector.vectorResource(R.drawable.ic_avatar_default)` — silueta SVG idéntica a la web

@@ -9,6 +9,7 @@ import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.keyframes
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
@@ -30,6 +31,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -49,6 +51,7 @@ import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -69,6 +72,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
@@ -81,6 +85,7 @@ import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -300,8 +305,11 @@ private fun CarouselPage(
     val onCommentsLocal: () -> Unit = { onOpenComments(post.id, voted) }
     var votes by remember(post.id) { mutableStateOf(post.votes ?: Votes()) }
     var showWinner by remember(post.id) { mutableStateOf(false) }
-    var burstId by remember(post.id) { mutableStateOf(0L) }
-    var burstColor by remember(post.id) { mutableStateOf(Color(0xFFA855F7)) }
+    // Pausa MANUAL (toque simple sobre el vídeo) — antes esta pantalla solo
+    // manejaba el DOBLE toque (votar); no había ningún gesto de un solo
+    // toque, así que era IMPOSIBLE pausar el vídeo tocándolo (bug reportado:
+    // "no puedo parar el vídeo"). Réplica de `paused` en CarouselSlide.jsx.
+    var paused by remember(post.id) { mutableStateOf(false) }
 
     // Votar / CAMBIAR de voto — réplica exacta de submitVote() en
     // CarouselSlide.jsx: (1) sin sesión, abre el login (antes ni se
@@ -310,15 +318,18 @@ private fun CarouselPage(
     // sin cambiar nada; (3) tocar la OTRA opción CAMBIA el voto (resta al
     // lado anterior, suma al nuevo, se lo dice al backend con `previousSide`
     // para que lo aplique como un cambio atómico, no como un voto extra).
-    fun submitVote(side: String) {
-        if (Session.token == null) { onRequireAuth(); return }
-        burstColor = if (side == "b") Color(0xFF3B82F6) else Color(0xFFA855F7)
-        burstId = System.currentTimeMillis()
-        if (voted == side) return
-        val previous = voted
-        votes = if (previous != null) switchVote(votes, previous, side) else bump(votes, side)
-        voted = side
-        onVote(side, previous)
+    // Devuelve true si había sesión iniciada: VideoSurface solo muestra el
+    // burst del icono en ese caso (igual que la web: un invitado nunca ve
+    // la animación, solo el modal de login).
+    fun submitVote(side: String): Boolean {
+        if (Session.token == null) { onRequireAuth(); return false }
+        if (voted != side) {
+            val previous = voted
+            votes = if (previous != null) switchVote(votes, previous, side) else bump(votes, side)
+            voted = side
+            onVote(side, previous)
+        }
+        return true
     }
 
     // Tarjeta de ganador: aparece ~650ms después de votar (igual que la web).
@@ -360,8 +371,8 @@ private fun CarouselPage(
     // Solo el lado VISIBLE de la publicación ACTIVA reproduce (con audio,
     // salvo que haya música adjunta: entonces el vídeo va en mute y suena la
     // música en su lugar, réplica exacta de la web).
-    LaunchedEffect(isActive, sidePager.currentPage, showWinner) {
-        if (isActive && !showWinner) {
+    LaunchedEffect(isActive, sidePager.currentPage, showWinner, paused) {
+        if (isActive && !showWinner && !paused) {
             if (sidePager.currentPage == 0) {
                 playerB.pause(); playerA.volume = if (hasMusic) 0f else 1f; playerA.play()
             } else {
@@ -371,6 +382,10 @@ private fun CarouselPage(
             playerA.pause(); playerB.pause()
         }
     }
+    // Al deslizar al otro lado del carrusel se retoma la reproducción — una
+    // pausa manual es "de este vídeo", no un modo global de la tarjeta
+    // (misma UX que la web: cada <video> lleva su propio estado `paused`).
+    LaunchedEffect(sidePager.currentPage) { paused = false }
     // Música adjunta: play/pausa en sincronía con la tarjeta activa (igual
     // que el efecto de audioRef en la web); MediaPlayer.isLooping=true ya
     // repite el preview de 30s mientras la tarjeta esté activa.
@@ -386,8 +401,9 @@ private fun CarouselPage(
 
     val visiblePlayer = if (sidePager.currentPage == 0) playerA else playerB
     // "¿hay audio sonando ahora?" (música O el vídeo activo sin haber
-    // terminado de votar) — se usa para el pulso sintético del MusicDisc.
-    val audioActive = isActive && !showWinner
+    // terminado de votar, y sin estar en pausa manual) — se usa para el
+    // pulso sintético del MusicDisc.
+    val audioActive = isActive && !showWinner && !paused
 
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         HorizontalPager(state = sidePager, modifier = Modifier.fillMaxSize()) { p ->
@@ -395,15 +411,32 @@ private fun CarouselPage(
                 player = if (p == 0) playerA else playerB,
                 modifier = Modifier.fillMaxSize(),
                 side = if (p == 0) post.sideA else post.sideB,
-            ) {
-                submitVote(if (p == 0) "a" else "b")
-            }
+                voteColor = if (p == 0) Color(0xFFA855F7) else Color(0xFF3B82F6),
+                // Toque simple = pausa/reanuda (antes NO existía ningún
+                // gesto de un solo toque aquí; solo se manejaba el doble
+                // toque para votar, por lo que era imposible pausar el
+                // vídeo — bug reportado por el usuario).
+                onSingleTap = { paused = !paused },
+                onVoteA = { offset -> submitVote(if (p == 0) "a" else "b") },
+            )
         }
 
         // ── Capas RECICLADAS estilo TikTok (se resetean al reciclarse la celda) ──
         VideoProgressBar(visiblePlayer, isActive)                                 // barra de progreso
         BufferingSpinner(visiblePlayer)                                           // spinner de carga
-        if (burstId != 0L) VoteBurst(burstId, burstColor) { burstId = 0L }        // burst del doble toque
+        // El burst del icono de voto ahora vive DENTRO de cada VideoSurface
+        // (aparece justo en el punto exacto del doble toque, con la misma
+        // animación elástica que VoteBurstEffect.jsx en la web).
+        // Icono de Play centrado mientras el vídeo está en pausa manual —
+        // réplica del overlay `<Play size={72}.../>` de CarouselSlide.jsx.
+        if (paused) {
+            Icon(
+                Icons.Filled.PlayArrow,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.align(Alignment.Center).size(72.dp),
+            )
+        }
 
         HeaderOverlay(post, onOpenProfile, onRequireAuth)
         // Autor del lado VISIBLE ahora mismo (cambia según la página del
@@ -477,22 +510,33 @@ private fun DuetPage(
     val onCommentsLocal: () -> Unit = { onOpenComments(post.id, voted) }
     var votes by remember(post.id) { mutableStateOf(post.votes ?: Votes()) }
     var showWinner by remember(post.id) { mutableStateOf(false) }
-    var burstId by remember(post.id) { mutableStateOf(0L) }
-    var burstColor by remember(post.id) { mutableStateOf(Color(0xFFA855F7)) }
     val isHorizontal = (post.layout ?: "horizontal") == "horizontal"
+    // Lado que tiene el audio ahora mismo ('a'|'b') — antes NO existía este
+    // estado: el lado A siempre tenía el audio FIJO y B siempre iba muted a
+    // fuego, sin ninguna forma de cambiarlo (bug reportado por el usuario:
+    // "en las publicaciones 1vs1 no puedo cambiar el audio haciendo click
+    // sobre la otra opción"). Réplica de `audibleSide` en DuetSlide.jsx.
+    var audibleSide by remember(post.id) { mutableStateOf("a") }
+    // Pausa MANUAL (toque simple sobre el lado que YA tiene el audio) —
+    // réplica de `paused` en DuetSlide.jsx.
+    var paused by remember(post.id) { mutableStateOf(false) }
 
     // Votar / CAMBIAR de voto — misma lógica que CarouselPage (réplica de
     // submitVote() en DuetSlide.jsx): exige sesión, re-tocar el mismo lado
-    // solo repite la animación, tocar el otro lado CAMBIA el voto.
-    fun submitVote(side: String) {
-        if (Session.token == null) { onRequireAuth(); return }
-        burstColor = if (side == "b") Color(0xFF3B82F6) else Color(0xFFA855F7)
-        burstId = System.currentTimeMillis()
-        if (voted == side) return
-        val previous = voted
-        votes = if (previous != null) switchVote(votes, previous, side) else bump(votes, side)
-        voted = side
-        onVote(side, previous)
+    // solo repite la animación, tocar el otro lado CAMBIA el voto (y le pasa
+    // el audio, igual que `setAudibleSide(side)` dentro de submitVote() en
+    // la web). Devuelve true si había sesión iniciada: VideoSurface solo
+    // muestra el burst del icono en ese caso (igual que la web).
+    fun submitVote(side: String): Boolean {
+        if (Session.token == null) { onRequireAuth(); return false }
+        if (voted != side) {
+            val previous = voted
+            votes = if (previous != null) switchVote(votes, previous, side) else bump(votes, side)
+            voted = side
+            audibleSide = side
+            onVote(side, previous)
+        }
+        return true
     }
 
     // Tarjeta de ganador: aparece ~650ms después de votar (igual que la web).
@@ -529,9 +573,14 @@ private fun DuetPage(
         }
     }
 
-    LaunchedEffect(isActive, showWinner) {
-        if (isActive && !showWinner) {
-            playerA.volume = if (hasMusic) 0f else 1f
+    LaunchedEffect(isActive, showWinner, paused, audibleSide, hasMusic) {
+        if (isActive && !showWinner && !paused) {
+            // El audio suena en el lado `audibleSide` (cambiable con un
+            // toque simple sobre el lado que NO lo tiene, o automáticamente
+            // al votar por ese lado); si hay música adjunta, AMBOS vídeos
+            // van mute (suena el MediaPlayer de música aparte).
+            playerA.volume = if (hasMusic) 0f else if (audibleSide == "a") 1f else 0f
+            playerB.volume = if (hasMusic) 0f else if (audibleSide == "b") 1f else 0f
             playerA.play(); playerB.play()
         } else {
             playerA.pause(); playerB.pause()
@@ -546,12 +595,12 @@ private fun DuetPage(
             }
         }
     }
-    // "¿hay audio sonando ahora?" (música O el vídeo A del dueto) — se usa
-    // para el pulso sintético del MusicDisc.
-    val audioActive = isActive && !showWinner
+    // "¿hay audio sonando ahora?" (música O el vídeo audible del dueto, y
+    // sin estar en pausa manual) — se usa para el pulso sintético del MusicDisc.
+    val audioActive = isActive && !showWinner && !paused
 
-    val voteA: () -> Unit = { submitVote("a") }
-    val voteB: () -> Unit = { submitVote("b") }
+    val voteA: (Offset) -> Boolean = { submitVote("a") }
+    val voteB: (Offset) -> Boolean = { submitVote("b") }
 
     // Borde de color en el lado VOTADO (igual que el "ring" de la web).
     fun ring(side: String): Modifier =
@@ -560,19 +609,55 @@ private fun DuetPage(
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         if (isHorizontal) {
             Column(Modifier.fillMaxSize()) {
-                VideoSurface(playerA, Modifier.weight(1f).fillMaxWidth().then(ring("a")), useTextureView = true, side = post.sideA, onVoteA = voteA)
+                VideoSurface(
+                    playerA, Modifier.weight(1f).fillMaxWidth().then(ring("a")), useTextureView = true, side = post.sideA,
+                    voteColor = Color(0xFFA855F7),
+                    // Toque simple: si A NO tiene el audio, se lo pasa; si ya
+                    // lo tiene, pausa/reanuda AMBOS vídeos (antes ningún
+                    // toque simple estaba conectado: el audio B siempre
+                    // estaba muteado a fuego y nunca se podía pausar).
+                    onSingleTap = { if (audibleSide != "a") audibleSide = "a" else paused = !paused },
+                    onVoteA = voteA,
+                )
                 Box(Modifier.fillMaxWidth().height(2.dp).background(Color.White.copy(alpha = 0.3f)))
-                VideoSurface(playerB, Modifier.weight(1f).fillMaxWidth().then(ring("b")), useTextureView = true, side = post.sideB, onVoteA = voteB)
+                VideoSurface(
+                    playerB, Modifier.weight(1f).fillMaxWidth().then(ring("b")), useTextureView = true, side = post.sideB,
+                    voteColor = Color(0xFF3B82F6),
+                    onSingleTap = { if (audibleSide != "b") audibleSide = "b" else paused = !paused },
+                    onVoteA = voteB,
+                )
             }
         } else {
             Row(Modifier.fillMaxSize()) {
-                VideoSurface(playerA, Modifier.weight(1f).fillMaxHeight().then(ring("a")), useTextureView = true, side = post.sideA, onVoteA = voteA)
+                VideoSurface(
+                    playerA, Modifier.weight(1f).fillMaxHeight().then(ring("a")), useTextureView = true, side = post.sideA,
+                    voteColor = Color(0xFFA855F7),
+                    onSingleTap = { if (audibleSide != "a") audibleSide = "a" else paused = !paused },
+                    onVoteA = voteA,
+                )
                 Box(Modifier.fillMaxHeight().width(2.dp).background(Color.White.copy(alpha = 0.3f)))
-                VideoSurface(playerB, Modifier.weight(1f).fillMaxHeight().then(ring("b")), useTextureView = true, side = post.sideB, onVoteA = voteB)
+                VideoSurface(
+                    playerB, Modifier.weight(1f).fillMaxHeight().then(ring("b")), useTextureView = true, side = post.sideB,
+                    voteColor = Color(0xFF3B82F6),
+                    onSingleTap = { if (audibleSide != "b") audibleSide = "b" else paused = !paused },
+                    onVoteA = voteB,
+                )
             }
         }
 
-        if (burstId != 0L) VoteBurst(burstId, burstColor) { burstId = 0L }        // burst del doble toque
+        // El burst del icono de voto ahora vive DENTRO de cada VideoSurface
+        // (aparece justo en el punto exacto del doble toque, con la misma
+        // animación elástica que VoteBurstEffect.jsx en la web).
+        // Icono de Play centrado mientras está en pausa manual — réplica del
+        // overlay `<Play size={72}.../>` de DuetSlide.jsx.
+        if (paused) {
+            Icon(
+                Icons.Filled.PlayArrow,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.align(Alignment.Center).size(72.dp),
+            )
+        }
 
         HeaderOverlay(post, onOpenProfile, onRequireAuth)
         SocialRail(
@@ -618,13 +703,40 @@ private fun VideoSurface(
     modifier: Modifier = Modifier,
     useTextureView: Boolean = false,
     side: Side? = null,
-    onVoteA: () -> Unit,
+    voteColor: Color = Color.White,
+    // Toque SIMPLE — antes esta superficie solo reaccionaba al DOBLE toque
+    // (votar); no había NINGÚN gesto de un solo toque, por lo que era
+    // imposible pausar el vídeo (bug reportado: "no puedo parar el vídeo")
+    // ni, en el 1vs1, cambiar el audio al otro lado ("no puedo cambiar el
+    // audio haciendo click sobre la otra opción"). Al pasar AMBOS callbacks
+    // a `detectTapGestures`, Compose espera automáticamente la ventana de
+    // doble-toque antes de disparar `onTap` — mismo comportamiento que el
+    // `setTimeout` manual de 280ms que usa la web para diferenciarlos
+    // (CarouselSlide.jsx/DuetSlide.jsx).
+    onSingleTap: () -> Unit = {},
+    // Doble toque -> intenta votar; devuelve true SOLO si había sesión
+    // iniciada. Si no (invitado), abre el login y NO se muestra el burst —
+    // réplica exacta de submitVote() en la web, que solo llama a
+    // spawnVoteBurst() cuando el voto se procesó de verdad.
+    onVoteA: (Offset) -> Boolean,
 ) {
+    var burstId by remember { mutableStateOf(0L) }
+    var burstOffset by remember { mutableStateOf(Offset.Zero) }
     Box(
         modifier
             .clipToBounds()
             .background(Color.Black)
-            .pointerInput(Unit) { detectTapGestures(onDoubleTap = { onVoteA() }) },
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onTap = { onSingleTap() },
+                    onDoubleTap = { offset ->
+                        if (onVoteA(offset)) {
+                            burstOffset = offset
+                            burstId = System.currentTimeMillis()
+                        }
+                    },
+                )
+            },
     ) {
         val imageUrl = if (side?.mediaType == "image") absoluteUrl(side.imageUrl ?: side.posterUrl) else null
         if (imageUrl != null) {
@@ -655,6 +767,17 @@ private fun VideoSurface(
                 update = { it.player = player },
                 modifier = Modifier.fillMaxSize(),
             )
+        }
+        // Burst del icono de voto (doble toque) — réplica EXACTA de
+        // VoteBurstEffect.jsx + la animación CSS `voteIconPop` de la web
+        // (rebote elástico con rotación, 800ms), apareciendo justo en el
+        // punto donde tocaste. Antes esta app nativa tenía una animación
+        // DISTINTA (crecimiento lineal simple sin rebote/rotación, siempre
+        // centrada en pantalla en vez de en el punto exacto del toque) —
+        // bug reportado: "cuando realizo un voto no tiene la misma
+        // animación/tamaño que la web".
+        if (burstId != 0L) {
+            VoteBurst(burstId, burstOffset, voteColor) { burstId = 0L }
         }
     }
 }
@@ -1025,30 +1148,86 @@ private fun BoxScope.BufferingSpinner(player: ExoPlayer) {
     }
 }
 
-// Burst del doble toque (reciclado): icono de voto grande que crece y se desvanece.
+// Burst del doble toque — réplica EXACTA de la animación `voteIconPop` de la
+// web (globals.css): 800ms, rebote elástico (escala 0.15→1.4→0.92→1.1→1→1.08)
+// con ligera rotación (-18°→8°→-4°→2°→0°) y un fade que empieza en el pico
+// (32%, cuando ya es opacity:1) y se desvanece de forma lineal hasta el
+// final — NO el crecimiento/desvanecido lineal simple que tenía antes esta
+// app nativa. Aparece centrado en el punto EXACTO del doble toque, 60dp por
+// encima (misma fórmula que `translate(-50%,-60px)` + el propio centrado del
+// icono en VoteBurstEffect.jsx/CSS de la web).
 @Composable
-private fun BoxScope.VoteBurst(id: Long, color: Color, onEnd: () -> Unit) {
-    val anim = remember(id) { Animatable(0f) }
+private fun VoteBurst(id: Long, tapOffset: Offset, color: Color, onEnd: () -> Unit) {
+    val density = LocalDensity.current
+    val iconSizeDp = 96.dp
+    val iconSizePx = with(density) { iconSizeDp.toPx() }
+    val upPx = with(density) { 60.dp.toPx() }
+    val scaleAnim = remember(id) { Animatable(0.15f) }
+    val opacityAnim = remember(id) { Animatable(0f) }
+    val rotationAnim = remember(id) { Animatable(-18f) }
     LaunchedEffect(id) {
-        anim.snapTo(0f)
-        anim.animateTo(1f, animationSpec = tween(durationMillis = 750))
+        launch {
+            scaleAnim.snapTo(0.15f)
+            scaleAnim.animateTo(
+                1.08f,
+                animationSpec = keyframes {
+                    durationMillis = 800
+                    0.15f at 0
+                    1.4f at 256
+                    0.92f at 400
+                    1.1f at 560
+                    1.0f at 680
+                    1.08f at 800
+                },
+            )
+        }
+        launch {
+            opacityAnim.snapTo(0f)
+            opacityAnim.animateTo(
+                0f,
+                animationSpec = keyframes {
+                    durationMillis = 800
+                    0f at 0
+                    1f at 256
+                    0f at 800
+                },
+            )
+        }
+        launch {
+            rotationAnim.snapTo(-18f)
+            rotationAnim.animateTo(
+                0f,
+                animationSpec = keyframes {
+                    durationMillis = 800
+                    -18f at 0
+                    8f at 256
+                    -4f at 400
+                    2f at 560
+                    0f at 680
+                    0f at 800
+                },
+            )
+        }
+        delay(800)
         onEnd()
     }
-    val v = anim.value
-    val scale = 0.6f + v * 0.7f
-    val fade = (1f - ((v - 0.6f) / 0.4f)).coerceIn(0f, 1f)
     Icon(
         ImageVector.vectorResource(R.drawable.ic_vote_filled),
         contentDescription = null,
         tint = color,
         modifier = Modifier
-            .align(Alignment.Center)
-            .size(96.dp)
+            .size(iconSizeDp)
+            .offset {
+                IntOffset(
+                    (tapOffset.x - iconSizePx / 2f).roundToInt(),
+                    (tapOffset.y - upPx - iconSizePx / 2f).roundToInt(),
+                )
+            }
             .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-                alpha = fade
-                translationY = -v * 80f
+                scaleX = scaleAnim.value
+                scaleY = scaleAnim.value
+                rotationZ = rotationAnim.value
+                alpha = opacityAnim.value
             },
     )
 }
