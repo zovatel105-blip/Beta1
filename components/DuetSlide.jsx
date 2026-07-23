@@ -15,7 +15,6 @@ import OptionsModal from './OptionsModal'
 import BottomSheet from './BottomSheet'
 import AuthModal from './AuthModal'
 import Avatar, { isGeneratedAvatar } from './Avatar'
-import AudioReactiveRings from './AudioReactiveRings'
 import { useAuth } from '@/contexts/AuthContext'
 import { pickQuality, reportStall } from '@/lib/networkQuality'
 
@@ -789,11 +788,9 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
             surcos concéntricos + agujero central, y GIRA mientras se
             reproduce audio/música (se detiene, sin resetear el ángulo, en
             pausa) — reemplaza el disco fijo anterior. Las ondas circulares
-            (AudioReactiveRings) siguen emanando alrededor, reactivas al
             ritmo real del audio. Si no hay canción, la portada es el propio
             vídeo (el lado que suena). */}
         <div className="relative mt-1 w-10 h-10 shrink-0">
-          <AudioReactiveRings mediaEl={hasMusic ? audioRef.current : (audibleSide === 'a' ? videoARef.current : videoBRef.current)} active={isAudioPlaying} />
           <div
             aria-label="music"
             title={hasMusic ? [post.musicTitle, post.musicArtist].filter(Boolean).join(' · ') : undefined}

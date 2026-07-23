@@ -13,7 +13,6 @@ import ShareModal from './ShareModal'
 import OptionsModal from './OptionsModal'
 import AuthModal from './AuthModal'
 import Avatar, { isGeneratedAvatar } from './Avatar'
-import AudioReactiveRings from './AudioReactiveRings'
 import { useAuth } from '@/contexts/AuthContext'
 import { pickQuality, reportStall } from '@/lib/networkQuality'
 
@@ -725,7 +724,6 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
         <div className="relative mt-1 w-10 h-10 shrink-0">
           {/* Ondas circulares — reactivas al RITMO REAL del audio (Web Audio
               API), solo visibles mientras hay sonido audible de verdad. */}
-          <AudioReactiveRings mediaEl={hasMusic ? audioRef.current : getVisible()} active={isAudioPlaying} />
           <div
             aria-label="music"
             title={hasMusic ? [post.musicTitle, post.musicArtist].filter(Boolean).join(' · ') : undefined}
