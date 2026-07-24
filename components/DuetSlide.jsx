@@ -820,12 +820,10 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
             />
             {/* Viñeta interior sutil para dar profundidad al disco */}
             <div className="absolute inset-0 rounded-full pointer-events-none" style={{ boxShadow: 'inset 0 0 5px 1px rgba(0,0,0,0.55)' }} />
-            {/* Agujero/eje central — ahora TRANSPARENTE (vía mask-image en el
+            {/* Agujero/eje central — TRANSPARENTE (vía mask-image en el
                 contenedor de arriba) para que se vea el contenido real
-                (vídeo/imagen) detrás del disco, en vez de un punto negro sólido. */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="w-[6px] h-[6px] rounded-full border border-white/40" />
-            </div>
+                (vídeo/imagen) detrás del disco, sin ningún aro/borde
+                decorativo alrededor del agujero. */}
           </div>
         </div>
       </div>
