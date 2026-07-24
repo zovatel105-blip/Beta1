@@ -797,8 +797,8 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
             className="vinyl-spin relative w-10 h-10 rounded-full overflow-hidden border border-white/30 bg-gradient-to-br from-zinc-700 to-black flex items-center justify-center"
             style={{
               animationPlayState: isAudioPlaying ? 'running' : 'paused',
-              WebkitMaskImage: 'radial-gradient(circle at center, transparent 0px, transparent 3px, black 4px, black 100%)',
-              maskImage: 'radial-gradient(circle at center, transparent 0px, transparent 3px, black 4px, black 100%)',
+              WebkitMaskImage: 'radial-gradient(circle at center, transparent 0px, transparent 2px, black 3px, black 100%)',
+              maskImage: 'radial-gradient(circle at center, transparent 0px, transparent 2px, black 3px, black 100%)',
             }}
           >
             {hasMusic ? (
@@ -824,7 +824,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
                 contenedor de arriba) para que se vea el contenido real
                 (vídeo/imagen) detrás del disco, en vez de un punto negro sólido. */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="w-[8px] h-[8px] rounded-full border border-white/40" />
+              <div className="w-[6px] h-[6px] rounded-full border border-white/40" />
             </div>
           </div>
         </div>
