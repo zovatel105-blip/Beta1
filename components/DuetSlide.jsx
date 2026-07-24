@@ -795,7 +795,11 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
             aria-label="music"
             title={hasMusic ? [post.musicTitle, post.musicArtist].filter(Boolean).join(' · ') : undefined}
             className="vinyl-spin relative w-10 h-10 rounded-full overflow-hidden border border-white/30 bg-gradient-to-br from-zinc-700 to-black flex items-center justify-center"
-            style={{ animationPlayState: isAudioPlaying ? 'running' : 'paused' }}
+            style={{
+              animationPlayState: isAudioPlaying ? 'running' : 'paused',
+              WebkitMaskImage: 'radial-gradient(circle at center, transparent 0px, transparent 3px, black 4px, black 100%)',
+              maskImage: 'radial-gradient(circle at center, transparent 0px, transparent 3px, black 4px, black 100%)',
+            }}
           >
             {hasMusic ? (
               post.musicArtwork ? (
@@ -816,9 +820,11 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
             />
             {/* Viñeta interior sutil para dar profundidad al disco */}
             <div className="absolute inset-0 rounded-full pointer-events-none" style={{ boxShadow: 'inset 0 0 5px 1px rgba(0,0,0,0.55)' }} />
-            {/* Agujero/eje central — el "hoyo" pequeño de un vinilo original */}
+            {/* Agujero/eje central — ahora TRANSPARENTE (vía mask-image en el
+                contenedor de arriba) para que se vea el contenido real
+                (vídeo/imagen) detrás del disco, en vez de un punto negro sólido. */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="w-[5px] h-[5px] rounded-full bg-black border border-white/40" />
+              <div className="w-[8px] h-[8px] rounded-full border border-white/40" />
             </div>
           </div>
         </div>
