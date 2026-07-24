@@ -56,6 +56,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -406,15 +407,32 @@ private fun FileStep(
         // ── Media: dueto = split con formato; versus = carrusel; reto = único ──
         when (mode) {
             "duet" -> {
+                // CLIP EXPLÍCITO en cada mitad y en el contenedor del split:
+                // PlayerView con resize_mode="zoom" (ExoPlayer AspectRatioFrameLayout)
+                // mide DELIBERADAMENTE la superficie de vídeo interior MÁS GRANDE que
+                // su contenedor (para hacer zoom+recorte); confía en el recorte NORMAL
+                // de vistas del padre para ocultar el sobrante. Sin `clipToBounds()`
+                // explícito en el lado de Compose, ese sobrante podía desbordarse sobre
+                // la mitad vecina (visto en captura real: un lado ocupaba ~90% y el otro
+                // quedaba reducido a una fina franja), tanto en Horizontal como en
+                // Vertical. `clipToBounds()` fuerza el recorte EXACTO a los límites ya
+                // medidos (weight(1f) => 50/50 real), sin depender de que la vista
+                // nativa interna respete el recorte por sí sola.
                 if (layout == "vertical") {
-                    Row(Modifier.fillMaxSize().background(Color.White.copy(alpha = 0.20f)), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                        MediaSlot(uriA, kindA, onPickA, small = true, modifier = Modifier.weight(1f).fillMaxSize())
-                        MediaSlot(uriB, kindB, onPickB, small = true, modifier = Modifier.weight(1f).fillMaxSize())
+                    Row(
+                        Modifier.fillMaxSize().background(Color.White.copy(alpha = 0.20f)).clipToBounds(),
+                        horizontalArrangement = Arrangement.spacedBy(2.dp),
+                    ) {
+                        MediaSlot(uriA, kindA, onPickA, small = true, modifier = Modifier.weight(1f).fillMaxSize().clipToBounds())
+                        MediaSlot(uriB, kindB, onPickB, small = true, modifier = Modifier.weight(1f).fillMaxSize().clipToBounds())
                     }
                 } else {
-                    Column(Modifier.fillMaxSize().background(Color.White.copy(alpha = 0.20f)), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        MediaSlot(uriA, kindA, onPickA, small = true, modifier = Modifier.weight(1f).fillMaxWidth())
-                        MediaSlot(uriB, kindB, onPickB, small = true, modifier = Modifier.weight(1f).fillMaxWidth())
+                    Column(
+                        Modifier.fillMaxSize().background(Color.White.copy(alpha = 0.20f)).clipToBounds(),
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                    ) {
+                        MediaSlot(uriA, kindA, onPickA, small = true, modifier = Modifier.weight(1f).fillMaxWidth().clipToBounds())
+                        MediaSlot(uriB, kindB, onPickB, small = true, modifier = Modifier.weight(1f).fillMaxWidth().clipToBounds())
                     }
                 }
             }
