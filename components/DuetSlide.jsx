@@ -794,7 +794,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
           <div
             aria-label="music"
             title={hasMusic ? [post.musicTitle, post.musicArtist].filter(Boolean).join(' · ') : undefined}
-            className="vinyl-spin relative w-10 h-10 rounded-full overflow-hidden border border-white/30 bg-gradient-to-br from-zinc-700 to-black flex items-center justify-center"
+            className="vinyl-spin relative w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-zinc-700 to-black flex items-center justify-center"
             style={{
               animationPlayState: isAudioPlaying ? 'running' : 'paused',
               WebkitMaskImage: 'radial-gradient(circle at center, transparent 0px, transparent 2px, black 3px, black 100%)',
