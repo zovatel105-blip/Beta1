@@ -13,6 +13,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.keyframes
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -52,6 +53,7 @@ import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.CircularProgressIndicator
@@ -82,6 +84,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -474,6 +477,8 @@ private fun CarouselPage(
         SocialRail(
             post, votes, voted, onCommentsLocal, onRequireAuth,
             hideChallenge = hideChallenge, audioActive = audioActive,
+            coverUrl = currentSideForChallenge?.posterUrl ?: currentSideForChallenge?.imageUrl ?: post.posterUrl ?: post.thumbnailUrl,
+            hasMusic = hasMusic, musicArtwork = post.musicArtwork,
             headAuthorUsername = (currentSideForChallenge?.author ?: post.author)?.username,
         ) {
             onChallenge(
@@ -738,6 +743,8 @@ private fun DuetPage(
         SocialRail(
             post, votes, voted, onCommentsLocal, onRequireAuth,
             hideChallenge = hideChallenge, audioActive = audioActive,
+            coverUrl = (if (audibleSide == "b") post.sideB else post.sideA)?.let { it.posterUrl ?: it.imageUrl },
+            hasMusic = hasMusic, musicArtwork = post.musicArtwork,
             headAuthorUsername = (post.sideA?.author ?: post.author)?.username,
         ) {
             val current = if (voted == "b") post.sideB else post.sideA
@@ -1038,6 +1045,12 @@ private fun BoxScope.SocialRail(
     onRequireAuth: () -> Unit,
     hideChallenge: Boolean = false,
     audioActive: Boolean = false,
+    // Portada del lado VISIBLE ahora mismo (o del post si no hay lados) y
+    // metadatos de música — misma prioridad EXACTA de contenido que usa el
+    // disco de vinilo en CarouselSlide.jsx/DuetSlide.jsx (ver MusicDisc).
+    coverUrl: String? = null,
+    hasMusic: Boolean = false,
+    musicArtwork: String? = null,
     // Username del autor del lado VISIBLE ahora mismo — réplica de `headAuthor`
     // en CarouselSlide.jsx/DuetSlide.jsx, usado para ocultar el botón de Retar
     // en tu PROPIA publicación (antes este check no existía en la app nativa).
@@ -1147,9 +1160,10 @@ private fun BoxScope.SocialRail(
                 ),
             )
         }
-        // Disco de música giratorio, con un pulso sintético mientras haya
-        // audio/música real sonando en esta tarjeta (ver MusicDisc).
-        MusicDisc(author?.avatarUrl, active = audioActive)
+        // Disco de música giratorio — réplica exacta del disco de vinilo real
+        // (surcos + viñeta + agujero central transparente) de CarouselSlide.jsx/
+        // DuetSlide.jsx; ver MusicDisc.
+        MusicDisc(author?.avatarUrl, coverUrl, hasMusic, musicArtwork, active = audioActive)
     }
 }
 
@@ -1196,42 +1210,89 @@ private fun TwykAvatar(url: String?, size: androidx.compose.ui.unit.Dp, modifier
 }
 
 @Composable
-private fun MusicDisc(avatarUrl: String?, active: Boolean = false) {
-    val transition = rememberInfiniteTransition()
-    val angle by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(animation = tween(durationMillis = 6000, easing = LinearEasing)),
-    )
-    // Pulso "reactivo" — NO es amplitud de audio real: android.media.audiofx.
-    // Visualizer exige el permiso RECORD_AUDIO incluso para la sesión de
-    // audio de la propia app (confirmado; ver documentación oficial), lo
-    // cual mostraría al usuario un aviso de "acceso al micrófono" solo para
-    // animar un disco decorativo — un coste de privacidad/confianza
-    // desproporcionado para este detalle visual. En su lugar: una
-    // oscilación sintética continua (0↔1, ~700ms, imita el "latido" de un
-    // ecualizer) que solo se anima mientras `active` es true (hay audio o
-    // música real sonando en esta tarjeta) y queda inmóvil en reposo. Sigue
-    // siendo una mejora real sobre el giro a velocidad constante de antes.
-    val pulse by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(animation = tween(durationMillis = 700, easing = LinearEasing), repeatMode = androidx.compose.animation.core.RepeatMode.Reverse),
-    )
-    val level = if (active) pulse else 0f
-    val animatedLevel by animateFloatAsState(level, animationSpec = tween(durationMillis = 150))
-    val pulseScale = 1f + (animatedLevel * 0.14f)
+private fun MusicDisc(
+    avatarUrl: String?,
+    coverUrl: String?,
+    hasMusic: Boolean,
+    musicArtwork: String?,
+    active: Boolean = false,
+) {
+    // Rotación real (2.8s/vuelta, LINEAR, igual que @keyframes vinylSpin +
+    // .vinyl-spin en app/globals.css de la web): SOLO avanza mientras
+    // `active` es true, y se CONGELA en el ángulo EXACTO donde estaba al
+    // pausar (nunca vuelve a 0°) — réplica exacta de
+    // animationPlayState:'running'/'paused' en CarouselSlide.jsx/DuetSlide.jsx.
+    // Sustituye por completo el "pulso" sintético de escala que tenía antes
+    // el nativo (0↔1.14, latido de ecualizer) — ESO no existe en la web.
+    var angle by remember { mutableStateOf(0f) }
+    LaunchedEffect(active) {
+        if (active) {
+            val startAngle = angle
+            val startNanos = System.nanoTime()
+            while (true) {
+                val elapsedMs = (System.nanoTime() - startNanos) / 1_000_000f
+                angle = (startAngle + elapsedMs / 2800f * 360f) % 360f
+                delay(16)
+            }
+        }
+    }
     Box(
         Modifier
             .size(40.dp)
-            .scale(pulseScale)
-            .rotate(angle)
+            .graphicsLayer(rotationZ = angle, compositingStrategy = CompositingStrategy.Offscreen)
             .clip(CircleShape)
-            .border(1.dp, Color.White.copy(alpha = 0.3f + animatedLevel * 0.25f), CircleShape)
-            .background(Brush.linearGradient(listOf(Color(0xFF3F3F46), Color.Black))),
+            .background(Brush.linearGradient(listOf(Color(0xFF3F3F46), Color.Black)))
+            // Agujero/eje central — TRANSPARENTE de verdad (réplica exacta del
+            // mask-image: radial-gradient(...) del contenedor .vinyl-spin en
+            // la web): recorta un agujero real a través de TODAS las capas de
+            // este disco (portada, surcos, viñeta, fondo), dejando ver el
+            // contenido real detrás — SIN ningún aro/borde decorativo
+            // alrededor (quitado también de la web por petición del usuario).
+            // NO lleva ya el borde blanco exterior de 1dp (quitado en la web).
+            .drawWithContent {
+                drawContent()
+                drawCircle(color = Color.Black, radius = 2.dp.toPx(), center = center, blendMode = BlendMode.DstOut)
+            },
         contentAlignment = Alignment.Center,
     ) {
-        TwykAvatar(avatarUrl, 24.dp)
+        // Portada: MISMA prioridad exacta que hasMusic/musicArtwork/cover en
+        // CarouselSlide.jsx/DuetSlide.jsx (antes el nativo SIEMPRE mostraba
+        // el avatar del autor, sin esta lógica de portada real).
+        when {
+            hasMusic && !musicArtwork.isNullOrBlank() -> AsyncImage(
+                model = absoluteUrl(musicArtwork),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+            hasMusic -> Icon(Icons.Filled.MusicNote, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+            !coverUrl.isNullOrBlank() -> AsyncImage(
+                model = absoluteUrl(coverUrl),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+            else -> TwykAvatar(avatarUrl, 24.dp)
+        }
+        // Surcos de vinilo — superpuestos sobre la portada (no la
+        // reemplazan), réplica del repeating-radial-gradient de la web
+        // (anillos cada ~3.2px, negro semitransparente 0.32 alpha).
+        Canvas(Modifier.matchParentSize()) {
+            val step = 3.2.dp.toPx()
+            val band = 0.6.dp.toPx()
+            var r = step
+            while (r < size.minDimension / 2f) {
+                drawCircle(color = Color.Black.copy(alpha = 0.32f), radius = r, style = Stroke(width = band))
+                r += step
+            }
+        }
+        // Viñeta interior sutil para dar profundidad al disco — réplica del
+        // inset box-shadow de la web.
+        Box(
+            Modifier
+                .matchParentSize()
+                .background(Brush.radialGradient(0.55f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.45f))),
+        )
     }
 }
 
