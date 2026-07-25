@@ -40,8 +40,6 @@ import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.TableRows
-import androidx.compose.material.icons.filled.ViewColumn
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -478,8 +476,8 @@ private fun FileStep(
                     Modifier.clip(RoundedCornerShape(50)).background(Color.Black.copy(alpha = 0.45f))
                         .border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(50)).padding(4.dp),
                 ) {
-                    LayoutSeg("Horizontal", Icons.Filled.TableRows, layout == "horizontal") { onLayout("horizontal") }
-                    LayoutSeg("Vertical", Icons.Filled.ViewColumn, layout == "vertical") { onLayout("vertical") }
+                    LayoutSeg("Horizontal", ImageVector.vectorResource(R.drawable.ic_rows_2), layout == "horizontal") { onLayout("horizontal") }
+                    LayoutSeg("Vertical", ImageVector.vectorResource(R.drawable.ic_columns_2), layout == "vertical") { onLayout("vertical") }
                 }
                 Spacer(Modifier.weight(1f))
             }
@@ -542,8 +540,9 @@ private fun FileStep(
     }
 }
 
-// Botón del conmutador Horizontal/Vertical del 1vs1 (réplica del pill web con
-// iconos Rows3/Columns3 de lucide → TableRows/ViewColumn de material).
+// Botón del conmutador Horizontal/Vertical del 1vs1 (réplica exacta del pill
+// web con iconos Rows2/Columns2 de lucide → ic_rows_2/ic_columns_2 vectores
+// custom, mismo criterio que el resto de iconos exactos de este proyecto).
 @Composable
 private fun LayoutSeg(label: String, icon: ImageVector, active: Boolean, onClick: () -> Unit) {
     Row(

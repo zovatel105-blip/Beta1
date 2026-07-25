@@ -2,7 +2,7 @@
 /* eslint-disable react-hooks/set-state-in-effect -- setState en efectos de carga/reset async; falso positivo de la regla experimental. */
 
 import { useEffect, useRef, useState } from 'react'
-import { ChevronRight, Loader2, Film, Swords, Users, Rows3, Columns3, ArrowLeft, X, Search, Music } from 'lucide-react'
+import { ChevronRight, Loader2, Film, Swords, Users, Rows2, Columns2, ArrowLeft, X, Search, Music } from 'lucide-react'
 import Avatar from './Avatar'
 import MusicPicker from './MusicPicker'
 import { addPendingUpload, updateUploadProgress, removePendingUpload, markUploadFailed } from '@/lib/uploadQueue'
@@ -256,7 +256,7 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
            style={{ paddingTop: 'max(env(safe-area-inset-top), 14px)' }}>
         <div className="flex items-center gap-1">
           {step !== 'mode' ? (
-            <button onClick={goBack} aria-label="Atrás" className="w-9 h-9 -ml-1.5 rounded-full flex items-center justify-center hover:bg-white/5 active:scale-90 transition">
+            <button onClick={goBack} aria-label="Back" className="w-9 h-9 -ml-1.5 rounded-full flex items-center justify-center hover:bg-white/5 active:scale-90 transition">
               <ArrowLeft size={20} strokeWidth={1.75} />
             </button>
           ) : (
@@ -512,7 +512,7 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
                   {/* Header propio (con el conmutador de formato centrado en 1vs1) */}
                   <div className="relative z-20 flex items-center justify-between gap-2 px-3"
                        style={{ paddingTop: 'max(env(safe-area-inset-top), 14px)', paddingBottom: '10px' }}>
-                    <button onClick={goBack} aria-label="Atrás" className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center bg-black/35 backdrop-blur hover:bg-black/55 active:scale-90 transition">
+                    <button onClick={goBack} aria-label="Back" className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center bg-black/35 backdrop-blur hover:bg-black/55 active:scale-90 transition">
                       <ArrowLeft size={20} strokeWidth={1.75} />
                     </button>
                     {mode === 'duet' ? (
@@ -521,13 +521,13 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
                           onClick={() => setLayout('horizontal')}
                           className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[13px] font-semibold transition ${layout === 'horizontal' ? 'bg-white text-black' : 'text-white/85'}`}
                         >
-                          <Rows3 size={14} /> Horizontal
+                          <Rows2 size={14} /> Horizontal
                         </button>
                         <button
                           onClick={() => setLayout('vertical')}
                           className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[13px] font-semibold transition ${layout === 'vertical' ? 'bg-white text-black' : 'text-white/85'}`}
                         >
-                          <Columns3 size={14} /> Vertical
+                          <Columns2 size={14} /> Vertical
                         </button>
                       </div>
                     ) : (
