@@ -4,6 +4,7 @@ package com.twyk.app.ui
 
 import android.content.Context
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -130,6 +131,18 @@ fun BattlesScreen(
     // tampoco muestra un mensaje específico pero al menos aquí se hace
     // visible el problema en vez de que el botón "no haga nada").
     var acceptError by remember { mutableStateOf<String?>(null) }
+
+    // BUG REPORTADO (edge swipe back cerraba la app): "Sugeridos" y la
+    // sub-pestaña "Activos" no tenían BackHandler propio -> el gesto se
+    // colaba hasta MainActivity y de ahí, en el peor caso, cerraba la app.
+    // Prioridad: primero "Sugeridos" (más "encima"), luego "Activos"->"Completados".
+    val hasLocalOverlay = suggestionsOpen || tab == "active"
+    BackHandler(enabled = hasLocalOverlay) {
+        when {
+            suggestionsOpen -> suggestionsOpen = false
+            tab == "active" -> tab = "completed"
+        }
+    }
 
     // Barra de navegación inferior: visible SOLO en "Completados" (igual que
     // CompletedBattlesPage.jsx, que tiene su propia <BottomNav>); oculta en

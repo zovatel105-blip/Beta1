@@ -1,6 +1,7 @@
 package com.twyk.app.ui
 
 import android.content.Intent
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -128,6 +129,28 @@ fun ProfileScreen(
     var savedPosts by remember(target) { mutableStateOf<List<Post>>(emptyList()) }
     var savedLoading by remember(target) { mutableStateOf(false) }
     var viewerList by remember(target) { mutableStateOf<List<Post>>(emptyList()) }
+
+    // BUG REPORTADO (edge swipe back cerraba la app entera): ninguno de los
+    // overlays PROPIOS de esta pantalla (visor de publicación del grid,
+    // comentarios de ese visor, editar perfil, lista de seguidores, perfil
+    // anidado al tocar a alguien de esa lista) tenía BackHandler -> el gesto
+    // se colaba hasta el nivel de MainActivity (que en el mejor caso cerraba
+    // el perfil entero, o en el peor cerraba la app si esta pantalla es la
+    // pestaña "Perfil" de Inicio). FIX: BackHandler LOCAL con prioridad sobre
+    // el del padre (por composición más profunda) que resuelve primero lo más
+    // "encima" de esta pantalla; `menuOpen` (Settings) NO se incluye aquí
+    // porque ProfileMenuSheet ya tiene su propio BackHandler interno.
+    val hasLocalOverlay = viewerCommentsPostId != null || nestedProfileUsername != null ||
+        followListType != null || editOpen || viewerIndex != null
+    BackHandler(enabled = hasLocalOverlay) {
+        when {
+            viewerCommentsPostId != null -> { viewerCommentsPostId = null; viewerVotedSide = null }
+            nestedProfileUsername != null -> nestedProfileUsername = null
+            followListType != null -> followListType = null
+            editOpen -> editOpen = false
+            viewerIndex != null -> viewerIndex = null
+        }
+    }
 
     LaunchedEffect(target) {
         loading = true

@@ -4,6 +4,7 @@ import android.graphics.Color as AndroidColor
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -185,6 +186,39 @@ private fun TwykApp() {
         if (com.twyk.app.data.Session.token != null) {
             val me = runCatching { com.twyk.app.data.RetrofitProvider.api.me() }.getOrNull()
             me?.user?.let { com.twyk.app.data.Session.set(com.twyk.app.data.Session.token, it) }
+        }
+    }
+    // BUG REPORTADO: el gesto/botón "Atrás" (edge swipe back) cerraba la app
+    // POR COMPLETO en cualquier pantalla en vez de volver atrás, porque NINGÚN
+    // estado de este nivel (pestaña activa, perfil ajeno, comentarios, login,
+    // buscador, reto rápido, hojas del feed) tenía un BackHandler registrado
+    // -> el gesto caía siempre en el comportamiento por defecto de la Activity
+    // (finish = cerrar la app), incluso estando en Batallas/Subir/Buzón/Perfil
+    // o con cualquier hoja abierta. FIX: un único BackHandler que resuelve en
+    // orden de PRIORIDAD (lo más "encima" primero, igual que el equivalente
+    // web useBackableOverlay de Feed.jsx) qué cerrar; solo se activa
+    // (`enabled`) si hay REALMENTE algo que cerrar aquí — si no, el evento
+    // sigue su curso normal (system back = cerrar la app, y SOLO debe pasar
+    // esto estando en Inicio sin nada abierto, tal como pidió el usuario).
+    val hasTopLevelOverlay = authOpen || quickChallengeTarget != null ||
+        com.twyk.app.data.FeedOverlays.contentCard != null ||
+        com.twyk.app.data.FeedOverlays.winner != null ||
+        com.twyk.app.data.FeedOverlays.share != null ||
+        com.twyk.app.data.FeedOverlays.moreOptions != null ||
+        commentsPostId != null || searchOpen || profileUsername != null ||
+        tab != Tab.Home
+    BackHandler(enabled = hasTopLevelOverlay) {
+        when {
+            authOpen -> authOpen = false
+            quickChallengeTarget != null -> quickChallengeTarget = null
+            com.twyk.app.data.FeedOverlays.contentCard != null -> com.twyk.app.data.FeedOverlays.contentCard?.onClose?.invoke()
+            com.twyk.app.data.FeedOverlays.winner != null -> com.twyk.app.data.FeedOverlays.winner?.onClose?.invoke()
+            com.twyk.app.data.FeedOverlays.share != null -> com.twyk.app.data.FeedOverlays.closeShare()
+            com.twyk.app.data.FeedOverlays.moreOptions != null -> com.twyk.app.data.FeedOverlays.closeMoreOptions()
+            commentsPostId != null -> { commentsPostId = null; commentsVotedSide = null }
+            searchOpen -> searchOpen = false
+            profileUsername != null -> profileUsername = null
+            tab != Tab.Home -> tab = Tab.Home
         }
     }
     Box(Modifier.fillMaxSize().background(Color.Black)) {
