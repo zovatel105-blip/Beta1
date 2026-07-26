@@ -196,18 +196,16 @@ private fun TwykApp() {
     // (finish = cerrar la app), incluso estando en Batallas/Subir/Buzón/Perfil
     // o con cualquier hoja abierta. FIX: un único BackHandler que resuelve en
     // orden de PRIORIDAD (lo más "encima" primero, igual que el equivalente
-    // web useBackableOverlay de Feed.jsx) qué cerrar; solo se activa
-    // (`enabled`) si hay REALMENTE algo que cerrar aquí — si no, el evento
-    // sigue su curso normal (system back = cerrar la app, y SOLO debe pasar
-    // esto estando en Inicio sin nada abierto, tal como pidió el usuario).
-    val hasTopLevelOverlay = authOpen || quickChallengeTarget != null ||
-        com.twyk.app.data.FeedOverlays.contentCard != null ||
-        com.twyk.app.data.FeedOverlays.winner != null ||
-        com.twyk.app.data.FeedOverlays.share != null ||
-        com.twyk.app.data.FeedOverlays.moreOptions != null ||
-        commentsPostId != null || searchOpen || profileUsername != null ||
-        tab != Tab.Home
-    BackHandler(enabled = hasTopLevelOverlay) {
+    // web useBackableOverlay de Feed.jsx) qué cerrar. AJUSTE (pedido explícito
+    // del usuario): estando en Inicio sin nada abierto, la app NO debe
+    // cerrarse con una sola pulsación/gesto — solo debe cerrarse si se hace
+    // "Atrás" DOS VECES SEGUIDAS (patrón estándar de Android "pulsa Atrás de
+    // nuevo para salir"), por eso `enabled` ahora es SIEMPRE `true` (antes se
+    // desactivaba en Inicio para dejar pasar el cierre por defecto tras 1
+    // sola pulsación) y el propio BackHandler gestiona el temporizador.
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var lastBackPressAt by remember { mutableStateOf(0L) }
+    BackHandler(enabled = true) {
         when {
             authOpen -> authOpen = false
             quickChallengeTarget != null -> quickChallengeTarget = null
@@ -219,6 +217,18 @@ private fun TwykApp() {
             searchOpen -> searchOpen = false
             profileUsername != null -> profileUsername = null
             tab != Tab.Home -> tab = Tab.Home
+            else -> {
+                // En Inicio sin nada abierto: solo cierra la app si esta
+                // pulsación llega dentro de los 2s siguientes a la anterior;
+                // si no, solo avisa (Toast) y arranca/reinicia el plazo.
+                val now = android.os.SystemClock.elapsedRealtime()
+                if (now - lastBackPressAt < 2000L) {
+                    (context as? android.app.Activity)?.finish()
+                } else {
+                    lastBackPressAt = now
+                    android.widget.Toast.makeText(context, "Press back again to exit", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }
         }
     }
     Box(Modifier.fillMaxSize().background(Color.Black)) {
