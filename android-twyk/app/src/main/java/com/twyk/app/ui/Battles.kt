@@ -680,37 +680,32 @@ private fun EmptyActive() {
 // Réplica del box-shadow CSS difuminado y simétrico de la web (offset 0 0,
 // blur 48px, spread -14px, color blanco con `alpha`) — usado para el glow
 // del icono (trofeo/espadas) de los estados vacíos de Batallas.
-// 2º INTENTO (el anterior usaba `Modifier.blur` real sobre una forma
-// reducida por el spread -14px a solo 52dp — MUCHO más pequeña que el
-// propio icono de 80dp): el usuario reportó que el resultado se veía como
-// un ANILLO hueco alrededor del icono, SIN iluminar el interior — un blur
-// gaussiano real sobre una forma tan pequeña frente a un radio de difuminado
-// tan grande (48dp) atenúa demasiado el propio centro de la forma, y al
-// quedar ese centro oculto bajo el propio icono (relleno casi invisible,
-// alfa 3%) el resultado percibido es justo ese "hueco". FIX: se abandona el
-// blur real (dependiente de RenderEffect/API 31+ y de este comportamiento
-// difícil de calibrar sin poder compilar/ver el resultado en este entorno)
-// por un ÚNICO degradado radial de VARIAS paradas de color (en vez de solo
-// 2 -centro/transparente-, que es lo que hacía que la versión ANTERIOR a
-// esta ronda se viera "demasiado grande/difusa": un degradado de 2 paradas
-// decae LINEALMENTE, con alfa aún perceptible muy lejos del centro). Con 4
-// paradas (100%/55%/20%/0% de `alpha`, en 0%/50%/75%/100% del radio) el
-// centro queda SIEMPRE al máximo brillo (garantizado por construcción, nunca
-// puede formarse un hueco: el brillo solo puede decrecer al alejarse del
-// centro) y aun así el borde del propio icono (a ~53% del radio total de
-// esta forma) conserva un ~50% del alfa máximo -bien visible, sin hueco-,
-// mientras el halo se apaga con más rapidez pasado ese punto -contenido,
-// sin el exceso de difusión del primer intento-. Funciona IDÉNTICO en
-// cualquier versión de Android (minSdk 24), sin depender de RenderEffect.
+// 3ª RONDA de ajuste (ver historial en test_result.md para el detalle de las
+// 2 rondas anteriores: 1ª demasiado grande/difuso, 2ª con un hueco negro en
+// el centro). El usuario aportó una captura de referencia de la web y
+// precisó: el brillo debe concentrarse ALREDEDOR/EN EL BORDE del propio
+// círculo del icono, NO en su centro exacto — es decir, el pico de brillo
+// del degradado no está en r=0 (centro geométrico) sino desplazado hacia el
+// radio del propio icono (a diferencia de mi 2º intento, que con 4 paradas
+// SIEMPRE monótonas decrecientes desde el centro, sí ponía el pico máximo en
+// r=0 -de ahí que el usuario viera brillo "de más" justo en el centro-).
+// FIX: degradado radial de 5 paradas NO monótono — brillo TENUE (no cero,
+// para evitar el hueco reportado en la ronda anterior) en el centro exacto,
+// que SUBE hasta un pico justo a la altura del borde del propio icono
+// (~53% del radio total de esta forma de 150dp, que coincide con el radio
+// real del icono de 80dp) y luego SÍ decae hacia fuera — el brillo queda
+// concentrado en/alrededor del borde del círculo, tal como pidió el usuario,
+// en vez de reforzar el centro geométrico de la forma.
 @Composable
 private fun ChallengeIconGlow(iconSizeDp: Dp, alpha: Float) {
-    val totalSize = iconSizeDp + 70.dp // ~150dp para un icono de 80dp: halo contenido, ~35dp más allá del borde
+    val totalSize = iconSizeDp + 70.dp // ~150dp para un icono de 80dp
     Box(
         Modifier.size(totalSize).background(
             Brush.radialGradient(
-                0f to Color.White.copy(alpha = alpha),
-                0.5f to Color.White.copy(alpha = alpha * 0.55f),
-                0.75f to Color.White.copy(alpha = alpha * 0.2f),
+                0f to Color.White.copy(alpha = alpha * 0.10f),
+                0.30f to Color.White.copy(alpha = alpha * 0.30f),
+                0.53f to Color.White.copy(alpha = alpha * 0.60f), // pico ~ borde del icono (40dp de 75dp de radio total)
+                0.75f to Color.White.copy(alpha = alpha * 0.20f),
                 1f to Color.Transparent,
             ),
         ),
