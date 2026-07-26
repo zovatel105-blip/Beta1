@@ -104,6 +104,24 @@ respuestas colapsadas, borrar en cascada); esta ronda cierra las diferencias rea
   imports, referencias) + comparación línea a línea con los componentes web equivalentes. El usuario compila
   y prueba el APK en su propio Android Studio.
 
+## Ronda: perfil nativo NO se colapsaba/solapaba como la web con pocas publicaciones
+Usuario reportó (con captura: cuenta twykadmin, 3 publicaciones, máximo scroll) que el header del
+perfil se quedaba casi completo (avatar 104dp, stats, botones) con un "fantasma" tenue de la barra
+colapsada superpuesto, en vez de colapsar del todo y anclar las pestañas bajo la barra superior como
+la web. CAUSA: `collapseProgress` (Profile.kt) depende del scroll REAL del `LazyVerticalGrid`
+(`firstVisibleItemScrollOffset`); con pocas publicaciones no hay suficiente contenido para desplazarse
+lo bastante, así que el progreso de colapso nunca llega a 1. La web NUNCA tiene este problema porque
+reserva `contentMinH` (altura mínima del contenedor del grid) para garantizar SIEMPRE suficiente
+distancia de scroll (ver comentario en ProfilePage.jsx). FIX: nuevo `minContentFillerPx` en
+`ui/Profile.kt` — calcula, a partir del tamaño real medido de la pantalla (`onSizeChanged`) y del
+número de publicaciones (filas de 3, aspecto 9:16), cuánto le falta al contenido real para llenar el
+alto de pantalla, y añade un item de relleno invisible al final del grid con esa altura. Así, con 0/pocas
+publicaciones, siempre hay suficiente distancia de scroll para que el header colapse del todo y las
+pestañas se anclen — igual que la web. NO COMPILABLE en este contenedor; verificado por revisión manual
++ recuento de llaves/paréntesis balanceado del archivo completo (219/219, 698/698). Pendiente que el
+usuario compile el APK y confirme que ahora el perfil colapsa/solapa 100% igual que la web incluso con
+pocas publicaciones.
+
 ## Credenciales de prueba
 Ver `/app/memory/test_credentials.md` (twykadmin/Admin12345, lucia/marcos/laura con Test12345).
 

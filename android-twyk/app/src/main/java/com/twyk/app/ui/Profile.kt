@@ -52,6 +52,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.vectorResource
@@ -59,6 +60,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -77,6 +79,7 @@ import com.twyk.app.data.UploadQueueItem
 import com.twyk.app.data.VoteRequest
 import com.twyk.app.feed.FeedPager
 import kotlinx.coroutines.launch
+import kotlin.math.ceil
 import kotlin.math.roundToInt
 
 // Pantalla de PERFIL (propio o ajeno) — réplica de ProfilePage.jsx de la web.
@@ -215,6 +218,9 @@ fun ProfileScreen(
     // partir del scroll del PRIMER item del grid (la cabecera).
     val gridState = rememberLazyGridState()
     val density = LocalDensity.current
+    // Tamaño real (medido) del área visible del perfil — necesario para el
+    // relleno mínimo de contenido de más abajo (minContentFillerPx).
+    var viewportSize by remember(target) { mutableStateOf(IntSize.Zero) }
     // Borde inferior de la barra superior fija = inset de status bar + 44dp.
     val statusTopPx = WindowInsets.statusBars.getTop(density).toFloat()
     val barBottomPx = statusTopPx + with(density) { 44.dp.toPx() }
@@ -246,7 +252,40 @@ fun ProfileScreen(
         }
     }
 
-    Box(Modifier.fillMaxSize().background(TwykBg)) {
+    // BUG reportado por el usuario ("el perfil no se solapa como la web"): con
+    // pocas publicaciones (p.ej. 3), el grid no tenía suficiente contenido
+    // para desplazarse lo bastante -> el header nunca llegaba a colapsar del
+    // todo ni las pestañas a anclarse bajo la barra superior (se quedaban a
+    // medias, con la cabecera casi completa aún visible y un "fantasma" tenue
+    // de la barra colapsada superpuesto). La web NUNCA tiene este problema
+    // porque reserva `contentMinH` (altura mínima = alto visible - barra -
+    // pestañas) en el contenedor del grid, garantizando SIEMPRE suficiente
+    // distancia de scroll para colapsar, sin importar cuántas publicaciones
+    // reales haya (ver comentario "Altura mínima del contenido" en
+    // ProfilePage.jsx). Réplica aquí: `minContentFillerPx` calcula cuánto le
+    // falta al contenido real (posts en filas de 3, por aspecto 9:16) para
+    // alcanzar el alto de la pantalla, y se añade como un item de relleno
+    // invisible al final del grid.
+    val currentTabItemCount = if (activeTab == "saved") savedPosts.size else (if (isOwn) UploadQueue.items.size else 0) + posts.size
+    val currentTabReady = if (activeTab == "saved") !savedLoading else !loading
+    val minContentFillerPx = if (!currentTabReady || viewportSize.height <= 0 || viewportSize.width <= 0) {
+        0f
+    } else {
+        val viewportHPx = viewportSize.height.toFloat()
+        val viewportWPx = viewportSize.width.toFloat()
+        val realContentHeightPx = if (currentTabItemCount <= 0) {
+            0f
+        } else {
+            val horizontalPaddingPx = with(density) { 12.dp.toPx() } // contentPadding start(6)+end(6)
+            val cellWidthPx = (viewportWPx - horizontalPaddingPx) / 3f
+            val cellHeightPx = cellWidthPx * (16f / 9f) // aspecto 9:16 (ancho:alto)
+            val rows = ceil(currentTabItemCount / 3.0).toFloat()
+            rows * cellHeightPx
+        }
+        (viewportHPx - realContentHeightPx).coerceAtLeast(0f)
+    }
+
+    Box(Modifier.fillMaxSize().background(TwykBg).onSizeChanged { viewportSize = it }) {
         // NOTA: la web (ProfilePage.jsx) NO tiene ningún glow superior en el
         // perfil principal ("todo el perfil usa el mismo negro grisáceo
         // sólido #0a0a0b", ver comentario en el propio código de la web);
@@ -308,6 +347,17 @@ fun ProfileScreen(
                         EmptyTab(title = "No saved posts", desc = "Save videos to watch them later", bookmark = true)
                     }
                     else -> itemsIndexed(savedPosts) { idx, p -> ProfileGridItem(p) { viewerList = savedPosts; viewerIndex = idx } }
+                }
+            }
+
+            // Relleno invisible (ver minContentFillerPx más arriba): garantiza
+            // SIEMPRE suficiente distancia de scroll para colapsar la cabecera y
+            // anclar las pestañas, incluso con 0/pocas publicaciones — antes de
+            // este fix, con pocas publicaciones el header se quedaba a medio
+            // colapsar para siempre (el bug reportado por el usuario, ver captura).
+            if (minContentFillerPx > 1f) {
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    Spacer(Modifier.height(with(density) { minContentFillerPx.toDp() }))
                 }
             }
         }
