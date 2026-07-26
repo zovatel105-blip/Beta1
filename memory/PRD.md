@@ -125,6 +125,23 @@ pocas publicaciones.
 ## Credenciales de prueba
 Ver `/app/memory/test_credentials.md` (twykadmin/Admin12345, lucia/marcos/laura con Test12345).
 
+## Ronda: barra de "Añadir comentario" (envío directo) al abrir publicaciones desde el grid del perfil — WEB
+Petición del usuario (con captura de referencia de TikTok): que aparezca un campo de texto tipo
+"Add a comment..." al abrir publicaciones desde el grid del perfil propio y ajeno, tanto en web
+como en la app nativa. Aclarado con el usuario: solo en el visor del grid (no en el feed principal),
+envío DIRECTO sin abrir el modal completo, sin iconos decorativos (solo botón enviar), placeholder
+en inglés, web primero y nativo pendiente de luz verde. Implementado en la WEB: nuevo
+`components/QuickCommentInput.jsx` (POST directo a `/api/comments`), nueva prop `showCommentInput`
+en `CarouselSlide.jsx`/`DuetSlide.jsx` (reubica cabecera/columna social/progreso hacia arriba),
+`ProfilePage.jsx` la activa solo en su `PostViewer`. BUG encontrado y corregido en el propio
+desarrollo: `BottomNav.jsx` (z-50) sigue visible sobre el visor y tapaba la barra si se posicionaba
+en `bottom:0`; corregido calculando la misma altura real de BottomNav para despejarla. Verificado
+visualmente en viewport MÓVIL (390x844) con capturas Playwright manuales (usuario pidió
+explícitamente no usar el agente de testing): comentario enviado, persistido en Mongo con id UUID,
+contador del rail social actualizado en vivo, sin overlaps, en publicaciones tipo carrusel y 1vs1.
+Se dejaron 2 posts de prueba en el perfil de lucia (grid) para que el usuario los use para verificar
+sin subir contenido real. Pendiente: luz verde del usuario para replicar en la app nativa Android.
+
 ## Notas de infraestructura
 Ver `/app/memory/ENV_BACKUP.md` — causa raíz y procedimiento si `.env` o los datos de MongoDB desaparecen
 de nuevo (almacenamiento efímero del pod).

@@ -263,6 +263,7 @@ const PostViewer = ({ posts, startId, onClose, onChallenge, onOpenProfile }) => 
                     muted={muted}
                     playbackEnabled={true}
                     infoBottom
+                    showCommentInput
                     onRequestNext={() => {}}
                     onChallenge={onChallenge}
                     onOpenProfile={onOpenProfile}

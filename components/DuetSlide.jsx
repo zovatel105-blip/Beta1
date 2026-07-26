@@ -15,6 +15,7 @@ import OptionsModal from './OptionsModal'
 import BottomSheet from './BottomSheet'
 import AuthModal from './AuthModal'
 import Avatar, { isGeneratedAvatar } from './Avatar'
+import QuickCommentInput from './QuickCommentInput'
 import { useAuth } from '@/contexts/AuthContext'
 import { pickQuality, reportStall } from '@/lib/networkQuality'
 
@@ -29,6 +30,15 @@ function countLabel(n, placeholder) {
   return (Number(n) || 0) === 0 ? placeholder : formatCount(n)
 }
 
+// Altura real de la barra de navegación inferior (BottomNav.jsx: icono 36px +
+// py-2.5 20px + su propio safe-area-bottom) — el visor de publicaciones del
+// perfil (grid propio/ajeno) mantiene esa barra VISIBLE (mismo criterio que el
+// feed principal, z-50), así que la barra de "Añadir comentario" y los
+// elementos que se reubican por encima (cabecera/columna social/progreso)
+// deben despejarla explícitamente con esta misma fórmula, o quedan pintados
+// DETRÁS suyo (BottomNav gana el z-index) en vez de encima.
+const NAV_CLEARANCE = '56px + max(env(safe-area-inset-bottom, 0px), 8px)'
+
 /**
  * DuetSlide — 1vs1 (dueto) slide.
  * Renders two videos side-by-side (horizontal = top/bottom, vertical = left/right),
@@ -38,7 +48,7 @@ function countLabel(n, placeholder) {
  *   - double tap  -> like (corazón flotante).
  * La UI (cabecera superior + columna social derecha) es idéntica a la del vídeo normal.
  */
-function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: globalMuted, playbackEnabled = true, onRequestNext, onChallenge, onOpenProfile, infoBottom = false, hideChallenge = false }) {
+function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: globalMuted, playbackEnabled = true, onRequestNext, onChallenge, onOpenProfile, infoBottom = false, hideChallenge = false, showCommentInput = false }) {
   const { user } = useAuth()
   const videoARef = useRef(null)
   const videoBRef = useRef(null)
@@ -648,10 +658,14 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
         className={cn(
           'absolute z-20 px-4 pointer-events-none',
           infoBottom
-            ? 'left-0 right-16 bottom-20 pt-10'
+            ? `left-0 right-16 ${showCommentInput ? '' : 'bottom-20'} pt-10`
             : 'top-0 left-0 right-0 bg-gradient-to-b from-black/70 to-transparent pb-10'
         )}
-        style={infoBottom ? undefined : { paddingTop: 'max(1rem, env(safe-area-inset-top))' }}
+        style={
+          infoBottom
+            ? (showCommentInput ? { bottom: `calc(${NAV_CLEARANCE} + 64px + 80px)` } : undefined)
+            : { paddingTop: 'max(1rem, env(safe-area-inset-top))' }
+        }
       >
         <div className="flex items-center gap-2.5 w-fit max-w-[calc(100%-4rem)] pointer-events-auto">
           {post.isChallenge ? (
@@ -733,7 +747,10 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
 
       {/* Columna social derecha — estilo Twyk (abajo) */}
       <div
-        className="absolute z-20 right-1 bottom-[72px] flex flex-col items-center gap-4 pointer-events-auto"
+        className={cn(
+          'absolute z-20 right-1 flex flex-col items-center gap-4 pointer-events-auto',
+          showCommentInput ? 'bottom-[132px]' : 'bottom-[72px]'
+        )}
       >
         {/* Votos */}
         <button aria-label="votes" onClick={(e) => e.stopPropagation()} className="flex flex-col items-center gap-1 w-14 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
@@ -897,9 +914,25 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
 
       {/* progress bar (solo para vídeo) */}
       {post.mediaType !== 'image' && (
-        <div className="absolute left-0 right-0 bottom-16 z-20 h-[2px] bg-white/15">
+        <div
+          className="absolute left-0 right-0 z-20 h-[2px] bg-white/15"
+          style={showCommentInput ? { bottom: `calc(${NAV_CLEARANCE} + 64px + 64px)` } : { bottom: 64 }}
+        >
           <div className="h-full bg-white/80" style={{ width: `${progress}%`, transform: 'translateZ(0)' }} />
         </div>
+      )}
+
+      {/* Barra de "Añadir comentario" — solo cuando se abre desde el grid del
+          perfil (propio o ajeno), NO en el feed principal (ver showCommentInput).
+          Se posiciona JUSTO ENCIMA de BottomNav (que sigue visible, z-50, mismo
+          criterio que el feed principal), no debajo (quedaría oculta). */}
+      {showCommentInput && (
+        <QuickCommentInput
+          postId={post.id}
+          votedSide={userVote}
+          onPosted={() => setCommentCount((n) => { const next = n + 1; lsSet(`cmtN_${post.id}`, next); return next })}
+          onRequireAuth={() => setAuthModalOpen(true)}
+        />
       )}
 
       {/* Winner card — aparece automáticamente tras votar */}
