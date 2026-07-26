@@ -662,7 +662,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
         )}
         style={
           infoBottom
-            ? (showCommentInput ? { bottom: `calc(${COMMENT_BAR_RESERVE} + 20px)` } : undefined)
+            ? (showCommentInput ? { bottom: `calc(${COMMENT_BAR_RESERVE} + 10px)` } : undefined)
             : { paddingTop: 'max(1rem, env(safe-area-inset-top))' }
         }
       >
@@ -747,7 +747,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
       {/* Columna social derecha — estilo Twyk (abajo) */}
       <div
         className="absolute z-20 right-1 flex flex-col items-center gap-4 pointer-events-auto"
-        style={showCommentInput ? { bottom: `calc(${COMMENT_BAR_RESERVE} + 16px)` } : { bottom: 72 }}
+        style={showCommentInput ? { bottom: `calc(${COMMENT_BAR_RESERVE} + 6px)` } : { bottom: 72 }}
       >
         {/* Votos */}
         <button aria-label="votes" onClick={(e) => e.stopPropagation()} className="flex flex-col items-center gap-1 w-14 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
@@ -913,7 +913,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
       {post.mediaType !== 'image' && (
         <div
           className="absolute left-0 right-0 z-20 h-[2px] bg-white/15"
-          style={showCommentInput ? { bottom: `calc(${COMMENT_BAR_RESERVE} + 8px)` } : { bottom: 64 }}
+          style={showCommentInput ? { bottom: `calc(${COMMENT_BAR_RESERVE} - 2px)` } : { bottom: 64 }}
         >
           <div className="h-full bg-white/80" style={{ width: `${progress}%`, transform: 'translateZ(0)' }} />
         </div>

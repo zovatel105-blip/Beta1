@@ -1342,6 +1342,7 @@ test_plan:
     - "Barra de 'Añadir comentario' (envío directo, sin abrir modal) al abrir publicaciones desde el GRID del perfil (propio y ajeno) — WEB"
   stuck_tasks:
     - "Recuperación de entorno: .env perdido + MongoDB vacío (persistencia efímera)"
+    - "Barra de 'Añadir comentario' (envío directo, sin abrir modal) al abrir publicaciones desde el GRID del perfil (propio y ajeno) — WEB"
   test_all: false
   test_priority: "high_first"
 
@@ -2262,11 +2263,11 @@ frontend:
 
   - task: "Barra de 'Añadir comentario' (envío directo, sin abrir modal) al abrir publicaciones desde el GRID del perfil (propio y ajeno) — WEB"
     implemented: true
-    working: "NA"
+    working: true
     file: "components/QuickCommentInput.jsx, components/CarouselSlide.jsx, components/DuetSlide.jsx, components/ProfilePage.jsx, components/Feed.jsx"
     stuck_count: 1
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         -working: "NA"
         -agent: "user"
@@ -2286,6 +2287,12 @@ frontend:
         -working: "NA"
         -agent: "main"
         -comment: "CAUSA RAÍZ del hueco: al ocultar BottomNav en la ronda anterior, dejé SIN QUITAR los offsets antiguos (64/70/72/80px, calculados originalmente para despejar la barra de navegación) Y ADEMÁS sumé por encima la reserva nueva de la barra de comentario (`COMMENT_BAR_RESERVE`, ~70-90px) — el resultado eran DOS reservas apiladas (~150-160px) en vez de solo una, de ahí el hueco enorme que no pedí. FIX: `COMMENT_BAR_RESERVE` recalculado a la altura REAL de la propia píldora (58px + su safe-area-bottom, sin sumar nada de la navegación que ya no existe) y los márgenes extra por elemento reducidos de 64-80px a valores mínimos (8px barra de progreso, 12px puntitos, 16px columna social, 20px cabecera) — igual de proporcionado que la imagen de referencia de TikTok. Verificado visualmente en móvil (390x844): el hueco ahora es pequeño y natural, columna social/cabecera muy cerca de la barra de comentario, sin overlap."
+        -working: "NA"
+        -agent: "user"
+        -comment: "'No usar el testing agent, y bajar un pelín más los objetos que tengan la Barra de comentarios en la parte inferior en este caso solo los perfiles' — pidió reducir aún más el margen restante (usuario reiteró explícitamente no usar el agente de testing)."
+        -working: true
+        -agent: "main"
+        -comment: "Reducidos los márgenes extra por elemento un poco más: cabecera 20px->10px, columna social 16px->6px, puntitos 12px->2px, barra de progreso 8px->-2px (pegada casi al borde superior de la píldora de comentario). Cambio aplicado solo en `showCommentInput` (perfiles), NO afecta al feed principal (que no usa esta prop). Verificado visualmente en móvil (390x844) con capturas propias (SIN agente de testing, por petición explícita y reiterada del usuario): en publicación tipo carrusel y tipo 1vs1, la columna social/cabecera quedan ahora muy cerca de la barra 'Add a comment...', proporción similar a la imagen de referencia de TikTok, sin overlap visual ni hueco excesivo; `document.querySelectorAll('nav').length === 0` sigue confirmando que la navegación permanece oculta."
 
 agent_communication:
     -agent: "main"
