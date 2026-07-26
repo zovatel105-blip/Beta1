@@ -24,6 +24,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -71,6 +72,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.BlurredEdgeTreatment
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawWithContent
@@ -2030,98 +2033,100 @@ fun VSContentCard(
             .pointerInput(Unit) { detectTapGestures { onClose() } },
         contentAlignment = Alignment.Center,
     ) {
-        // Glow blanco alrededor del marco de la card — réplica de `boxShadow:
-        // '0 0 60px 8px rgba(255,255,255,.35), 0 0 120px 24px
-        // rgba(255,255,255,.15)'` de la web (VSContentCard.jsx). BUG
-        // reportado por el usuario ("debe aparecer el glow como en la web"
-        // — faltaba por completo, solo había un borde de 1dp sin ningún
-        // resplandor). Compose no tiene un blur de color fiable desde
-        // minSdk 24 (mismo motivo ya documentado en los demás glows de esta
-        // sesión — icono de 'Crear contenido', trofeo/espadas de Retos); se
-        // aproxima con capas rounded-rect BLANCAS ligeramente más grandes
-        // que la card real (mismo aspect-ratio, escaladas desde el centro),
-        // alfa decreciente hacia fuera — un contorno expandido "por capas"
-        // que sigue la FORMA real de la card (no un círculo genérico).
-        // AJUSTE ("haz lo mismo con el vscontent card", tras afinar el glow
-        // del trofeo/espadas de Retos con un degradado suave de varias
-        // paradas en vez de pocos bloques planos): la versión original solo
-        // tenía 3 capas con saltos de alfa grandes (0.08→0.16→0.26) — se
-        // notaban como 2-3 anillos/escalones discretos en vez de un halo
-        // continuo. Aquí no aplica el problema de "glow dentro de la card"
-        // (la card en sí es 100% opaca -`background(Color.Black)` sólido,
-        // ver más abajo-, así que nunca hay fuga hacia el interior, a
-        // diferencia del icono circular con relleno translúcido); el ajuste
-        // equivalente es únicamente SUAVIZAR la progresión hacia fuera —
-        // 7 capas (en vez de 3) con incrementos de alfa MUCHO más pequeños y
-        // graduales, aproximando mejor los 2 box-shadow reales de la web (uno
-        // más ceñido/brillante -60px blur- y uno mucho más amplio/tenue
-        // -120px blur-, combinados) en vez de un salto brusco entre pocos
-        // bloques.
-        listOf(
-            1.40f to 0.04f,
-            1.30f to 0.06f,
-            1.20f to 0.09f,
-            1.13f to 0.13f,
-            1.08f to 0.18f,
-            1.045f to 0.24f,
-            1.02f to 0.30f,
-        ).forEach { (scale, alpha) ->
+        // Glow blanco alrededor del marco de la card — réplica EXACTA (valor
+        // por valor, no una aproximación) del `boxShadow: '0 0 60px 8px
+        // rgba(255,255,255,.35), 0 0 120px 24px rgba(255,255,255,.15)'` de
+        // la web (VSContentCard.jsx). RONDAS ANTERIORES (ver test_result.md
+        // para el detalle completo): 1ª sin ningún glow; 2ª/3ª aproximaciones
+        // por capas rounded-rect planas (3, luego 7 capas con alfa cada vez
+        // más gradual) — el usuario pidió una réplica "token por token" de
+        // los valores CSS reales, no otra aproximación por capas. FIX: uso
+        // de `Modifier.blur` REAL (RenderEffect, API 31+) sobre 2 formas
+        // rounded-rect cuyo TAMAÑO EXACTO ya incorpora el spread positivo de
+        // cada box-shadow (+8dp y +24dp en cada lado, calculado a partir del
+        // tamaño REAL medido de la card vía `BoxWithConstraints`, no un
+        // factor de escala aproximado) y cuyo radio de blur es EXACTAMENTE
+        // 60dp/120dp (mapeo 1:1 px CSS -> dp, igual que el resto de glows ya
+        // corregidos en esta sesión) — a diferencia del icono circular (cuyo
+        // spread era NEGATIVO, encogiendo la forma a difuminar hasta ser
+        // mucho más pequeña que el propio icono, lo que producía un centro
+        // hueco), aquí el spread es POSITIVO: la forma a difuminar SIEMPRE
+        // es igual o más grande que la card, así que el blur real no tiene
+        // ese problema (nunca hay una forma "demasiado pequeña" frente a su
+        // propio radio de difuminado). Además la card en sí es 100% opaca
+        // (`background(Color.Black)` sólido, ver más abajo), así que nunca
+        // hay fuga de glow hacia el interior sea cual sea la técnica usada.
+        // `BlurredEdgeTreatment.Unbounded` evita que cada halo se recorte en
+        // el borde de su propia caja. NOTA (limitación de plataforma ya
+        // documentada en esta sesión): `Modifier.blur` con RenderEffect solo
+        // tiene efecto real desde API 31 (Android 12); en versiones
+        // anteriores (minSdk 24) el modificador no dibuja el blur.
+        BoxWithConstraints(contentAlignment = Alignment.Center) {
+            val cardHeight = maxHeight * 0.85f
+            val cardWidth = cardHeight * (9f / 17.5f)
+            // Shadow 2 (blur 120dp, spread 24dp, alfa .15) — el más amplio y
+            // tenue, se pinta PRIMERO (queda detrás del otro).
             Box(
                 Modifier
-                    .fillMaxHeight(0.85f * scale)
-                    .aspectRatio(9f / 17.5f, matchHeightConstraintsFirst = true)
-                    .clip(RoundedCornerShape(24.dp * scale))
-                    .background(Color.White.copy(alpha = alpha)),
+                    .size(width = cardWidth + 24.dp * 2, height = cardHeight + 24.dp * 2)
+                    .blur(radius = 120.dp, edgeTreatment = BlurredEdgeTreatment.Unbounded)
+                    .background(Color.White.copy(alpha = 0.15f), RoundedCornerShape(24.dp + 24.dp)),
             )
-        }
-        Box(
-            Modifier
-                .fillMaxHeight(0.85f)
-                .aspectRatio(9f / 17.5f, matchHeightConstraintsFirst = true)
-                .clip(RoundedCornerShape(24.dp))
-                .background(Color.Black)
-                .border(1.dp, Color.White.copy(alpha = 0.18f), RoundedCornerShape(24.dp))
-                // Consume los toques sobre la card para que NO cierren (solo
-                // los del backdrop cierran); el carrusel sigue deslizándose
-                // porque el gesto de arrastre lo maneja HorizontalPager aparte.
-                .pointerInput(Unit) { detectTapGestures { } },
-        ) {
-            HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { p ->
-                ContentOption(
-                    option = slides[p],
-                    player = if (p == 0) playerA else playerB,
-                )
-            }
-
-            // Indicadores neutros (sin color), réplica de los dots de la web.
-            Row(
+            // Shadow 1 (blur 60dp, spread 8dp, alfa .35) — más ceñido/brillante.
+            Box(
                 Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    .size(width = cardWidth + 8.dp * 2, height = cardHeight + 8.dp * 2)
+                    .blur(radius = 60.dp, edgeTreatment = BlurredEdgeTreatment.Unbounded)
+                    .background(Color.White.copy(alpha = 0.35f), RoundedCornerShape(24.dp + 8.dp)),
+            )
+            Box(
+                Modifier
+                    .size(width = cardWidth, height = cardHeight)
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(Color.Black)
+                    .border(1.dp, Color.White.copy(alpha = 0.18f), RoundedCornerShape(24.dp))
+                    // Consume los toques sobre la card para que NO cierren (solo
+                    // los del backdrop cierran); el carrusel sigue deslizándose
+                    // porque el gesto de arrastre lo maneja HorizontalPager aparte.
+                    .pointerInput(Unit) { detectTapGestures { } },
             ) {
-                for (i in 0..1) {
-                    val activeDot = pagerState.currentPage == i
-                    Box(
-                        Modifier
-                            .size(width = if (activeDot) 16.dp else 6.dp, height = 6.dp)
-                            .clip(RoundedCornerShape(3.dp))
-                            .background(Color.White.copy(alpha = if (activeDot) 0.9f else 0.35f)),
+                HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { p ->
+                    ContentOption(
+                        option = slides[p],
+                        player = if (p == 0) playerA else playerB,
                     )
                 }
-            }
 
-            // Botón atrás — sin fondo, solo el icono (réplica de la web).
-            Icon(
-                Icons.Filled.ChevronLeft,
-                contentDescription = "Back",
-                tint = Color.White,
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(6.dp)
-                    .size(32.dp)
-                    .clickable { onClose() },
-            )
+                // Indicadores neutros (sin color), réplica de los dots de la web.
+                Row(
+                    Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    for (i in 0..1) {
+                        val activeDot = pagerState.currentPage == i
+                        Box(
+                            Modifier
+                                .size(width = if (activeDot) 16.dp else 6.dp, height = 6.dp)
+                                .clip(RoundedCornerShape(3.dp))
+                                .background(Color.White.copy(alpha = if (activeDot) 0.9f else 0.35f)),
+                        )
+                    }
+                }
+
+                // Botón atrás — sin fondo, solo el icono (réplica de la web).
+                Icon(
+                    Icons.Filled.ChevronLeft,
+                    contentDescription = "Back",
+                    tint = Color.White,
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(6.dp)
+                        .size(32.dp)
+                        .clickable { onClose() },
+                )
+            }
         }
     }
 }
