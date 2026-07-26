@@ -298,13 +298,24 @@ private fun ModeStep(selected: String, onSelect: (String) -> Unit, onContinue: (
         }
 
         Column(Modifier.weight(1f).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            // Caja del icono con glow (réplica del box-shadow blanco de la web)
+            // Caja del icono con GLOW alrededor del marco — réplica de
+            // `boxShadow: '0 0 60px -14px rgba(255,255,255,.45)'` de la web
+            // (UploadDialog.jsx, paso "mode"). BUG reportado por el usuario
+            // ("los iconos... no llevan el glow alrededor del marco... como
+            // en la web"): Compose no tiene un modificador de "box-shadow"
+            // con blur+color fiable desde minSdk 24 (`Modifier.blur` real vía
+            // RenderEffect exige API 31+, mismo motivo ya documentado para la
+            // sombra del burst de voto en VersusFeed.kt), así que se
+            // aproxima con VARIAS capas de `Brush.radialGradient`
+            // concéntricas (de mayor a menor, alfa CRECIENTE hacia el centro)
+            // en vez de una sola capa muy tenue (alfa 0.16, prácticamente
+            // imperceptible) como antes — así se concentra más brillo justo
+            // alrededor del borde de la caja y se difumina gradualmente hacia
+            // fuera, más parecido a un blur real que una única capa plana.
             Box(contentAlignment = Alignment.Center) {
-                Box(
-                    Modifier.size(190.dp).background(
-                        Brush.radialGradient(listOf(Color.White.copy(alpha = 0.16f), Color.Transparent)),
-                    ),
-                )
+                Box(Modifier.size(210.dp).background(Brush.radialGradient(listOf(Color.White.copy(alpha = 0.10f), Color.Transparent))))
+                Box(Modifier.size(155.dp).background(Brush.radialGradient(listOf(Color.White.copy(alpha = 0.20f), Color.Transparent))))
+                Box(Modifier.size(115.dp).background(Brush.radialGradient(listOf(Color.White.copy(alpha = 0.34f), Color.Transparent))))
                 Box(
                     Modifier.size(96.dp).clip(RoundedCornerShape(28.dp)).background(Color.White.copy(alpha = 0.04f)).border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(28.dp)),
                     contentAlignment = Alignment.Center,
