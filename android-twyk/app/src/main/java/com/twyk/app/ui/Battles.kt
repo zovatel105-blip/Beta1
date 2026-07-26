@@ -57,6 +57,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.BlurredEdgeTreatment
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -612,16 +614,18 @@ private fun EmptyCompleted(onCreate: () -> Unit, onActive: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        // Glow blanco alrededor del marco — réplica de `boxShadow: '0 0 48px
-        // -14px rgba(255,255,255,.45)'` de la web (CompletedBattlesPage.jsx).
-        // Ver el composable `ChallengeIconGlow` (más abajo en este archivo)
-        // para el detalle completo de las 2 rondas de ajuste ya aplicadas
-        // (1ª: demasiado grande/difuso; 2ª: hueco en el centro) y el fix
-        // final (degradado radial de varias paradas, sin usar `Modifier.blur`).
+        // Glow blanco alrededor del marco — réplica EXACTA (valor por valor,
+        // no una aproximación) de `boxShadow: '0 0 48px -14px
+        // rgba(255,255,255,.45)'` de la web (CompletedBattlesPage.jsx). Ver
+        // el composable `ChallengeIconGlow` (más abajo en este archivo) para
+        // el historial completo de ajustes previos (gradientes por capas) y
+        // el fix final -misma técnica de `Modifier.blur` real ya validada
+        // en VSContentCard, a petición del usuario de una réplica "token
+        // por token"-.
         Box(contentAlignment = Alignment.Center) {
-            ChallengeIconGlow(iconSizeDp = 80.dp, alpha = 0.45f)
+            ChallengeIconGlow(iconSizeDp = 80.dp, blurDp = 48.dp, spreadDp = (-14).dp, alpha = 0.45f)
             Box(
-                Modifier.size(80.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.03f)).border(1.dp, Color.White.copy(alpha = 0.10f), CircleShape),
+                Modifier.size(80.dp).clip(CircleShape).background(TwykBg).border(1.dp, Color.White.copy(alpha = 0.10f), CircleShape),
                 contentAlignment = Alignment.Center,
             ) { Icon(ImageVector.vectorResource(R.drawable.ic_trophy), null, tint = Color.White, modifier = Modifier.size(36.dp)) }
         }
@@ -659,14 +663,14 @@ private fun EmptyActive() {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        // Mismo bug/fix que EmptyCompleted (ver comentario ahí, incluido el
-        // ajuste de tamaño/nitidez del glow): la web también tiene glow aquí
-        // (`boxShadow: '0 0 48px -14px rgba(255,255,255,.42)'`,
-        // ActiveChallengesPage.jsx) — mismo `ChallengeIconGlow`, alfa 0.42.
+        // Mismo bug/fix que EmptyCompleted (ver comentario ahí): la web
+        // también tiene glow aquí (`boxShadow: '0 0 48px -14px
+        // rgba(255,255,255,.42)'`, ActiveChallengesPage.jsx) — mismo
+        // `ChallengeIconGlow`, alfa 0.42.
         Box(contentAlignment = Alignment.Center) {
-            ChallengeIconGlow(iconSizeDp = 80.dp, alpha = 0.42f)
+            ChallengeIconGlow(iconSizeDp = 80.dp, blurDp = 48.dp, spreadDp = (-14).dp, alpha = 0.42f)
             Box(
-                Modifier.size(80.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.03f)).border(1.dp, Color.White.copy(alpha = 0.10f), CircleShape),
+                Modifier.size(80.dp).clip(CircleShape).background(TwykBg).border(1.dp, Color.White.copy(alpha = 0.10f), CircleShape),
                 contentAlignment = Alignment.Center,
             ) { Icon(ImageVector.vectorResource(R.drawable.ic_swords), null, tint = TwykGold, modifier = Modifier.size(36.dp)) }
         }
@@ -677,36 +681,35 @@ private fun EmptyActive() {
     }
 }
 
-// Réplica del box-shadow CSS difuminado y simétrico de la web (offset 0 0,
-// blur 48px, spread -14px, color blanco con `alpha`) — usado para el glow
-// del icono (trofeo/espadas) de los estados vacíos de Batallas.
-// 4ª RONDA de ajuste (ver historial completo en test_result.md: 1ª demasiado
-// grande/difuso, 2ª hueco negro en el centro, 3ª pico de brillo ya bien
-// colocado alrededor del borde -confirmado correcto por el usuario- pero
-// SIN cortar del todo dentro del propio círculo del icono). El usuario
-// confirmó: el halo por FUERA del círculo ya es perfecto; dentro del propio
-// círculo (el disco de 80dp donde va el icono) NO debe verse NADA de glow,
-// debe quedar completamente negro/plano. FIX: las 2 primeras paradas (antes
-// en 0% y 30% del radio, con algo de brillo ya desde el centro) pasan a
-// alfa 0 hasta justo el radio del propio icono (~53% del radio total de
-// 150dp = 40dp, el radio real del icono) — CERO glow en todo el interior,
-// tal como se pidió — y justo pasado ese punto (56%) sube rápido hasta el
-// mismo pico ya confirmado como correcto (~65% del radio), manteniendo
-// intacta la forma de caída hacia fuera que el usuario ya validó.
+// Réplica EXACTA (valor por valor, no una aproximación) del box-shadow CSS
+// de la web — offset 0 0, blur `blurDp`, spread `spreadDp` (negativo =
+// encoge la forma antes de difuminar) y color blanco con `alpha` — usado
+// para el glow del icono (trofeo/espadas) de los estados vacíos de Batallas.
+// HISTORIAL (ver test_result.md para el detalle completo de cada ronda):
+// 1ª sin glow -> capas de degradado (demasiado grande, luego hueco en el
+// centro, luego pico mal colocado, luego ajustado y confirmado correcto por
+// el usuario como aproximación visual). El usuario pidió ahora, igual que ya
+// se hizo con VSContentCard, una réplica LITERAL de los valores CSS reales
+// vía `Modifier.blur` (RenderEffect) en vez de otro degradado ajustado a
+// mano. A diferencia de VSContentCard (spread POSITIVO, la forma siempre
+// es igual o más grande que la card), aquí el spread es NEGATIVO -14dp: la
+// forma a difuminar (52dp) es MÁS PEQUEÑA que el propio icono (80dp) — para
+// garantizar que el interior del icono se siga viendo 100% negro (requisito
+// ya validado por el usuario en la ronda anterior) incluso si el blur real
+// deja algo de brillo residual en su propio centro, el relleno del disco del
+// icono (ver `EmptyCompleted`/`EmptyActive` más arriba) pasa de un 3% de
+// blanco -translúcido, lo que SÍ dejaría pasar ese brillo- a un negro sólido
+// (`TwykBg`, igual que el fondo de la pantalla) que bloquea por completo
+// cualquier parte del blur que caiga dentro de sus propios 80dp, dejando
+// visible SOLO la parte del halo que se extiende más allá del icono.
 @Composable
-private fun ChallengeIconGlow(iconSizeDp: Dp, alpha: Float) {
-    val totalSize = iconSizeDp + 70.dp // ~150dp para un icono de 80dp
+private fun ChallengeIconGlow(iconSizeDp: Dp, blurDp: Dp, spreadDp: Dp, alpha: Float) {
+    val shadowShapeSize = iconSizeDp + spreadDp * 2 // spread negativo reduce la forma en ambos lados
     Box(
-        Modifier.size(totalSize).background(
-            Brush.radialGradient(
-                0f to Color.Transparent, // interior del icono: SIN glow, negro plano
-                0.50f to Color.Transparent, // se mantiene en 0 hasta justo el radio del icono (~53%)
-                0.56f to Color.White.copy(alpha = alpha * 0.55f), // sube justo AL SALIR del círculo
-                0.65f to Color.White.copy(alpha = alpha * 0.60f), // pico, ya confirmado correcto por el usuario
-                0.85f to Color.White.copy(alpha = alpha * 0.18f),
-                1f to Color.Transparent,
-            ),
-        ),
+        Modifier
+            .size(shadowShapeSize)
+            .blur(radius = blurDp, edgeTreatment = BlurredEdgeTreatment.Unbounded)
+            .background(Color.White.copy(alpha = alpha), CircleShape),
     )
 }
 
