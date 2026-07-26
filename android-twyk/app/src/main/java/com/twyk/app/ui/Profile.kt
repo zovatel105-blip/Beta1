@@ -334,7 +334,35 @@ fun ProfileScreen(
             val rows = ceil(currentTabItemCount / 3.0).toFloat()
             rows * cellHeightPx
         }
-        (viewportHPx - realContentHeightPx).coerceAtLeast(0f)
+        // BUG REPORTADO ("las tarjetas no se quedan por abajo como en la web,
+        // suben y quedan tapadas por la cabecera/pestañas"): la fórmula
+        // anterior era simplemente `viewportHPx - realContentHeightPx`,
+        // IGNORANDO que la barra superior fija (barBottomPx) y la banda de
+        // pestañas sticky (32dp reservados dentro de ProfileHeaderSection,
+        // más 26dp de margen) YA ocupan parte de ese alto de viewport -> el
+        // relleno resultante era MUCHO mayor de lo necesario (~un viewport
+        // completo de más), dejando disponible MUCHO más recorrido de scroll
+        // del necesario para colapsar del todo la cabecera. Con pocas
+        // publicaciones (p.ej. 3, como reportó el usuario), tras colapsar la
+        // cabecera por completo ese scroll "de más" seguía arrastrando las
+        // miniaturas del grid hacia ARRIBA, escondiéndolas detrás de la barra
+        // superior/pestañas — justo el bug reportado — en vez de quedarse
+        // fijas justo debajo, como en la web. La web NUNCA tiene este
+        // problema porque `contentMinH` (ver ProfilePage.jsx) se calcula como
+        // `scroller.clientHeight - barH - tabsH - 16`, es decir YA RESTA el
+        // espacio que ocupan la barra y las pestañas antes de repartir el
+        // resto al contenido — así el scroll total termina siendo EXACTAMENTE
+        // igual a la distancia de colapso (`profileBlockHeightPx`), ni un
+        // píxel más, y las tarjetas nunca pueden subir más allá de su
+        // posición ya colapsada. FIX: replicar la misma resta aquí (barra +
+        // 32dp de pestañas + 26dp de margen, ya reservados como Spacers
+        // dentro de ProfileHeaderSection, más los 112dp de contentPadding
+        // inferior de este mismo LazyVerticalGrid) antes de calcular cuánto
+        // relleno hace falta realmente.
+        val reservedAfterHeaderPx = barBottomPx + with(density) { (32.dp + 26.dp).toPx() }
+        val bottomPadPx = with(density) { 112.dp.toPx() }
+        val availableContentAreaPx = (viewportHPx - reservedAfterHeaderPx - bottomPadPx).coerceAtLeast(0f)
+        (availableContentAreaPx - realContentHeightPx).coerceAtLeast(0f)
     }
 
     Box(Modifier.fillMaxSize().background(TwykBg).onSizeChanged { viewportSize = it }) {
