@@ -30,14 +30,13 @@ function countLabel(n, placeholder) {
   return (Number(n) || 0) === 0 ? placeholder : formatCount(n)
 }
 
-// Altura real de la barra de navegación inferior (BottomNav.jsx: icono 36px +
-// py-2.5 20px + su propio safe-area-bottom) — el visor de publicaciones del
-// perfil (grid propio/ajeno) mantiene esa barra VISIBLE (mismo criterio que el
-// feed principal, z-50), así que la barra de "Añadir comentario" y los
-// elementos que se reubican por encima (cabecera/columna social/progreso)
-// deben despejarla explícitamente con esta misma fórmula, o quedan pintados
-// DETRÁS suyo (BottomNav gana el z-index) en vez de encima.
-const NAV_CLEARANCE = '56px + max(env(safe-area-inset-bottom, 0px), 8px)'
+// Reserva de espacio para la barra de "Añadir comentario" (QuickCommentInput):
+// altura aproximada de su propia píldora/paddings + su safe-area-bottom. La
+// barra de navegación inferior se OCULTA por completo en este visor (ver
+// showCommentInput / ProfilePage.jsx -> Feed.jsx), así que el único elemento
+// a despejar es esta barra — un margen pequeño y fijo por elemento (no los
+// antiguos 64-80px, pensados para otra barra que ya no está presente).
+const COMMENT_BAR_RESERVE = '58px + max(env(safe-area-inset-bottom, 0px), 12px)'
 
 /**
  * DuetSlide — 1vs1 (dueto) slide.
@@ -663,7 +662,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
         )}
         style={
           infoBottom
-            ? (showCommentInput ? { bottom: `calc(${NAV_CLEARANCE} + 64px + 80px)` } : undefined)
+            ? (showCommentInput ? { bottom: `calc(${COMMENT_BAR_RESERVE} + 20px)` } : undefined)
             : { paddingTop: 'max(1rem, env(safe-area-inset-top))' }
         }
       >
@@ -747,10 +746,8 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
 
       {/* Columna social derecha — estilo Twyk (abajo) */}
       <div
-        className={cn(
-          'absolute z-20 right-1 flex flex-col items-center gap-4 pointer-events-auto',
-          showCommentInput ? 'bottom-[132px]' : 'bottom-[72px]'
-        )}
+        className="absolute z-20 right-1 flex flex-col items-center gap-4 pointer-events-auto"
+        style={showCommentInput ? { bottom: `calc(${COMMENT_BAR_RESERVE} + 16px)` } : { bottom: 72 }}
       >
         {/* Votos */}
         <button aria-label="votes" onClick={(e) => e.stopPropagation()} className="flex flex-col items-center gap-1 w-14 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
@@ -916,7 +913,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
       {post.mediaType !== 'image' && (
         <div
           className="absolute left-0 right-0 z-20 h-[2px] bg-white/15"
-          style={showCommentInput ? { bottom: `calc(${NAV_CLEARANCE} + 64px + 64px)` } : { bottom: 64 }}
+          style={showCommentInput ? { bottom: `calc(${COMMENT_BAR_RESERVE} + 8px)` } : { bottom: 64 }}
         >
           <div className="h-full bg-white/80" style={{ width: `${progress}%`, transform: 'translateZ(0)' }} />
         </div>

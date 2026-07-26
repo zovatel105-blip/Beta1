@@ -291,7 +291,7 @@ const TABS = [
   },
 ]
 
-export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, onRequireAuth, onRequireLogin, onOpenProfile, username = null }) {
+export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, onRequireAuth, onRequireLogin, onOpenProfile, onPostViewerChange, username = null }) {
   const { user, updateUser, logout } = useAuth()
   const [profile, setProfile] = useState(null) // { user, posts } del endpoint
   const [posts, setPosts] = useState([])
@@ -397,6 +397,24 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
     })()
     return () => { cancelled = true }
   }, [open, targetUsername])
+
+  // Al cerrar el perfil por completo (open=false), cerramos también el visor
+  // de publicaciones si estaba abierto (si no, el post seguiría "abierto" en
+  // memoria y la barra de navegación inferior -avisada vía onPostViewerChange
+  // más abajo- se quedaría oculta para siempre tras volver al perfil).
+  useEffect(() => {
+    if (!open) setOpenPost(null)
+  }, [open])
+
+  // Avisa al padre (Feed.jsx) cuando el visor de UNA publicación del grid está
+  // abierto/cerrado, para que oculte la barra de navegación inferior mientras
+  // se ve el vídeo a pantalla completa (estilo inmersivo, igual que TikTok) —
+  // en su lugar se muestra la barra de "Añadir comentario" (QuickCommentInput).
+  useEffect(() => {
+    onPostViewerChange?.(!!openPost)
+    return () => { onPostViewerChange?.(false) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openPost])
 
   // Al eliminar una publicación (desde el menú de "tres puntos" del visor),
   // se emite el evento global 'twyk:postDeleted'. Aquí la quitamos del listado

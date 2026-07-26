@@ -132,15 +132,18 @@ como en la app nativa. Aclarado con el usuario: solo en el visor del grid (no en
 envío DIRECTO sin abrir el modal completo, sin iconos decorativos (solo botón enviar), placeholder
 en inglés, web primero y nativo pendiente de luz verde. Implementado en la WEB: nuevo
 `components/QuickCommentInput.jsx` (POST directo a `/api/comments`), nueva prop `showCommentInput`
-en `CarouselSlide.jsx`/`DuetSlide.jsx` (reubica cabecera/columna social/progreso hacia arriba),
-`ProfilePage.jsx` la activa solo en su `PostViewer`. BUG encontrado y corregido en el propio
-desarrollo: `BottomNav.jsx` (z-50) sigue visible sobre el visor y tapaba la barra si se posicionaba
-en `bottom:0`; corregido calculando la misma altura real de BottomNav para despejarla. Verificado
-visualmente en viewport MÓVIL (390x844) con capturas Playwright manuales (usuario pidió
-explícitamente no usar el agente de testing): comentario enviado, persistido en Mongo con id UUID,
-contador del rail social actualizado en vivo, sin overlaps, en publicaciones tipo carrusel y 1vs1.
-Se dejaron 2 posts de prueba en el perfil de lucia (grid) para que el usuario los use para verificar
-sin subir contenido real. Pendiente: luz verde del usuario para replicar en la app nativa Android.
+en `CarouselSlide.jsx`/`DuetSlide.jsx`, `ProfilePage.jsx` la activa solo en su `PostViewer`.
+AJUSTE (feedback inmediato del usuario): la barra de navegación inferior (BottomNav, z-50) seguía
+visible sobre el visor y competía en espacio con la nueva barra -> ahora se OCULTA POR COMPLETO
+mientras se ve una publicación del grid (estilo inmersivo, igual que TikTok): nuevo
+`onPostViewerChange` (ProfilePage.jsx -> Feed.jsx) que renderiza `<BottomNav>` condicionalmente.
+Verificado visualmente en viewport MÓVIL (390x844) con capturas Playwright manuales (usuario pidió
+explícitamente no usar el agente de testing): al abrir un post del grid, 0 elementos `<nav>` en el
+DOM y la barra 'Add a comment...' queda anclada al borde inferior real, sin overlaps, en
+publicaciones tipo carrusel y 1vs1; comentario persistido en Mongo (id UUID) y contador del rail
+social actualizado en vivo. Se dejaron 2 posts de prueba en el perfil de lucia (grid) para que el
+usuario los use para verificar sin subir contenido real. Pendiente: luz verde del usuario para
+replicar en la app nativa Android.
 
 ## Notas de infraestructura
 Ver `/app/memory/ENV_BACKUP.md` — causa raíz y procedimiento si `.env` o los datos de MongoDB desaparecen

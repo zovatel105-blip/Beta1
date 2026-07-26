@@ -110,6 +110,11 @@ export default function Feed() {
   const [suggestionsOpen, setSuggestionsOpen] = useState(false)
   const [battlesRefresh, setBattlesRefresh] = useState(0)
   const [pendingCount, setPendingCount] = useState(0)
+  // Visor de UNA publicación abierta desde el grid del perfil (propio o
+  // ajeno): mientras está abierto, la barra de navegación inferior se OCULTA
+  // (estilo inmersivo, igual que TikTok) y en su lugar se ve la barra de
+  // "Añadir comentario" (ver ProfilePage.jsx -> onPostViewerChange).
+  const [postViewerOpen, setPostViewerOpen] = useState(false)
   // Subida de reto en segundo plano: { status:'uploading'|'done'|'error', progress, username }
   const [challengeUpload, setChallengeUpload] = useState(null)
 
@@ -540,26 +545,28 @@ export default function Feed() {
           })}
         </div>
       )}
-      <BottomNav
-        onOpenUpload={requestUpload}
-        onOpenInbox={requestInbox}
-        onOpenProfile={() => { setProfileUsername(null); setProfileOpen(true) }}
-        onGoHome={() => {
-          setProfileOpen(false)
-          setInboxOpen(false)
-          setBattlesOpen(false)
-          setActiveChallengesOpen(false)
-        }}
-        onOpenBattles={requestBattles}
-        unreadCount={notificationsUnreadCount}
-        challengesCount={pendingCount}
-        activeTab={
-          profileOpen ? 'profile' :
-          inboxOpen ? 'messages' :
-          (battlesOpen || activeChallengesOpen) ? 'explore' :
-          'home'
-        }
-      />
+      {!postViewerOpen && (
+        <BottomNav
+          onOpenUpload={requestUpload}
+          onOpenInbox={requestInbox}
+          onOpenProfile={() => { setProfileUsername(null); setProfileOpen(true) }}
+          onGoHome={() => {
+            setProfileOpen(false)
+            setInboxOpen(false)
+            setBattlesOpen(false)
+            setActiveChallengesOpen(false)
+          }}
+          onOpenBattles={requestBattles}
+          unreadCount={notificationsUnreadCount}
+          challengesCount={pendingCount}
+          activeTab={
+            profileOpen ? 'profile' :
+            inboxOpen ? 'messages' :
+            (battlesOpen || activeChallengesOpen) ? 'explore' :
+            'home'
+          }
+        />
+      )}
       <ProfilePage
         open={profileOpen}
         username={profileUsername}
@@ -569,6 +576,7 @@ export default function Feed() {
         onChallenge={openChallenge}
         onRequireAuth={() => { setAuthTab('register'); setAuthOpen(true) }}
         onRequireLogin={() => { setAuthTab('login'); setAuthOpen(true) }}
+        onPostViewerChange={setPostViewerOpen}
       />
       <UploadDialog open={uploadOpen} initialMode={uploadInitialMode} onClose={() => setUploadOpen(false)} onUploaded={handleUploaded} onChallengeCreated={refreshChallenges} />
       <AuthModal key={authTab} open={authOpen} onClose={() => setAuthOpen(false)} defaultTab={authTab} />

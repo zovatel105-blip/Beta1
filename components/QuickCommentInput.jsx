@@ -60,8 +60,8 @@ export default function QuickCommentInput({ postId, votedSide = null, onPosted, 
       onClick={stop}
       onPointerDown={stop}
       onPointerUp={stop}
-      className="absolute left-0 right-0 z-20 px-3 pointer-events-auto"
-      style={{ bottom: 'calc(56px + max(env(safe-area-inset-bottom, 0px), 8px))', paddingTop: 10, paddingBottom: 8 }}
+      className="absolute left-0 right-0 bottom-0 z-20 px-3 pointer-events-auto"
+      style={{ paddingTop: 10, paddingBottom: 'max(env(safe-area-inset-bottom), 12px)' }}
     >
       <div className="flex items-center gap-1.5 bg-black/45 backdrop-blur-md border border-white/15 rounded-full pl-4 pr-1.5 py-1.5 shadow-lg">
         <input
