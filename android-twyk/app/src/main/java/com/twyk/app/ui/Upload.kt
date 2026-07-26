@@ -430,7 +430,7 @@ private fun FileStep(
                         verticalArrangement = Arrangement.spacedBy(2.dp),
                     ) {
                         MediaSlot(uriA, kindA, onPickA, small = true, modifier = Modifier.weight(1f).fillMaxWidth().clipToBounds())
-                        MediaSlot(uriB, kindB, onPickB, small = true, modifier = Modifier.weight(1f).fillMaxWidth().clipToBounds())
+                        MediaSlot(uriB, kindB, onPickB, small = true, atTop = false, modifier = Modifier.weight(1f).fillMaxWidth().clipToBounds())
                     }
                 }
             }
@@ -558,8 +558,22 @@ private fun LayoutSeg(label: String, icon: ImageVector, active: Boolean, onClick
 // Una "mitad" del split (o pantalla completa): vídeo/foto en vivo con botón
 // "Change" arriba a la derecha, o placeholder para subir (réplica de renderSlot
 // de la web; small=true usa los tamaños del split A/B, small=false los del reto).
+// `atTop`: si este slot concreto toca el borde SUPERIOR real de la pantalla
+// (pantalla completa en versus/reto, o CUALQUIERA de los 2 lados en el split
+// vertical -uno junto al otro-, o solo el lado A en el split horizontal
+// -apilados-), el botón "Change" debe respetar la barra de estado del
+// sistema (`.statusBarsPadding()`) igual que ya hace la cabecera propia de
+// FileStep — BUG reportado por el usuario ("en el preview... no se respeta
+// la barra de estado"): antes SIEMPRE se posicionaba con solo 8dp de margen
+// desde el borde absoluto de la pantalla (`Modifier.align(Alignment.TopEnd)
+// .padding(8.dp)`), sin ningún ajuste de safe-area, por lo que quedaba
+// parcialmente oculto detrás/debajo de los iconos de la barra de estado (la
+// app dibuja el contenido EDGE-TO-EDGE, ver `WindowCompat
+// .setDecorFitsSystemWindows(window, false)` en MainActivity.kt) — a
+// diferencia de la cabecera de FileStep (flecha atrás / X), que sí ya tenía
+// `.statusBarsPadding()` y por eso se veía correctamente más abajo.
 @Composable
-private fun MediaSlot(uri: Uri?, kind: String?, onPick: () -> Unit, small: Boolean, modifier: Modifier) {
+private fun MediaSlot(uri: Uri?, kind: String?, onPick: () -> Unit, small: Boolean, atTop: Boolean = true, modifier: Modifier) {
     Box(modifier.background(Color.Black)) {
         if (uri != null) {
             if (kind == "image") {
@@ -568,7 +582,9 @@ private fun MediaSlot(uri: Uri?, kind: String?, onPick: () -> Unit, small: Boole
                 LocalVideoPreview(uri, Modifier.fillMaxSize())
             }
             Box(
-                Modifier.align(Alignment.TopEnd).padding(8.dp).clip(RoundedCornerShape(50))
+                Modifier.align(Alignment.TopEnd)
+                    .then(if (atTop) Modifier.statusBarsPadding() else Modifier)
+                    .padding(8.dp).clip(RoundedCornerShape(50))
                     .background(Color.Black.copy(alpha = 0.55f)).clickable { onPick() }.padding(horizontal = 10.dp, vertical = 4.dp),
             ) { Text("Change", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.SemiBold) }
         } else {
