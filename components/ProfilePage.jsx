@@ -235,7 +235,7 @@ const PostViewer = ({ posts, startId, onClose, onChallenge, onOpenProfile }) => 
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
-        className="absolute inset-0 h-[100dvh] w-full overflow-y-auto snap-y snap-mandatory no-scrollbar overscroll-y-contain"
+        className="absolute inset-0 h-[100lvh] w-full overflow-y-auto snap-y snap-mandatory no-scrollbar overscroll-y-contain"
       >
         <div
           style={{
@@ -251,7 +251,7 @@ const PostViewer = ({ posts, startId, onClose, onChallenge, onOpenProfile }) => 
               <section
                 key={post.id}
                 data-vindex={i}
-                className="h-[100dvh] w-full snap-start snap-always relative"
+                className="h-[100lvh] w-full snap-start snap-always relative"
               >
                 {inWindow ? (
                   <Slide
