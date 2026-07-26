@@ -4,7 +4,6 @@ package com.twyk.app.ui
 
 import android.content.Context
 import android.net.Uri
-import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -58,8 +57,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.BlurredEdgeTreatment
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -617,31 +614,12 @@ private fun EmptyCompleted(onCreate: () -> Unit, onActive: () -> Unit) {
     ) {
         // Glow blanco alrededor del marco — réplica de `boxShadow: '0 0 48px
         // -14px rgba(255,255,255,.45)'` de la web (CompletedBattlesPage.jsx).
-        // BUG reportado por el usuario ("lo mismo ocurre con el icono de
-        // trofeo... debe ser 100% igual a la web", mismo patrón ya corregido
-        // en el icono de 'Crear contenido'): `Modifier.shadow(spotColor=...,
-        // ambientColor=...)` es un shadow de ELEVACIÓN de Android — los
-        // colores personalizados (spotColor/ambientColor) solo tienen efecto
-        // real desde API 28, y aun así simulan una fuente de luz direccional
-        // desde arriba (más sombra abajo), NUNCA un halo simétrico en todas
-        // direcciones como el box-shadow con offset 0 de la web — por eso no
-        // se veía igual (o no se veía en absoluto en dispositivos <API 28).
-        // 2º BUG reportado ("quiero que se vea como la web 100%", con captura
-        // comparativa): la primera aproximación (3 capas `radialGradient` con
-        // fundido LINEAL centro->borde) se veía notablemente MÁS GRANDE/
-        // difusa que el box-shadow real de la web — un blur CSS real (48px)
-        // sobre una forma ya reducida por el spread negativo (-14px) produce
-        // un halo bastante más CONCENTRADO/contenido que un simple degradado
-        // lineal a la misma escala (el degradado lineal sigue teniendo alfa
-        // perceptible mucho más lejos del centro que un blur gaussiano real,
-        // cuya intensidad cae mucho más rápido salvo un remanente tenue).
-        // FIX real: ver `ChallengeIconGlow` más abajo — en API 31+ usa un
-        // `Modifier.blur` DE VERDAD (RenderEffect) sobre un círculo ya
-        // reducido por el spread, réplica casi exacta del box-shadow; en
-        // versiones anteriores (sin RenderEffect) cae a una versión más
-        // ajustada/concentrada de las capas de degradado (ya no tan grande).
+        // Ver el composable `ChallengeIconGlow` (más abajo en este archivo)
+        // para el detalle completo de las 2 rondas de ajuste ya aplicadas
+        // (1ª: demasiado grande/difuso; 2ª: hueco en el centro) y el fix
+        // final (degradado radial de varias paradas, sin usar `Modifier.blur`).
         Box(contentAlignment = Alignment.Center) {
-            ChallengeIconGlow(iconSizeDp = 80.dp, blurDp = 48.dp, spreadDp = (-14).dp, alpha = 0.45f)
+            ChallengeIconGlow(iconSizeDp = 80.dp, alpha = 0.45f)
             Box(
                 Modifier.size(80.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.03f)).border(1.dp, Color.White.copy(alpha = 0.10f), CircleShape),
                 contentAlignment = Alignment.Center,
@@ -686,7 +664,7 @@ private fun EmptyActive() {
         // (`boxShadow: '0 0 48px -14px rgba(255,255,255,.42)'`,
         // ActiveChallengesPage.jsx) — mismo `ChallengeIconGlow`, alfa 0.42.
         Box(contentAlignment = Alignment.Center) {
-            ChallengeIconGlow(iconSizeDp = 80.dp, blurDp = 48.dp, spreadDp = (-14).dp, alpha = 0.42f)
+            ChallengeIconGlow(iconSizeDp = 80.dp, alpha = 0.42f)
             Box(
                 Modifier.size(80.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.03f)).border(1.dp, Color.White.copy(alpha = 0.10f), CircleShape),
                 contentAlignment = Alignment.Center,
@@ -699,37 +677,44 @@ private fun EmptyActive() {
     }
 }
 
-// Réplica fiel de un box-shadow CSS difuminado y simétrico — offset 0 0,
-// blur `blurDp`, spread `spreadDp` (negativo = la forma de la sombra se
-// REDUCE antes de difuminarse) y color blanco con `alpha` — usado para el
-// glow del icono (trofeo/espadas) de los estados vacíos de Batallas
-// (idéntico patrón al box-shadow real de CompletedBattlesPage.jsx /
-// ActiveChallengesPage.jsx). En API 31+ (Android 12+) usa un BLUR REAL
-// (RenderEffect vía `Modifier.blur`, `BlurredEdgeTreatment.Unbounded` para
-// que el halo se pinte libremente MÁS ALLÁ del tamaño de su propia forma en
-// vez de recortarse en el borde) sobre un círculo blanco cuyo tamaño ya
-// incorpora el spread negativo — resultado prácticamente IDÉNTICO al de la
-// web. En API <31 (RenderEffect no disponible, minSdk de la app es 24) cae a
-// una aproximación por capas de `radialGradient`, esta vez dimensionada
-// alrededor de la forma YA reducida por el spread (no del icono completo)
-// para que no se vea desproporcionadamente más grande que el blur real.
+// Réplica del box-shadow CSS difuminado y simétrico de la web (offset 0 0,
+// blur 48px, spread -14px, color blanco con `alpha`) — usado para el glow
+// del icono (trofeo/espadas) de los estados vacíos de Batallas.
+// 2º INTENTO (el anterior usaba `Modifier.blur` real sobre una forma
+// reducida por el spread -14px a solo 52dp — MUCHO más pequeña que el
+// propio icono de 80dp): el usuario reportó que el resultado se veía como
+// un ANILLO hueco alrededor del icono, SIN iluminar el interior — un blur
+// gaussiano real sobre una forma tan pequeña frente a un radio de difuminado
+// tan grande (48dp) atenúa demasiado el propio centro de la forma, y al
+// quedar ese centro oculto bajo el propio icono (relleno casi invisible,
+// alfa 3%) el resultado percibido es justo ese "hueco". FIX: se abandona el
+// blur real (dependiente de RenderEffect/API 31+ y de este comportamiento
+// difícil de calibrar sin poder compilar/ver el resultado en este entorno)
+// por un ÚNICO degradado radial de VARIAS paradas de color (en vez de solo
+// 2 -centro/transparente-, que es lo que hacía que la versión ANTERIOR a
+// esta ronda se viera "demasiado grande/difusa": un degradado de 2 paradas
+// decae LINEALMENTE, con alfa aún perceptible muy lejos del centro). Con 4
+// paradas (100%/55%/20%/0% de `alpha`, en 0%/50%/75%/100% del radio) el
+// centro queda SIEMPRE al máximo brillo (garantizado por construcción, nunca
+// puede formarse un hueco: el brillo solo puede decrecer al alejarse del
+// centro) y aun así el borde del propio icono (a ~53% del radio total de
+// esta forma) conserva un ~50% del alfa máximo -bien visible, sin hueco-,
+// mientras el halo se apaga con más rapidez pasado ese punto -contenido,
+// sin el exceso de difusión del primer intento-. Funciona IDÉNTICO en
+// cualquier versión de Android (minSdk 24), sin depender de RenderEffect.
 @Composable
-private fun ChallengeIconGlow(iconSizeDp: Dp, blurDp: Dp, spreadDp: Dp, alpha: Float) {
-    val shadowShapeSize = iconSizeDp + spreadDp * 2 // spread negativo reduce la forma en ambos lados
-    Box(Modifier.size(iconSizeDp + blurDp * 2.6f), contentAlignment = Alignment.Center) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            Box(
-                Modifier
-                    .size(shadowShapeSize)
-                    .blur(radius = blurDp, edgeTreatment = BlurredEdgeTreatment.Unbounded)
-                    .background(Color.White.copy(alpha = alpha), CircleShape),
-            )
-        } else {
-            Box(Modifier.size(shadowShapeSize + blurDp * 2.2f).background(Brush.radialGradient(listOf(Color.White.copy(alpha = alpha * 0.16f), Color.Transparent))))
-            Box(Modifier.size(shadowShapeSize + blurDp * 1.3f).background(Brush.radialGradient(listOf(Color.White.copy(alpha = alpha * 0.32f), Color.Transparent))))
-            Box(Modifier.size(shadowShapeSize + blurDp * 0.6f).background(Brush.radialGradient(listOf(Color.White.copy(alpha = alpha * 0.6f), Color.Transparent))))
-        }
-    }
+private fun ChallengeIconGlow(iconSizeDp: Dp, alpha: Float) {
+    val totalSize = iconSizeDp + 70.dp // ~150dp para un icono de 80dp: halo contenido, ~35dp más allá del borde
+    Box(
+        Modifier.size(totalSize).background(
+            Brush.radialGradient(
+                0f to Color.White.copy(alpha = alpha),
+                0.5f to Color.White.copy(alpha = alpha * 0.55f),
+                0.75f to Color.White.copy(alpha = alpha * 0.2f),
+                1f to Color.Transparent,
+            ),
+        ),
+    )
 }
 
 private fun videoPart(context: Context, name: String, uri: Uri): MultipartBody.Part {
