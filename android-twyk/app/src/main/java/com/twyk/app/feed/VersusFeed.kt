@@ -2005,6 +2005,27 @@ fun VSContentCard(
             .pointerInput(Unit) { detectTapGestures { onClose() } },
         contentAlignment = Alignment.Center,
     ) {
+        // Glow blanco alrededor del marco de la card — réplica de `boxShadow:
+        // '0 0 60px 8px rgba(255,255,255,.35), 0 0 120px 24px
+        // rgba(255,255,255,.15)'` de la web (VSContentCard.jsx). BUG
+        // reportado por el usuario ("debe aparecer el glow como en la web"
+        // — faltaba por completo, solo había un borde de 1dp sin ningún
+        // resplandor). Compose no tiene un blur de color fiable desde
+        // minSdk 24 (mismo motivo ya documentado en los demás glows de esta
+        // sesión — icono de 'Crear contenido', trofeo/espadas de Retos); se
+        // aproxima con 3 capas rounded-rect BLANCAS ligeramente más grandes
+        // que la card real (mismo aspect-ratio, escaladas desde el centro),
+        // alfa decreciente hacia fuera — un contorno expandido "por capas"
+        // que sigue la FORMA real de la card (no un círculo genérico).
+        listOf(1.16f to 0.08f, 1.09f to 0.16f, 1.03f to 0.26f).forEach { (scale, alpha) ->
+            Box(
+                Modifier
+                    .fillMaxHeight(0.85f * scale)
+                    .aspectRatio(9f / 17.5f, matchHeightConstraintsFirst = true)
+                    .clip(RoundedCornerShape(24.dp * scale))
+                    .background(Color.White.copy(alpha = alpha)),
+            )
+        }
         Box(
             Modifier
                 .fillMaxHeight(0.85f)
