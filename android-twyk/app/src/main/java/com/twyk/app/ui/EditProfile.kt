@@ -82,8 +82,14 @@ import java.io.FileOutputStream
 // avatar (con recorte circular ajustable), nombre y bio. Guarda con
 // POST /api/profile (multipart: name, bio, avatar?).
 private const val CROP_DIAMETER_DP = 260
+// `MIN_CROP_SCALE`=1 es un multiplicador RELATIVO sobre `baseCoverScale`
+// (calculado más abajo a partir del tamaño real del bitmap, réplica de
+// `getMinCoverScale` en CircularCrop.jsx) — 1 = "recién cubre el círculo,
+// sin zoom extra". `MAX_ABSOLUTE_SCALE`=4 es la escala ABSOLUTA máxima
+// (píxeles del bitmap -> píxeles de pantalla), idéntica a `MAX_SCALE` de la
+// web.
 private const val MIN_CROP_SCALE = 1f
-private const val MAX_CROP_SCALE = 4f
+private const val MAX_ABSOLUTE_SCALE = 4f
 private const val CROP_OUTPUT_PX = 640
 
 @Composable
@@ -259,6 +265,23 @@ fun EditProfileScreen(
 // Título "Crop" arriba, imagen dentro de un círculo (arrastrar para mover,
 // pellizcar para zoom) y botones Cancel / Save abajo. Sin botón X ni controles
 // de zoom extra (igual que la versión final acordada en la web).
+//
+// BUG reportado por el usuario ("no puedo moverla, solo puedo hacer zoom"):
+// la versión anterior mostraba la imagen con `ContentScale.Crop` de Compose
+// (que ya recorta/centra internamente para llenar el círculo EXACTO en ambos
+// ejes, descartando el sobrante en el render) y limitaba el arrastre con
+// `maxOffset = diámetro*(scale-1)/2` — a la escala inicial (scale=1, el
+// mínimo permitido) ese límite es SIEMPRE 0, así que cualquier arrastre se
+// anulaba de inmediato salvo que el usuario hiciera zoom primero. La web
+// NUNCA tiene este problema porque dibuja la imagen COMPLETA a su escala real
+// (`getMinCoverScale`, que solo iguala el eje MÁS PEQUEÑO del círculo — el
+// otro eje casi siempre sobra) y por eso ya se puede arrastrar en ese eje
+// desde el primer instante, sin necesidad de zoom extra. FIX: se calcula
+// `baseCoverScale` (idéntico a `getMinCoverScale`) a partir del tamaño real
+// del bitmap, la imagen se dibuja a su tamaño EXACTO (`Modifier.size(...)`,
+// sin ningún `ContentScale` que recorte por su cuenta) y el límite de
+// arrastre usa ese tamaño real — réplica exacta de `clampPosition` en
+// CircularCrop.jsx.
 @Composable
 private fun CircularCropOverlay(
     imageUri: Uri,
@@ -271,6 +294,9 @@ private fun CircularCropOverlay(
 
     var bitmap by remember(imageUri) { mutableStateOf<Bitmap?>(null) }
     var loadError by remember(imageUri) { mutableStateOf(false) }
+    // `scale` es un multiplicador RELATIVO sobre `baseCoverScale` (1 = recién
+    // cubre el círculo, igual semántica que la web). `offset` sigue en
+    // píxeles de PANTALLA (no de bitmap), igual que antes.
     var scale by remember(imageUri) { mutableStateOf(1f) }
     var offset by remember(imageUri) { mutableStateOf(Offset.Zero) }
     var saving by remember { mutableStateOf(false) }
@@ -283,9 +309,28 @@ private fun CircularCropOverlay(
         loadError = decoded == null
     }
 
-    fun clamp(o: Offset, s: Float): Offset {
-        val maxOffset = (cropDiameterPx * (s - 1f) / 2f).coerceAtLeast(0f)
-        return Offset(o.x.coerceIn(-maxOffset, maxOffset), o.y.coerceIn(-maxOffset, maxOffset))
+    // Escala "cover" real (píxeles de bitmap -> píxeles de pantalla) que hace
+    // que la imagen cubra el círculo por completo en AMBOS ejes — solo el eje
+    // más corto queda exacto, el otro sobra (y por tanto se puede arrastrar en
+    // él incluso sin zoom extra). Réplica exacta de `getMinCoverScale`.
+    val baseCoverScale = remember(bitmap, cropDiameterPx) {
+        val bmp = bitmap
+        if (bmp == null || bmp.width <= 0 || bmp.height <= 0) 1f
+        else maxOf(cropDiameterPx / bmp.width.toFloat(), cropDiameterPx / bmp.height.toFloat())
+    }
+
+    // Límite de arrastre real (réplica de `clampPosition`): calculado sobre
+    // la escala ABSOLUTA (baseCoverScale * scale) y el tamaño real del
+    // bitmap, no sobre `scale` a solas.
+    fun clamp(o: Offset, relativeScale: Float): Offset {
+        val bmp = bitmap ?: return Offset.Zero
+        val effectiveScale = baseCoverScale * relativeScale
+        val scaledW = bmp.width * effectiveScale
+        val scaledH = bmp.height * effectiveScale
+        val radius = cropDiameterPx / 2f
+        val maxOffsetX = maxOf(0f, (scaledW / 2f) - radius)
+        val maxOffsetY = maxOf(0f, (scaledH / 2f) - radius)
+        return Offset(o.x.coerceIn(-maxOffsetX, maxOffsetX), o.y.coerceIn(-maxOffsetY, maxOffsetY))
     }
 
     Box(Modifier.fillMaxSize().background(Color.White)) {
@@ -303,26 +348,27 @@ private fun CircularCropOverlay(
                                 .size(CROP_DIAMETER_DP.dp)
                                 .clip(CircleShape)
                                 .border(3.dp, Color(0xFFE5E7EB), CircleShape)
-                                .pointerInput(imageUri) {
-                                    detectTransformGestures { _, pan, zoom, _ ->
-                                        val newScale = (scale * zoom).coerceIn(MIN_CROP_SCALE, MAX_CROP_SCALE)
+                                .pointerInput(imageUri, baseCoverScale) {
+                                    detectTransformGestures { _, pan, zoomDelta, _ ->
+                                        val maxRelative = (MAX_ABSOLUTE_SCALE / baseCoverScale.coerceAtLeast(0.0001f))
+                                            .coerceAtLeast(MIN_CROP_SCALE)
+                                        val newScale = (scale * zoomDelta).coerceIn(MIN_CROP_SCALE, maxRelative)
                                         scale = newScale
                                         offset = clamp(offset + pan, newScale)
                                     }
                                 },
+                            contentAlignment = Alignment.Center,
                         ) {
+                            val effectiveScale = baseCoverScale * scale
+                            val imgWidthPx = bmp.width * effectiveScale
+                            val imgHeightPx = bmp.height * effectiveScale
                             Image(
                                 bitmap = bmp.asImageBitmap(),
                                 contentDescription = null,
-                                contentScale = ContentScale.Crop,
+                                contentScale = ContentScale.FillBounds,
                                 modifier = Modifier
-                                    .fillMaxSize()
-                                    .graphicsLayer(
-                                        scaleX = scale,
-                                        scaleY = scale,
-                                        translationX = offset.x,
-                                        translationY = offset.y,
-                                    ),
+                                    .size(with(density) { imgWidthPx.toDp() }, with(density) { imgHeightPx.toDp() })
+                                    .graphicsLayer(translationX = offset.x, translationY = offset.y),
                             )
                         }
                     }

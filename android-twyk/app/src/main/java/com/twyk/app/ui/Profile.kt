@@ -35,6 +35,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -70,6 +71,7 @@ import com.twyk.app.absoluteUrl
 import com.twyk.app.data.Post
 import com.twyk.app.data.PostEvents
 import com.twyk.app.data.ProfileUser
+import com.twyk.app.data.FullScreenOverlays
 import com.twyk.app.data.RetrofitProvider
 import com.twyk.app.data.Session
 import com.twyk.app.data.Stats
@@ -142,6 +144,25 @@ fun ProfileScreen(
     val isOwn = username == null || target == Session.user?.username
     val votos = posts.sumOf { (it.votes?.a ?: 0) + (it.votes?.b ?: 0) }
     val retos = posts.count { it.type == "versus" }
+
+    // BUG reportado por el usuario ("aparece la barra de navegación inferior
+    // que no debería aparecer" al recortar la foto de perfil): "Edit profile"
+    // (y su recorte circular anidado) es una pantalla A PANTALLA COMPLETA que
+    // vive DENTRO de ProfileScreen, la cual a su vez vive DENTRO de la rama
+    // "Tab.Profile" de MainActivity — declarada ANTES que TwykBottomNav en el
+    // mismo Box, así que la barra se pintaba siempre por encima (ver
+    // FullScreenOverlays.kt para la causa raíz completa, mismo patrón que
+    // FeedOverlays). FIX: reflejar `editOpen` (solo si es mi propio perfil)
+    // en el singleton observable para que MainActivity oculte la barra
+    // mientras esta pantalla esté abierta — igual que la web, donde
+    // EditProfileModal/CircularCrop son overlays de pantalla completa sin
+    // ninguna barra de navegación inferior visible.
+    LaunchedEffect(editOpen, isOwn) {
+        if (isOwn) FullScreenOverlays.editProfileOpen = editOpen
+    }
+    DisposableEffect(Unit) {
+        onDispose { if (isOwn) FullScreenOverlays.editProfileOpen = false }
+    }
 
     // Cargar publicaciones GUARDADAS al abrir la pestaña "saved" (solo perfil propio).
     LaunchedEffect(activeTab, target, isOwn) {
