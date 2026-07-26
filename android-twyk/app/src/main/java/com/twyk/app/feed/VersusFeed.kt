@@ -1075,6 +1075,15 @@ private fun BoxScope.SocialRail(
     var challengeCount by remember(post.id) {
         mutableStateOf(maxOf(post.stats?.challenges ?: 0, SocialCountStore.getInt(SocialCountStore.challengesKey(post.id))))
     }
+    // BUG reportado por el usuario ("el contador de compartir no muestra
+    // número" + "los botones sociales deben actualizar el contador en el
+    // instante"): antes se leía SIEMPRE `post.stats?.shares` (estático, casi
+    // siempre 0 porque nada lo incrementaba nunca, ni aquí ni en el
+    // backend) — mismo problema que ya tenían "Save"/"Challenge" antes de
+    // corregirse. Mismo patrón exacto que `challengeCount` de arriba.
+    var shareCount by remember(post.id) {
+        mutableStateOf(maxOf(post.stats?.shares ?: 0, SocialCountStore.getInt(SocialCountStore.sharesKey(post.id))))
+    }
     // Escucha los retos creados contra ESTA publicación para incrementar el
     // contador al instante (réplica del listener de `twyk:challenged` en la web).
     LaunchedEffect(post.id) {
@@ -1083,6 +1092,18 @@ private fun BoxScope.SocialRail(
                 val next = challengeCount + 1
                 challengeCount = next
                 SocialCountStore.setInt(SocialCountStore.challengesKey(post.id), next)
+            }
+        }
+    }
+    // Escucha cuando el usuario comparte ESTA publicación (ShareSheet, ver
+    // ui/Sheets.kt) para incrementar el contador al instante — réplica de
+    // `onShared={() => setShareCount((n) => n + 1)}` en ShareModal.jsx (web).
+    LaunchedEffect(post.id) {
+        PostEvents.shared.collect { pid ->
+            if (pid == post.id) {
+                val next = shareCount + 1
+                shareCount = next
+                SocialCountStore.setInt(SocialCountStore.sharesKey(post.id), next)
             }
         }
     }
@@ -1124,7 +1145,7 @@ private fun BoxScope.SocialRail(
         // que MainActivity la pinte POR ENCIMA de la barra de navegación
         // inferior, en vez de renderizarla aquí mismo (anidada dentro del
         // feed, donde quedaba tapada por esa barra).
-        RailItem(ImageVector.vectorResource(R.drawable.ic_share), label(post.stats?.shares ?: 0, "Share"), Color.White, size = 30) { FeedOverlays.openShare(post.id) }
+        RailItem(ImageVector.vectorResource(R.drawable.ic_share), label(shareCount, "Share"), Color.White, size = 30) { FeedOverlays.openShare(post.id) }
         // Save (bookmark, same as the web) — actualización OPTIMISTA del
         // número + persistencia (SocialCountStore) y reversión si la API falla,
         // réplica de handleSaveToggle en la web.

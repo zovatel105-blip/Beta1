@@ -91,6 +91,25 @@ object PostEvents {
     suspend fun emitChallenged(postId: String) {
         _challenged.emit(postId)
     }
+
+    // Notifica cuando el usuario COMPARTE una publicación (cualquier opción
+    // de ShareSheet.kt: Send to/Copy link/Instagram/WhatsApp/X), para
+    // incrementar AL INSTANTE el contador de "Share" en la tarjeta cuyo
+    // postId coincida — réplica nativa exacta del callback `onShared` que
+    // ShareModal.jsx recibe de CarouselSlide.jsx/DuetSlide.jsx en la web
+    // (`onShared={() => setShareCount((n) => n + 1)}`, incremento puramente
+    // local/optimista, sin llamada al backend en ninguna de las 2
+    // plataformas). BUG reportado por el usuario ("el contador de compartir
+    // no muestra número" y "los botones sociales deben actualizar el
+    // contador en el instante"): antes `ShareSheet` no emitía nada y
+    // `SocialRail` leía siempre `post.stats?.shares` (estático, casi siempre
+    // 0 porque nada lo incrementaba nunca) — el número nunca aparecía.
+    private val _shared = MutableSharedFlow<String>(extraBufferCapacity = 8)
+    val shared = _shared.asSharedFlow()
+
+    suspend fun emitShared(postId: String) {
+        _shared.emit(postId)
+    }
 }
 
 // Banner de "reto enviado en segundo plano" (equivalente a `challengeUpload`

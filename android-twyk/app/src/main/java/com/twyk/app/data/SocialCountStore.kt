@@ -25,7 +25,9 @@ object SocialCountStore {
     }
 
     // Claves por publicación (mismo esquema que la web: `savN_<id>` guardados,
-    // `chlN_<id>` retos).
+    // `chlN_<id>` retos, `shrN_<id>` compartidos — mismo prefijo EXACTO que
+    // usa la web en localStorage, ver CarouselSlide.jsx/DuetSlide.jsx).
     fun savesKey(postId: String) = "savN_$postId"
     fun challengesKey(postId: String) = "chlN_$postId"
+    fun sharesKey(postId: String) = "shrN_$postId"
 }

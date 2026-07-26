@@ -182,21 +182,21 @@ fun ShareSheet(postId: String, onClose: () -> Unit) {
                 Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 24.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                ShareOptionIcon("Send to", Icons.Filled.Send, zinc100, zinc700) { sendTo(); onClose() }
+                ShareOptionIcon("Send to", Icons.Filled.Send, zinc100, zinc700) { sendTo(); scope.launch { PostEvents.emitShared(postId) }; onClose() }
                 ShareOptionIcon(
                     if (copied) "Copied" else "Copy link",
                     if (copied) Icons.Filled.Check else Icons.Filled.Link,
                     zinc100, if (copied) green600 else zinc700,
-                ) { copyLink() }
+                ) { copyLink(); scope.launch { PostEvents.emitShared(postId) } }
                 ShareOptionIcon(
                     "Instagram", ImageVector.vectorResource(R.drawable.ic_instagram), null, Color.White,
                     gradient = Brush.linearGradient(listOf(Color(0xFFFACC15), Color(0xFFEC4899), Color(0xFF9333EA))),
-                ) { openUrl("https://www.instagram.com/"); onClose() }
+                ) { openUrl("https://www.instagram.com/"); scope.launch { PostEvents.emitShared(postId) }; onClose() }
                 ShareOptionIcon("WhatsApp", ImageVector.vectorResource(R.drawable.ic_whatsapp), Color(0xFF25D366), Color.White) {
-                    openUrl("https://wa.me/?text=" + Uri.encode(shareUrl)); onClose()
+                    openUrl("https://wa.me/?text=" + Uri.encode(shareUrl)); scope.launch { PostEvents.emitShared(postId) }; onClose()
                 }
                 ShareOptionIcon("X", ImageVector.vectorResource(R.drawable.ic_x_logo), Color.Black, Color.White) {
-                    openUrl("https://twitter.com/intent/tweet?url=" + Uri.encode(shareUrl)); onClose()
+                    openUrl("https://twitter.com/intent/tweet?url=" + Uri.encode(shareUrl)); scope.launch { PostEvents.emitShared(postId) }; onClose()
                 }
             }
         }
