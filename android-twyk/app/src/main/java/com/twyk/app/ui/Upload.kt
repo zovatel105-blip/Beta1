@@ -53,6 +53,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.BlurredEdgeTreatment
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Brush
@@ -298,26 +300,33 @@ private fun ModeStep(selected: String, onSelect: (String) -> Unit, onContinue: (
         }
 
         Column(Modifier.weight(1f).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            // Caja del icono con GLOW alrededor del marco — réplica de
-            // `boxShadow: '0 0 60px -14px rgba(255,255,255,.45)'` de la web
-            // (UploadDialog.jsx, paso "mode"). BUG reportado por el usuario
-            // ("los iconos... no llevan el glow alrededor del marco... como
-            // en la web"): Compose no tiene un modificador de "box-shadow"
-            // con blur+color fiable desde minSdk 24 (`Modifier.blur` real vía
-            // RenderEffect exige API 31+, mismo motivo ya documentado para la
-            // sombra del burst de voto en VersusFeed.kt), así que se
-            // aproxima con VARIAS capas de `Brush.radialGradient`
-            // concéntricas (de mayor a menor, alfa CRECIENTE hacia el centro)
-            // en vez de una sola capa muy tenue (alfa 0.16, prácticamente
-            // imperceptible) como antes — así se concentra más brillo justo
-            // alrededor del borde de la caja y se difumina gradualmente hacia
-            // fuera, más parecido a un blur real que una única capa plana.
+            // Caja del icono con GLOW alrededor del marco — réplica EXACTA
+            // (valor por valor) de `boxShadow: '0 0 60px -14px
+            // rgba(255,255,255,.45)'` de la web (UploadDialog.jsx, paso
+            // "mode"). Misma técnica ya validada en VSContentCard/Battles.kt
+            // (`Modifier.blur` real, RenderEffect) en vez de capas de
+            // degradado ajustadas a mano, a petición del usuario de una
+            // réplica "token por token" en toda la app. El spread es
+            // NEGATIVO (-14dp): la forma a difuminar (96dp-2×14dp=68dp) es
+            // más pequeña que la propia caja del icono (96dp) — para
+            // garantizar que el interior de esa caja se vea 100% negro/plano
+            // (mismo criterio ya validado en Battles.kt), su relleno pasa de
+            // translúcido (`bg-white/[0.04]` en la web) a `TwykBg` sólido
+            // (igual que el fondo de la pantalla), bloqueando cualquier
+            // brillo del blur que caiga dentro de sus propios 96dp — solo
+            // queda visible la parte del halo que se extiende más allá del
+            // borde. El radio de esquina de la forma a difuminar se reduce
+            // proporcionalmente (28dp + spread = 14dp), igual que ajusta un
+            // navegador el radio de un box-shadow con spread negativo.
             Box(contentAlignment = Alignment.Center) {
-                Box(Modifier.size(210.dp).background(Brush.radialGradient(listOf(Color.White.copy(alpha = 0.10f), Color.Transparent))))
-                Box(Modifier.size(155.dp).background(Brush.radialGradient(listOf(Color.White.copy(alpha = 0.20f), Color.Transparent))))
-                Box(Modifier.size(115.dp).background(Brush.radialGradient(listOf(Color.White.copy(alpha = 0.34f), Color.Transparent))))
                 Box(
-                    Modifier.size(96.dp).clip(RoundedCornerShape(28.dp)).background(Color.White.copy(alpha = 0.04f)).border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(28.dp)),
+                    Modifier
+                        .size(96.dp - 28.dp) // 96dp - 2×14dp de spread = 68dp
+                        .blur(radius = 60.dp, edgeTreatment = BlurredEdgeTreatment.Unbounded)
+                        .background(Color.White.copy(alpha = 0.45f), RoundedCornerShape(14.dp)), // 28dp + (-14dp) de spread
+                )
+                Box(
+                    Modifier.size(96.dp).clip(RoundedCornerShape(28.dp)).background(TwykBg).border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(28.dp)),
                     contentAlignment = Alignment.Center,
                 ) {
                     val icon: ImageVector = when (selected) {

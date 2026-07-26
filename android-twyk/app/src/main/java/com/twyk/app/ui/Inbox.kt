@@ -43,6 +43,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.BlurredEdgeTreatment
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -364,11 +366,31 @@ private fun NotiEmpty(filter: String, label: String) {
         Modifier.fillMaxSize().padding(top = 100.dp, start = 24.dp, end = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Box(
-            Modifier.size(80.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.03f)).border(1.dp, Color.White.copy(alpha = 0.10f), CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(Icons.Outlined.Notifications, null, tint = TwykGold, modifier = Modifier.size(36.dp))
+        // Glow blanco alrededor del marco — réplica EXACTA (valor por valor)
+        // de `boxShadow: '0 0 48px -14px rgba(255,255,255,.4)'` de la web
+        // (NotificationsInbox.jsx, estado vacío "No notifications"/"Nothing
+        // here") — FALTABA POR COMPLETO en el nativo (ni siquiera un intento
+        // aproximado). Misma técnica ya validada en Battles.kt (icono
+        // circular, mismo spread negativo -14dp): `Modifier.blur` real sobre
+        // un círculo ya reducido por el spread (80dp-2×14dp=52dp), y el
+        // relleno del propio círculo del icono pasa de translúcido
+        // (`bg-white/[0.03]` en la web) a `TwykBg` sólido para garantizar que
+        // su interior se vea 100% negro/plano (mismo criterio ya validado),
+        // dejando visible solo la parte del halo que se extiende más allá
+        // de su borde.
+        Box(contentAlignment = Alignment.Center) {
+            Box(
+                Modifier
+                    .size(80.dp - 28.dp) // 80dp - 2×14dp de spread = 52dp
+                    .blur(radius = 48.dp, edgeTreatment = BlurredEdgeTreatment.Unbounded)
+                    .background(Color.White.copy(alpha = 0.4f), CircleShape),
+            )
+            Box(
+                Modifier.size(80.dp).clip(CircleShape).background(TwykBg).border(1.dp, Color.White.copy(alpha = 0.10f), CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.Outlined.Notifications, null, tint = TwykGold, modifier = Modifier.size(36.dp))
+            }
         }
         Spacer(Modifier.height(22.dp))
         Text(if (filter == "all") "No notifications" else "Nothing here yet", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
