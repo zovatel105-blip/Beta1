@@ -678,15 +678,19 @@ private fun DuetPage(
     val voteA: (Offset) -> Boolean = { submitVote("a") }
     val voteB: (Offset) -> Boolean = { submitVote("b") }
 
-    // Borde de color en el lado VOTADO (igual que el "ring" de la web).
-    fun ring(side: String): Modifier =
-        if (voted == side) Modifier.border(2.dp, if (side == "a") Color(0xFFA855F7) else Color(0xFF3B82F6)) else Modifier
+    // NOTA: antes había un marco de color (`ring`) en el lado votado, réplica
+    // de `ring-2 ring-purple-500`/`ring-blue-500` de DuetSlide.jsx (web). El
+    // usuario confirmó que en la web ese marco NO se ve (bug de la web: el
+    // vídeo a pantalla completa se pinta POR ENCIMA del box-shadow inset,
+    // ocultándolo) y pidió explícitamente que el nativo coincida con ese
+    // estado actual de la web (sin marco) en vez de arreglar el bug de la
+    // web. Eliminado.
 
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         if (isHorizontal) {
             Column(Modifier.fillMaxSize()) {
                 VideoSurface(
-                    playerA, Modifier.weight(1f).fillMaxWidth().then(ring("a")), useTextureView = true, side = post.sideA,
+                    playerA, Modifier.weight(1f).fillMaxWidth(), useTextureView = true, side = post.sideA,
                     voteColor = Color(0xFFA855F7),
                     // Toque simple: si A NO tiene el audio, se lo pasa; si ya
                     // lo tiene, pausa/reanuda AMBOS vídeos (antes ningún
@@ -698,7 +702,7 @@ private fun DuetPage(
                 )
                 Box(Modifier.fillMaxWidth().height(2.dp).background(Color.White.copy(alpha = 0.3f)))
                 VideoSurface(
-                    playerB, Modifier.weight(1f).fillMaxWidth().then(ring("b")), useTextureView = true, side = post.sideB,
+                    playerB, Modifier.weight(1f).fillMaxWidth(), useTextureView = true, side = post.sideB,
                     voteColor = Color(0xFF3B82F6),
                     onSingleTap = { if (audibleSide != "b") audibleSide = "b" else paused = !paused },
                     onLongPress = { contentIdx = 1; showContent = true },
@@ -708,7 +712,7 @@ private fun DuetPage(
         } else {
             Row(Modifier.fillMaxSize()) {
                 VideoSurface(
-                    playerA, Modifier.weight(1f).fillMaxHeight().then(ring("a")), useTextureView = true, side = post.sideA,
+                    playerA, Modifier.weight(1f).fillMaxHeight(), useTextureView = true, side = post.sideA,
                     voteColor = Color(0xFFA855F7),
                     onSingleTap = { if (audibleSide != "a") audibleSide = "a" else paused = !paused },
                     onLongPress = { contentIdx = 0; showContent = true },
@@ -716,7 +720,7 @@ private fun DuetPage(
                 )
                 Box(Modifier.fillMaxHeight().width(2.dp).background(Color.White.copy(alpha = 0.3f)))
                 VideoSurface(
-                    playerB, Modifier.weight(1f).fillMaxHeight().then(ring("b")), useTextureView = true, side = post.sideB,
+                    playerB, Modifier.weight(1f).fillMaxHeight(), useTextureView = true, side = post.sideB,
                     voteColor = Color(0xFF3B82F6),
                     onSingleTap = { if (audibleSide != "b") audibleSide = "b" else paused = !paused },
                     onLongPress = { contentIdx = 1; showContent = true },
