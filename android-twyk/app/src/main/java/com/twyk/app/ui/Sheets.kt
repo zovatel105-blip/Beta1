@@ -341,12 +341,35 @@ fun CommentsSheet(
                         // contenedor, para dibujar la línea conectora avatar-a-
                         // avatar SOLO entre una respuesta y la respuesta EXACTA a
                         // la que respondió (nunca con el comentario raíz).
+                        //
+                        // BUG reportado por el usuario ("la línea... se mueve al
+                        // hacer scroll"): antes el `Canvas` conector vivía FUERA
+                        // del contenedor con `verticalScroll` (como HERMANO,
+                        // midiendo posiciones con onGloballyPositioned) — durante
+                        // un gesto de scroll, Compose no garantiza que esas
+                        // callbacks se disparen en CADA fotograma (el scroll
+                        // puede aplicarse a nivel de capa gráfica sin relayout
+                        // inmediato), así que el Canvas quedaba dibujando con
+                        // coordenadas ligeramente DESFASADAS respecto a los
+                        // avatares reales mientras se desplazaba la lista,
+                        // dando la sensación de que "la línea se mueve" por su
+                        // cuenta. FIX: el `verticalScroll` y el `Canvas` ahora
+                        // viven en el MISMO Box (como hermanos DENTRO de él,
+                        // ambos hijos directos), así que Compose los desplaza
+                        // como UNA SOLA UNIDAD durante el scroll — sus
+                        // posiciones relativas entre sí NUNCA cambian mientras
+                        // se hace scroll (solo cambian de verdad si la lista de
+                        // comentarios se modifica), eliminando por completo la
+                        // dependencia de que onGloballyPositioned se dispare en
+                        // cada fotograma de scroll.
                         val avatarCoords = remember { mutableStateMapOf<String, LayoutCoordinates>() }
                         var containerCoords by remember { mutableStateOf<LayoutCoordinates?>(null) }
-                        Box(Modifier.fillMaxSize().onGloballyPositioned { containerCoords = it }) {
+                        Box(
+                            Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+                                .onGloballyPositioned { containerCoords = it },
+                        ) {
                             Column(
-                                Modifier.fillMaxSize().verticalScroll(rememberScrollState())
-                                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                                Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp),
                                 verticalArrangement = Arrangement.spacedBy(16.dp),
                             ) {
                                 roots.forEach { root ->
