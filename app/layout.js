@@ -5,7 +5,21 @@ import ConsentBanner from '@/components/ConsentBanner'
 export const metadata = {
   title: 'SnapTok — Short vertical videos',
   description: 'Vertical feed of short videos, instant TikTok-style scrolling.',
-  viewport: 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover',
+}
+
+// interactive-widget=overlays-content (Chrome/Android): el teclado nativo
+// SUPERPONE el contenido en vez de encoger el viewport -pieza necesaria para
+// que la barra de "Añadir comentario" del visor de publicaciones del perfil
+// quede anclada justo encima del teclado sin que el vídeo de detrás se
+// encoja/desplace-. Next.js 14 exige exportar viewport/themeColor aparte de
+// metadata (antes daba warning "Unsupported metadata viewport").
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: 'cover',
+  interactiveWidget: 'overlays-content',
   themeColor: '#000000',
 }
 

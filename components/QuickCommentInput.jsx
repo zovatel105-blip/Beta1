@@ -45,35 +45,51 @@ export default function QuickCommentInput({ postId, votedSide = null, onPosted, 
   const wrapRef = useRef(null)
 
   // Ancla la barra JUSTO encima del teclado nativo, sin depender de ninguna
-  // unidad de viewport reactiva (evita que el contenido de detrás se mueva).
+  // unidad de viewport reactiva en el CONTENIDO (eso ya se resuelve aparte en
+  // ProfilePage.jsx con `100lvh`, estable). Combina 2 mecanismos (ambos
+  // activos a la vez, no uno u otro): la Virtual Keyboard API (Chrome/Android,
+  // geometría exacta del teclado) y `visualViewport` (universal, incluye iOS
+  // Safari). El meta `interactive-widget=overlays-content` (app/layout.js) es
+  // la pieza que le pide al navegador que el teclado SUPERPONGA en vez de
+  // encoger el layout -sin eso, en Android el "viewport de layout" también se
+  // reduce con el teclado y la resta de alturas sale ~0-.
   useEffect(() => {
-    // Chrome/Android: Virtual Keyboard API — le pedimos al navegador que el
-    // teclado SUPERPONGA el contenido (en vez de encoger el viewport), y
-    // leemos su geometría real para el offset exacto.
-    const vk = typeof navigator !== 'undefined' ? navigator.virtualKeyboard : null
+    if (typeof window === 'undefined') return
+    const vk = navigator.virtualKeyboard
     if (vk) {
       try { vk.overlaysContent = true } catch { /* ignore */ }
-      const onGeometryChange = () => {
-        setKbInset(Math.round(vk.boundingRect?.height || 0))
-      }
-      vk.addEventListener('geometrychange', onGeometryChange)
-      return () => vk.removeEventListener('geometrychange', onGeometryChange)
     }
-    // Fallback (iOS Safari y otros): la diferencia entre el alto de la
-    // ventana y el visualViewport (que SÍ se reduce con el teclado) es la
-    // altura real del teclado.
-    const vv = typeof window !== 'undefined' ? window.visualViewport : null
-    if (!vv) return
-    const onResize = () => {
-      const inset = Math.max(0, window.innerHeight - vv.height - (vv.offsetTop || 0))
-      setKbInset(inset)
+    const vv = window.visualViewport
+
+    // document.documentElement.clientHeight = alto del viewport de LAYOUT,
+    // estable (no se reduce con el teclado si overlaysContent está activo);
+    // comparado con el borde inferior REAL del área visible (offsetTop+height
+    // de visualViewport, que SÍ se reduce con el teclado) da la altura exacta
+    // que ocupa el teclado. Es más fiable que comparar contra
+    // `window.innerHeight`, que en algunos navegadores/Android varía junto
+    // con visualViewport (la resta saldría siempre ~0).
+    const computeFromViewport = () => {
+      if (!vv) return 0
+      const layoutHeight = document.documentElement.clientHeight
+      const visibleBottom = (vv.offsetTop || 0) + vv.height
+      return Math.max(0, Math.round(layoutHeight - visibleBottom))
     }
-    vv.addEventListener('resize', onResize)
-    vv.addEventListener('scroll', onResize)
-    onResize()
+
+    const onViewportChange = () => setKbInset(computeFromViewport())
+    const onKeyboardGeometry = () => {
+      const h = Math.round(vk?.boundingRect?.height || 0)
+      setKbInset(h > 0 ? h : computeFromViewport())
+    }
+
+    vv?.addEventListener('resize', onViewportChange)
+    vv?.addEventListener('scroll', onViewportChange)
+    vk?.addEventListener('geometrychange', onKeyboardGeometry)
+    onViewportChange()
+
     return () => {
-      vv.removeEventListener('resize', onResize)
-      vv.removeEventListener('scroll', onResize)
+      vv?.removeEventListener('resize', onViewportChange)
+      vv?.removeEventListener('scroll', onViewportChange)
+      vk?.removeEventListener('geometrychange', onKeyboardGeometry)
     }
   }, [])
 
