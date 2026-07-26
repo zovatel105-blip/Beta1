@@ -2038,11 +2038,34 @@ fun VSContentCard(
         // resplandor). Compose no tiene un blur de color fiable desde
         // minSdk 24 (mismo motivo ya documentado en los demás glows de esta
         // sesión — icono de 'Crear contenido', trofeo/espadas de Retos); se
-        // aproxima con 3 capas rounded-rect BLANCAS ligeramente más grandes
+        // aproxima con capas rounded-rect BLANCAS ligeramente más grandes
         // que la card real (mismo aspect-ratio, escaladas desde el centro),
         // alfa decreciente hacia fuera — un contorno expandido "por capas"
         // que sigue la FORMA real de la card (no un círculo genérico).
-        listOf(1.16f to 0.08f, 1.09f to 0.16f, 1.03f to 0.26f).forEach { (scale, alpha) ->
+        // AJUSTE ("haz lo mismo con el vscontent card", tras afinar el glow
+        // del trofeo/espadas de Retos con un degradado suave de varias
+        // paradas en vez de pocos bloques planos): la versión original solo
+        // tenía 3 capas con saltos de alfa grandes (0.08→0.16→0.26) — se
+        // notaban como 2-3 anillos/escalones discretos en vez de un halo
+        // continuo. Aquí no aplica el problema de "glow dentro de la card"
+        // (la card en sí es 100% opaca -`background(Color.Black)` sólido,
+        // ver más abajo-, así que nunca hay fuga hacia el interior, a
+        // diferencia del icono circular con relleno translúcido); el ajuste
+        // equivalente es únicamente SUAVIZAR la progresión hacia fuera —
+        // 7 capas (en vez de 3) con incrementos de alfa MUCHO más pequeños y
+        // graduales, aproximando mejor los 2 box-shadow reales de la web (uno
+        // más ceñido/brillante -60px blur- y uno mucho más amplio/tenue
+        // -120px blur-, combinados) en vez de un salto brusco entre pocos
+        // bloques.
+        listOf(
+            1.40f to 0.04f,
+            1.30f to 0.06f,
+            1.20f to 0.09f,
+            1.13f to 0.13f,
+            1.08f to 0.18f,
+            1.045f to 0.24f,
+            1.02f to 0.30f,
+        ).forEach { (scale, alpha) ->
             Box(
                 Modifier
                     .fillMaxHeight(0.85f * scale)
