@@ -49,7 +49,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -528,14 +527,29 @@ private fun EmptyCompleted(onCreate: () -> Unit, onActive: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Box(
-            Modifier.size(80.dp)
-                // Glow blanco alrededor (réplica de boxShadow '0 0 48px -14px
-                // rgba(255,255,255,0.45)' de la web) — spot/ambient blancos.
-                .shadow(24.dp, CircleShape, spotColor = Color.White, ambientColor = Color.White)
-                .clip(CircleShape).background(Color.White.copy(alpha = 0.03f)).border(1.dp, Color.White.copy(alpha = 0.10f), CircleShape),
-            contentAlignment = Alignment.Center,
-        ) { Icon(ImageVector.vectorResource(R.drawable.ic_trophy), null, tint = Color.White, modifier = Modifier.size(36.dp)) }
+        // Glow blanco alrededor del marco — réplica de `boxShadow: '0 0 48px
+        // -14px rgba(255,255,255,.45)'` de la web (CompletedBattlesPage.jsx).
+        // BUG reportado por el usuario ("lo mismo ocurre con el icono de
+        // trofeo... debe ser 100% igual a la web", mismo patrón ya corregido
+        // en el icono de 'Crear contenido'): `Modifier.shadow(spotColor=...,
+        // ambientColor=...)` es un shadow de ELEVACIÓN de Android — los
+        // colores personalizados (spotColor/ambientColor) solo tienen efecto
+        // real desde API 28, y aun así simulan una fuente de luz direccional
+        // desde arriba (más sombra abajo), NUNCA un halo simétrico en todas
+        // direcciones como el box-shadow con offset 0 de la web — por eso no
+        // se veía igual (o no se veía en absoluto en dispositivos <API 28).
+        // FIX: misma técnica ya usada para el icono de 'Crear contenido'
+        // (Upload.kt) — 3 capas `Brush.radialGradient` concéntricas, alfa
+        // creciente hacia el centro, sin depender de `Modifier.shadow`.
+        Box(contentAlignment = Alignment.Center) {
+            Box(Modifier.size(175.dp).background(Brush.radialGradient(listOf(Color.White.copy(alpha = 0.10f), Color.Transparent))))
+            Box(Modifier.size(130.dp).background(Brush.radialGradient(listOf(Color.White.copy(alpha = 0.20f), Color.Transparent))))
+            Box(Modifier.size(100.dp).background(Brush.radialGradient(listOf(Color.White.copy(alpha = 0.32f), Color.Transparent))))
+            Box(
+                Modifier.size(80.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.03f)).border(1.dp, Color.White.copy(alpha = 0.10f), CircleShape),
+                contentAlignment = Alignment.Center,
+            ) { Icon(ImageVector.vectorResource(R.drawable.ic_trophy), null, tint = Color.White, modifier = Modifier.size(36.dp)) }
+        }
         Spacer(Modifier.height(22.dp))
         Text("No completed challenges yet", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
         Spacer(Modifier.height(10.dp))
@@ -570,10 +584,21 @@ private fun EmptyActive() {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Box(
-            Modifier.size(80.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.03f)).border(1.dp, Color.White.copy(alpha = 0.10f), CircleShape),
-            contentAlignment = Alignment.Center,
-        ) { Icon(ImageVector.vectorResource(R.drawable.ic_swords), null, tint = TwykGold, modifier = Modifier.size(36.dp)) }
+        // Mismo bug/fix que EmptyCompleted (ver comentario ahí): la web
+        // también tiene glow aquí (`boxShadow: '0 0 48px -14px
+        // rgba(255,255,255,.42)'`, ActiveChallengesPage.jsx) pero el nativo
+        // NO tenía NINGÚN glow en absoluto (ni siquiera el `Modifier.shadow`
+        // poco fiable que sí tenía la versión de Completados) — mismas 3
+        // capas de `Brush.radialGradient`.
+        Box(contentAlignment = Alignment.Center) {
+            Box(Modifier.size(175.dp).background(Brush.radialGradient(listOf(Color.White.copy(alpha = 0.10f), Color.Transparent))))
+            Box(Modifier.size(130.dp).background(Brush.radialGradient(listOf(Color.White.copy(alpha = 0.20f), Color.Transparent))))
+            Box(Modifier.size(100.dp).background(Brush.radialGradient(listOf(Color.White.copy(alpha = 0.32f), Color.Transparent))))
+            Box(
+                Modifier.size(80.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.03f)).border(1.dp, Color.White.copy(alpha = 0.10f), CircleShape),
+                contentAlignment = Alignment.Center,
+            ) { Icon(ImageVector.vectorResource(R.drawable.ic_swords), null, tint = TwykGold, modifier = Modifier.size(36.dp)) }
+        }
         Spacer(Modifier.height(22.dp))
         Text("No active challenges", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(8.dp))
