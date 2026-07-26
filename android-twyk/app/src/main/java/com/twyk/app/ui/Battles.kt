@@ -6,6 +6,12 @@ import android.content.Context
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -19,6 +25,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -33,6 +40,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.outlined.PersonAdd
 import androidx.compose.material3.CircularProgressIndicator
@@ -116,6 +124,12 @@ fun BattlesScreen(
     var loading by remember { mutableStateOf(true) }
     var busy by remember { mutableStateOf(false) }
     var suggestionsOpen by remember { mutableStateOf(false) } // página "Sugeridos" (icono superior izquierdo)
+    // BUG reportado por el usuario ("no puedo aceptar el reto"): antes el
+    // fallo era SILENCIOSO (sin .onFailure); ahora se muestra un mensaje
+    // breve si la aceptación falla (réplica del feedback mínimo, la web
+    // tampoco muestra un mensaje específico pero al menos aquí se hace
+    // visible el problema en vez de que el botón "no haga nada").
+    var acceptError by remember { mutableStateOf<String?>(null) }
 
     // Barra de navegación inferior: visible SOLO en "Completados" (igual que
     // CompletedBattlesPage.jsx, que tiene su propia <BottomNav>); oculta en
@@ -148,14 +162,30 @@ fun BattlesScreen(
     // archivo que el usuario acaba de elegir en ActiveChallengeFrame.
     fun acceptChallenge(c: Challenge, uri: Uri?) {
         busy = true
+        acceptError = null
         scope.launch {
             runCatching {
-                val part = uri?.let { withContext(Dispatchers.IO) { videoPart(context, "file", it) } }
-                RetrofitProvider.api.acceptChallenge(c.id, part)
+                // CAUSA RAÍZ del bug "no puedo aceptar el reto": antes SIEMPRE
+                // se llamaba al endpoint @Multipart con un único @Part nullable;
+                // cuando uri era null (reto ya con contenido objetivo), OkHttp
+                // exige al menos 1 parte en un multipart body y lanzaba
+                // IllegalStateException AL CONSTRUIR la petición — la excepción
+                // caía en este mismo runCatching pero SIN .onFailure, así que el
+                // fallo era invisible. FIX: réplica exacta de accept() en la web
+                // (ActiveChallengesPage.jsx) — CON archivo -> multipart; SIN
+                // archivo -> POST sin body en absoluto (endpoint separado).
+                if (uri != null) {
+                    val part = withContext(Dispatchers.IO) { videoPart(context, "file", uri) }
+                    RetrofitProvider.api.acceptChallenge(c.id, part)
+                } else {
+                    RetrofitProvider.api.acceptChallengeNoFile(c.id)
+                }
             }.onSuccess {
                 active = active.filterNot { it.id == c.id }
                 onChanged()
                 reload()
+            }.onFailure {
+                acceptError = "Couldn't accept the challenge. Try again."
             }
             busy = false
         }
@@ -198,6 +228,7 @@ fun BattlesScreen(
                             c = active[i],
                             isActiveCard = i == pager.currentPage,
                             busy = busy,
+                            error = if (i == pager.currentPage) acceptError else null,
                             onAccept = { uri -> acceptChallenge(active[i], uri) },
                             onReject = {
                                 val cid = active[i].id
@@ -208,6 +239,16 @@ fun BattlesScreen(
                                 }
                             },
                         )
+                    }
+                    // Flecha animada "quedan más retos" — réplica exacta del
+                    // ChevronDown con animate-bounce de ActiveChallengesPage.jsx
+                    // (BUG reportado por el usuario: "no aparece la flecha que
+                    // muestra que quedan más retos por ver" — este indicador NO
+                    // EXISTÍA en absoluto en el nativo). Solo visible si hay MÁS
+                    // de 1 reto Y la tarjeta actual NO es la última (nada que
+                    // deslizar más abajo en la última).
+                    if (active.size > 1 && pager.currentPage < active.size - 1) {
+                        NextChallengeHint(Modifier.align(Alignment.CenterEnd).padding(end = 10.dp))
                     }
                 }
             }
@@ -298,8 +339,35 @@ private fun SegBtn(label: String, active: Boolean, onClick: () -> Unit) {
     }
 }
 
+// Flecha animada que indica "desliza hacia abajo para el siguiente reto" —
+// réplica de `<ChevronDown className="animate-bounce"/>` en
+// ActiveChallengesPage.jsx (right-2.5 top-1/2, es decir centrada
+// verticalmente cerca del borde derecho). `animate-bounce` de Tailwind es un
+// keyframe 0%/100%=sin desplazar, 50%=-25% de altura con easing de entrada;
+// aproximado aquí con un `infiniteRepeatable` que sube y baja de forma
+// continua (misma idea visual: un "salto" suave y repetido).
 @Composable
-private fun ActiveChallengeFrame(c: Challenge, isActiveCard: Boolean, busy: Boolean, onAccept: (Uri?) -> Unit, onReject: () -> Unit) {
+private fun NextChallengeHint(modifier: Modifier = Modifier) {
+    val offset by rememberInfiniteTransition(label = "nextChallengeBounce").animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(animation = tween(1000, easing = FastOutSlowInEasing), repeatMode = RepeatMode.Restart),
+        label = "nextChallengeBounceOffset",
+    )
+    // 0->0.5 sube (0 a -6dp), 0.5->1 baja (-6dp a 0) — imita el vaivén del bounce.
+    val bounceDp = if (offset < 0.5f) -12.dp * (offset / 0.5f) else -12.dp * (1f - (offset - 0.5f) / 0.5f)
+    Box(
+        modifier
+            .offset(y = bounceDp)
+            .size(28.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(Icons.Filled.KeyboardArrowDown, "Swipe down for the next challenge", tint = Color.White.copy(alpha = 0.70f), modifier = Modifier.size(20.dp))
+    }
+}
+
+@Composable
+private fun ActiveChallengeFrame(c: Challenge, isActiveCard: Boolean, busy: Boolean, error: String? = null, onAccept: (Uri?) -> Unit, onReject: () -> Unit) {
     // Reto "de mención" (sin contenido objetivo previo): el retado debe subir
     // su respuesta ANTES (o al momento) de aceptar — igual que en la web.
     val needsResponse = c.targetVideoUrl.isNullOrBlank() && c.targetImageUrl.isNullOrBlank()
@@ -429,6 +497,9 @@ private fun ActiveChallengeFrame(c: Challenge, isActiveCard: Boolean, busy: Bool
                     }
                 }
                 Spacer(Modifier.height(10.dp))
+                error?.let {
+                    Text(it, color = Color(0xFFFDA4AF), fontSize = 12.sp, modifier = Modifier.padding(bottom = 8.dp))
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Box(
                         Modifier.weight(1f).height(44.dp).clip(RoundedCornerShape(50)).background(if (busy) Color.White.copy(alpha = 0.6f) else Color.White)

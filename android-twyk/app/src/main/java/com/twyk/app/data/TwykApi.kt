@@ -133,9 +133,30 @@ interface TwykApi {
     @GET("api/challenges/completed")
     suspend fun completedBattles(): PostsResponse
 
+    // BUG reportado por el usuario ("no puedo aceptar el reto"): la web
+    // (ActiveChallengesPage.jsx `accept()`) hace un POST SIN body en absoluto
+    // cuando el reto ya trae contenido objetivo (no hace falta subir nada) —
+    // `fetch(url, {method:'POST'})`, ni siquiera FormData vacío. El nativo
+    // usaba SIEMPRE `@Multipart` con un único `@Part file` NULLABLE: cuando
+    // `file` era null (ese mismo caso: reto creado con `targetVideoUrl` ya
+    // presente, p.ej. al retar tocando el icono de espadas sobre una
+    // publicación EXISTENTE de alguien, ver QuickChallenge.kt), Retrofit
+    // omite la parte nula correctamente, pero el `MultipartBody.Builder` de
+    // OkHttp EXIGE al menos 1 parte -> lanza `IllegalStateException` al
+    // construir la petición, ANTES de enviarla siquiera. Esa excepción caía
+    // en el `runCatching{}` de `acceptChallenge()` (Battles.kt) SIN ningún
+    // `.onFailure`, así que el fallo era totalmente silencioso: el botón
+    // "Accept" no hacía nada visible. FIX: 2 endpoints separados — este
+    // (con archivo, para retos "de mención" que exigen subir una respuesta)
+    // y `acceptChallengeNoFile` (sin body, para retos con contenido objetivo
+    // ya presente) — réplica exacta de la rama if/else de `accept()` en la
+    // web.
     @Multipart
     @POST("api/challenges/{id}/accept")
-    suspend fun acceptChallenge(@Path("id") id: String, @Part file: MultipartBody.Part?): UploadPostResponse
+    suspend fun acceptChallenge(@Path("id") id: String, @Part file: MultipartBody.Part): UploadPostResponse
+
+    @POST("api/challenges/{id}/accept")
+    suspend fun acceptChallengeNoFile(@Path("id") id: String): UploadPostResponse
 
     @POST("api/challenges/{id}/reject")
     suspend fun rejectChallenge(@Path("id") id: String): OkResponse
