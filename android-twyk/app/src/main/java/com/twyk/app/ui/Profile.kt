@@ -143,7 +143,15 @@ fun ProfileScreen(
 
     val isOwn = username == null || target == Session.user?.username
     val votos = posts.sumOf { (it.votes?.a ?: 0) + (it.votes?.b ?: 0) }
-    val retos = posts.count { it.type == "versus" }
+    // BUG reportado por el usuario ("cuando creo una publicación tipo versus
+    // aparece como reto"): réplica exacta de un bug YA corregido en la web
+    // (ProfilePage.jsx). Las publicaciones NORMALES (carrusel de 2 vídeos
+    // A/B) también son `type == "versus"` por diseño — SOLO un reto realmente
+    // aceptado se marca con `isChallenge = true` (asignado únicamente al
+    // aceptar un reto, ver handleAcceptChallenge en route.js). Contar por
+    // `type` inflaba el contador "Challenges" del perfil con publicaciones
+    // normales; contar por `isChallenge` es lo correcto.
+    val retos = posts.count { it.isChallenge == true }
 
     // BUG reportado por el usuario ("aparece la barra de navegación inferior
     // que no debería aparecer" al recortar la foto de perfil): "Edit profile"
