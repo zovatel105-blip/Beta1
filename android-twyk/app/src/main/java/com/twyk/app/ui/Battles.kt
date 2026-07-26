@@ -680,32 +680,30 @@ private fun EmptyActive() {
 // Réplica del box-shadow CSS difuminado y simétrico de la web (offset 0 0,
 // blur 48px, spread -14px, color blanco con `alpha`) — usado para el glow
 // del icono (trofeo/espadas) de los estados vacíos de Batallas.
-// 3ª RONDA de ajuste (ver historial en test_result.md para el detalle de las
-// 2 rondas anteriores: 1ª demasiado grande/difuso, 2ª con un hueco negro en
-// el centro). El usuario aportó una captura de referencia de la web y
-// precisó: el brillo debe concentrarse ALREDEDOR/EN EL BORDE del propio
-// círculo del icono, NO en su centro exacto — es decir, el pico de brillo
-// del degradado no está en r=0 (centro geométrico) sino desplazado hacia el
-// radio del propio icono (a diferencia de mi 2º intento, que con 4 paradas
-// SIEMPRE monótonas decrecientes desde el centro, sí ponía el pico máximo en
-// r=0 -de ahí que el usuario viera brillo "de más" justo en el centro-).
-// FIX: degradado radial de 5 paradas NO monótono — brillo TENUE (no cero,
-// para evitar el hueco reportado en la ronda anterior) en el centro exacto,
-// que SUBE hasta un pico justo a la altura del borde del propio icono
-// (~53% del radio total de esta forma de 150dp, que coincide con el radio
-// real del icono de 80dp) y luego SÍ decae hacia fuera — el brillo queda
-// concentrado en/alrededor del borde del círculo, tal como pidió el usuario,
-// en vez de reforzar el centro geométrico de la forma.
+// 4ª RONDA de ajuste (ver historial completo en test_result.md: 1ª demasiado
+// grande/difuso, 2ª hueco negro en el centro, 3ª pico de brillo ya bien
+// colocado alrededor del borde -confirmado correcto por el usuario- pero
+// SIN cortar del todo dentro del propio círculo del icono). El usuario
+// confirmó: el halo por FUERA del círculo ya es perfecto; dentro del propio
+// círculo (el disco de 80dp donde va el icono) NO debe verse NADA de glow,
+// debe quedar completamente negro/plano. FIX: las 2 primeras paradas (antes
+// en 0% y 30% del radio, con algo de brillo ya desde el centro) pasan a
+// alfa 0 hasta justo el radio del propio icono (~53% del radio total de
+// 150dp = 40dp, el radio real del icono) — CERO glow en todo el interior,
+// tal como se pidió — y justo pasado ese punto (56%) sube rápido hasta el
+// mismo pico ya confirmado como correcto (~65% del radio), manteniendo
+// intacta la forma de caída hacia fuera que el usuario ya validó.
 @Composable
 private fun ChallengeIconGlow(iconSizeDp: Dp, alpha: Float) {
     val totalSize = iconSizeDp + 70.dp // ~150dp para un icono de 80dp
     Box(
         Modifier.size(totalSize).background(
             Brush.radialGradient(
-                0f to Color.White.copy(alpha = alpha * 0.10f),
-                0.30f to Color.White.copy(alpha = alpha * 0.30f),
-                0.53f to Color.White.copy(alpha = alpha * 0.60f), // pico ~ borde del icono (40dp de 75dp de radio total)
-                0.75f to Color.White.copy(alpha = alpha * 0.20f),
+                0f to Color.Transparent, // interior del icono: SIN glow, negro plano
+                0.50f to Color.Transparent, // se mantiene en 0 hasta justo el radio del icono (~53%)
+                0.56f to Color.White.copy(alpha = alpha * 0.55f), // sube justo AL SALIR del círculo
+                0.65f to Color.White.copy(alpha = alpha * 0.60f), // pico, ya confirmado correcto por el usuario
+                0.85f to Color.White.copy(alpha = alpha * 0.18f),
                 1f to Color.Transparent,
             ),
         ),
