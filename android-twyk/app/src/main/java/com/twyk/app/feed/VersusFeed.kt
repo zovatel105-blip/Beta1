@@ -33,6 +33,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -44,6 +45,7 @@ import androidx.compose.foundation.pager.VerticalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Check
@@ -57,6 +59,7 @@ import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -81,6 +84,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
@@ -88,6 +92,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -100,6 +105,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -118,6 +124,7 @@ import com.twyk.app.R
 import com.twyk.app.absoluteUrl
 import com.twyk.app.data.BlockRequest
 import com.twyk.app.data.ContentCardRequest
+import com.twyk.app.data.CreateCommentRequest
 import com.twyk.app.data.CreateReportRequest
 import com.twyk.app.data.FeedOverlays
 import com.twyk.app.data.MoreOptionsRequest
@@ -188,6 +195,11 @@ fun FeedPager(
     initialPage: Int = 0,
     onChallenge: (QuickChallengeTarget) -> Unit = {},
     hideChallenge: Boolean = false,
+    // Barra de "Añadir comentario" al pie (réplica de `showCommentInput` en
+    // CarouselSlide.jsx/DuetSlide.jsx) — SOLO al abrir publicaciones desde el
+    // GRID del perfil (propio o ajeno), NUNCA en el feed principal. Ver
+    // Profile.kt (único lugar que pasa `true`).
+    showCommentInput: Boolean = false,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -219,6 +231,7 @@ fun FeedPager(
                 onRequestNext = requestNext,
                 onChallenge = onChallenge,
                 hideChallenge = hideChallenge,
+                showCommentInput = showCommentInput,
             )
         } else {
             CarouselPage(
@@ -230,6 +243,7 @@ fun FeedPager(
                 onRequestNext = requestNext,
                 onChallenge = onChallenge,
                 hideChallenge = hideChallenge,
+                showCommentInput = showCommentInput,
             )
         }
     }
@@ -297,8 +311,10 @@ private fun CarouselPage(
     onRequestNext: () -> Unit,
     onChallenge: (QuickChallengeTarget) -> Unit,
     hideChallenge: Boolean = false,
+    showCommentInput: Boolean = false,
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val playerA = remember(post.id) { buildPlayer(context, dataSourceFactory, post.sideA?.videoUrl, muted = false) }
     val playerB = remember(post.id) { buildPlayer(context, dataSourceFactory, post.sideB?.videoUrl, muted = false) }
     DisposableEffect(post.id) {
@@ -471,7 +487,7 @@ private fun CarouselPage(
             )
         }
 
-        HeaderOverlay(post, onOpenProfile, onRequireAuth)
+        HeaderOverlay(post, onOpenProfile, onRequireAuth, extraBottomReserve = if (showCommentInput) COMMENT_BAR_RESERVE_DP else 0.dp)
         // Autor del lado VISIBLE ahora mismo (cambia según la página del
         // carrusel) — misma variable "current" de CarouselSlide.jsx, usada
         // tanto para el objetivo del reto como para decidir si el botón de
@@ -483,6 +499,7 @@ private fun CarouselPage(
             coverUrl = currentSideForChallenge?.posterUrl ?: currentSideForChallenge?.imageUrl ?: post.posterUrl ?: post.thumbnailUrl,
             hasMusic = hasMusic, musicArtwork = post.musicArtwork,
             headAuthorUsername = (currentSideForChallenge?.author ?: post.author)?.username,
+            extraBottomReserve = if (showCommentInput) COMMENT_BAR_RESERVE_DP else 0.dp,
         ) {
             onChallenge(
                 QuickChallengeTarget(
@@ -495,7 +512,7 @@ private fun CarouselPage(
                 ),
             )
         }
-        Dots(active = sidePager.currentPage)
+        Dots(active = sidePager.currentPage, extraBottomReserve = if (showCommentInput) COMMENT_BAR_RESERVE_DP else 0.dp)
         // Aviso: distinto según se haya votado ya o no, igual que la web
         // (antes de votar invita a comparar/votar; tras votar, si el lado
         // visible NO es el votado, invita a cambiar el voto).
@@ -508,6 +525,17 @@ private fun CarouselPage(
         // La tarjeta de "Ganador" YA NO se pinta aquí: se sincroniza con
         // FeedOverlays (ver el LaunchedEffect de más arriba) y MainActivity
         // la renderiza por encima de la barra de navegación inferior.
+        // Barra de "Añadir comentario" (réplica de QuickCommentInput.jsx) —
+        // SOLO al abrir desde el grid del perfil (propio/ajeno), nunca en el
+        // feed principal (ver comentario en `FeedPager`).
+        if (showCommentInput) {
+            QuickCommentInput(
+                postId = post.id,
+                votedSide = voted,
+                onRequireAuth = onRequireAuth,
+                onPosted = { scope.launch { PostEvents.emitCommentCountChanged(post.id, (post.stats?.comments ?: 0) + 1) } },
+            )
+        }
     }
 }
 
@@ -524,8 +552,10 @@ private fun DuetPage(
     onRequestNext: () -> Unit,
     onChallenge: (QuickChallengeTarget) -> Unit,
     hideChallenge: Boolean = false,
+    showCommentInput: Boolean = false,
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val playerA = remember(post.id) { buildPlayer(context, dataSourceFactory, post.sideA?.videoUrl, muted = false) }
     val playerB = remember(post.id) { buildPlayer(context, dataSourceFactory, post.sideB?.videoUrl, muted = true) }
     DisposableEffect(post.id) {
@@ -746,13 +776,14 @@ private fun DuetPage(
             )
         }
 
-        HeaderOverlay(post, onOpenProfile, onRequireAuth)
+        HeaderOverlay(post, onOpenProfile, onRequireAuth, extraBottomReserve = if (showCommentInput) COMMENT_BAR_RESERVE_DP else 0.dp)
         SocialRail(
             post, votes, voted, onCommentsLocal, onRequireAuth,
             hideChallenge = hideChallenge, audioActive = audioActive,
             coverUrl = (if (audibleSide == "b") post.sideB else post.sideA)?.let { it.posterUrl ?: it.imageUrl },
             hasMusic = hasMusic, musicArtwork = post.musicArtwork,
             headAuthorUsername = (post.sideA?.author ?: post.author)?.username,
+            extraBottomReserve = if (showCommentInput) COMMENT_BAR_RESERVE_DP else 0.dp,
         ) {
             val current = if (voted == "b") post.sideB else post.sideA
             onChallenge(
@@ -777,6 +808,17 @@ private fun DuetPage(
         // La tarjeta de "Ganador" YA NO se pinta aquí: se sincroniza con
         // FeedOverlays (ver el LaunchedEffect de más arriba) y MainActivity
         // la renderiza por encima de la barra de navegación inferior.
+        // Barra de "Añadir comentario" (réplica de QuickCommentInput.jsx) —
+        // SOLO al abrir desde el grid del perfil (propio/ajeno), nunca en el
+        // feed principal (ver comentario en `FeedPager`).
+        if (showCommentInput) {
+            QuickCommentInput(
+                postId = post.id,
+                votedSide = voted,
+                onRequireAuth = onRequireAuth,
+                onPosted = { scope.launch { PostEvents.emitCommentCountChanged(post.id, (post.stats?.comments ?: 0) + 1) } },
+            )
+        }
     }
 }
 
@@ -879,7 +921,7 @@ private fun VideoSurface(
 
 // ── Overlays ──────────────────────────────────────────────────────────────────
 @Composable
-private fun BoxScope.HeaderOverlay(post: Post, onOpenProfile: (String) -> Unit, onRequireAuth: () -> Unit) {
+private fun BoxScope.HeaderOverlay(post: Post, onOpenProfile: (String) -> Unit, onRequireAuth: () -> Unit, extraBottomReserve: Dp = 0.dp) {
     val author = post.sideA?.author ?: post.author
     val uname = author?.username
     // Estado de "Seguir" — antes este botón NO hacía nada (ni onClick, ni
@@ -896,7 +938,7 @@ private fun BoxScope.HeaderOverlay(post: Post, onOpenProfile: (String) -> Unit, 
             .fillMaxWidth()
             .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f))))
             .navigationBarsPadding()
-            .padding(start = 14.dp, end = 80.dp, top = 40.dp, bottom = 78.dp),
+            .padding(start = 14.dp, end = 80.dp, top = 40.dp, bottom = 78.dp + extraBottomReserve),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -1062,6 +1104,11 @@ private fun BoxScope.SocialRail(
     // en CarouselSlide.jsx/DuetSlide.jsx, usado para ocultar el botón de Retar
     // en tu PROPIA publicación (antes este check no existía en la app nativa).
     headAuthorUsername: String? = null,
+    // Reserva extra al pie (réplica de `showCommentInput`/COMMENT_BAR_RESERVE
+    // en CarouselSlide.jsx/DuetSlide.jsx) — SOLO al abrir desde el grid del
+    // perfil, para que la columna social no quede tapada por la nueva barra
+    // de "Añadir comentario".
+    extraBottomReserve: Dp = 0.dp,
     onChallengeClick: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
@@ -1117,7 +1164,7 @@ private fun BoxScope.SocialRail(
         Modifier
             .align(Alignment.BottomEnd)
             .navigationBarsPadding()
-            .padding(end = 4.dp, bottom = 64.dp),
+            .padding(end = 4.dp, bottom = 64.dp + extraBottomReserve),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
@@ -1325,12 +1372,12 @@ private fun MusicDisc(
 }
 
 @Composable
-private fun BoxScope.Dots(active: Int) {
+private fun BoxScope.Dots(active: Int, extraBottomReserve: Dp = 0.dp) {
     Row(
         Modifier
             .align(Alignment.BottomCenter)
             .navigationBarsPadding()
-            .padding(bottom = 64.dp),
+            .padding(bottom = 64.dp + extraBottomReserve),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         for (i in 0..1) {
@@ -1528,6 +1575,113 @@ private fun BoxScope.VoteHint(text: String) {
         Text(text, color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
     }
 }
+
+// Reserva de espacio para `QuickCommentInput` (réplica de `COMMENT_BAR_RESERVE`
+// en CarouselSlide.jsx/DuetSlide.jsx: '58px + safe-area-bottom') — se añade a
+// la columna social/cabecera/puntitos SOLO cuando `showCommentInput=true`
+// (grid del perfil), para que no queden tapados por la nueva barra.
+private val COMMENT_BAR_RESERVE_DP = 58.dp
+
+// Barra de "Añadir comentario" fija al pie del vídeo — réplica nativa de
+// QuickCommentInput.jsx. A diferencia de CommentsSheet (hoja completa con
+// lista + respuestas), esta barra publica el comentario DIRECTAMENTE aquí
+// (sin abrir ningún modal): solo texto, sin adjuntar imagen/emoji/mención
+// (por diseño, igual que la web). SOLO se usa al abrir publicaciones desde
+// el GRID del perfil (propio/ajeno) — ver `showCommentInput` en `FeedPager`.
+// Al enfocar el campo, la píldora compacta se convierte en una tarjeta algo
+// más grande con el avatar propio a la izquierda (misma estructura que la
+// web); `Modifier.imePadding()` la ancla automáticamente justo encima del
+// teclado nativo (equivalente nativo idiomático a la Virtual Keyboard
+// API/visualViewport que usa la web, sin necesitar listeners manuales).
+@Composable
+private fun BoxScope.QuickCommentInput(
+    postId: String,
+    votedSide: String?,
+    onRequireAuth: () -> Unit,
+    onPosted: () -> Unit,
+) {
+    val scope = rememberCoroutineScope()
+    var text by remember(postId) { mutableStateOf("") }
+    var submitting by remember(postId) { mutableStateOf(false) }
+    var focused by remember { mutableStateOf(false) }
+
+    fun submit() {
+        if (Session.token == null) { onRequireAuth(); return }
+        val trimmed = text.trim()
+        if (trimmed.isEmpty() || submitting) return
+        submitting = true
+        scope.launch {
+            runCatching {
+                RetrofitProvider.api.createComment(CreateCommentRequest(postId = postId, text = trimmed, votedSide = votedSide))
+            }.onSuccess {
+                text = ""
+                onPosted()
+            }
+            submitting = false
+        }
+    }
+
+    val canSend = text.isNotBlank() && !submitting
+    Row(
+        Modifier
+            .align(Alignment.BottomCenter)
+            .fillMaxWidth()
+            .imePadding()
+            .navigationBarsPadding()
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .then(
+                if (focused) {
+                    Modifier.clip(RoundedCornerShape(20.dp)).background(Color(0xF2141416))
+                        .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(20.dp))
+                        .padding(start = 8.dp, end = 6.dp, top = 8.dp, bottom = 8.dp)
+                } else {
+                    Modifier.clip(RoundedCornerShape(50)).background(Color.Black.copy(alpha = 0.45f))
+                        .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(50))
+                        .padding(start = 16.dp, end = 6.dp, top = 6.dp, bottom = 6.dp)
+                },
+            ),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (focused) {
+            Box(Modifier.size(32.dp).clip(CircleShape).background(Color(0xFF27272A))) {
+                TwykAvatar(Session.user?.avatarUrl, 32.dp)
+            }
+            Spacer(Modifier.width(8.dp))
+        }
+        Box(Modifier.weight(1f)) {
+            if (text.isEmpty()) {
+                Text("Add a comment...", color = Color.White.copy(alpha = 0.5f), fontSize = 14.sp)
+            }
+            BasicTextField(
+                value = text,
+                onValueChange = { if (it.length <= 500) text = it },
+                singleLine = true,
+                enabled = !submitting,
+                textStyle = TextStyle(color = Color.White, fontSize = 14.sp),
+                cursorBrush = SolidColor(Color.White),
+                modifier = Modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused },
+            )
+        }
+        Spacer(Modifier.width(6.dp))
+        Box(
+            Modifier.size(36.dp).clip(CircleShape)
+                .background(if (canSend) Color.White else Color.White.copy(alpha = 0.15f))
+                .clickable(enabled = canSend) { submit() },
+            contentAlignment = Alignment.Center,
+        ) {
+            if (submitting) {
+                CircularProgressIndicator(color = Color.Black, strokeWidth = 2.dp, modifier = Modifier.size(14.dp))
+            } else {
+                Icon(
+                    Icons.AutoMirrored.Filled.Send, "send comment",
+                    tint = if (canSend) Color.Black else Color.White.copy(alpha = 0.4f),
+                    modifier = Modifier.size(16.dp),
+                )
+            }
+        }
+    }
+}
+
 
 // Tarjeta de "ganador" — réplica de VSWinnerCard.jsx: aparece tras votar,
 // muestra al autor elegido en grande con su % y la barra de resultados A/B,

@@ -195,6 +195,19 @@ fun ProfileScreen(
         onDispose { if (isOwn) FullScreenOverlays.editProfileOpen = false }
     }
 
+    // Mismo mecanismo que arriba, para el visor de publicaciones del grid —
+    // BUG reportado por el usuario ("la barra de navegación inferior sigue
+    // apareciendo... debería aparecer la barra de comentar"): la barra de
+    // navegación (pintada por MainActivity, fuera de este árbol) se seguía
+    // dibujando ENCIMA del visor y de la nueva barra de "Añadir comentario"
+    // porque nada la ocultaba mientras `viewerIndex != null`.
+    LaunchedEffect(viewerIndex) {
+        FullScreenOverlays.profileViewerOpen = viewerIndex != null
+    }
+    DisposableEffect(Unit) {
+        onDispose { FullScreenOverlays.profileViewerOpen = false }
+    }
+
     // Cargar publicaciones GUARDADAS al abrir la pestaña "saved" (solo perfil propio).
     LaunchedEffect(activeTab, target, isOwn) {
         if (activeTab == "saved" && isOwn && Session.token != null) {
@@ -502,6 +515,17 @@ fun ProfileScreen(
         // el mismo FeedPager del feed principal, empezando en la publicación
         // tocada. Comentarios y "abrir perfil de otro autor" se gestionan aquí
         // mismo (hoja de comentarios y overlay de perfil anidado).
+        //
+        // BUG reportado por el usuario ("aparece una flecha de atrás,
+        // elimínala, y debería aparecer la barra de comentar como en la web"):
+        // réplica de PostViewer (ProfilePage.jsx) — ese visor NO tiene NINGÚN
+        // botón de flecha/cerrar visible (se cierra solo con el gesto de
+        // deslizar desde el borde izquierdo, o aquí, con el gesto nativo de
+        // "Atrás" ya conectado más abajo vía BackHandler); y SIEMPRE pasa
+        // `showCommentInput` a CarouselSlide/DuetSlide, para que la barra de
+        // "Añadir comentario" (QuickCommentInput.jsx) aparezca al pie. FIX:
+        // se quita la flecha (Box clicable de más abajo) y se pasa
+        // `showCommentInput = true` a `FeedPager`.
         viewerIndex?.let { idx ->
             Box(Modifier.fillMaxSize()) {
                 FeedPager(
@@ -513,15 +537,8 @@ fun ProfileScreen(
                     onVote = { id, side, prev ->
                         scope.launch { runCatching { RetrofitProvider.api.vote(VoteRequest(id, side, prev)) } }
                     },
+                    showCommentInput = true,
                 )
-                Box(
-                    Modifier.align(Alignment.TopStart).statusBarsPadding().padding(start = 12.dp, top = 8.dp)
-                        .size(36.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.45f))
-                        .clickable { viewerIndex = null },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(ImageVector.vectorResource(R.drawable.ic_arrow_left), "cerrar", tint = Color.White, modifier = Modifier.size(20.dp))
-                }
             }
             viewerCommentsPostId?.let { pid ->
                 CommentsSheet(

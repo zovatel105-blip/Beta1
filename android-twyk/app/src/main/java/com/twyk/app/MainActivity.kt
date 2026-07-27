@@ -170,6 +170,7 @@ private fun TwykApp() {
     val showBottomNav = when {
         searchOpen -> false
         com.twyk.app.data.FullScreenOverlays.editProfileOpen -> false
+        com.twyk.app.data.FullScreenOverlays.profileViewerOpen -> false
         profileUsername != null -> true
         tab == Tab.Upload -> false
         tab == Tab.Inbox -> false

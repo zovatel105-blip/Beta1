@@ -21,4 +21,12 @@ import androidx.compose.runtime.setValue
 // de navegación inferior persistente" que puedan tapar.
 object FullScreenOverlays {
     var editProfileOpen by mutableStateOf(false)
+    // Réplica del mismo mecanismo (ver comentario de arriba) para el visor de
+    // publicaciones abierto desde el GRID del perfil (propio/ajeno) — BUG
+    // reportado por el usuario: la barra de navegación inferior seguía
+    // visible al abrir una publicación del grid, tapando/compitiendo con la
+    // nueva barra de "Añadir comentario" (QuickCommentInput), a diferencia
+    // de la web (Feed.jsx: `<BottomNav>` se oculta por completo vía
+    // `onPostViewerChange` mientras el visor esté abierto).
+    var profileViewerOpen by mutableStateOf(false)
 }
