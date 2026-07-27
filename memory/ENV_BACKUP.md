@@ -25,7 +25,17 @@ actualizar NEXT_PUBLIC_BASE_URL y CORS_ORIGINS con el valor de la variable de
 entorno APP_URL definida en /etc/supervisor/conf.d/*.conf (bloque [program:nextjs]).
 
 ## Última URL usada (actualizada automáticamente al restaurar)
-NEXT_PUBLIC_BASE_URL=https://button-overlap-ui.preview.emergentagent.com
+NEXT_PUBLIC_BASE_URL=https://9568626f-fbe6-4222-b6da-f3363d793c81.preview.emergentagent.com
+
+## IMPORTANTE: también actualizar la app nativa Android
+Cuando la URL de preview cambia, además de /app/.env también hay que
+actualizar `Config.BASE_URL` en
+/app/android-twyk/app/src/main/java/com/twyk/app/Config.kt (hardcodeada por
+separado para el build de Android, NO lee /app/.env) — si no se actualiza
+ahí también, la app nativa compilada sigue apuntando a un backend viejo/caído
+(síntoma real observado: contadores sociales en 0 hasta interactuar
+localmente, feed vacío, login fallando, etc., aunque el backend "nuevo" esté
+sano).
 
 ## NOTA sobre ffmpeg (persistencia)
 ffmpeg también se pierde tras cada reinicio de pod (paquete apt en filesystem

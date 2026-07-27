@@ -1163,6 +1163,34 @@ private fun BoxScope.SocialRail(
             }
         }
     }
+    // BUG reportado por el usuario ("el contador de comentar no aparece/no
+    // actualiza hasta que hago click en el icono, esto no ocurre con los
+    // demás contadores"): a diferencia de Guardar/Reto/Compartir (que tienen
+    // su PROPIO estado local `remember(post.id)` + un `LaunchedEffect` que
+    // escucha su evento DIRECTAMENTE aquí, en `SocialRail`), "Comment" leía
+    // `post.stats?.comments` DIRECTO en cada recomposición, sin ningún
+    // estado local propio — dependía POR COMPLETO de que `FeedViewModel`
+    // reemplazara el objeto `post` entero (al recibir
+    // `PostEvents.commentCountChanged`) y de que ese reemplazo se propagara
+    // hasta aquí a través de toda la cadena (`_posts` -> `collectAsState` ->
+    // `VersusFeed` -> `FeedPager` -> `CarouselPage`/`DuetPage` -> este
+    // parámetro `post`) — un camino mucho más largo e indirecto que el de
+    // los otros 3 contadores. Por eso el número solo "aparecía" al abrir
+    // los comentarios: `CommentsSheet` SIEMPRE emite
+    // `emitCommentCountChanged` justo al CARGAR (no solo al publicar uno
+    // nuevo, ver `LaunchedEffect(postId)` en Sheets.kt), y ESE emit es lo
+    // que finalmente disparaba la actualización — nunca antes, si el
+    // `post.stats.comments` inicial del feed no llegaba a tiempo/completo.
+    // FIX: mismo patrón exacto que `challengeCount`/`shareCount` — estado
+    // local propio + escucha DIRECTA de `PostEvents.commentCountChanged`
+    // aquí mismo, actualización inmediata sin depender de que el `post`
+    // completo se reemplace más arriba.
+    var commentCount by remember(post.id) { mutableStateOf(post.stats?.comments ?: 0) }
+    LaunchedEffect(post.id) {
+        PostEvents.commentCountChanged.collect { (pid, count) ->
+            if (pid == post.id) commentCount = count
+        }
+    }
 
     val author = post.sideA?.author ?: post.author
 
@@ -1197,7 +1225,7 @@ private fun BoxScope.SocialRail(
             }
         }
         // Comment (round bubble, same as the web)
-        RailItem(ImageVector.vectorResource(R.drawable.ic_comment), label(post.stats?.comments ?: 0, "Comment"), Color.White, size = 30) { onComments() }
+        RailItem(ImageVector.vectorResource(R.drawable.ic_comment), label(commentCount, "Comment"), Color.White, size = 30) { onComments() }
         // Share (TikTok-style arrow) — abre la hoja de opciones (Send to/Copy
         // link/Instagram/WhatsApp/X), igual que ShareModal.jsx en la web. Se
         // pide vía el singleton FeedOverlays (ver data/FeedOverlays.kt) para
