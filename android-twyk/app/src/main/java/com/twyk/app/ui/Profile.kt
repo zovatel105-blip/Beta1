@@ -692,12 +692,29 @@ private fun CollapsedTopBar(
                 }
             }
 
+            // BUG reportado por el usuario ("el botón de reto y seguir sigue
+            // solapando con el avatar, debe estar en la esquina derecha"):
+            // el intento anterior (quitar `weight(1f)` de la fila de
+            // acciones) NO cambiaba nada visualmente, porque esa fila YA
+            // estaba alineada a la derecha (`Arrangement.End`) DENTRO de su
+            // propio hueco -con o sin peso, su contenido terminaba en el
+            // MISMO píxel, justo antes de este `Spacer(40.dp)`-. La causa
+            // REAL es este hueco reservado de 40dp: existe para que el
+            // NOMBRE quede perfectamente simétrico respecto al icono real
+            // de menú (☰) del perfil PROPIO, pero en el perfil AJENO no hay
+            // ningún icono aquí -es espacio vacío que le resta a los botones
+            // de Reto/Seguir exactamente los 40dp que necesitarían para
+            // alejarse del avatar central (siempre fijo en el medio de TODO
+            // el ancho de la barra, `align(Alignment.Center)`, independiente
+            // de este Row). FIX: se elimina este hueco SOLO cuando `!isOwn`
+            // -el perfil propio conserva su icono de menú sin cambios- para
+            // que la fila de acciones (Reto+Seguir) pueda extenderse hasta
+            // el borde real de la barra (los 6dp de padding del Row), lejos
+            // del avatar.
             if (isOwn) {
                 Box(Modifier.size(40.dp).clip(CircleShape).clickable { onOpenMenu() }, contentAlignment = Alignment.Center) {
                     Icon(ImageVector.vectorResource(R.drawable.ic_menu), "menu", tint = Color.White, modifier = Modifier.size(24.dp))
                 }
-            } else {
-                Spacer(Modifier.size(40.dp))
             }
         }
 
