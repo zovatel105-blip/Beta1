@@ -66,6 +66,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -804,48 +806,68 @@ fun AuthSheet(onClose: () -> Unit, onAuthed: () -> Unit) {
         Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.60f)),
         contentAlignment = Alignment.BottomCenter,
     ) {
-        Column(
-            Modifier.fillMaxWidth().fillMaxHeight(0.94f).imePadding()
-                .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-                .background(Color.White),
+        Box(
+            Modifier.fillMaxWidth().fillMaxHeight(0.96f)
+                // `shadow-2xl` de la web -> sombra de elevación nativa, aplicada
+                // ANTES de clipToBounds() para que no quede recortada por él.
+                .shadow(24.dp)
+                .clipToBounds(),
         ) {
-            // Header: flecha abajo (cerrar) en el splash/bloqueo por edad; flecha atrás en los pasos.
-            Box(Modifier.fillMaxWidth().statusBarsPadding().height(48.dp)) {
-                if (step == "methods" || ageBlocked) {
-                    Box(Modifier.align(Alignment.Center).size(36.dp).clip(CircleShape).clickable { onClose() }, contentAlignment = Alignment.Center) {
-                        Icon(Icons.Filled.KeyboardArrowDown, "cerrar", tint = Color(0xFF52525B), modifier = Modifier.size(26.dp))
-                    }
-                } else {
-                    Box(Modifier.align(Alignment.CenterStart).padding(start = 6.dp).size(36.dp).clip(CircleShape).clickable { goBack() }, contentAlignment = Alignment.Center) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "back", tint = Color(0xFF18181B), modifier = Modifier.size(22.dp))
+            // Glow superior de marca — réplica EXACTA de AuthModal.jsx
+            // (`radial-gradient(70% 100% at 50% 0%, rgba(168,85,247,0.10),
+            // transparent 70%)`, altura h-40=160dp) — faltaba por completo en
+            // el nativo.
+            Box(
+                Modifier.fillMaxWidth().height(160.dp).align(Alignment.TopCenter)
+                    .background(Brush.radialGradient(0f to Color(0xFFA855F7).copy(alpha = 0.10f), 0.7f to Color.Transparent)),
+            )
+
+            Column(
+                Modifier.fillMaxSize().imePadding()
+                    .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+                    .background(Color.White),
+            ) {
+                // Borde superior sutil (`border-t border-zinc-200` de la web) —
+                // faltaba por completo en el nativo.
+                Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0xFFE4E4E7)))
+                // Header: flecha abajo (cerrar) en el splash/bloqueo por edad; flecha atrás en los pasos.
+                Box(Modifier.fillMaxWidth().statusBarsPadding().height(48.dp)) {
+                    if (step == "methods" || ageBlocked) {
+                        Box(Modifier.align(Alignment.Center).size(36.dp).clip(CircleShape).clickable { onClose() }, contentAlignment = Alignment.Center) {
+                            Icon(Icons.Filled.KeyboardArrowDown, "cerrar", tint = Color(0xFF52525B), modifier = Modifier.size(28.dp))
+                        }
+                    } else {
+                        Box(Modifier.align(Alignment.CenterStart).padding(start = 6.dp).size(36.dp).clip(CircleShape).clickable { goBack() }, contentAlignment = Alignment.Center) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "back", tint = Color(0xFF18181B), modifier = Modifier.size(24.dp))
+                        }
                     }
                 }
-            }
 
-            Box(Modifier.weight(1f).fillMaxWidth()) {
-                when {
-                    ageBlocked -> AgeBlockedScreen { ageBlocked = false; switchMode("login") }
-                    step == "methods" -> AuthMethodsScreen(
-                        isRegister = view == "register",
-                        onUseForm = { step = "form"; regStep = 0; error = null },
-                        onSwitch = { switchMode(if (view == "register") "login" else "register") },
-                    )
-                    view == "register" -> AuthRegisterStepScreen(
-                        regStep = regStep,
-                        birthDate = birthDate, onBirthDate = { birthDate = it },
-                        email = email, onEmail = { email = it },
-                        password = password, onPassword = { password = it },
-                        username = username, onUsername = { username = it },
-                        error = error, busy = busy,
-                        onSubmit = { handleRegisterNext() },
-                    )
-                    else -> AuthLoginScreen(
-                        username = loginUsername, onUsername = { loginUsername = it },
-                        password = loginPassword, onPassword = { loginPassword = it },
-                        error = error, busy = busy,
-                        onSubmit = { handleLogin() },
-                        onSwitch = { switchMode("register") },
-                    )
+                Box(Modifier.weight(1f).fillMaxWidth()) {
+                    when {
+                        ageBlocked -> AgeBlockedScreen { ageBlocked = false; switchMode("login") }
+                        step == "methods" -> AuthMethodsScreen(
+                            isRegister = view == "register",
+                            onUseForm = { step = "form"; regStep = 0; error = null },
+                            onSwitch = { switchMode(if (view == "register") "login" else "register") },
+                        )
+                        view == "register" -> AuthRegisterStepScreen(
+                            regStep = regStep,
+                            birthDate = birthDate, onBirthDate = { birthDate = it },
+                            email = email, onEmail = { email = it },
+                            password = password, onPassword = { password = it },
+                            username = username, onUsername = { username = it },
+                            error = error, busy = busy,
+                            onSubmit = { handleRegisterNext() },
+                        )
+                        else -> AuthLoginScreen(
+                            username = loginUsername, onUsername = { loginUsername = it },
+                            password = loginPassword, onPassword = { loginPassword = it },
+                            error = error, busy = busy,
+                            onSubmit = { handleLogin() },
+                            onSwitch = { switchMode("register") },
+                        )
+                    }
                 }
             }
         }
@@ -880,22 +902,23 @@ private fun AuthMethodsScreen(isRegister: Boolean, onUseForm: () -> Unit, onSwit
             Spacer(Modifier.height(20.dp))
             Text(
                 if (isRegister) "Sign up for Twyk" else "Log in to Twyk",
-                color = Color(0xFF18181B), fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center,
+                color = Color(0xFF18181B), fontSize = 29.sp, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center,
+                letterSpacing = (-0.4).sp,
             )
             Spacer(Modifier.height(10.dp))
             Text(
                 if (isRegister) "Create your profile, vote on challenges, upload your videos and challenge other creators."
                 else "Log in to vote on challenges, upload your videos and challenge others.",
-                color = Color(0xFF71717A), fontSize = 14.sp, textAlign = TextAlign.Center, lineHeight = 19.sp,
-                modifier = Modifier.widthIn(max = 300.dp),
+                color = Color(0xFF71717A), fontSize = 15.sp, textAlign = TextAlign.Center, lineHeight = 20.sp,
+                modifier = Modifier.widthIn(max = 320.dp),
             )
-            Spacer(Modifier.height(28.dp))
-            AuthGradientButton(if (isRegister) "Use email or username" else "Use username and password", busy = false, onClick = onUseForm)
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(32.dp))
+            AuthGradientButton(if (isRegister) "Use email or username" else "Use username and password", busy = false, height = 54.dp, onClick = onUseForm)
+            Spacer(Modifier.height(24.dp))
             LegalFooterText("By continuing you accept our ")
         }
         Row(
-            Modifier.fillMaxWidth().navigationBarsPadding().padding(vertical = 16.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 24.dp, top = 16.dp).navigationBarsPadding(),
             horizontalArrangement = Arrangement.Center,
         ) {
             Text(if (isRegister) "Already have an account? " else "Don't have an account? ", color = Color(0xFF71717A), fontSize = 14.sp)
@@ -928,7 +951,7 @@ private fun AuthRegisterStepScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             // Indicador de progreso (1 punto por paso del registro, igual que la web).
-            Row(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 26.dp), horizontalArrangement = Arrangement.Center) {
+            Row(Modifier.fillMaxWidth().padding(bottom = 28.dp), horizontalArrangement = Arrangement.Center) {
                 REG_STEPS.forEachIndexed { i, _ ->
                     Box(
                         Modifier.padding(horizontal = 3.dp).height(6.dp).width(if (i == regStep) 26.dp else 8.dp)
@@ -939,15 +962,15 @@ private fun AuthRegisterStepScreen(
             }
 
             if (stepCfg.key == "birthdate") {
-                Icon(Icons.Outlined.Cake, null, tint = AuthPurple, modifier = Modifier.size(42.dp))
-                Spacer(Modifier.height(10.dp))
-                Text(stepCfg.title, color = Color(0xFF18181B), fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center, modifier = Modifier.widthIn(max = 280.dp))
-                Spacer(Modifier.height(6.dp))
-                Text(stepCfg.subtitle, color = Color(0xFF71717A), fontSize = 13.sp, textAlign = TextAlign.Center, modifier = Modifier.widthIn(max = 260.dp))
+                Icon(Icons.Outlined.Cake, null, tint = AuthPurple, modifier = Modifier.size(44.dp))
+                Spacer(Modifier.height(12.dp))
+                Text(stepCfg.title, color = Color(0xFF18181B), fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center, letterSpacing = (-0.3).sp, modifier = Modifier.widthIn(max = 300.dp))
+                Spacer(Modifier.height(8.dp))
+                Text(stepCfg.subtitle, color = Color(0xFF71717A), fontSize = 14.sp, textAlign = TextAlign.Center, modifier = Modifier.widthIn(max = 280.dp))
 
                 val age = ageFromBirthDate(birthDate)
                 val underAge = birthDate != null && age in 0..12
-                Box(Modifier.fillMaxWidth().padding(top = 22.dp).height(1.dp).background(Color(0xFFF4F4F5)))
+                Box(Modifier.fillMaxWidth().padding(top = 28.dp).height(1.dp).background(Color(0xFFF4F4F5)))
                 Column(
                     Modifier.fillMaxWidth().padding(vertical = 16.dp).clickable {
                         val cal = Calendar.getInstance()
@@ -964,7 +987,7 @@ private fun AuthRegisterStepScreen(
                 ) {
                     Text(
                         birthDate?.let { displayDateLong(it) } ?: "Select your date",
-                        color = Color(0xFF18181B), fontSize = 19.sp, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center,
+                        color = Color(0xFF18181B), fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center, letterSpacing = (-0.3).sp,
                     )
                     Spacer(Modifier.height(5.dp))
                     Text(
@@ -973,15 +996,15 @@ private fun AuthRegisterStepScreen(
                             birthDate != null && age >= 0 -> "You're $age years old"
                             else -> "Tap to pick your date"
                         },
-                        color = if (underAge) Color(0xFFEF4444) else AuthPurple, fontSize = 11.sp, fontWeight = FontWeight.Bold,
+                        color = if (underAge) Color(0xFFEF4444) else AuthPurple, fontSize = 12.5.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.4.sp,
                     )
                 }
                 Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0xFFF4F4F5)))
             } else {
-                Text(stepCfg.title, color = Color(0xFF18181B), fontSize = 23.sp, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center, modifier = Modifier.widthIn(max = 280.dp))
-                Spacer(Modifier.height(8.dp))
-                Text(stepCfg.subtitle, color = Color(0xFF71717A), fontSize = 13.sp, textAlign = TextAlign.Center, modifier = Modifier.widthIn(max = 270.dp))
-                Spacer(Modifier.height(26.dp))
+                Text(stepCfg.title, color = Color(0xFF18181B), fontSize = 25.sp, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center, letterSpacing = (-0.3).sp, modifier = Modifier.widthIn(max = 300.dp))
+                Spacer(Modifier.height(10.dp))
+                Text(stepCfg.subtitle, color = Color(0xFF71717A), fontSize = 14.sp, textAlign = TextAlign.Center, modifier = Modifier.widthIn(max = 280.dp))
+                Spacer(Modifier.height(32.dp))
                 when (stepCfg.key) {
                     "email" -> MinimalAuthInput(email, "you@email.com", onChange = onEmail)
                     "password" -> MinimalAuthInput(password, "Password", isPassword = true, onChange = onPassword)
@@ -995,12 +1018,12 @@ private fun AuthRegisterStepScreen(
             }
 
             if (isLast) {
-                Spacer(Modifier.height(20.dp))
+                Spacer(Modifier.height(24.dp))
                 LegalFooterText("By creating your account you accept our ")
             }
             Spacer(Modifier.height(12.dp))
         }
-        Box(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 24.dp, vertical = 14.dp)) {
+        Box(Modifier.fillMaxWidth().padding(horizontal = 24.dp, top = 16.dp).navigationBarsPadding()) {
             AuthGradientButton(if (isLast) "Create account" else "Continue", busy = busy, onClick = onSubmit)
         }
     }
@@ -1019,18 +1042,18 @@ private fun AuthLoginScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Spacer(Modifier.height(16.dp))
-            Text("Log in", color = Color(0xFF18181B), fontSize = 23.sp, fontWeight = FontWeight.ExtraBold)
-            Spacer(Modifier.height(8.dp))
-            Text("Enter your username or email and password.", color = Color(0xFF71717A), fontSize = 13.sp, textAlign = TextAlign.Center, modifier = Modifier.widthIn(max = 270.dp))
-            Spacer(Modifier.height(26.dp))
+            Text("Log in", color = Color(0xFF18181B), fontSize = 25.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-0.3).sp)
+            Spacer(Modifier.height(10.dp))
+            Text("Enter your username or email and password.", color = Color(0xFF71717A), fontSize = 14.sp, textAlign = TextAlign.Center, modifier = Modifier.widthIn(max = 280.dp))
+            Spacer(Modifier.height(32.dp))
             MinimalAuthInput(username, "Username or email", onChange = onUsername)
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(24.dp))
             MinimalAuthInput(password, "Password", isPassword = true, onChange = onPassword)
             error?.let { Spacer(Modifier.height(16.dp)); AuthErrorChip(it) }
         }
-        Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 24.dp, vertical = 14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, top = 16.dp).navigationBarsPadding(), horizontalAlignment = Alignment.CenterHorizontally) {
             AuthGradientButton("Log in", busy = busy, onClick = onSubmit)
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(16.dp))
             Row {
                 Text("Don't have an account? ", color = Color(0xFF71717A), fontSize = 14.sp)
                 Text("Sign up", color = AuthPurple, fontWeight = FontWeight.Bold, fontSize = 14.sp, modifier = Modifier.clickable { onSwitch() })
@@ -1042,7 +1065,7 @@ private fun AuthLoginScreen(
 @Composable
 private fun AgeBlockedScreen(onGotIt: () -> Unit) {
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp).padding(top = 56.dp),
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp).padding(top = 64.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text("Twyk isn't available for users under 13", color = Color(0xFF18181B), fontSize = 20.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
@@ -1050,7 +1073,7 @@ private fun AgeBlockedScreen(onGotIt: () -> Unit) {
         Text(
             "In accordance with the U.S. COPPA law, we don't allow registration for users under 13. We can't create your account.",
             color = Color(0xFF71717A), fontSize = 14.sp, textAlign = TextAlign.Center, lineHeight = 19.sp,
-            modifier = Modifier.widthIn(max = 300.dp),
+            modifier = Modifier.widthIn(max = 320.dp),
         )
         Spacer(Modifier.height(28.dp))
         Box(
@@ -1060,10 +1083,16 @@ private fun AgeBlockedScreen(onGotIt: () -> Unit) {
     }
 }
 
+// `height` — 52dp por defecto (h-[52px] de la web), salvo el CTA del splash
+// (AuthMethodsScreen), que la web sube a 54dp (`gradientBtn + ' h-[54px]'`).
 @Composable
-private fun AuthGradientButton(label: String, busy: Boolean, onClick: () -> Unit) {
+private fun AuthGradientButton(label: String, busy: Boolean, height: androidx.compose.ui.unit.Dp = 52.dp, onClick: () -> Unit) {
     Box(
-        Modifier.fillMaxWidth().height(52.dp).clip(RoundedCornerShape(50))
+        Modifier.fillMaxWidth().height(height)
+            // Réplica de `shadow-[0_12px_28px_-10px_rgba(168,85,247,0.5)]` de
+            // la web — faltaba por completo en el nativo.
+            .shadow(12.dp, RoundedCornerShape(50), spotColor = Color(0xFFA855F7).copy(alpha = 0.5f))
+            .clip(RoundedCornerShape(50))
             .background(if (busy) SolidColor(Color(0xFFD4D4D8)) else AuthGradient)
             .clickable(enabled = !busy) { onClick() },
         contentAlignment = Alignment.Center,
@@ -1076,8 +1105,8 @@ private fun AuthGradientButton(label: String, busy: Boolean, onClick: () -> Unit
 @Composable
 private fun AuthErrorChip(msg: String) {
     Box(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color(0xFFFEF2F2))
-            .border(1.dp, Color(0xFFFEE2E2), RoundedCornerShape(14.dp)).padding(horizontal = 16.dp, vertical = 10.dp),
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color(0xFFFEF2F2))
+            .border(1.dp, Color(0xFFFEE2E2), RoundedCornerShape(12.dp)).padding(horizontal = 16.dp, vertical = 10.dp),
         contentAlignment = Alignment.Center,
     ) { Text(msg, color = Color(0xFFDC2626), fontSize = 13.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center) }
 }
@@ -1088,14 +1117,16 @@ private fun AuthErrorChip(msg: String) {
 @Composable
 private fun MinimalAuthInput(value: String, placeholder: String, isPassword: Boolean = false, onChange: (String) -> Unit) {
     Box(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color(0xFFFAFAFA)).padding(vertical = 14.dp, horizontal = 16.dp),
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color(0xFFFAFAFA)).padding(vertical = 10.dp, horizontal = 16.dp),
         contentAlignment = Alignment.Center,
     ) {
-        if (value.isEmpty()) Text(placeholder, color = Color(0xFFA1A1AA), fontSize = 17.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center)
+        // `placeholder:font-light` de la web — antes usaba el mismo peso
+        // (Medium) que el texto ya escrito; solo el placeholder debe ser Light.
+        if (value.isEmpty()) Text(placeholder, color = Color(0xFFA1A1AA), fontSize = 17.sp, fontWeight = FontWeight.Light, letterSpacing = (-0.2).sp, textAlign = TextAlign.Center)
         BasicTextField(
             value = value, onValueChange = onChange, singleLine = true,
             visualTransformation = if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
-            textStyle = TextStyle(color = Color(0xFF18181B), fontSize = 17.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center),
+            textStyle = TextStyle(color = Color(0xFF18181B), fontSize = 17.sp, fontWeight = FontWeight.Medium, letterSpacing = (-0.2).sp, textAlign = TextAlign.Center),
             cursorBrush = SolidColor(Color(0xFF18181B)),
             modifier = Modifier.fillMaxWidth(),
         )

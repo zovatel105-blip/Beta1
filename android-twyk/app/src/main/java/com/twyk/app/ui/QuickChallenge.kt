@@ -42,6 +42,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -50,6 +51,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -126,22 +129,41 @@ fun QuickChallengeSheet(target: QuickChallengeTarget, onClose: () -> Unit) {
         }
     }
 
-    Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.75f)).clickable { onClose() }, contentAlignment = Alignment.BottomCenter) {
-        Column(
-            Modifier.fillMaxWidth().clip(RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp))
-                .background(Color.White)
-                .clickable(enabled = false) {}
-                .padding(bottom = 8.dp),
+    Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.80f)).clickable { onClose() }, contentAlignment = Alignment.BottomCenter) {
+        Box(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)),
         ) {
+            // Glow superior con gradiente de marca (morado -> azul) — réplica
+            // EXACTA de ChallengeDialog.jsx (`radial-gradient(70% 100% at 20% 0%,
+            // rgba(168,85,247,0.10), transparent 60%), radial-gradient(70% 100%
+            // at 80% 0%, rgba(59,130,246,0.10), transparent 60%)`, altura h-40 =
+            // 160dp) — faltaba por completo en el nativo.
+            Box(Modifier.fillMaxWidth().height(160.dp).align(Alignment.TopCenter)) {
+                Box(
+                    Modifier.fillMaxWidth(0.5f).fillMaxHeight().align(Alignment.CenterStart)
+                        .background(Brush.radialGradient(0f to Color(0xFFA855F7).copy(alpha = 0.10f), 0.6f to Color.Transparent)),
+                )
+                Box(
+                    Modifier.fillMaxWidth(0.5f).fillMaxHeight().align(Alignment.CenterEnd)
+                        .background(Brush.radialGradient(0f to Color(0xFF3B82F6).copy(alpha = 0.10f), 0.6f to Color.Transparent)),
+                )
+            }
+
+            Column(
+                Modifier.fillMaxWidth()
+                    .background(Color.White)
+                    .clickable(enabled = false) {}
+                    .padding(bottom = 8.dp),
+            ) {
             // Flecha abajo para cerrar — réplica exacta de ChallengeDialog.jsx
             // (antes había un tirador/asa, sin acción de cerrar explícita).
             Box(
-                Modifier.fillMaxWidth().statusBarsPadding().clickable { onClose() }.padding(top = 10.dp, bottom = 2.dp),
+                Modifier.fillMaxWidth().statusBarsPadding().clickable { onClose() }.padding(top = 12.dp, bottom = 4.dp),
                 contentAlignment = Alignment.Center,
             ) { Icon(Icons.Filled.KeyboardArrowDown, "close", tint = Color(0xFF71717A), modifier = Modifier.size(20.dp)) }
 
             Row(
-                Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 14.dp),
+                Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(
@@ -150,10 +172,20 @@ fun QuickChallengeSheet(target: QuickChallengeTarget, onClose: () -> Unit) {
                 ) {
                     TwykAvatar(target.author?.avatarUrl, Modifier.fillMaxSize())
                 }
-                Spacer(Modifier.width(10.dp))
+                Spacer(Modifier.width(12.dp))
                 Column {
-                    Text("CHALLENGE", color = Color(0xFF71717A), fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
-                    Text("Challenge @$username", color = Color(0xFF18181B), fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        // Icono de espadas antes de "CHALLENGE" — réplica de
+                        // `<Swords size={11}/> Challenge` en ChallengeDialog.jsx,
+                        // faltaba por completo en el nativo.
+                        Icon(ImageVector.vectorResource(R.drawable.ic_swords), null, tint = Color(0xFF71717A), modifier = Modifier.size(11.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("CHALLENGE", color = Color(0xFF71717A), fontSize = 10.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.8.sp)
+                    }
+                    Text(
+                        "Challenge @$username", color = Color(0xFF18181B), fontSize = 15.sp, fontWeight = FontWeight.Bold,
+                        letterSpacing = (-0.2).sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    )
                 }
             }
 
@@ -161,13 +193,13 @@ fun QuickChallengeSheet(target: QuickChallengeTarget, onClose: () -> Unit) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                     // Tu vídeo
                     Box(
-                        Modifier.weight(1f).aspectRatio(0.8f).clip(RoundedCornerShape(18.dp))
+                        Modifier.weight(1f).aspectRatio(0.8f).clip(RoundedCornerShape(16.dp))
                             .background(if (fileUri != null) Color.Black else Color(0xFFA855F7).copy(alpha = 0.08f))
-                            .border(if (fileUri != null) 2.dp else 1.5.dp, Color(0xFFA855F7).copy(alpha = if (fileUri != null) 1f else 0.4f), RoundedCornerShape(18.dp))
+                            .border(if (fileUri != null) 2.dp else 1.5.dp, Color(0xFFA855F7).copy(alpha = if (fileUri != null) 1f else 0.4f), RoundedCornerShape(16.dp))
                             .clickable { pickFile.launch("video/*") },
                     ) {
                         Box(Modifier.fillMaxWidth().padding(8.dp), contentAlignment = Alignment.TopStart) {
-                            Box(Modifier.clip(RoundedCornerShape(50)).background(Color(0xFFA855F7)).padding(horizontal = 8.dp, vertical = 2.dp)) {
+                            Box(Modifier.clip(RoundedCornerShape(50)).background(Color(0xFFA855F7)).padding(horizontal = 10.dp, vertical = 2.dp)) {
                                 Text("You", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                             }
                         }
@@ -175,56 +207,82 @@ fun QuickChallengeSheet(target: QuickChallengeTarget, onClose: () -> Unit) {
                             AsyncImage(model = fileUri, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
                             Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.45f)), contentAlignment = Alignment.Center) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Box(Modifier.size(36.dp).clip(CircleShape).background(Color(0xFFA855F7)), contentAlignment = Alignment.Center) {
-                                        Icon(Icons.Filled.Check, null, tint = Color.White, modifier = Modifier.size(18.dp))
+                                    Box(Modifier.size(40.dp).clip(CircleShape).background(Color(0xFFA855F7)), contentAlignment = Alignment.Center) {
+                                        Icon(Icons.Filled.Check, null, tint = Color.White, modifier = Modifier.size(20.dp))
                                     }
                                     Spacer(Modifier.height(6.dp))
-                                    Text("Change video", color = Color.White, fontSize = 10.sp)
+                                    Text("Change video", color = Color.White.copy(alpha = 0.9f), fontSize = 11.sp, textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline)
                                 }
                             }
                         } else {
+                            // Icono envuelto en caja redondeada (`w-12 h-12 rounded-2xl
+                            // bg-purple/20`) + 2ª línea descriptiva — ambos faltaban por
+                            // completo en el nativo (réplica de ChallengeDialog.jsx).
                             Column(Modifier.fillMaxSize().padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                                Icon(Icons.Filled.Upload, null, tint = Color(0xFFA855F7), modifier = Modifier.size(22.dp))
-                                Spacer(Modifier.height(8.dp))
-                                Text("Upload your video", color = Color(0xFF18181B), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
+                                Box(
+                                    Modifier.size(48.dp).clip(RoundedCornerShape(16.dp)).background(Color(0xFFA855F7).copy(alpha = 0.2f)),
+                                    contentAlignment = Alignment.Center,
+                                ) { Icon(Icons.Filled.Upload, null, tint = Color(0xFFA855F7), modifier = Modifier.size(22.dp)) }
+                                Spacer(Modifier.height(10.dp))
+                                Text("Upload your video", color = Color(0xFF18181B), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
+                                Spacer(Modifier.height(1.dp))
+                                Text("@$username challenged with a video — match it", color = Color(0xFF71717A), fontSize = 10.5.sp, textAlign = TextAlign.Center)
                             }
                         }
                     }
 
                     // Vídeo retado (solo lectura)
                     Box(
-                        Modifier.weight(1f).aspectRatio(0.8f).clip(RoundedCornerShape(18.dp))
+                        Modifier.weight(1f).aspectRatio(0.8f).clip(RoundedCornerShape(16.dp))
                             .background(Color(0xFF3B82F6).copy(alpha = 0.08f))
-                            .border(1.5.dp, Color(0xFF3B82F6).copy(alpha = 0.4f), RoundedCornerShape(18.dp)),
+                            .border(1.5.dp, Color(0xFF3B82F6).copy(alpha = 0.4f), RoundedCornerShape(16.dp)),
                     ) {
                         val posterUrl = absoluteUrl(target.posterUrl ?: target.videoUrl)
                         if (posterUrl != null) {
                             AsyncImage(model = posterUrl, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
                             Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.2f)))
                         } else {
+                            // Icono envuelto + texto explicativo — faltaba por completo
+                            // en el nativo (réplica de ChallengeDialog.jsx).
                             Column(Modifier.fillMaxSize().padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                                Icon(Icons.Filled.Movie, null, tint = Color(0xFF3B82F6), modifier = Modifier.size(22.dp))
+                                Box(
+                                    Modifier.size(48.dp).clip(RoundedCornerShape(16.dp)).background(Color(0xFF3B82F6).copy(alpha = 0.18f)),
+                                    contentAlignment = Alignment.Center,
+                                ) { Icon(Icons.Filled.Movie, null, tint = Color(0xFF3B82F6), modifier = Modifier.size(22.dp)) }
+                                Spacer(Modifier.height(10.dp))
+                                Text(
+                                    "They'll upload their media\nwhen accepting the challenge",
+                                    color = Color(0xFF71717A), fontSize = 10.5.sp, textAlign = TextAlign.Center,
+                                )
                             }
                         }
                         Box(Modifier.fillMaxWidth().padding(8.dp), contentAlignment = Alignment.TopStart) {
-                            Box(Modifier.clip(RoundedCornerShape(50)).background(Color(0xFF3B82F6)).padding(horizontal = 8.dp, vertical = 2.dp)) {
+                            Box(Modifier.clip(RoundedCornerShape(50)).background(Color(0xFF3B82F6)).padding(horizontal = 10.dp, vertical = 2.dp)) {
                                 Text("@$username", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold, maxLines = 1)
                             }
                         }
                     }
                 }
 
-                // Insignia VS central
-                Box(Modifier.align(Alignment.Center).size(40.dp).clip(CircleShape).background(Brush.linearGradient(listOf(Color(0xFFA855F7), Color(0xFF3B82F6)))), contentAlignment = Alignment.Center) {
-                    Text("VS", color = Color.White, fontWeight = FontWeight.Black, fontSize = 12.sp)
+                // Insignia VS central — réplica exacta: 48dp (w-12 h-12, antes 40dp),
+                // con sombra (boxShadow de la web) y texto en cursiva con tracking.
+                Box(
+                    Modifier.align(Alignment.Center).size(48.dp).shadow(8.dp, CircleShape).clip(CircleShape)
+                        .background(Brush.linearGradient(listOf(Color(0xFFA855F7), Color(0xFF3B82F6)))),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        "VS", color = Color.White, fontWeight = FontWeight.Black, fontSize = 13.sp,
+                        letterSpacing = 0.5.sp, fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                    )
                 }
             }
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(20.dp))
             Box(
                 Modifier.fillMaxWidth().padding(horizontal = 20.dp).heightIn(min = 56.dp)
                     .clip(RoundedCornerShape(16.dp)).background(Color(0xFFFAFAFA)).border(1.dp, Color(0xFFE4E4E7), RoundedCornerShape(16.dp))
-                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
             ) {
                 if (message.isEmpty()) Text("Add a message to the challenge (optional)…", color = Color(0xFFA1A1AA), fontSize = 14.sp)
                 BasicTextField(
@@ -236,17 +294,26 @@ fun QuickChallengeSheet(target: QuickChallengeTarget, onClose: () -> Unit) {
                 )
             }
 
+            Spacer(Modifier.height(20.dp))
+            // Réplica de la sub-frase resaltada (`@username` en zinc-700/font-medium)
+            // y del sufijo "(you vs {name})", ambos ausentes en el nativo.
             Text(
-                "A challenge request will be sent to @$username. When they accept it, it will be published as a versus.",
-                color = Color(0xFF71717A), fontSize = 12.sp, modifier = Modifier.padding(horizontal = 20.dp, top = 10.dp),
+                buildAnnotatedString {
+                    append("A challenge request will be sent to ")
+                    withStyle(androidx.compose.ui.text.SpanStyle(color = Color(0xFF3F3F46), fontWeight = FontWeight.Medium)) { append("@$username") }
+                    append(". When they accept it, it will be published as a versus (you vs ${target.author?.name ?: "rival"}).")
+                },
+                color = Color(0xFF71717A), fontSize = 12.sp, modifier = Modifier.padding(horizontal = 20.dp),
             )
 
             error?.let {
-                Text(it, color = Color(0xFFEF4444), fontSize = 12.sp, modifier = Modifier.padding(horizontal = 20.dp, top = 8.dp))
+                Spacer(Modifier.height(20.dp))
+                Text(it, color = Color(0xFFF43F5E), fontSize = 12.sp, modifier = Modifier.padding(horizontal = 20.dp))
             }
 
+            Spacer(Modifier.height(20.dp))
             Box(
-                Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp).height(50.dp)
+                Modifier.fillMaxWidth().padding(horizontal = 20.dp).height(48.dp)
                     .clip(RoundedCornerShape(50))
                     .background(if (fileUri != null) Brush.linearGradient(listOf(Color(0xFFA855F7), Color(0xFF3B82F6))) else Brush.linearGradient(listOf(Color(0xFFE4E4E7), Color(0xFFE4E4E7))))
                     .clickable(enabled = fileUri != null && !sending) { send() },
@@ -266,6 +333,7 @@ fun QuickChallengeSheet(target: QuickChallengeTarget, onClose: () -> Unit) {
                     }
                 }
             }
+        }
         }
     }
 }
