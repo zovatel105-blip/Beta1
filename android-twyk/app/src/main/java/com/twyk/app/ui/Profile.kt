@@ -292,6 +292,33 @@ fun ProfileScreen(
     // partir del scroll del PRIMER item del grid (la cabecera).
     val gridState = rememberLazyGridState()
     val density = LocalDensity.current
+    // BUG reportado por el usuario ("la info con el icono... se desplaza
+    // hacia arriba cuando debería quedar visible sin recortes", con captura
+    // de la pestaña "saved" vacía): al cambiar de pestaña (polls -> saved)
+    // el LazyVerticalGrid CONSERVA el mismo `gridState` (es un solo grid
+    // compartido, ver más abajo) — si el usuario ya había hecho scroll
+    // profundo en "polls" (muchas publicaciones), ese scroll se "hereda" al
+    // cambiar a "saved", cuyo contenido es mucho más corto (cabecera +
+    // EmptyTab). Compose recorta (clampa) automáticamente esa posición para
+    // que siga siendo válida con el contenido nuevo, pero lo hace ANTES de
+    // que `minContentFillerPx` recalcule el relleno correcto para la pestaña
+    // nueva (ese relleno depende de `savedLoading`, que en el primer frame
+    // tras cambiar de pestaña sigue siendo `true`) — el resultado es que el
+    // primer item de contenido real (aquí, `EmptyTab`) queda anclado
+    // exactamente en la posición 0 del scroll (`firstVisibleItemIndex`>0,
+    // offset 0), que es JUSTO la zona cubierta por la barra superior fija +
+    // las pestañas sticky, así que su icono aparece recortado por arriba —
+    // y como Compose NO vuelve a desplazar hacia abajo por sí solo una vez
+    // que el relleno correcto está disponible (nada fuerza ese ajuste sin
+    // que el usuario arrastre), se queda así permanentemente. FIX: al
+    // cambiar de pestaña, se reinicia el scroll a la cabecera (item 0,
+    // offset 0) — la MISMA pestaña que se elige queda con su cabecera
+    // totalmente expandida y su contenido garantizado visible desde el
+    // principio, sin heredar ninguna posición de scroll incompatible de la
+    // pestaña anterior (mismo criterio, aunque por un motivo distinto, al
+    // `scrollRef.current.scrollTop = 0` que la web ya usa al reabrir el
+    // perfil, ver línea ~381 de ProfilePage.jsx).
+    LaunchedEffect(activeTab) { gridState.scrollToItem(0, 0) }
     // Tamaño real (medido) del área visible del perfil — necesario para el
     // relleno mínimo de contenido de más abajo (minContentFillerPx).
     var viewportSize by remember(target) { mutableStateOf(IntSize.Zero) }
