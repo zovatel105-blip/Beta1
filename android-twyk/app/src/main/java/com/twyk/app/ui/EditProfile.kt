@@ -11,11 +11,11 @@ import android.media.ExifInterface
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
+import androidx.compose.foundation.Canvas as ComposeCanvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -53,9 +53,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -63,6 +63,8 @@ import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -77,6 +79,8 @@ import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.File
 import java.io.FileOutputStream
+import kotlin.math.roundToInt
+import kotlin.math.sqrt
 
 // Pantalla "Edit profile" — réplica del EditProfileModal de ProfilePage.jsx:
 // avatar (con recorte circular ajustable), nombre y bio. Guarda con
@@ -266,22 +270,42 @@ fun EditProfileScreen(
 // pellizcar para zoom) y botones Cancel / Save abajo. Sin botón X ni controles
 // de zoom extra (igual que la versión final acordada en la web).
 //
-// BUG reportado por el usuario ("no puedo moverla, solo puedo hacer zoom"):
-// la versión anterior mostraba la imagen con `ContentScale.Crop` de Compose
-// (que ya recorta/centra internamente para llenar el círculo EXACTO en ambos
-// ejes, descartando el sobrante en el render) y limitaba el arrastre con
-// `maxOffset = diámetro*(scale-1)/2` — a la escala inicial (scale=1, el
-// mínimo permitido) ese límite es SIEMPRE 0, así que cualquier arrastre se
-// anulaba de inmediato salvo que el usuario hiciera zoom primero. La web
-// NUNCA tiene este problema porque dibuja la imagen COMPLETA a su escala real
-// (`getMinCoverScale`, que solo iguala el eje MÁS PEQUEÑO del círculo — el
-// otro eje casi siempre sobra) y por eso ya se puede arrastrar en ese eje
-// desde el primer instante, sin necesidad de zoom extra. FIX: se calcula
-// `baseCoverScale` (idéntico a `getMinCoverScale`) a partir del tamaño real
-// del bitmap, la imagen se dibuja a su tamaño EXACTO (`Modifier.size(...)`,
-// sin ningún `ContentScale` que recorte por su cuenta) y el límite de
-// arrastre usa ese tamaño real — réplica exacta de `clampPosition` en
-// CircularCrop.jsx.
+// HISTORIAL DE BUGS (réplica "100% igual a la web" pedida por el usuario):
+// (1) "no puedo moverla, solo puedo hacer zoom" — ya corregido en una ronda
+// anterior (`baseCoverScale`/`clamp` calculados sobre el tamaño real del
+// bitmap, ver esas funciones más abajo, sin cambios).
+// (2) "no puedo moverlo a mi gusto izquierda-derecha arriba-abajo" +
+// "cuando subo una imagen que debería rellenar el círculo no lo rellena":
+// CAUSA — `detectTransformGestures` (usado antes aquí) calcula pan+zoom
+// SIMULTÁNEAMENTE a partir del centroide/distancia de TODOS los punteros
+// activos, sin importar cuántos haya. La web, en cambio, tiene 2 manejadores
+// TOTALMENTE separados (`handleTouchStart`/`handleTouchMove` en
+// CircularCrop.jsx): con 1 dedo SOLO mueve (pan), con 2 dedos SOLO hace zoom
+// (el pan se ignora por completo mientras haya 2 dedos). Con
+// `detectTransformGestures`, al pellizcar con 2 dedos el pequeño movimiento
+// del centroide entre ambos también se aplicaba como pan, y por la
+// naturaleza de cómo la mano sostiene el gesto, un intento de "solo mover"
+// con un dedo podía registrar micro-variaciones de escala si el segundo
+// dedo tocaba por accidente — sensación de que "no se puede mover a gusto"
+// (el desplazamiento real y el previsto no coincidían) y, si la escala
+// fluctuaba por debajo de `baseCoverScale` en algún instante, el límite de
+// `clamp()` se recalculaba con una imagen efectivamente más pequeña,
+// pudiendo dejar un borde del círculo temporalmente sin cubrir. FIX: gesto
+// de bajo nivel escrito a mano (`awaitEachGesture`) que replica EXACTAMENTE
+// la separación de la web — mientras haya EXACTAMENTE 1 puntero activo, solo
+// se aplica pan (delta de posición de ESE dedo); en cuanto hay 2+ punteros,
+// el pan se ignora por completo y solo se aplica zoom (a partir de la razón
+// de distancia entre los 2 primeros punteros, igual que `getTouchDistance`
+// + `scaleChange` de la web). ADEMÁS, el renderizado pasó de un
+// `Image`+`ContentScale`+`Modifier.size(dp)`+`graphicsLayer` (con varias
+// conversiones px<->dp de por medio) a un `Canvas` que dibuja la imagen con
+// `drawImage(dstOffset, dstSize)` en PÍXELES EXACTOS calculados con la MISMA
+// fórmula que ya usaba `exportCircularCrop` (recorte final) — elimina
+// cualquier redondeo/conversión intermedia entre la vista previa y el
+// resultado exportado, y garantiza matemáticamente que la imagen SIEMPRE
+// cubre el círculo por completo (mismo principio "cover" que `getMinCoverScale`
+// de la web, ahora aplicado de forma idéntica en la vista previa y en el
+// export).
 @Composable
 private fun CircularCropOverlay(
     imageUri: Uri,
@@ -307,6 +331,8 @@ private fun CircularCropOverlay(
         val decoded = withContext(Dispatchers.IO) { decodeOrientedBitmap(context, imageUri) }
         bitmap = decoded
         loadError = decoded == null
+        scale = 1f
+        offset = Offset.Zero
     }
 
     // Escala "cover" real (píxeles de bitmap -> píxeles de pantalla) que hace
@@ -349,27 +375,59 @@ private fun CircularCropOverlay(
                                 .clip(CircleShape)
                                 .border(3.dp, Color(0xFFE5E7EB), CircleShape)
                                 .pointerInput(imageUri, baseCoverScale) {
-                                    detectTransformGestures { _, pan, zoomDelta, _ ->
-                                        val maxRelative = (MAX_ABSOLUTE_SCALE / baseCoverScale.coerceAtLeast(0.0001f))
-                                            .coerceAtLeast(MIN_CROP_SCALE)
-                                        val newScale = (scale * zoomDelta).coerceIn(MIN_CROP_SCALE, maxRelative)
-                                        scale = newScale
-                                        offset = clamp(offset + pan, newScale)
+                                    // Réplica EXACTA de handleTouchStart/handleTouchMove de la
+                                    // web: con 1 puntero SOLO se mueve (pan); con 2+ punteros SOLO
+                                    // se hace zoom (el pan se ignora por completo mientras haya 2+).
+                                    awaitEachGesture {
+                                        var lastDistance = 0f
+                                        var lastPositions = emptyMap<Long, Offset>()
+                                        do {
+                                            val event = awaitPointerEvent()
+                                            val pressed = event.changes.filter { it.pressed }
+                                            when {
+                                                pressed.size == 1 -> {
+                                                    val p = pressed[0]
+                                                    val prev = lastPositions[p.id.value]
+                                                    if (prev != null) {
+                                                        offset = clamp(offset + (p.position - prev), scale)
+                                                    }
+                                                    lastDistance = 0f
+                                                }
+                                                pressed.size >= 2 -> {
+                                                    val p1 = pressed[0]
+                                                    val p2 = pressed[1]
+                                                    val dx = p1.position.x - p2.position.x
+                                                    val dy = p1.position.y - p2.position.y
+                                                    val distance = sqrt(dx * dx + dy * dy)
+                                                    if (lastDistance > 0f) {
+                                                        val maxRelative = (MAX_ABSOLUTE_SCALE / baseCoverScale.coerceAtLeast(0.0001f))
+                                                            .coerceAtLeast(MIN_CROP_SCALE)
+                                                        val scaleChange = distance / lastDistance
+                                                        val newScale = (scale * scaleChange).coerceIn(MIN_CROP_SCALE, maxRelative)
+                                                        offset = clamp(offset, newScale)
+                                                        scale = newScale
+                                                    }
+                                                    lastDistance = distance
+                                                }
+                                            }
+                                            lastPositions = pressed.associate { it.id.value to it.position }
+                                            event.changes.forEach { if (it.positionChanged()) it.consume() }
+                                        } while (pressed.isNotEmpty())
                                     }
                                 },
-                            contentAlignment = Alignment.Center,
                         ) {
-                            val effectiveScale = baseCoverScale * scale
-                            val imgWidthPx = bmp.width * effectiveScale
-                            val imgHeightPx = bmp.height * effectiveScale
-                            Image(
-                                bitmap = bmp.asImageBitmap(),
-                                contentDescription = null,
-                                contentScale = ContentScale.FillBounds,
-                                modifier = Modifier
-                                    .size(with(density) { imgWidthPx.toDp() }, with(density) { imgHeightPx.toDp() })
-                                    .graphicsLayer(translationX = offset.x, translationY = offset.y),
-                            )
+                            ComposeCanvas(Modifier.fillMaxSize()) {
+                                val effectiveScale = baseCoverScale * scale
+                                val w = bmp.width * effectiveScale
+                                val h = bmp.height * effectiveScale
+                                val left = size.width / 2f - w / 2f + offset.x
+                                val top = size.height / 2f - h / 2f + offset.y
+                                drawImage(
+                                    image = bmp.asImageBitmap(),
+                                    dstOffset = IntOffset(left.roundToInt(), top.roundToInt()),
+                                    dstSize = IntSize(w.roundToInt().coerceAtLeast(1), h.roundToInt().coerceAtLeast(1)),
+                                )
+                            }
                         }
                     }
                     loadError -> Text("No se pudo cargar la imagen", color = Color(0xFF71717A), fontSize = 14.sp)
