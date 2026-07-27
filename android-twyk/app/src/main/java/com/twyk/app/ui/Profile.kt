@@ -2,6 +2,7 @@ package com.twyk.app.ui
 
 import android.content.Intent
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -919,6 +920,11 @@ private fun ProfileTabsBar(
     ) {
         tabs.forEach { key ->
             val active = activeTab == key
+            // `scale-105`/`scale-100` de la web (TABS[].icon, ProfilePage.jsx) —
+            // el icono de la pestaña activa crece ligeramente (5%), animado;
+            // faltaba por completo en el nativo, haciendo que el estado activo
+            // se notara MENOS (solo el color/borde cambiaban).
+            val iconScale by animateFloatAsState(if (active) 1.05f else 1f, label = "tabIconScale")
             Box(
                 Modifier.weight(1f).height(32.dp).clip(RoundedCornerShape(8.dp))
                     .then(
@@ -928,12 +934,21 @@ private fun ProfileTabsBar(
                     .clickable { onTab(key) },
                 contentAlignment = Alignment.Center,
             ) {
-                val tint = if (active) Color.White else ZincText
+                // Color explícito por rama (sin variable compartida) — misma
+                // regla en ambos casos (blanco si `active`, gris `ZincText` si
+                // no), réplica exacta de `text-white`/`text-zinc-400` en el
+                // <button> de la web (ambos iconos heredan ese color vía
+                // `currentColor`, ver TABS[].icon en ProfilePage.jsx).
                 when (key) {
-                    "polls" -> ColumnsIcon(Modifier.size(18.dp), tint)
+                    "polls" -> ColumnsIcon(
+                        Modifier.size(18.dp).graphicsLayer(scaleX = iconScale, scaleY = iconScale),
+                        if (active) Color.White else ZincText,
+                    )
                     else -> Icon(
                         ImageVector.vectorResource(if (active) R.drawable.ic_bookmark_filled else R.drawable.ic_bookmark),
-                        null, tint = tint, modifier = Modifier.size(18.dp),
+                        null,
+                        tint = if (active) Color.White else ZincText,
+                        modifier = Modifier.size(18.dp).graphicsLayer(scaleX = iconScale, scaleY = iconScale),
                     )
                 }
             }
