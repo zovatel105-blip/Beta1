@@ -332,6 +332,22 @@ fun ProfileScreen(
     // en la web. Se mide con onGloballyPositioned (ver ProfileHeaderSection);
     // hasta tener la medida real usamos un valor por defecto razonable.
     var profileBlockHeightPx by remember(target) { mutableStateOf(with(density) { COLLAPSE_DIST_DP.dp.toPx() }) }
+    // Altura MEDIDA del estado vacío ("No posts yet"/"No saved posts",
+    // EmptyTab) — BUG reportado por el usuario ("el icono... se desplaza
+    // hacia arriba, ni polls ni saved se solucionó"): `minContentFillerPx`
+    // (más abajo) asumía `realContentHeightPx = 0f` siempre que
+    // `currentTabItemCount <= 0` -razonando que "sin publicaciones no hay
+    // nada que restar"- pero eso es FALSO: cuando no hay publicaciones SÍ se
+    // renderiza `EmptyTab`, con una altura real considerable (padding
+    // vertical 64+64dp + icono 64dp + textos ≈ 250dp+). Al no restar esa
+    // altura, el relleno de más abajo se calculaba MUCHO más grande de lo
+    // necesario -~250dp de más-, permitiendo un recorrido de scroll adicional
+    // que arrastraba a `EmptyTab` bien adentro de la zona cubierta por la
+    // barra superior/pestañas fijas (el mismo tipo de bug ya corregido para
+    // las miniaturas del grid, pero sin cubrir este caso concreto). FIX: se
+    // mide la altura REAL de `EmptyTab` (igual patrón que
+    // `profileBlockHeightPx`) y se usa en vez de 0f.
+    var emptyTabHeightPx by remember(target) { mutableStateOf(with(density) { 250.dp.toPx() }) }
     // Progreso de colapso 0 (expandido) → 1 (pestañas ancladas), calculado con
     // el scroll del PRIMER item (la cabecera). Al usar la altura real del
     // bloque, el desvanecido de la cabecera y el anclaje de las pestañas quedan
@@ -376,7 +392,9 @@ fun ProfileScreen(
         val viewportHPx = viewportSize.height.toFloat()
         val viewportWPx = viewportSize.width.toFloat()
         val realContentHeightPx = if (currentTabItemCount <= 0) {
-            0f
+            // `EmptyTab` SÍ ocupa espacio real (ver comentario en
+            // `emptyTabHeightPx` más arriba) — antes se asumía 0f aquí.
+            emptyTabHeightPx
         } else {
             val horizontalPaddingPx = with(density) { 12.dp.toPx() } // contentPadding start(6)+end(6)
             val cellWidthPx = (viewportWPx - horizontalPaddingPx) / 3f
@@ -462,7 +480,10 @@ fun ProfileScreen(
                         }
                     }
                     posts.isEmpty() && !(isOwn && UploadQueue.items.isNotEmpty()) -> item(span = { GridItemSpan(maxLineSpan) }) {
-                        EmptyTab(title = "No posts yet", desc = if (isOwn) "Start creating content" else "This user hasn't posted yet")
+                        EmptyTab(
+                            title = "No posts yet", desc = if (isOwn) "Start creating content" else "This user hasn't posted yet",
+                            onMeasured = { h -> if (h > 0) emptyTabHeightPx = h.toFloat() },
+                        )
                     }
                     else -> itemsIndexed(posts) { idx, p -> ProfileGridItem(p) { viewerList = posts; viewerIndex = idx } }
                 }
@@ -474,7 +495,10 @@ fun ProfileScreen(
                         }
                     }
                     savedPosts.isEmpty() -> item(span = { GridItemSpan(maxLineSpan) }) {
-                        EmptyTab(title = "No saved posts", desc = "Save videos to watch them later", bookmark = true)
+                        EmptyTab(
+                            title = "No saved posts", desc = "Save videos to watch them later", bookmark = true,
+                            onMeasured = { h -> if (h > 0) emptyTabHeightPx = h.toFloat() },
+                        )
                     }
                     else -> itemsIndexed(savedPosts) { idx, p -> ProfileGridItem(p) { viewerList = savedPosts; viewerIndex = idx } }
                 }
@@ -1014,9 +1038,10 @@ private fun PillButton(
 }
 
 @Composable
-private fun EmptyTab(title: String, desc: String, bookmark: Boolean = false) {
+private fun EmptyTab(title: String, desc: String, bookmark: Boolean = false, onMeasured: (Int) -> Unit = {}) {
     Column(
-        Modifier.fillMaxWidth().padding(vertical = 64.dp, horizontal = 16.dp),
+        Modifier.fillMaxWidth().padding(vertical = 64.dp, horizontal = 16.dp)
+            .onGloballyPositioned { onMeasured(it.size.height) },
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(
