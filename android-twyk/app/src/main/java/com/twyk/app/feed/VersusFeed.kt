@@ -105,7 +105,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -487,7 +486,7 @@ private fun CarouselPage(
             )
         }
 
-        HeaderOverlay(post, onOpenProfile, onRequireAuth, extraBottomReserve = if (showCommentInput) COMMENT_BAR_RESERVE_DP else 0.dp)
+        HeaderOverlay(post, onOpenProfile, onRequireAuth, commentBarActive = showCommentInput)
         // Autor del lado VISIBLE ahora mismo (cambia según la página del
         // carrusel) — misma variable "current" de CarouselSlide.jsx, usada
         // tanto para el objetivo del reto como para decidir si el botón de
@@ -499,7 +498,7 @@ private fun CarouselPage(
             coverUrl = currentSideForChallenge?.posterUrl ?: currentSideForChallenge?.imageUrl ?: post.posterUrl ?: post.thumbnailUrl,
             hasMusic = hasMusic, musicArtwork = post.musicArtwork,
             headAuthorUsername = (currentSideForChallenge?.author ?: post.author)?.username,
-            extraBottomReserve = if (showCommentInput) COMMENT_BAR_RESERVE_DP else 0.dp,
+            commentBarActive = showCommentInput,
         ) {
             onChallenge(
                 QuickChallengeTarget(
@@ -512,7 +511,7 @@ private fun CarouselPage(
                 ),
             )
         }
-        Dots(active = sidePager.currentPage, extraBottomReserve = if (showCommentInput) COMMENT_BAR_RESERVE_DP else 0.dp)
+        Dots(active = sidePager.currentPage, commentBarActive = showCommentInput)
         // Aviso: distinto según se haya votado ya o no, igual que la web
         // (antes de votar invita a comparar/votar; tras votar, si el lado
         // visible NO es el votado, invita a cambiar el voto).
@@ -776,14 +775,14 @@ private fun DuetPage(
             )
         }
 
-        HeaderOverlay(post, onOpenProfile, onRequireAuth, extraBottomReserve = if (showCommentInput) COMMENT_BAR_RESERVE_DP else 0.dp)
+        HeaderOverlay(post, onOpenProfile, onRequireAuth, commentBarActive = showCommentInput)
         SocialRail(
             post, votes, voted, onCommentsLocal, onRequireAuth,
             hideChallenge = hideChallenge, audioActive = audioActive,
             coverUrl = (if (audibleSide == "b") post.sideB else post.sideA)?.let { it.posterUrl ?: it.imageUrl },
             hasMusic = hasMusic, musicArtwork = post.musicArtwork,
             headAuthorUsername = (post.sideA?.author ?: post.author)?.username,
-            extraBottomReserve = if (showCommentInput) COMMENT_BAR_RESERVE_DP else 0.dp,
+            commentBarActive = showCommentInput,
         ) {
             val current = if (voted == "b") post.sideB else post.sideA
             onChallenge(
@@ -921,7 +920,7 @@ private fun VideoSurface(
 
 // ── Overlays ──────────────────────────────────────────────────────────────────
 @Composable
-private fun BoxScope.HeaderOverlay(post: Post, onOpenProfile: (String) -> Unit, onRequireAuth: () -> Unit, extraBottomReserve: Dp = 0.dp) {
+private fun BoxScope.HeaderOverlay(post: Post, onOpenProfile: (String) -> Unit, onRequireAuth: () -> Unit, commentBarActive: Boolean = false) {
     val author = post.sideA?.author ?: post.author
     val uname = author?.username
     // Estado de "Seguir" — antes este botón NO hacía nada (ni onClick, ni
@@ -938,7 +937,7 @@ private fun BoxScope.HeaderOverlay(post: Post, onOpenProfile: (String) -> Unit, 
             .fillMaxWidth()
             .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f))))
             .navigationBarsPadding()
-            .padding(start = 14.dp, end = 80.dp, top = 40.dp, bottom = 78.dp + extraBottomReserve),
+            .padding(start = 14.dp, end = 80.dp, top = 40.dp, bottom = if (commentBarActive) COMMENT_BAR_RESERVE_DP + 10.dp else 78.dp),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -1104,11 +1103,18 @@ private fun BoxScope.SocialRail(
     // en CarouselSlide.jsx/DuetSlide.jsx, usado para ocultar el botón de Retar
     // en tu PROPIA publicación (antes este check no existía en la app nativa).
     headAuthorUsername: String? = null,
-    // Reserva extra al pie (réplica de `showCommentInput`/COMMENT_BAR_RESERVE
-    // en CarouselSlide.jsx/DuetSlide.jsx) — SOLO al abrir desde el grid del
+    // Reserva al pie (réplica de `showCommentInput`/COMMENT_BAR_RESERVE en
+    // CarouselSlide.jsx/DuetSlide.jsx) — SOLO al abrir desde el grid del
     // perfil, para que la columna social no quede tapada por la nueva barra
-    // de "Añadir comentario".
-    extraBottomReserve: Dp = 0.dp,
+    // de "Añadir comentario". IMPORTANTE (bug reportado: "todos los objetos
+    // subieron a la parte de arriba"): esto REEMPLAZA el margen inferior
+    // habitual (64dp), NO SE SUMA a él — la web hace exactamente lo mismo
+    // (`showCommentInput ? COMMENT_BAR_RESERVE+6px : 72px`, valores de
+    // magnitud similar, nunca apilados); el margen de 64dp ya estaba pensado
+    // para despejar la barra de navegación inferior, que ahora queda OCULTA
+    // mientras el visor esté abierto (ver FullScreenOverlays.profileViewerOpen),
+    // así que sumar una reserva nueva ENCIMA duplicaba el hueco.
+    commentBarActive: Boolean = false,
     onChallengeClick: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
@@ -1164,7 +1170,10 @@ private fun BoxScope.SocialRail(
         Modifier
             .align(Alignment.BottomEnd)
             .navigationBarsPadding()
-            .padding(end = 4.dp, bottom = 64.dp + extraBottomReserve),
+            // Con `commentBarActive` el margen se queda IGUAL (64dp) —
+            // magnitud ya correcta, réplica del ~72px/64px+6px de la web
+            // (ambos casos de similar tamaño, sin apilar reservas).
+            .padding(end = 4.dp, bottom = 64.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
@@ -1372,12 +1381,14 @@ private fun MusicDisc(
 }
 
 @Composable
-private fun BoxScope.Dots(active: Int, extraBottomReserve: Dp = 0.dp) {
+private fun BoxScope.Dots(active: Int, commentBarActive: Boolean = false) {
     Row(
         Modifier
             .align(Alignment.BottomCenter)
             .navigationBarsPadding()
-            .padding(bottom = 64.dp + extraBottomReserve),
+            // REEMPLAZO (no suma) del margen habitual — mismo motivo que
+            // SocialRail/HeaderOverlay, ver comentario ahí.
+            .padding(bottom = if (commentBarActive) COMMENT_BAR_RESERVE_DP + 2.dp else 64.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         for (i in 0..1) {
@@ -1628,7 +1639,15 @@ private fun BoxScope.QuickCommentInput(
             .fillMaxWidth()
             .imePadding()
             .navigationBarsPadding()
-            .padding(horizontal = 12.dp, vertical = 8.dp)
+            // BUG reportado ("la barra debe estar un pelín más abajo"):
+            // `navigationBarsPadding()` YA reserva el hueco exacto del
+            // gesto/barra de sistema; el `bottom=8.dp` adicional que había
+            // aquí se sumaba ENCIMA de eso, alejando la barra del borde real
+            // más de lo necesario (réplica de la web: `paddingBottom:
+            // max(env(safe-area-inset-bottom), 12px)`, un margen pequeño, no
+            // 8dp SUMADOS a la propia inset). Se reduce a 2dp (solo top=8dp
+            // se mantiene, para separarla un poco del contenido de encima).
+            .padding(horizontal = 12.dp, top = 8.dp, bottom = 2.dp)
             .then(
                 if (focused) {
                     Modifier.clip(RoundedCornerShape(20.dp)).background(Color(0xF2141416))
