@@ -617,9 +617,23 @@ private fun CollapsedTopBar(
     val name = profile?.name?.takeIf { it.isNotBlank() } ?: profile?.username ?: "User"
     val actionsEnabled = progress > 0.5f
 
+    // BUG reportado por el usuario ("los perfiles no respetan la barra de
+    // estado del sistema como el feed"): el orden anterior de modificadores
+    // era `.statusBarsPadding().height(44.dp).background(TwykBg)` — con
+    // `background` APLICADO DESPUÉS del padding, el color solo pintaba la
+    // franja de 44dp de contenido, dejando TRANSPARENTE la franja real de la
+    // barra de estado (arriba de esa franja) -> el avatar grande del bloque
+    // de perfil, al desplazarse hacia arriba con el scroll, se veía
+    // "sangrando" por detrás/encima de los iconos del reloj/batería, en vez
+    // de quedar oculto por un fondo sólido como pasa siempre en el feed. El
+    // feed (`FeedPager`, VersusFeed.kt: `.background(Color.Black)
+    // .statusBarsPadding()`) y el fix ya aplicado en Upload.kt/FileStep usan
+    // el orden CONTRARIO: `background` ANTES de `statusBarsPadding`, así el
+    // color pintado cubre el tamaño TOTAL (contenido + inset), incluida la
+    // franja de la barra de estado; el padding solo empuja el CONTENIDO
+    // hacia abajo, sin dejar ningún hueco transparente. FIX: mismo orden aquí.
     Box(
-        Modifier.fillMaxWidth().statusBarsPadding().height(44.dp)
-            .background(TwykBg),
+        Modifier.fillMaxWidth().background(TwykBg).statusBarsPadding().height(44.dp),
     ) {
         Row(
             Modifier.fillMaxSize().padding(horizontal = 6.dp),
@@ -642,14 +656,28 @@ private fun CollapsedTopBar(
                 Text(name, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
 
-            // Acción (Editar+Compartir o Seguir/Retar): mitad derecha del espacio
-            // restante — igual que la web, que SIEMPRE muestra Editar Y Compartir
-            // juntos para el perfil propio (antes solo se mostraba "Edit", faltaba
-            // el botón circular de Compartir).
+            // Acción (Editar+Compartir o Seguir/Retar): PEGADA a la esquina
+            // derecha real de la barra (justo antes del icono de menú/hueco
+            // de 40dp), NUNCA compartiendo espacio 50/50 con el nombre.
+            // BUG reportado por el usuario ("en el perfil ajeno el botón de
+            // reto y seguir se solapan, deben estar a la derecha en la
+            // esquina"): con `weight(1f)` este bloque ocupaba la MITAD del
+            // espacio restante (repartido igual que el nombre), así que su
+            // ranura empezaba justo en el CENTRO horizontal de la barra —
+            // exactamente donde también vive el avatar (`align(Center)`,
+            // independiente de este Row) — quedando ambos MUY cerca o
+            // solapados visualmente, en vez de claramente separados. FIX:
+            // se quita `weight(1f)` (y por tanto ya no hace falta alinear a
+            // `Alignment.End`, pues sin peso este Row mide su ANCHO REAL de
+            // contenido) — así, al ser hijo de un Row donde el nombre SÍ
+            // tiene `weight(1f)` (absorbe TODO el espacio restante), este
+            // bloque de acciones queda automáticamente empujado a pegarse
+            // justo contra el icono/hueco de 40dp del extremo derecho — la
+            // esquina real de la barra, lejos del avatar central.
             Row(
-                Modifier.weight(1f).graphicsLayer(alpha = progress),
+                Modifier.graphicsLayer(alpha = progress),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.End),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 if (isOwn) {
                     MiniPill("Edit", filled = true, enabled = actionsEnabled, horizontalPadding = 16.dp, onClick = onEditProfile)
