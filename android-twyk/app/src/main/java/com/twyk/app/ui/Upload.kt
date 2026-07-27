@@ -421,7 +421,24 @@ private fun FileStep(
     var versusIdx by remember { mutableStateOf(0) }
     var dragDx by remember { mutableStateOf(0f) }
 
-    Box(Modifier.fillMaxSize().background(Color.Black)) {
+    // BUG reportado por el usuario ("en el preview no se respeta la barra de
+    // estado del sistema como lo hace el feed"): a diferencia del feed
+    // principal (ver `FeedPager` en feed/VersusFeed.kt, cuyo `VerticalPager`
+    // exterior tiene `.statusBarsPadding()` UNA SOLA VEZ, así que TODO el
+    // contenido -incluido el propio vídeo- queda insertado bajo la barra de
+    // estado de forma uniforme), este paso "file" solo aplicaba
+    // `.statusBarsPadding()` a la cabecera propia (más abajo) mientras el
+    // Box exterior con el vídeo/foto llegaba hasta el borde absoluto y
+    // superior real de la pantalla (edge-to-edge, `WindowCompat
+    // .setDecorFitsSystemWindows(window, false)` en MainActivity.kt) —
+    // inconsistente con el feed. FIX: se aplica `.statusBarsPadding()` aquí,
+    // en el Box exterior que envuelve TODO (vídeo/foto, degradados y
+    // cabecera), exactamente igual que en `FeedPager`; la cabecera propia
+    // (más abajo) YA NO necesita su propio `.statusBarsPadding()` -se quita,
+    // para no duplicar el hueco- y el botón "Change" de `MediaSlot` (que sí
+    // tenía su propio ajuste `atTop` añadido en una ronda anterior, ahora
+    // redundante por el mismo motivo) también se simplifica.
+    Box(Modifier.fillMaxSize().background(Color.Black).statusBarsPadding()) {
         // ── Media: dueto = split con formato; versus = carrusel; reto = único ──
         when (mode) {
             "duet" -> {
@@ -450,7 +467,7 @@ private fun FileStep(
                         verticalArrangement = Arrangement.spacedBy(2.dp),
                     ) {
                         MediaSlot(uriA, kindA, onPickA, small = true, modifier = Modifier.weight(1f).fillMaxWidth().clipToBounds())
-                        MediaSlot(uriB, kindB, onPickB, small = true, atTop = false, modifier = Modifier.weight(1f).fillMaxWidth().clipToBounds())
+                        MediaSlot(uriB, kindB, onPickB, small = true, modifier = Modifier.weight(1f).fillMaxWidth().clipToBounds())
                     }
                 }
             }
@@ -482,8 +499,11 @@ private fun FileStep(
         )
 
         // ── Header propio (con conmutador de formato centrado en 1vs1) ──
+        // (ya NO necesita su propio `.statusBarsPadding()`: el Box exterior
+        // de este mismo `FileStep` ya inserta TODO el contenido bajo la
+        // barra de estado, ver comentario más arriba)
         Row(
-            Modifier.fillMaxWidth().align(Alignment.TopCenter).statusBarsPadding().padding(horizontal = 12.dp, vertical = 10.dp),
+            Modifier.fillMaxWidth().align(Alignment.TopCenter).padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
@@ -578,22 +598,14 @@ private fun LayoutSeg(label: String, icon: ImageVector, active: Boolean, onClick
 // Una "mitad" del split (o pantalla completa): vídeo/foto en vivo con botón
 // "Change" arriba a la derecha, o placeholder para subir (réplica de renderSlot
 // de la web; small=true usa los tamaños del split A/B, small=false los del reto).
-// `atTop`: si este slot concreto toca el borde SUPERIOR real de la pantalla
-// (pantalla completa en versus/reto, o CUALQUIERA de los 2 lados en el split
-// vertical -uno junto al otro-, o solo el lado A en el split horizontal
-// -apilados-), el botón "Change" debe respetar la barra de estado del
-// sistema (`.statusBarsPadding()`) igual que ya hace la cabecera propia de
-// FileStep — BUG reportado por el usuario ("en el preview... no se respeta
-// la barra de estado"): antes SIEMPRE se posicionaba con solo 8dp de margen
-// desde el borde absoluto de la pantalla (`Modifier.align(Alignment.TopEnd)
-// .padding(8.dp)`), sin ningún ajuste de safe-area, por lo que quedaba
-// parcialmente oculto detrás/debajo de los iconos de la barra de estado (la
-// app dibuja el contenido EDGE-TO-EDGE, ver `WindowCompat
-// .setDecorFitsSystemWindows(window, false)` en MainActivity.kt) — a
-// diferencia de la cabecera de FileStep (flecha atrás / X), que sí ya tenía
-// `.statusBarsPadding()` y por eso se veía correctamente más abajo.
+// (El parámetro `atTop`/`.statusBarsPadding()` que este botón tenía en una
+// ronda anterior se retiró: ahora el Box EXTERIOR de `FileStep` ya aplica
+// `.statusBarsPadding()` una sola vez a TODO el paso -igual que hace
+// `FeedPager` en el feed principal-, así que ningún hijo, incluido este
+// botón, vuelve a tocar el borde real de la pantalla; mantenerlo aquí habría
+// duplicado el hueco de la barra de estado.)
 @Composable
-private fun MediaSlot(uri: Uri?, kind: String?, onPick: () -> Unit, small: Boolean, atTop: Boolean = true, modifier: Modifier) {
+private fun MediaSlot(uri: Uri?, kind: String?, onPick: () -> Unit, small: Boolean, modifier: Modifier) {
     Box(modifier.background(Color.Black)) {
         if (uri != null) {
             if (kind == "image") {
@@ -603,7 +615,6 @@ private fun MediaSlot(uri: Uri?, kind: String?, onPick: () -> Unit, small: Boole
             }
             Box(
                 Modifier.align(Alignment.TopEnd)
-                    .then(if (atTop) Modifier.statusBarsPadding() else Modifier)
                     .padding(8.dp).clip(RoundedCornerShape(50))
                     .background(Color.Black.copy(alpha = 0.55f)).clickable { onPick() }.padding(horizontal = 10.dp, vertical = 4.dp),
             ) { Text("Change", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.SemiBold) }
