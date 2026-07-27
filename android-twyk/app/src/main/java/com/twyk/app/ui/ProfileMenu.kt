@@ -46,6 +46,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -114,6 +116,15 @@ fun ProfileMenuSheet(
                     .widthIn(max = 384.dp)
                     .onGloballyPositioned { panelWidthPx = it.size.width.toFloat() }
                     .offset { IntOffset(dragOffsetPx.roundToInt(), 0) }
+                    // `shadow-2xl` de la web -> sombra de elevación nativa. Se
+                    // aplica ANTES de `clipToBounds()` para que la propia
+                    // sombra (que se dibuja FUERA del borde del panel) no
+                    // quede recortada por ese clip.
+                    .shadow(24.dp)
+                    // `overflow-hidden` de la web -> recorta el resplandor
+                    // decorativo (ver más abajo) para que no sangre hacia la
+                    // zona oscurecida de fondo, fuera del propio panel.
+                    .clipToBounds()
                     .pointerInput(Unit) {
                         detectHorizontalDragGestures(
                             onDragEnd = {
@@ -130,20 +141,50 @@ fun ProfileMenuSheet(
                     }
                     .background(TwykBg),
             ) {
+                // Borde izquierdo sutil (`border-l border-white/[0.06]` de la
+                // web) — Compose no tiene un modificador de "borde en un solo
+                // lado", así que se dibuja como una línea de 1dp pegada al
+                // borde izquierdo del panel, ANTES del resto del contenido
+                // (para que quede detrás del resplandor/filas, igual que un
+                // borde CSS normal).
+                Box(
+                    Modifier.align(Alignment.CenterStart).fillMaxHeight().width(1.dp)
+                        .background(Color.White.copy(alpha = 0.06f)),
+                )
+
                 // Resplandor de marca sutil en la esquina superior derecha —
-                // mismo tono/posición que el div decorativo de SettingsDrawer.jsx.
-                // Es un hijo MÁS del Box (no de la Column de contenido) para que
-                // quede detrás de la cabecera/opciones sin desplazar su layout.
+                // réplica EXACTA de `-top-24 -right-24 w-56 h-56` +
+                // `radial-gradient(circle, rgba(168,85,247,0.14) 0%,
+                // rgba(168,85,247,0) 70%)` de SettingsDrawer.jsx: forma de
+                // 224dp (56×4), desplazada 96dp (24×4) MÁS ALLÁ de la esquina
+                // superior-derecha en ambos ejes (antes 40dp, un valor
+                // inventado que no correspondía a ningún token de la web), y
+                // el degradado se apaga del todo al 70% del radio (antes
+                // llegaba hasta el 100%, dejando un halo visualmente más
+                // ancho/difuso que en la web).
                 Box(
                     Modifier
                         .align(Alignment.TopEnd)
-                        .offset(x = 40.dp, y = (-40).dp)
+                        .offset(x = 96.dp, y = (-96).dp)
                         .size(224.dp)
                         .background(
                             Brush.radialGradient(
-                                colors = listOf(Color(0xFFA855F7).copy(alpha = 0.14f), Color.Transparent),
+                                0f to Color(0xFFA855F7).copy(alpha = 0.14f),
+                                0.7f to Color.Transparent,
                             ),
                         ),
+                )
+
+                // Indicador de arrastre: flecha ">" en el borde izquierdo del
+                // panel, centrada verticalmente, en blanco muy tenue —
+                // réplica de `absolute left-1 top-1/2 -translate-y-1/2
+                // text-white/25` + `ChevronRight w-4 h-4` de la web. Faltaba
+                // por completo en el nativo.
+                Icon(
+                    Icons.Filled.ChevronRight,
+                    contentDescription = null,
+                    tint = Color.White.copy(alpha = 0.25f),
+                    modifier = Modifier.align(Alignment.CenterStart).padding(start = 4.dp).size(16.dp),
                 )
 
                 Column(Modifier.fillMaxSize()) {
@@ -155,7 +196,7 @@ fun ProfileMenuSheet(
                     ) {
                         Text(
                             "Settings", color = Color.White, fontWeight = FontWeight.SemiBold,
-                            fontSize = 19.sp,
+                            fontSize = 19.sp, letterSpacing = (-0.4).sp,
                         )
                     }
 
@@ -172,17 +213,23 @@ fun ProfileMenuSheet(
                             .padding(horizontal = 20.dp),
                     ) {
                         if (isAdmin) {
-                            Spacer(Modifier.height(6.dp))
+                            // `pt-5` (20px) de la web antes de esta sección —
+                            // antes solo 6dp, un valor sin relación con la web.
+                            Spacer(Modifier.height(20.dp))
                             Text(
                                 "ADMINISTRATION", color = Color(0xFF71717A), fontSize = 11.sp,
-                                fontWeight = FontWeight.SemiBold, letterSpacing = 0.9.sp,
+                                fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp,
                                 modifier = Modifier.padding(bottom = 4.dp),
                             )
+                            // `divide-y divide-white/[0.05]` de la web: línea
+                            // sutil de 1dp ENTRE las 2 filas de Administración
+                            // (faltaba por completo en el nativo).
                             MenuRow(
                                 icon = Icons.Filled.AdminPanelSettings,
                                 label = "Moderation panel",
                                 onClick = { openUrl(context, Config.BASE_URL.trimEnd('/') + "/admin/reports") },
                             )
+                            Box(Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.05f)))
                             MenuRow(
                                 icon = Icons.Filled.Insights,
                                 label = "Engine dashboard",
@@ -196,7 +243,9 @@ fun ProfileMenuSheet(
                     // panel — réplica de "mt-auto pt-8" + border-t en la web.
                     Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
                         Box(Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.06f)))
-                        Spacer(Modifier.height(4.dp))
+                        // `pt-4` (16px) de la web ENTRE el borde y la fila —
+                        // antes solo 4dp, un valor sin relación con la web.
+                        Spacer(Modifier.height(16.dp))
                         MenuRow(
                             icon = ImageVector.vectorResource(com.twyk.app.R.drawable.ic_log_out),
                             label = "Log out",
@@ -204,7 +253,9 @@ fun ProfileMenuSheet(
                             onClick = { onLogout(); onClose() },
                         )
                         Spacer(Modifier.navigationBarsPadding())
-                        Spacer(Modifier.height(12.dp))
+                        // `pb-6` (24px) de la web al final del panel — antes
+                        // solo 12dp.
+                        Spacer(Modifier.height(24.dp))
                     }
                 }
             }
@@ -218,7 +269,10 @@ fun ProfileMenuSheet(
 @Composable
 private fun MenuRow(icon: ImageVector, label: String, tone: String = "default", onClick: () -> Unit) {
     val isDanger = tone == "danger"
-    val iconBg = if (isDanger) Color(0xFFF87171).copy(alpha = 0.1f) else Color.White.copy(alpha = 0.06f)
+    // `bg-red-500/10` de la web (Tailwind red-500 = #EF4444) — antes usaba
+    // red-400 (#F87171, el mismo tono ya correcto del ICONO/texto) también
+    // para el FONDO del círculo, un color distinto al que usa la web ahí.
+    val iconBg = if (isDanger) Color(0xFFEF4444).copy(alpha = 0.1f) else Color.White.copy(alpha = 0.06f)
     val iconTint = if (isDanger) Color(0xFFF87171) else Color(0xFFD4D4D8)
     val labelColor = if (isDanger) Color(0xFFF87171) else Color.White
 
@@ -235,6 +289,7 @@ private fun MenuRow(icon: ImageVector, label: String, tone: String = "default", 
         Spacer(Modifier.width(12.dp))
         Text(
             label, color = labelColor, fontSize = 15.sp, fontWeight = FontWeight.Medium,
+            letterSpacing = (-0.3).sp,
             modifier = Modifier.weight(1f),
         )
         if (!isDanger) {

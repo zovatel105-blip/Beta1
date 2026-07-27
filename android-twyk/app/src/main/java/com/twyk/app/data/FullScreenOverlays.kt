@@ -29,4 +29,16 @@ object FullScreenOverlays {
     // de la web (Feed.jsx: `<BottomNav>` se oculta por completo vía
     // `onPostViewerChange` mientras el visor esté abierto).
     var profileViewerOpen by mutableStateOf(false)
+    // Réplica del mismo mecanismo para el panel de Ajustes del perfil propio
+    // (icono ☰ -> ProfileMenuSheet, ui/ProfileMenu.kt) — BUG reportado por el
+    // usuario: el panel (deslizado desde el borde derecho) se pintaba DEBAJO
+    // de la barra de navegación inferior en vez de por encima. En la web,
+    // SettingsDrawer también es un overlay `fixed inset-0 z-[85]`, y
+    // ProfilePage.jsx eleva su PROPIO contenedor a `z-[90]` mientras
+    // `menuOpen` es true (línea ~738 de ProfilePage.jsx) — precisamente para
+    // quedar por encima de <BottomNav> (z-50). El nativo no tiene un concepto
+    // continuo de z-index, así que el equivalente exacto es ocultar la barra
+    // de navegación mientras este panel esté abierto (mismo resultado visual
+    // final: el panel queda "por encima", ya que no hay nada que lo tape).
+    var settingsOpen by mutableStateOf(false)
 }

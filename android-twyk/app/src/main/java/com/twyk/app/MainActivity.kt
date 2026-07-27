@@ -171,6 +171,7 @@ private fun TwykApp() {
         searchOpen -> false
         com.twyk.app.data.FullScreenOverlays.editProfileOpen -> false
         com.twyk.app.data.FullScreenOverlays.profileViewerOpen -> false
+        com.twyk.app.data.FullScreenOverlays.settingsOpen -> false
         profileUsername != null -> true
         tab == Tab.Upload -> false
         tab == Tab.Inbox -> false

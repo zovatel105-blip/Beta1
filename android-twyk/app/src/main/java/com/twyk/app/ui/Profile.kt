@@ -195,6 +195,15 @@ fun ProfileScreen(
         onDispose { if (isOwn) FullScreenOverlays.editProfileOpen = false }
     }
 
+    // Mismo mecanismo, para el panel de Ajustes (ProfileMenuSheet, ☰) — BUG
+    // reportado por el usuario ("los ajustes... deben estar por encima de la
+    // barra de navegación inferior"): ver comentario completo en
+    // FullScreenOverlays.kt.
+    LaunchedEffect(menuOpen) { FullScreenOverlays.settingsOpen = menuOpen }
+    DisposableEffect(Unit) {
+        onDispose { FullScreenOverlays.settingsOpen = false }
+    }
+
     // Mismo mecanismo que arriba, para el visor de publicaciones del grid —
     // BUG reportado por el usuario ("la barra de navegación inferior sigue
     // apareciendo... debería aparecer la barra de comentar"): la barra de
