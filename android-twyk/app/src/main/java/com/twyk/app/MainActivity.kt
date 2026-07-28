@@ -252,6 +252,7 @@ private fun TwykApp() {
                 isOverlay = false,
                 onClose = {},
                 onRequireAuth = { authOpen = true },
+                onOpenChallenge = onChallenge,
             )
             Tab.Inbox -> InboxScreen(
                 onRequireAuth = { authOpen = true },
@@ -301,6 +302,7 @@ private fun TwykApp() {
                 isOverlay = true,
                 onClose = { profileUsername = null },
                 onRequireAuth = { authOpen = true },
+                onOpenChallenge = onChallenge,
             )
         }
         // Hojas por encima de la barra de navegación.

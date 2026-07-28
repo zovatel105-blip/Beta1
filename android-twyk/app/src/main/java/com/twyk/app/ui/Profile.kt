@@ -70,8 +70,10 @@ import coil.compose.AsyncImage
 import com.twyk.app.Config
 import com.twyk.app.R
 import com.twyk.app.absoluteUrl
+import com.twyk.app.data.Author
 import com.twyk.app.data.Post
 import com.twyk.app.data.PostEvents
+import com.twyk.app.data.QuickChallengeTarget
 import com.twyk.app.data.ProfileUser
 import com.twyk.app.data.FullScreenOverlays
 import com.twyk.app.data.RetrofitProvider
@@ -95,6 +97,7 @@ fun ProfileScreen(
     isOverlay: Boolean,
     onClose: () -> Unit,
     onRequireAuth: () -> Unit,
+    onOpenChallenge: (QuickChallengeTarget) -> Unit = {},
 ) {
     val target = username ?: Session.user?.username
 
@@ -287,6 +290,34 @@ fun ProfileScreen(
         context.startActivity(Intent.createChooser(i, "Share"))
     }
 
+    // Retar a este usuario: reto "de mención" (sin vídeo del retado, igual
+    // que handleChallenge en ProfilePage.jsx) — el usuario retado sube su
+    // vídeo de respuesta cuando acepta. BUG FIX: los botones "Challenge" del
+    // perfil ajeno (icono en la barra colapsada y píldora bajo el avatar)
+    // tenían un onClick VACÍO (`{ }`), así que no hacían absolutamente nada
+    // al pulsarlos — nunca se llegó a implementar en el nativo (a diferencia
+    // de la web). Requiere sesión, igual que onFollow.
+    val onChallenge: () -> Unit = {
+        if (Session.token == null) {
+            onRequireAuth()
+        } else {
+            onOpenChallenge(
+                QuickChallengeTarget(
+                    postId = "",
+                    author = Author(
+                        username = profile?.username ?: target,
+                        name = profile?.name ?: profile?.username ?: target,
+                        avatarUrl = profile?.avatarUrl,
+                    ),
+                    videoUrl = null,
+                    posterUrl = null,
+                    description = null,
+                    music = null,
+                ),
+            )
+        }
+    }
+
     // ── Header colapsable estilo TikTok ────────────────────────────────────────
     // Al hacer scroll, la barra superior (siempre fija) revela progresivamente
     // el mini-perfil (avatar+nombre) y la acción (Editar/Seguir). Se calcula a
@@ -462,6 +493,7 @@ fun ProfileScreen(
                     onShare = onShare,
                     onEditProfile = { editOpen = true },
                     onOpenFollowList = { followListType = it },
+                    onChallenge = onChallenge,
                 )
             }
 
@@ -542,6 +574,7 @@ fun ProfileScreen(
             onShare = onShare,
             onEditProfile = { editOpen = true },
             onOpenMenu = { menuOpen = true },
+            onChallenge = onChallenge,
         )
 
         // Pantalla "Edit profile" (nombre, bio, avatar con recorte circular) —
@@ -674,6 +707,7 @@ private fun CollapsedTopBar(
     onShare: () -> Unit,
     onEditProfile: () -> Unit,
     onOpenMenu: () -> Unit,
+    onChallenge: () -> Unit,
 ) {
     val name = profile?.name?.takeIf { it.isNotBlank() } ?: profile?.username ?: "User"
     val actionsEnabled = progress > 0.5f
@@ -746,7 +780,7 @@ private fun CollapsedTopBar(
                         Icon(ImageVector.vectorResource(R.drawable.ic_share), null, tint = Color.White, modifier = Modifier.size(15.dp))
                     }
                 } else {
-                    MiniIconButton(enabled = actionsEnabled, onClick = { }) {
+                    MiniIconButton(enabled = actionsEnabled, onClick = onChallenge) {
                         Icon(ImageVector.vectorResource(R.drawable.ic_swords), null, tint = Color.White, modifier = Modifier.size(15.dp))
                     }
                     MiniPill(if (following) "Following" else "Follow", filled = !following, enabled = actionsEnabled && !followBusy, horizontalPadding = 20.dp, onClick = onFollow)
@@ -827,6 +861,7 @@ private fun ProfileHeaderSection(
     onShare: () -> Unit,
     onEditProfile: () -> Unit,
     onOpenFollowList: (String) -> Unit,
+    onChallenge: () -> Unit,
 ) {
     val name = profile?.name?.takeIf { it.isNotBlank() } ?: profile?.username ?: "User"
     val handle = "@" + (profile?.username ?: "user")
@@ -903,7 +938,7 @@ private fun ProfileHeaderSection(
                 } else {
                     PillButton(if (following) "Following" else "Follow", filled = !following, enabled = !followBusy, horizontalPadding = 28.dp, onClick = onFollow)
                     Spacer(Modifier.width(8.dp))
-                    PillButton("Challenge", filled = false, leadingDrawable = R.drawable.ic_swords) { }
+                    PillButton("Challenge", filled = false, leadingDrawable = R.drawable.ic_swords, onClick = onChallenge)
                 }
             }
 

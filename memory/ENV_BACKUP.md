@@ -25,7 +25,7 @@ actualizar NEXT_PUBLIC_BASE_URL y CORS_ORIGINS con el valor de la variable de
 entorno APP_URL definida en /etc/supervisor/conf.d/*.conf (bloque [program:nextjs]).
 
 ## Última URL usada (actualizada automáticamente al restaurar)
-NEXT_PUBLIC_BASE_URL=https://share-modal-update.preview.emergentagent.com
+NEXT_PUBLIC_BASE_URL=https://675ca231-5478-4957-9234-a4729ac3cb60.preview.emergentagent.com
 
 ## IMPORTANTE: también actualizar la app nativa Android
 Cuando la URL de preview cambia, además de /app/.env también hay que
