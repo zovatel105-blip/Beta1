@@ -10,7 +10,7 @@ import os
 import sys
 
 # Backend URL from environment
-BASE_URL = os.getenv('NEXT_PUBLIC_BASE_URL', 'https://button-overlap-ui.preview.emergentagent.com')
+BASE_URL = os.getenv('NEXT_PUBLIC_BASE_URL', 'https://share-modal-update.preview.emergentagent.com')
 API_BASE = f"{BASE_URL}/api"
 
 def print_section(title):
