@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -363,22 +364,6 @@ fun ProfileScreen(
     // en la web. Se mide con onGloballyPositioned (ver ProfileHeaderSection);
     // hasta tener la medida real usamos un valor por defecto razonable.
     var profileBlockHeightPx by remember(target) { mutableStateOf(with(density) { COLLAPSE_DIST_DP.dp.toPx() }) }
-    // Altura MEDIDA del estado vacío ("No posts yet"/"No saved posts",
-    // EmptyTab) — BUG reportado por el usuario ("el icono... se desplaza
-    // hacia arriba, ni polls ni saved se solucionó"): `minContentFillerPx`
-    // (más abajo) asumía `realContentHeightPx = 0f` siempre que
-    // `currentTabItemCount <= 0` -razonando que "sin publicaciones no hay
-    // nada que restar"- pero eso es FALSO: cuando no hay publicaciones SÍ se
-    // renderiza `EmptyTab`, con una altura real considerable (padding
-    // vertical 64+64dp + icono 64dp + textos ≈ 250dp+). Al no restar esa
-    // altura, el relleno de más abajo se calculaba MUCHO más grande de lo
-    // necesario -~250dp de más-, permitiendo un recorrido de scroll adicional
-    // que arrastraba a `EmptyTab` bien adentro de la zona cubierta por la
-    // barra superior/pestañas fijas (el mismo tipo de bug ya corregido para
-    // las miniaturas del grid, pero sin cubrir este caso concreto). FIX: se
-    // mide la altura REAL de `EmptyTab` (igual patrón que
-    // `profileBlockHeightPx`) y se usa en vez de 0f.
-    var emptyTabHeightPx by remember(target) { mutableStateOf(with(density) { 250.dp.toPx() }) }
     // Progreso de colapso 0 (expandido) → 1 (pestañas ancladas), calculado con
     // el scroll del PRIMER item (la cabecera). Al usar la altura real del
     // bloque, el desvanecido de la cabecera y el anclaje de las pestañas quedan
@@ -417,50 +402,46 @@ fun ProfileScreen(
     // invisible al final del grid.
     val currentTabItemCount = if (activeTab == "saved") savedPosts.size else (if (isOwn) UploadQueue.items.size else 0) + posts.size
     val currentTabReady = if (activeTab == "saved") !savedLoading else !loading
-    val minContentFillerPx = if (!currentTabReady || viewportSize.height <= 0 || viewportSize.width <= 0) {
+    // Espacio disponible tras la barra superior/pestañas/relleno inferior —
+    // reutilizado TANTO para calcular el relleno con publicaciones (más abajo)
+    // COMO para el alto del propio `EmptyTab` (ver más abajo). BUG reportado
+    // por el usuario, dos intentos previos sin solucionarlo del todo ("la
+    // info que aparece cuando no hay publicación... cuando deslizo se
+    // recorta"): los intentos anteriores median la altura REAL de `EmptyTab`
+    // (onGloballyPositioned con un valor "por defecto" de 250dp mientras
+    // llegaba la medida real) y restaban esa medida del espacio disponible
+    // para calcular un relleno POSTERIOR — pero eso deja una ventana de
+    // carrera: en el/los primeros frames (medida aún con el valor por
+    // defecto, que no coincide exactamente con el alto real renderizado) el
+    // grid ya permite desplazarse hasta el límite calculado con ese valor
+    // aproximado; en cuanto llega la medida real (frame siguiente) el relleno
+    // se recalcula, pero Compose NO vuelve a desplazar el scroll ya
+    // consumido por el usuario -> si el valor por defecto no coincidía
+    // exactamente, el resultado final queda con `EmptyTab` un poco recortado
+    // por la barra/pestañas, de forma permanente hasta que el usuario vuelva
+    // a arrastrar manualmente. FIX RAÍZ (sin medir nada, sin valores por
+    // defecto, sin ventana de carrera): en vez de RESTAR la altura de
+    // `EmptyTab` de un relleno posterior, se le asigna a `EmptyTab` un alto
+    // MÍNIMO EXPLÍCITO igual a `availableContentAreaPx` directamente (ver
+    // `minHeight` en su uso más abajo) — así `EmptyTab` ES el relleno, con un
+    // valor 100% determinista desde el primer frame (depende solo de
+    // `viewportSize`, ya conocido), sin depender de ninguna medida que pueda
+    // llegar tarde o con un valor por defecto ligeramente distinto.
+    val availableContentAreaPx = if (!currentTabReady || viewportSize.height <= 0 || viewportSize.width <= 0) {
         0f
     } else {
-        val viewportHPx = viewportSize.height.toFloat()
-        val viewportWPx = viewportSize.width.toFloat()
-        val realContentHeightPx = if (currentTabItemCount <= 0) {
-            // `EmptyTab` SÍ ocupa espacio real (ver comentario en
-            // `emptyTabHeightPx` más arriba) — antes se asumía 0f aquí.
-            emptyTabHeightPx
-        } else {
-            val horizontalPaddingPx = with(density) { 12.dp.toPx() } // contentPadding start(6)+end(6)
-            val cellWidthPx = (viewportWPx - horizontalPaddingPx) / 3f
-            val cellHeightPx = cellWidthPx * (16f / 9f) // aspecto 9:16 (ancho:alto)
-            val rows = ceil(currentTabItemCount / 3.0).toFloat()
-            rows * cellHeightPx
-        }
-        // BUG REPORTADO ("las tarjetas no se quedan por abajo como en la web,
-        // suben y quedan tapadas por la cabecera/pestañas"): la fórmula
-        // anterior era simplemente `viewportHPx - realContentHeightPx`,
-        // IGNORANDO que la barra superior fija (barBottomPx) y la banda de
-        // pestañas sticky (32dp reservados dentro de ProfileHeaderSection,
-        // más 26dp de margen) YA ocupan parte de ese alto de viewport -> el
-        // relleno resultante era MUCHO mayor de lo necesario (~un viewport
-        // completo de más), dejando disponible MUCHO más recorrido de scroll
-        // del necesario para colapsar del todo la cabecera. Con pocas
-        // publicaciones (p.ej. 3, como reportó el usuario), tras colapsar la
-        // cabecera por completo ese scroll "de más" seguía arrastrando las
-        // miniaturas del grid hacia ARRIBA, escondiéndolas detrás de la barra
-        // superior/pestañas — justo el bug reportado — en vez de quedarse
-        // fijas justo debajo, como en la web. La web NUNCA tiene este
-        // problema porque `contentMinH` (ver ProfilePage.jsx) se calcula como
-        // `scroller.clientHeight - barH - tabsH - 16`, es decir YA RESTA el
-        // espacio que ocupan la barra y las pestañas antes de repartir el
-        // resto al contenido — así el scroll total termina siendo EXACTAMENTE
-        // igual a la distancia de colapso (`profileBlockHeightPx`), ni un
-        // píxel más, y las tarjetas nunca pueden subir más allá de su
-        // posición ya colapsada. FIX: replicar la misma resta aquí (barra +
-        // 32dp de pestañas + 26dp de margen, ya reservados como Spacers
-        // dentro de ProfileHeaderSection, más los 112dp de contentPadding
-        // inferior de este mismo LazyVerticalGrid) antes de calcular cuánto
-        // relleno hace falta realmente.
         val reservedAfterHeaderPx = barBottomPx + with(density) { (32.dp + 26.dp).toPx() }
         val bottomPadPx = with(density) { 112.dp.toPx() }
-        val availableContentAreaPx = (viewportHPx - reservedAfterHeaderPx - bottomPadPx).coerceAtLeast(0f)
+        (viewportSize.height.toFloat() - reservedAfterHeaderPx - bottomPadPx).coerceAtLeast(0f)
+    }
+    val minContentFillerPx = if (currentTabItemCount <= 0 || availableContentAreaPx <= 0f) {
+        0f
+    } else {
+        val horizontalPaddingPx = with(density) { 12.dp.toPx() } // contentPadding start(6)+end(6)
+        val cellWidthPx = (viewportSize.width.toFloat() - horizontalPaddingPx) / 3f
+        val cellHeightPx = cellWidthPx * (16f / 9f) // aspecto 9:16 (ancho:alto)
+        val rows = ceil(currentTabItemCount / 3.0).toFloat()
+        val realContentHeightPx = rows * cellHeightPx
         (availableContentAreaPx - realContentHeightPx).coerceAtLeast(0f)
     }
 
@@ -514,7 +495,7 @@ fun ProfileScreen(
                     posts.isEmpty() && !(isOwn && UploadQueue.items.isNotEmpty()) -> item(span = { GridItemSpan(maxLineSpan) }) {
                         EmptyTab(
                             title = "No posts yet", desc = if (isOwn) "Start creating content" else "This user hasn't posted yet",
-                            onMeasured = { h -> if (h > 0) emptyTabHeightPx = h.toFloat() },
+                            minHeightPx = availableContentAreaPx,
                         )
                     }
                     else -> itemsIndexed(posts) { idx, p -> ProfileGridItem(p) { viewerList = posts; viewerIndex = idx } }
@@ -529,7 +510,7 @@ fun ProfileScreen(
                     savedPosts.isEmpty() -> item(span = { GridItemSpan(maxLineSpan) }) {
                         EmptyTab(
                             title = "No saved posts", desc = "Save videos to watch them later", bookmark = true,
-                            onMeasured = { h -> if (h > 0) emptyTabHeightPx = h.toFloat() },
+                            minHeightPx = availableContentAreaPx,
                         )
                     }
                     else -> itemsIndexed(savedPosts) { idx, p -> ProfileGridItem(p) { viewerList = savedPosts; viewerIndex = idx } }
@@ -1072,11 +1053,22 @@ private fun PillButton(
     }
 }
 
+// BUG reportado por el usuario, dos intentos previos sin solucionarlo del
+// todo ("la info que aparece cuando no hay publicación... cuando deslizo se
+// recorta, ocurre tanto en polls como en saved"): ya no se mide la altura
+// real de este composable (`onGloballyPositioned` con un valor por defecto
+// mientras llegaba la medida real, con ventana de carrera — ver comentario
+// detallado en `availableContentAreaPx` en ProfileScreen). Ahora recibe
+// directamente `minHeightPx` (mismo valor 100% determinista usado para el
+// relleno cuando SÍ hay publicaciones) y se lo aplica como alto MÍNIMO
+// propio — así este estado vacío ocupa por sí mismo exactamente el espacio
+// disponible tras la barra/pestañas, garantizando que nunca quede recortado
+// sin depender de ninguna medida que pueda llegar tarde.
 @Composable
-private fun EmptyTab(title: String, desc: String, bookmark: Boolean = false, onMeasured: (Int) -> Unit = {}) {
+private fun EmptyTab(title: String, desc: String, bookmark: Boolean = false, minHeightPx: Float = 0f) {
+    val minHeightDp = with(LocalDensity.current) { minHeightPx.toDp() }
     Column(
-        Modifier.fillMaxWidth().padding(vertical = 64.dp, horizontal = 16.dp)
-            .onGloballyPositioned { onMeasured(it.size.height) },
+        Modifier.fillMaxWidth().heightIn(min = minHeightDp).padding(vertical = 64.dp, horizontal = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(
