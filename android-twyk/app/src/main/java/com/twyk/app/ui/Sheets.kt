@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.Canvas
@@ -25,6 +26,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -81,6 +83,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.SpanStyle
@@ -1059,6 +1062,14 @@ private fun AuthMethodsScreen(isRegister: Boolean, onUseForm: () -> Unit, onSwit
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Spacer(Modifier.height(20.dp))
+            // Logo de marca (con su resplandor morado/azul original) sobre el
+            // splash de login/registro — réplica del <img> añadido en
+            // AuthModal.jsx (misma imagen fuente, res/drawable-nodpi/auth_logo.png).
+            Image(
+                painter = painterResource(R.drawable.auth_logo),
+                contentDescription = null,
+                modifier = Modifier.size(80.dp).offset(y = (-4).dp),
+            )
             Text(
                 if (isRegister) "Sign up for Twyk" else "Log in to Twyk",
                 color = Color(0xFF18181B), fontSize = 29.sp, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center,

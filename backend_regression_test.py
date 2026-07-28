@@ -7,7 +7,7 @@ Tests 5 critical endpoints to ensure backend still responds normally.
 import requests
 import sys
 
-BASE_URL = "https://share-modal-update.preview.emergentagent.com/api"
+BASE_URL = "https://app-identity-config.preview.emergentagent.com/api"
 
 def test_login():
     """Test 1: POST /api/auth/login with lucia/Test12345"""

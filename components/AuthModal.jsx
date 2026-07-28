@@ -226,6 +226,9 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
             <div className="relative z-10 flex-1 min-h-0 overflow-y-auto px-6">
               <div className="max-w-[420px] mx-auto w-full pt-5">
                 <div className="text-center mb-8 flex flex-col items-center">
+                  {/* Logo de marca (con su resplandor morado/azul original) sobre
+                      el splash de login/registro. */}
+                  <img src="/branding/twyk-logo.png" alt="Twyk" className="w-20 h-20 -mb-1 select-none" draggable={false} />
                   <h1 className="text-[29px] font-extrabold tracking-tight leading-tight">
                     {isRegister ? 'Sign up for Twyk' : 'Log in to Twyk'}
                   </h1>
