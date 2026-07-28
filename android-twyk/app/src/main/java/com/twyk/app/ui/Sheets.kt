@@ -1,6 +1,5 @@
 package com.twyk.app.ui
 
-import android.app.DatePickerDialog
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -17,6 +16,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -31,7 +31,9 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -57,12 +59,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -711,6 +715,160 @@ private val AuthPurple = Color(0xFFA855F7)
 private val AuthBlue = Color(0xFF3B82F6)
 private val AuthGradient = Brush.horizontalGradient(listOf(AuthPurple, AuthBlue))
 
+// ── Selector de fecha de nacimiento tipo TikTok (3 columnas Día/Mes/Año) —
+// réplica EXACTA de DateWheelPicker.jsx. BUG reportado por el usuario ("el
+// primer paso del registro, el de la fecha de nacimiento, no es igual token
+// por token al de la web"): el nativo NO tenía esta rueda — al tocar el
+// bloque de vista previa abría el DIÁLOGO NATIVO de Android (DatePickerDialog,
+// un calendario del sistema), una interacción y un aspecto totalmente
+// distintos a la rueda de 3 columnas con scroll/snap embebida en el propio
+// paso que usa la web. FIX: réplica 1:1 de esa rueda (mismas 40dp de alto por
+// fila, 5 filas visibles, banda central con líneas superior/inferior en
+// rgba(139,92,246,0.35) — nótese que es un morado LIGERAMENTE distinto
+// (violet-500 #8B5CF6) al AuthPurple (#A855F7) del resto del modal, exactamente
+// como en la web —, degradados blancos arriba/abajo, y el mismo interpolado
+// de tamaño/peso/opacidad de fuente según la distancia al centro).
+private val WheelAccent = Color(0xFF8B5CF6)
+private const val WHEEL_ITEM_H_DP = 40
+private const val WHEEL_VISIBLE = 5
+
+// Índice del ítem más cercano al centro del viewport (equivalente a leer
+// `scrollTop` en la web y dividir por ITEM_H, pero calculado a partir de la
+// info de layout real de la LazyColumn, que ya tiene en cuenta el contentPadding).
+private fun centerIndexOf(state: androidx.compose.foundation.lazy.LazyListState): Int {
+    val info = state.layoutInfo
+    if (info.visibleItemsInfo.isEmpty()) return state.firstVisibleItemIndex
+    val center = (info.viewportStartOffset + info.viewportEndOffset) / 2
+    return info.visibleItemsInfo.minByOrNull { kotlin.math.abs((it.offset + it.size / 2) - center) }?.index
+        ?: state.firstVisibleItemIndex
+}
+
+@Composable
+private fun WheelColumn(items: List<String>, selectedIndex: Int, onSelectedChange: (Int) -> Unit, width: androidx.compose.ui.unit.Dp) {
+    val itemHeight = WHEEL_ITEM_H_DP.dp
+    val listState = rememberLazyListState()
+    val flingBehavior = rememberSnapFlingBehavior(listState)
+    val scope = rememberCoroutineScope()
+
+    // Mantiene la rueda sincronizada cuando `selectedIndex` cambia DESDE FUERA
+    // (p.ej. el día se recorta al cambiar a un mes más corto) — réplica del
+    // `useEffect` con `el.scrollTop = target` (sin animación) de la web.
+    LaunchedEffect(selectedIndex, items.size) {
+        if (!listState.isScrollInProgress && centerIndexOf(listState) != selectedIndex && selectedIndex in items.indices) {
+            listState.scrollToItem(selectedIndex)
+        }
+    }
+    // Al soltar el dedo (scroll asentado en el snap), reporta el nuevo índice
+    // centrado — réplica del `handleScroll` con debounce de la web.
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.isScrollInProgress }.collect { scrolling ->
+            if (!scrolling) {
+                val idx = centerIndexOf(listState)
+                if (idx in items.indices && idx != selectedIndex) onSelectedChange(idx)
+            }
+        }
+    }
+
+    LazyColumn(
+        state = listState,
+        flingBehavior = flingBehavior,
+        modifier = Modifier.width(width).height(itemHeight * WHEEL_VISIBLE),
+        contentPadding = PaddingValues(vertical = itemHeight * (WHEEL_VISIBLE / 2)),
+    ) {
+        itemsIndexed(items) { i, label ->
+            val dist = kotlin.math.abs(i - selectedIndex)
+            val isSel = i == selectedIndex
+            Box(
+                Modifier.height(itemHeight).fillMaxWidth()
+                    .clickable { scope.launch { listState.animateScrollToItem(i) } },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    label,
+                    fontSize = if (isSel) 20.sp else 17.sp,
+                    fontWeight = if (isSel) FontWeight.ExtraBold else FontWeight.Medium,
+                    color = if (isSel) WheelAccent else Color(0xFF18181B).copy(alpha = maxOf(0.22f, 0.55f - dist * 0.15f)),
+                    textAlign = TextAlign.Center,
+                )
+            }
+        }
+    }
+}
+
+// value: "YYYY-MM-DD" | null   onChange: (String) -> Unit — mismo contrato que
+// la web (DateWheelPicker.jsx value/onChange).
+@Composable
+private fun DateWheelPicker(birthDate: String?, onBirthDate: (String) -> Unit) {
+    val now = remember { Calendar.getInstance() }
+    val currentYear = now.get(Calendar.YEAR)
+    val minYear = currentYear - 100
+    // Años en orden DESCENDENTE (el más reciente arriba), igual que la web.
+    val years = remember { (currentYear downTo minYear).toList() }
+
+    val parsed = birthDate?.split("-")?.takeIf { it.size == 3 }?.mapNotNull { it.toIntOrNull() }
+    var year by remember { mutableStateOf(parsed?.getOrNull(0) ?: (currentYear - 18)) }
+    var month by remember { mutableStateOf(parsed?.getOrNull(1) ?: 1) } // 1-12
+    var day by remember { mutableStateOf(parsed?.getOrNull(2) ?: 1) }
+
+    fun daysInMonth(y: Int, m: Int): Int {
+        val cal = Calendar.getInstance()
+        cal.set(y, m - 1, 1)
+        return cal.getActualMaximum(Calendar.DAY_OF_MONTH)
+    }
+    val dim = daysInMonth(year, month)
+    if (day > dim) day = dim
+
+    // Emite el valor combinado hacia el formulario en cada cambio (igual que
+    // el `useEffect([year, month, day, dim])` de la web).
+    LaunchedEffect(year, month, day, dim) {
+        onBirthDate(String.format("%04d-%02d-%02d", year, month, minOf(day, dim)))
+    }
+
+    val dayItems = remember(dim) { (1..dim).map { String.format("%02d", it) } }
+    val yearItems = remember(years) { years.map { it.toString() } }
+
+    Box(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color.White)
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+    ) {
+        // Banda de selección central: solo líneas finas arriba y abajo (borderTop/
+        // borderBottom en la web, NO un rectángulo completo) en el acento violeta
+        // de la rueda (sin relleno ni sombra), igual que la web.
+        Box(
+            Modifier.align(Alignment.TopCenter).fillMaxWidth().padding(horizontal = 8.dp)
+                .padding(top = (WHEEL_ITEM_H_DP * (WHEEL_VISIBLE / 2)).dp)
+                .height(1.dp).background(WheelAccent.copy(alpha = 0.35f)),
+        )
+        Box(
+            Modifier.align(Alignment.TopCenter).fillMaxWidth().padding(horizontal = 8.dp)
+                .padding(top = (WHEEL_ITEM_H_DP * (WHEEL_VISIBLE / 2) + WHEEL_ITEM_H_DP).dp)
+                .height(1.dp).background(WheelAccent.copy(alpha = 0.35f)),
+        )
+        Row(Modifier.align(Alignment.Center).fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+            WheelColumn(items = dayItems, selectedIndex = minOf(day, dim) - 1, onSelectedChange = { day = it + 1 }, width = 64.dp)
+            Spacer(Modifier.width(4.dp))
+            WheelColumn(items = MONTH_NAMES, selectedIndex = month - 1, onSelectedChange = { month = it + 1 }, width = 140.dp)
+            Spacer(Modifier.width(4.dp))
+            WheelColumn(
+                items = yearItems,
+                selectedIndex = years.indexOf(year).let { if (it == -1) 0 else it },
+                onSelectedChange = { year = years[it] },
+                width = 80.dp,
+            )
+        }
+        // Degradados superior/inferior (efecto "rueda") — se dibujan AL FINAL
+        // para quedar por encima del contenido, igual que el z-10 de la web.
+        Box(
+            Modifier.align(Alignment.TopCenter).fillMaxWidth().height(60.dp)
+                .background(Brush.verticalGradient(listOf(Color.White, Color.White.copy(alpha = 0f)))),
+        )
+        Box(
+            Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(60.dp)
+                .background(Brush.verticalGradient(listOf(Color.White.copy(alpha = 0f), Color.White))),
+        )
+    }
+}
+
 private data class RegStep(val key: String, val title: String, val subtitle: String)
 private val REG_STEPS = listOf(
     RegStep("birthdate", "What's your date of birth?", "Your date of birth won't be shown publicly."),
@@ -943,7 +1101,6 @@ private fun AuthRegisterStepScreen(
 ) {
     val stepCfg = REG_STEPS[regStep]
     val isLast = regStep == REG_STEPS.lastIndex
-    val context = LocalContext.current
 
     Column(Modifier.fillMaxSize()) {
         Column(
@@ -972,17 +1129,7 @@ private fun AuthRegisterStepScreen(
                 val underAge = birthDate != null && age in 0..12
                 Box(Modifier.fillMaxWidth().padding(top = 28.dp).height(1.dp).background(Color(0xFFF4F4F5)))
                 Column(
-                    Modifier.fillMaxWidth().padding(vertical = 16.dp).clickable {
-                        val cal = Calendar.getInstance()
-                        val parsed = birthDate?.split("-")
-                        if (parsed != null && parsed.size == 3) runCatching { cal.set(parsed[0].toInt(), parsed[1].toInt() - 1, parsed[2].toInt()) }
-                        else cal.add(Calendar.YEAR, -18)
-                        DatePickerDialog(
-                            context,
-                            { _, y, m, d -> onBirthDate(String.format("%04d-%02d-%02d", y, m + 1, d)) },
-                            cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH),
-                        ).apply { datePicker.maxDate = System.currentTimeMillis() }.show()
-                    },
+                    Modifier.fillMaxWidth().padding(vertical = 16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(
@@ -990,16 +1137,24 @@ private fun AuthRegisterStepScreen(
                         color = Color(0xFF18181B), fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center, letterSpacing = (-0.3).sp,
                     )
                     Spacer(Modifier.height(5.dp))
+                    // uppercase + tracking-wide + font-semibold — réplica exacta de la
+                    // web (antes decía "Tap to pick your date" en minúscula/negrita, un
+                    // texto y estilo distintos, pensados para el diálogo nativo que ya
+                    // no se usa).
                     Text(
                         when {
                             underAge -> "You must be 13 or older to join Twyk"
                             birthDate != null && age >= 0 -> "You're $age years old"
-                            else -> "Tap to pick your date"
-                        },
-                        color = if (underAge) Color(0xFFEF4444) else AuthPurple, fontSize = 12.5.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.4.sp,
+                            else -> "Scroll to pick day, month and year"
+                        }.uppercase(),
+                        color = if (underAge) Color(0xFFEF4444) else WheelAccent, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.4.sp,
                     )
                 }
                 Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0xFFF4F4F5)))
+                // mb-6 (24dp) entre el borde inferior de la vista previa y la rueda —
+                // réplica exacta del espaciado de la web.
+                Spacer(Modifier.height(24.dp))
+                DateWheelPicker(birthDate = birthDate, onBirthDate = onBirthDate)
             } else {
                 Text(stepCfg.title, color = Color(0xFF18181B), fontSize = 25.sp, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center, letterSpacing = (-0.3).sp, modifier = Modifier.widthIn(max = 300.dp))
                 Spacer(Modifier.height(10.dp))
