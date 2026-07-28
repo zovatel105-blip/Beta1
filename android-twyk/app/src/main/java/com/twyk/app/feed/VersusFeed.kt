@@ -28,11 +28,13 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
@@ -97,6 +99,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
@@ -1642,7 +1645,30 @@ private fun BoxScope.QuickCommentInput(
     val scope = rememberCoroutineScope()
     var text by remember(postId) { mutableStateOf("") }
     var submitting by remember(postId) { mutableStateOf(false) }
-    var focused by remember { mutableStateOf(false) }
+    // BUG reportado por el usuario ("cuando la cierro sigue marcándose como
+    // para escribir incluso después de hacer scroll"): 1) esta variable NO
+    // estaba anclada a `postId` (a diferencia de `text`/`submitting` justo
+    // arriba), así que si el nodo de Compose se reutilizaba entre
+    // publicaciones distintas del pager, el estilo "activo" (tarjeta expandida
+    // con avatar) podía arrastrarse a la siguiente publicación. 2) más
+    // importante: al cerrar el teclado (botón/gesto Atrás, o tocando fuera)
+    // Android NO siempre retira el foco de Compose del campo -a diferencia
+    // del `blur` nativo de un <input> en la web-, así que `onFocusChanged`
+    // nunca llegaba a disparar `focused = false` y la barra se quedaba
+    // "pegada" en su estilo expandido aunque el teclado ya no estuviera
+    // visible. FIX: además de anclar `focused` a `postId`, se observa la
+    // visibilidad REAL del teclado (WindowInsets.ime) y, en cuanto se oculta
+    // mientras `focused` seguía en true, se resetea el estado Y se limpia el
+    // foco de Compose explícitamente (evita que quede "fantasma" enfocado).
+    var focused by remember(postId) { mutableStateOf(false) }
+    val focusManager = LocalFocusManager.current
+    val imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+    LaunchedEffect(imeVisible) {
+        if (!imeVisible && focused) {
+            focused = false
+            focusManager.clearFocus(force = true)
+        }
+    }
 
     fun submit() {
         if (Session.token == null) { onRequireAuth(); return }
