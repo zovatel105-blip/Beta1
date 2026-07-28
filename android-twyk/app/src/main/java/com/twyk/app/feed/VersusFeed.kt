@@ -208,6 +208,22 @@ fun FeedPager(
     val dataSourceFactory = remember { VideoCache.cacheDataSourceFactory(context) }
     val pagerState = rememberPagerState(initialPage = initialPage.coerceIn(0, (posts.size - 1).coerceAtLeast(0)), pageCount = { posts.size })
 
+    // BUG reportado por el usuario ("cuando cierro la app y la mantengo en
+    // segundo plano... el audio sigue reproduciéndose aunque no esté dentro
+    // de la aplicación"): a diferencia de la web (que pausa todo al detectar
+    // `document.visibilitychange` -> `document.hidden`, ver `onVis` en
+    // Feed.jsx), el nativo NO tenía ningún concepto de "la app está en
+    // segundo plano" — `active` solo dependía de qué página del pager estaba
+    // centrada, algo que NO cambia al enviar la app a Home/cambiar de app/
+    // apagar pantalla, así que el ExoPlayer de la página activa seguía
+    // reproduciendo (con su audio) de fondo indefinidamente. FIX: combinar
+    // `active` con el singleton global `AppLifecycle.inForeground`
+    // (actualizado UNA sola vez desde MainActivity.onStop/onStart, ver
+    // data/AppLifecycle.kt) — así TODA la lógica de play/pause ya existente
+    // (audioActive, musicPlayer, etc., ver CarouselPage/DuetPage más abajo)
+    // se pausa/reanuda automáticamente sin duplicar nada.
+    val appInForeground = com.twyk.app.data.AppLifecycle.inForeground
+
     LaunchedEffect(pagerState.currentPage, posts.size) {
         if (posts.size - pagerState.currentPage <= 3) onNearEnd()
     }
@@ -218,7 +234,7 @@ fun FeedPager(
         modifier = Modifier.fillMaxSize().background(Color.Black).statusBarsPadding(),
     ) { page ->
         val post = posts[page]
-        val active = page == pagerState.currentPage
+        val active = page == pagerState.currentPage && appInForeground
         val requestNext: () -> Unit = {
             val next = page + 1
             if (next < posts.size) scope.launch { pagerState.animateScrollToPage(next) }

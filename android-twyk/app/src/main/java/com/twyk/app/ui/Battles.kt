@@ -587,9 +587,14 @@ private fun ChallengeMediaBox(
                 DisposableEffect(mediaUrl) { onDispose { player.release() } }
                 // El lado VISIBLE reproduce CON audio; el otro va en silencio y
                 // pausado (antes el volumen estaba fijo a 0f -> nunca se oía nada
-                // en Retos activos, bug reportado).
-                LaunchedEffect(isVisible) {
-                    if (isVisible) { player.volume = 1f; player.play() } else { player.volume = 0f; player.pause() }
+                // en Retos activos, bug reportado). BUG FIX ("el audio sigue
+                // reproduciéndose en segundo plano"): se combina con
+                // `AppLifecycle.inForeground` (ver data/AppLifecycle.kt) para
+                // que, igual que en el feed principal, se pause al enviar la
+                // app a segundo plano.
+                val appInForeground = com.twyk.app.data.AppLifecycle.inForeground
+                LaunchedEffect(isVisible, appInForeground) {
+                    if (isVisible && appInForeground) { player.volume = 1f; player.play() } else { player.volume = 0f; player.pause() }
                 }
                 AndroidView(
                     factory = { ctx ->

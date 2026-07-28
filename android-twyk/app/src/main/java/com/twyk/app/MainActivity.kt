@@ -98,6 +98,24 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    // BUG reportado por el usuario ("cuando cierro la aplicación y la
+    // mantengo en segundo plano... el audio sigue reproduciéndose"): único
+    // punto donde se actualiza `AppLifecycle.inForeground` (ver
+    // data/AppLifecycle.kt) — onStop() se dispara al enviar la app a
+    // segundo plano (Home, cambiar de app, apagar pantalla) y onStart() al
+    // volver a traerla al frente; MainActivity es la ÚNICA Activity de la
+    // app, así que esto equivale exactamente a "visibilitychange" en una SPA
+    // de una sola pestaña.
+    override fun onStop() {
+        super.onStop()
+        com.twyk.app.data.AppLifecycle.inForeground = false
+    }
+
+    override fun onStart() {
+        super.onStart()
+        com.twyk.app.data.AppLifecycle.inForeground = true
+    }
 }
 
 private enum class Tab {
