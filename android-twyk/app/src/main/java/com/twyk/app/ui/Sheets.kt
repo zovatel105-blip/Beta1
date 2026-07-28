@@ -643,7 +643,8 @@ private fun CommentRow(
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text("Delete this comment?", color = Color(0xFF71717A), fontSize = 12.sp)
                     if (deleting) {
-                        Text("Deleting…", color = Color(0xFFDC2626), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        // BUG FIX (mojibake "…" -> "â€¦", ver gradle.properties): ASCII.
+                        Text("Deleting...", color = Color(0xFFDC2626), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     } else {
                         Text(
                             "Delete", color = Color(0xFFDC2626), fontSize = 12.sp, fontWeight = FontWeight.SemiBold,

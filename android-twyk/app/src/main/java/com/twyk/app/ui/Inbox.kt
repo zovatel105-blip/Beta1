@@ -290,8 +290,9 @@ private fun NotificationCard(
                     }
                     if (isReplyable(n) && !replying) {
                         Spacer(Modifier.width(8.dp))
+                        // BUG FIX (mojibake "✓", ver gradle.properties): ASCII.
                         Text(
-                            if (replied) "Reply sent ✓" else "Reply",
+                            if (replied) "Reply sent" else "Reply",
                             color = Color(0xFF9F9FA8), fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
                             modifier = Modifier.clickable { onStartReply() },
                         )
@@ -315,7 +316,8 @@ private fun NotificationCard(
                         .padding(horizontal = 14.dp),
                     contentAlignment = Alignment.CenterStart,
                 ) {
-                    if (replyText.isEmpty()) Text("Reply to @${n.user?.username ?: "user"}…", color = Color(0xFF71717A), fontSize = 13.sp)
+                    // BUG FIX (mojibake "…" -> "â€¦", ver gradle.properties): ASCII.
+                    if (replyText.isEmpty()) Text("Reply to @${n.user?.username ?: "user"}...", color = Color(0xFF71717A), fontSize = 13.sp)
                     BasicTextField(
                         value = replyText,
                         onValueChange = onReplyTextChange,

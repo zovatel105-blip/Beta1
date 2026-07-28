@@ -168,7 +168,14 @@ fun VersusFeed(
 
     if (posts.isEmpty()) {
         Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
-            Text("Loading…", color = Color.White)
+            // BUG reportado por el usuario ("las letras iniciales tienen error,
+            // debe ser inglés pero aparece 'Loadingâ€¦'"): mojibake de UTF-8 leído
+            // como Latin-1/Windows-1252 en el toolchain de compilación de quien
+            // genera el APK (ver fix de charset en gradle.properties). Se usan
+            // 3 puntos ASCII en vez del carácter Unicode "…" (inmune a CUALQUIER
+            // problema de codificación, sin depender de que el fix de
+            // gradle.properties funcione en toda máquina de compilación).
+            Text("Loading...", color = Color.White)
         }
         return
     }
@@ -536,7 +543,9 @@ private fun CarouselPage(
         // visible NO es el votado, invita a cambiar el voto).
         val currentSide = if (sidePager.currentPage == 0) "a" else "b"
         if (voted == null) {
-            VoteHint("Swipe to compare · double-tap to vote")
+            // BUG FIX (mojibake "·" en compilaciones sin UTF-8 forzado, ver
+            // gradle.properties): guion ASCII, inmune al problema.
+            VoteHint("Swipe to compare - double-tap to vote")
         } else if (voted != currentSide) {
             VoteHint("Double-tap to switch your vote")
         }
@@ -1876,9 +1885,10 @@ fun VoteResultOverlay(
                 Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     Column {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("A · $aPct%", color = Color(0xFFA855F7), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            // BUG FIX (mojibake "·", ver gradle.properties): ASCII.
+                            Text("A - $aPct%", color = Color(0xFFA855F7), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                             Text("${formatCount(total)} votes", color = Color.White.copy(alpha = 0.6f), fontSize = 11.sp)
-                            Text("B · $bPct%", color = Color(0xFF3B82F6), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text("B - $bPct%", color = Color(0xFF3B82F6), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
                         Spacer(Modifier.height(6.dp))
                         Row(Modifier.fillMaxWidth().height(9.dp).clip(RoundedCornerShape(50)).background(Color.White.copy(alpha = 0.15f))) {
@@ -1891,7 +1901,7 @@ fun VoteResultOverlay(
                         // normales, no un reto real entre 2 usuarios distintos).
                         if (!sameAuthorBothSides && otherName.isNotEmpty()) {
                             Text(
-                                "vs $otherName · $otherPct%", color = Color.White.copy(alpha = 0.55f), fontSize = 11.sp,
+                                "vs $otherName - $otherPct%", color = Color.White.copy(alpha = 0.55f), fontSize = 11.sp,
                                 modifier = Modifier.padding(top = 6.dp),
                             )
                         }

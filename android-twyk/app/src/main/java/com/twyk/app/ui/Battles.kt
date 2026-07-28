@@ -437,7 +437,8 @@ private fun ActiveChallengeFrame(c: Challenge, isActiveCard: Boolean, busy: Bool
                         Spacer(Modifier.height(14.dp))
                         Text("Upload your $requiredLabel", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                         Spacer(Modifier.height(4.dp))
-                        Text("This challenge was made with a $requiredLabel — reply with a $requiredLabel", color = ZincText, fontSize = 13.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 32.dp))
+                        // BUG FIX (mojibake "—" -> corrupto, ver gradle.properties): ASCII.
+                        Text("This challenge was made with a $requiredLabel - reply with a $requiredLabel", color = ZincText, fontSize = 13.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 32.dp))
                     }
                 }
             }
@@ -488,7 +489,9 @@ private fun ActiveChallengeFrame(c: Challenge, isActiveCard: Boolean, busy: Bool
             }
             Column(Modifier.fillMaxWidth()) {
                 c.message?.takeIf { it.isNotBlank() }?.let {
-                    Text("“$it”", color = Color.White.copy(alpha = 0.75f), fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    // BUG FIX (mojibake con comillas tipográficas “”, ver
+                    // gradle.properties): comillas rectas ASCII, inmunes al problema.
+                    Text("\"$it\"", color = Color.White.copy(alpha = 0.75f), fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     Spacer(Modifier.height(10.dp))
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {

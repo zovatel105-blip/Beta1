@@ -552,8 +552,9 @@ private fun FileStep(
                     .border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(16.dp)).padding(horizontal = 16.dp, vertical = 12.dp),
             ) {
                 if (description.isEmpty()) {
+                    // BUG FIX (mojibake con emoji, ver gradle.properties): texto ASCII.
                     Text(
-                        when (mode) { "duet" -> "Who wins? 🥊 #1vs1"; "challenge" -> "Challenge 🔥 Do you accept?"; else -> "Which do you prefer? 🅰️🆚🅱️" },
+                        when (mode) { "duet" -> "Who wins? #1vs1"; "challenge" -> "Challenge! Do you accept?"; else -> "Which do you prefer? A vs B" },
                         color = ZincText, fontSize = 15.sp,
                     )
                 }
@@ -634,7 +635,8 @@ private fun MediaSlot(uri: Uri?, kind: String?, onPick: () -> Unit, small: Boole
                     color = Color(0xFFE4E4E7), fontSize = if (small) 13.sp else 15.sp, fontWeight = FontWeight.Medium,
                 )
                 Spacer(Modifier.height(if (small) 4.dp else 6.dp))
-                Text("Video (max 80MB) · Photo (max 15MB)", color = Color(0xFF71717A), fontSize = if (small) 10.sp else 11.sp)
+                // BUG FIX (mojibake "·", ver gradle.properties): ASCII.
+                Text("Video (max 80MB) - Photo (max 15MB)", color = Color(0xFF71717A), fontSize = if (small) 10.sp else 11.sp)
             }
         }
     }
@@ -792,7 +794,8 @@ private fun UploadingStep(mode: String) {
         ) { CircularProgressIndicator(color = TwykGold, strokeWidth = 3.dp, modifier = Modifier.size(28.dp)) }
         Spacer(Modifier.height(20.dp))
         Text(
-            when (mode) { "challenge" -> "Sending your challenge…"; "duet" -> "Creating your 1vs1…"; else -> "Uploading your versus…" },
+            // BUG FIX (mojibake "…" -> "â€¦", ver gradle.properties): ASCII.
+            when (mode) { "challenge" -> "Sending your challenge..."; "duet" -> "Creating your 1vs1..."; else -> "Uploading your versus..." },
             color = ZincText, fontSize = 14.sp,
         )
     }

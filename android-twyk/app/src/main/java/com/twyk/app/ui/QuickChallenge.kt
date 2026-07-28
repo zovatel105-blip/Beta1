@@ -226,7 +226,10 @@ fun QuickChallengeSheet(target: QuickChallengeTarget, onClose: () -> Unit) {
                                 Spacer(Modifier.height(10.dp))
                                 Text("Upload your video", color = Color(0xFF18181B), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
                                 Spacer(Modifier.height(1.dp))
-                                Text("@$username challenged with a video — match it", color = Color(0xFF71717A), fontSize = 10.5.sp, textAlign = TextAlign.Center)
+                                // BUG FIX (mojibake con caracteres no-ASCII como "—" en
+                                // compilaciones sin UTF-8 forzado, ver gradle.properties):
+                                // guion ASCII simple, inmune al problema.
+                                Text("@$username challenged with a video - match it", color = Color(0xFF71717A), fontSize = 10.5.sp, textAlign = TextAlign.Center)
                             }
                         }
                     }
@@ -284,7 +287,10 @@ fun QuickChallengeSheet(target: QuickChallengeTarget, onClose: () -> Unit) {
                     .clip(RoundedCornerShape(16.dp)).background(Color(0xFFFAFAFA)).border(1.dp, Color(0xFFE4E4E7), RoundedCornerShape(16.dp))
                     .padding(horizontal = 16.dp, vertical = 12.dp),
             ) {
-                if (message.isEmpty()) Text("Add a message to the challenge (optional)…", color = Color(0xFFA1A1AA), fontSize = 14.sp)
+                // BUG FIX (mojibake "…" -> "â€¦" en compilaciones sin UTF-8
+                // forzado, ver gradle.properties): puntos ASCII, inmunes al
+                // problema sin importar el toolchain de compilación.
+                if (message.isEmpty()) Text("Add a message to the challenge (optional)...", color = Color(0xFFA1A1AA), fontSize = 14.sp)
                 BasicTextField(
                     value = message,
                     onValueChange = { message = it },
