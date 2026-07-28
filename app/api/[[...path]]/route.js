@@ -51,6 +51,7 @@ import {
   hasBlocked,
   REPORT_REASONS,
   acceptTerms,
+  getCommentsCountByPostIds,
 } from '@/lib/db'
 import {
   getAllPosts,
@@ -404,6 +405,27 @@ async function refreshPostAvatars(posts) {
   }))
 }
 
+// BUG reportado por el usuario ("el contador de comentarios no aparece hasta
+// que abro el modal de comentarios, a diferencia de los demás contadores"):
+// `stats.comments` de cada post se fija en 0 al crearse y NUNCA se actualiza
+// al publicarse comentarios nuevos (el conteo real solo vive en la colección
+// `comments`, calculado on-demand en GET /api/comments) — por eso el número
+// correcto solo "aparecía" tras abrir el modal (el único momento en que se
+// calculaba). FIX: refrescar `stats.comments` con el conteo REAL (una sola
+// consulta agregada para todos los posts) en cada endpoint que devuelve
+// posts, igual que refreshPostAvatars ya refresca los avatares — así el
+// número correcto se ve desde el primer render del feed/perfil, sin
+// depender de abrir nada.
+async function refreshPostCommentCounts(posts) {
+  if (!Array.isArray(posts) || posts.length === 0) return posts
+  const counts = await getCommentsCountByPostIds(posts.map((p) => p.id))
+  return posts.map((p) => ({
+    ...p,
+    stats: { ...(p.stats || {}), comments: counts[p.id] ?? p.stats?.comments ?? 0 },
+  }))
+}
+
+
 // MODERACIÓN: oculta del listado los posts cuyo autor (o autor de cualquiera de
 // los dos lados) esté bloqueado en cualquier sentido respecto al usuario actual
 // (a quién bloqueé + quién me bloqueó). Invitados ven todo.
@@ -547,6 +569,10 @@ export async function GET(request, { params }) {
 
     // Refresca avatares denormalizados con los datos actuales del autor.
     posts = await refreshPostAvatars(posts)
+    // Refresca el conteo REAL de comentarios (ver refreshPostCommentCounts):
+    // sin esto, la tarjeta mostraría siempre el valor congelado desde la
+    // creación del post (normalmente 0) en vez del número actual.
+    posts = await refreshPostCommentCounts(posts)
 
     // Anota el estado isFollowing de cada autor para el usuario logueado (UNA
     // sola consulta). Así el botón "Following" del feed persiste tras recargar.
@@ -589,6 +615,7 @@ export async function GET(request, { params }) {
     const meta = await readUploadMeta()
     const visible = await filterBlockedPosts(meta, currentUser)
     let posts = await refreshPostAvatars(visible)
+    posts = await refreshPostCommentCounts(posts)
     // Anota isFollowing por autor (igual que /feed) para que "Following"
     // persista: /uploads es la fuente que el feed carga primero.
     if (currentUser) {
@@ -647,7 +674,7 @@ export async function GET(request, { params }) {
       sideA: p.sideA ? { ...p.sideA, author: refresh(p.sideA.author) } : p.sideA,
       sideB: p.sideB ? { ...p.sideB, author: refresh(p.sideB.author) } : p.sideB,
     }))
-    return NextResponse.json({ posts: enrichedPosts })
+    return NextResponse.json({ posts: await refreshPostCommentCounts(enrichedPosts) })
   }
 
   // Lista de retos (solicitudes de enfrentamiento) pendientes DEL USUARIO ACTUAL.
@@ -841,7 +868,7 @@ export async function GET(request, { params }) {
       return a && a.username === username
     })
 
-    return NextResponse.json({ user: info, posts: await refreshPostAvatars(posts) })
+    return NextResponse.json({ user: info, posts: await refreshPostCommentCounts(await refreshPostAvatars(posts)) })
   }
 
   // GET /api/comments?postId=xxx - Obtener comentarios de un post
@@ -880,7 +907,7 @@ export async function GET(request, { params }) {
     for (const p of meta) byId.set(p.id, p)
     for (const p of demo) if (!byId.has(p.id)) byId.set(p.id, p)
     const posts = saves.map((id) => byId.get(id)).filter(Boolean)
-    return NextResponse.json({ saves, posts: await refreshPostAvatars(posts) })
+    return NextResponse.json({ saves, posts: await refreshPostCommentCounts(await refreshPostAvatars(posts)) })
   }
 
   // GET /api/auth/me - Obtener usuario actual
