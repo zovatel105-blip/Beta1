@@ -18,6 +18,7 @@ import Avatar, { isGeneratedAvatar } from './Avatar'
 import QuickCommentInput from './QuickCommentInput'
 import { useAuth } from '@/contexts/AuthContext'
 import { pickQuality, reportStall } from '@/lib/networkQuality'
+import { emitCommentCountChange } from '@/lib/commentCountBus'
 
 function formatCount(n) {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M'
@@ -84,6 +85,12 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
   const [shareCount, setShareCount] = useState(post.stats?.shares || 0)
   const [saveCount, setSaveCount] = useState(post.stats?.saves || 0)
   const [challengeCount, setChallengeCount] = useState(post.stats?.challenges || 0)
+
+  // BUG FIX ("el contador de comentarios debe mostrarse siempre, sin abrir el
+  // modal"): ver comentario equivalente en CarouselSlide.jsx.
+  useEffect(() => {
+    emitCommentCountChange(post.id, commentCount)
+  }, [commentCount, post.id])
 
   // BUG FIX ("el contador de comentarios"): ver comentario equivalente en
   // CarouselSlide.jsx — ya NO se fusiona commentCount con localStorage (el

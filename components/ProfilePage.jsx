@@ -9,6 +9,7 @@ import Avatar from './Avatar'
 import DuetSlide from './DuetSlide'
 import CarouselSlide from './CarouselSlide'
 import { getUploadQueue, subscribeUploadQueue } from '@/lib/uploadQueue'
+import { subscribeCommentCountChange, patchCommentCountInList } from '@/lib/commentCountBus'
 import CircularCrop from './CircularCrop'
 
 // El perfil se deriva del usuario autenticado (useAuth) dentro del componente.
@@ -417,6 +418,17 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
   useEffect(() => {
     setOpenPost(null)
   }, [open, targetUsername])
+
+  // BUG FIX ("el contador de comentarios debe mostrarse siempre, sin abrir el
+  // modal"): ver lib/commentCountBus.js — mantiene sincronizados tanto `posts`
+  // (grid propio/ajeno) como `savedPosts` (pestaña Guardados) cuando el visor
+  // de una publicación (PostViewer) emite un cambio de conteo, para que un
+  // remount posterior en la MISMA sesión (p.ej. al volver a abrir esa misma
+  // publicación) arranque ya con el número correcto.
+  useEffect(() => subscribeCommentCountChange((postId, count) => {
+    setPosts((prev) => patchCommentCountInList(prev, postId, count))
+    setSavedPosts((prev) => patchCommentCountInList(prev, postId, count))
+  }), [])
 
   // Avisa al padre (Feed.jsx) cuando el visor de UNA publicación del grid está
   // abierto/cerrado, para que oculte la barra de navegación inferior mientras

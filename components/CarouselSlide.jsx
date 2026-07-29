@@ -16,6 +16,7 @@ import Avatar, { isGeneratedAvatar } from './Avatar'
 import QuickCommentInput from './QuickCommentInput'
 import { useAuth } from '@/contexts/AuthContext'
 import { pickQuality, reportStall } from '@/lib/networkQuality'
+import { emitCommentCountChange } from '@/lib/commentCountBus'
 
 function formatCount(n) {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M'
@@ -79,6 +80,17 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
   const [shareCount, setShareCount] = useState(post.stats?.shares || 0)
   const [saveCount, setSaveCount] = useState(post.stats?.saves || 0)
   const [challengeCount, setChallengeCount] = useState(post.stats?.challenges || 0)
+
+  // BUG FIX ("el contador de comentarios debe mostrarse siempre, sin abrir el
+  // modal"): cada vez que `commentCount` cambia de verdad (comentar, borrar,
+  // o al abrir/cerrar el modal de comentarios), se avisa al ancestro que
+  // posee el array `posts` (useFeed.js/ProfilePage.jsx/CompletedBattlesPage.jsx)
+  // para que lo recuerde ahí también — así, si esta tarjeta se desmonta por
+  // virtualización del scroll y se vuelve a montar más tarde en la MISMA
+  // sesión, arranca ya con el número correcto (ver lib/commentCountBus.js).
+  useEffect(() => {
+    emitCommentCountChange(post.id, commentCount)
+  }, [commentCount, post.id])
 
   // Al montar: fusiona los contadores persistidos del usuario y escucha el
   // evento global 'twyk:challenged' para incrementar "Retar" en la tarjeta cuyo

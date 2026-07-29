@@ -10,6 +10,7 @@ import BottomNav from './BottomNav'
 import CarouselSlide from './CarouselSlide'
 import DuetSlide from './DuetSlide'
 import { notificationsUnreadCount } from '@/lib/notifications'
+import { subscribeCommentCountChange, patchCommentCountInList } from '@/lib/commentCountBus'
 
 // Empty state of "Completed challenges" — premium minimalist design.
 const EmptyCompletedState = ({ onOpenUpload, onOpenActive }) => {
@@ -76,6 +77,12 @@ export default function CompletedBattlesPage({ open, onClose, onOpenActive, onOp
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
   }, [open, refreshKey])
+
+  // BUG FIX ("el contador de comentarios debe mostrarse siempre, sin abrir el
+  // modal"): ver lib/commentCountBus.js.
+  useEffect(() => subscribeCommentCountChange((postId, count) => {
+    setPosts((prev) => patchCommentCountInList(prev, postId, count))
+  }), [])
 
   if (!open) return null
 

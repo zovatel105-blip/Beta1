@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { subscribeCommentCountChange, patchCommentCountInList } from '@/lib/commentCountBus'
 
 // ──────────────────────────────────────────────────────────────────────────
 // FUENTE DE DATOS (2a): /api/uploads + /api/feed
@@ -119,6 +120,15 @@ export function useFeed() {
       }
     }))
   }, [])
+
+  // BUG FIX ("el contador de comentarios debe mostrarse siempre, sin abrir el
+  // modal"): ver lib/commentCountBus.js — parchea `stats.comments` del post
+  // correspondiente en este mismo array, así una tarjeta que se desmonte por
+  // virtualización del scroll y se remonte más tarde en la MISMA sesión
+  // arranca ya con el número correcto.
+  useEffect(() => subscribeCommentCountChange((postId, count) => {
+    setPosts((prev) => patchCommentCountInList(prev, postId, count))
+  }), [])
 
   return { posts, ready, loadMore, prependPost, patchAuthorAvatar }
 }
