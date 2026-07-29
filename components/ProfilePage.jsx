@@ -398,13 +398,25 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
     return () => { cancelled = true }
   }, [open, targetUsername])
 
-  // Al cerrar el perfil por completo (open=false), cerramos también el visor
-  // de publicaciones si estaba abierto (si no, el post seguiría "abierto" en
+  // Al cerrar el perfil por completo (open=false) O AL NAVEGAR A OTRO PERFIL
+  // (targetUsername cambia mientras open sigue true, p.ej. tocando a un
+  // segundo autor dentro de una publicación tipo versus/reto que se estaba
+  // viendo en el visor de UNA publicación) cerramos también el visor de
+  // publicaciones si estaba abierto.
+  // BUG FIX ("el audio del feed se sigue escuchando cuando visito un perfil
+  // ajeno"): antes este efecto SOLO dependía de `open`, así que navegar de
+  // un perfil A a un perfil B (p.ej. tocando el segundo nombre de un post
+  // tipo versus DENTRO del visor de una publicación de A) NUNCA cerraba el
+  // visor de A — `openPost`/`PostViewer` seguían montados con su vídeo
+  // reproduciéndose (PostViewer usa playbackEnabled=true fijo, ya que es el
+  // contenido activo en pantalla), ahora indexando por error dentro de los
+  // posts del perfil B (misma lista `posts` reemplazada, `startId` ya no
+  // coincide con ningún post de B). Si no, el post seguiría "abierto" en
   // memoria y la barra de navegación inferior -avisada vía onPostViewerChange
   // más abajo- se quedaría oculta para siempre tras volver al perfil).
   useEffect(() => {
-    if (!open) setOpenPost(null)
-  }, [open])
+    setOpenPost(null)
+  }, [open, targetUsername])
 
   // Avisa al padre (Feed.jsx) cuando el visor de UNA publicación del grid está
   // abierto/cerrado, para que oculte la barra de navegación inferior mientras

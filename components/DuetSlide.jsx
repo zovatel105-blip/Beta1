@@ -85,8 +85,11 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
   const [saveCount, setSaveCount] = useState(post.stats?.saves || 0)
   const [challengeCount, setChallengeCount] = useState(post.stats?.challenges || 0)
 
+  // BUG FIX ("el contador de comentarios"): ver comentario equivalente en
+  // CarouselSlide.jsx — ya NO se fusiona commentCount con localStorage (el
+  // backend recalcula el conteo REAL en cada carga; fusionar con el máximo
+  // cacheado impedía que el número bajara nunca tras borrar un comentario).
   useEffect(() => {
-    setCommentCount((c) => Math.max(c, lsNum(`cmtN_${post.id}`)))
     setShareCount((c) => Math.max(c, lsNum(`shrN_${post.id}`)))
     setSaveCount((c) => Math.max(c, lsNum(`savN_${post.id}`)))
     setChallengeCount((c) => Math.max(c, lsNum(`chlN_${post.id}`)))
@@ -927,7 +930,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
         <QuickCommentInput
           postId={post.id}
           votedSide={userVote}
-          onPosted={() => setCommentCount((n) => { const next = n + 1; lsSet(`cmtN_${post.id}`, next); return next })}
+          onPosted={() => setCommentCount((n) => n + 1)}
           onRequireAuth={() => setAuthModalOpen(true)}
         />
       )}
@@ -962,7 +965,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
         open={commentsOpen}
         postId={post.id}
         votedSide={userVote}
-        onCountChange={(n) => { setCommentCount(n); lsSet(`cmtN_${post.id}`, n) }}
+        onCountChange={setCommentCount}
         onClose={() => setCommentsOpen(false)}
       />
       <ShareModal

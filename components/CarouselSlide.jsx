@@ -83,8 +83,16 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
   // Al montar: fusiona los contadores persistidos del usuario y escucha el
   // evento global 'twyk:challenged' para incrementar "Retar" en la tarjeta cuyo
   // postId coincida (el reto se crea en un diálogo global del Feed).
+  // BUG FIX ("el contador de comentarios"): `commentCount` ya NO se fusiona con
+  // localStorage — el backend (refreshPostCommentCounts, route.js) recalcula
+  // `post.stats.comments` con el conteo REAL en cada carga del feed/perfil, así
+  // que este valor inicial YA es exacto. La antigua fusión `Math.max(c,
+  // lsNum(...))` solo podía SUBIR el número (nunca bajarlo), así que si un
+  // comentario se borraba (por el autor o el dueño del post), el contador se
+  // quedaba atascado en el valor más alto ya cacheado en localStorage para
+  // siempre, sin importar cuántas veces se recargara. shares/saves/challenges
+  // SÍ siguen usando localStorage (el backend no recalcula esos contadores).
   useEffect(() => {
-    setCommentCount((c) => Math.max(c, lsNum(`cmtN_${post.id}`)))
     setShareCount((c) => Math.max(c, lsNum(`shrN_${post.id}`)))
     setSaveCount((c) => Math.max(c, lsNum(`savN_${post.id}`)))
     setChallengeCount((c) => Math.max(c, lsNum(`chlN_${post.id}`)))
@@ -817,7 +825,7 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
         <QuickCommentInput
           postId={post.id}
           votedSide={userVote}
-          onPosted={() => setCommentCount((n) => { const next = n + 1; lsSet(`cmtN_${post.id}`, next); return next })}
+          onPosted={() => setCommentCount((n) => n + 1)}
           onRequireAuth={() => setAuthModalOpen(true)}
         />
       )}
@@ -842,7 +850,7 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
         open={commentsOpen}
         postId={post.id}
         votedSide={userVote}
-        onCountChange={(n) => { setCommentCount(n); lsSet(`cmtN_${post.id}`, n) }}
+        onCountChange={setCommentCount}
         onClose={() => setCommentsOpen(false)}
       />
       <ShareModal
