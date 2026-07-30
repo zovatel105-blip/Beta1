@@ -6,6 +6,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -54,6 +55,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
@@ -708,8 +710,33 @@ private fun CollapsedTopBar(
     // color pintado cubre el tamaño TOTAL (contenido + inset), incluida la
     // franja de la barra de estado; el padding solo empuja el CONTENIDO
     // hacia abajo, sin dejar ningún hueco transparente. FIX: mismo orden aquí.
+    // BUG FIX ("en los perfiles, en el header, cuando toco un espacio vacío y
+    // hay muchas publicaciones, al tap en un espacio vacío del header abre
+    // una publicación del grid"): en Jetpack Compose, `Modifier.background()`
+    // es PURAMENTE visual — a diferencia de la web (donde un <div> opaco
+    // BLOQUEA los clics de lo que esté detrás salvo que se use pointer-events
+    // explícitamente), un `Box`/`Row` con solo `background()` y SIN
+    // `clickable`/`pointerInput` propio NO consume los toques: cualquier
+    // toque que no caiga exactamente sobre un hijo con su propio `clickable`
+    // (aquí: el botón de atrás/menú de 40dp, el Row del nombre, el Row de
+    // acciones) SIGUE BAJANDO por el árbol hasta encontrar algo clicable más
+    // abajo en el mismo punto de pantalla — que, al ser esta barra un OVERLAY
+    // pintado ENCIMA del `LazyVerticalGrid`/`ProfileTabsBar` (ver el `Box`
+    // exterior en `ProfileScreen`), es exactamente una publicación del grid
+    // que esté posicionada justo debajo de ese punto tras hacer scroll. Zonas
+    // "vacías" reales afectadas: el `Spacer(40.dp)` cuando no hay botón de
+    // atrás (perfil propio), el hueco de 40dp del menú en perfil ajeno, el
+    // propio avatar circular (sin `clickable`), y cualquier margen entre los
+    // Row de nombre/acciones. FIX: `pointerInput(Unit) { detectTapGestures {} }`
+    // en el `Box` exterior — consume CUALQUIER toque que llegue hasta aquí
+    // (sin hacer nada), igual que ya se usa en VSContentCard (VersusFeed.kt)
+    // para que tocar el fondo de la card no la cierre; los botones/Row hijos
+    // con su propio `clickable` siguen recibiendo sus toques normalmente (Compose
+    // resuelve el hit-test de dentro hacia fuera, así que un hijo clicable
+    // consume el toque ANTES de que llegue a este `pointerInput` del padre).
     Box(
-        Modifier.fillMaxWidth().background(TwykBg).statusBarsPadding().height(44.dp),
+        Modifier.fillMaxWidth().background(TwykBg).statusBarsPadding().height(44.dp)
+            .pointerInput(Unit) { detectTapGestures { } },
     ) {
         Row(
             Modifier.fillMaxSize().padding(horizontal = 6.dp),
@@ -949,10 +976,19 @@ private fun ProfileTabsBar(
     modifier: Modifier = Modifier,
 ) {
     val tabs = if (isOwn) listOf("polls", "saved") else listOf("polls")
+    // BUG FIX (misma causa raíz que CollapsedTopBar, ver su comentario
+    // completo): el hueco entre "Polls"/"Saved" (`spacedBy(10.dp)`) y el
+    // padding horizontal de 8dp de este Row NO tienen su propio `clickable`
+    // — solo lo tienen los 2 `Box` individuales de cada pestaña — así que un
+    // toque en ese hueco/padding pasaba directo al `LazyVerticalGrid` de
+    // debajo (esta barra es un overlay con `background(TwykBg)`, que en
+    // Compose NO bloquea toques por sí solo). `pointerInput` consume
+    // cualquier toque que no haya sido ya capturado por un `clickable` hijo.
     Row(
         modifier
             .fillMaxWidth()
             .background(TwykBg)
+            .pointerInput(Unit) { detectTapGestures { } }
             .padding(horizontal = 8.dp)
             .height(32.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),

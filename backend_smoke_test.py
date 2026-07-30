@@ -1,176 +1,188 @@
 #!/usr/bin/env python3
 """
-Smoke test for Next.js backend - regression check only.
-This test does NOT verify the Android native audio bug (not testable in this environment).
-It only confirms the shared backend APIs are still healthy after the Android-only fix.
+Backend smoke test for regression verification after native Android fix.
+
+This test does NOT verify the native Jetpack Compose bug (Profile.kt click-through).
+It only confirms that the shared Next.js backend remains healthy after the fix.
+
+The native bug (tapping empty spaces in header/tab bar opening posts from grid below)
+requires Android SDK + emulator to verify - not testable in this environment.
 """
 
 import requests
 import sys
 
+# Base URL from .env
 BASE_URL = "https://app-identity-config.preview.emergentagent.com/api"
 
-def test_smoke():
-    """Run smoke test of core backend endpoints"""
+def test_login():
+    """Test 1: POST /api/auth/login with lucia/Test12345"""
+    print("\n[TEST 1] POST /api/auth/login (lucia/Test12345)")
     
-    print("=" * 80)
-    print("BACKEND SMOKE TEST - Regression Check Only")
-    print("=" * 80)
-    print()
-    print("NOTE: This test does NOT verify the Android native audio bug.")
-    print("It only confirms no accidental regression in the shared Next.js backend.")
-    print()
-    
-    session_token = None
-    cookie_header = None
-    
-    # Test 1: POST /api/auth/login with lucia/Test12345
-    print("[TEST 1] POST /api/auth/login (lucia/Test12345)")
     try:
         response = requests.post(
             f"{BASE_URL}/auth/login",
-            json={"username": "lucia", "password": "Test12345"},
-            timeout=10
+            json={
+                "username": "lucia",
+                "password": "Test12345"
+            },
+            timeout=30
         )
+        
         print(f"  Status: {response.status_code}")
         
         if response.status_code == 200:
             data = response.json()
-            print(f"  Response: ok={data.get('ok')}, user={data.get('user', {}).get('username')}")
-            
-            # Extract session token from response or cookie
-            if 'token' in data:
-                session_token = data['token']
-            
-            # Extract cookie
-            if 'set-cookie' in response.headers:
-                cookie_header = response.headers['set-cookie']
-            elif response.cookies.get('session_token'):
-                cookie_header = f"session_token={response.cookies.get('session_token')}"
-            
-            print(f"  ✅ PASS - Login successful")
+            if data.get('ok') and data.get('user', {}).get('username') == 'lucia':
+                print(f"  ✅ PASS: Login successful, user={data['user']['username']}")
+                return True, response.cookies
+            else:
+                print(f"  ❌ FAIL: Unexpected response: {data}")
+                return False, None
         else:
-            print(f"  ❌ FAIL - Expected 200, got {response.status_code}")
-            print(f"  Response: {response.text[:200]}")
+            print(f"  ❌ FAIL: Status {response.status_code}: {response.text}")
+            return False, None
+            
     except Exception as e:
-        print(f"  ❌ FAIL - Exception: {e}")
+        print(f"  ❌ FAIL: Exception: {e}")
+        return False, None
+
+def test_user_profile(cookies):
+    """Test 2: GET /api/users/luxury (profile with 19 posts)"""
+    print("\n[TEST 2] GET /api/users/luxury (profile with posts)")
     
-    print()
-    
-    # Test 2: GET /api/feed?cursor=0&limit=8
-    print("[TEST 2] GET /api/feed?cursor=0&limit=8")
     try:
         headers = {}
-        if session_token:
-            headers['Authorization'] = f'Bearer {session_token}'
-        if cookie_header:
-            headers['Cookie'] = cookie_header
+        if cookies:
+            # Extract token from cookies if available
+            token = cookies.get('token')
+            if token:
+                headers['Authorization'] = f"Bearer {token}"
+        
+        response = requests.get(
+            f"{BASE_URL}/users/luxury",
+            headers=headers,
+            timeout=30
+        )
+        
+        print(f"  Status: {response.status_code}")
+        
+        if response.status_code == 200:
+            data = response.json()
+            posts = data.get('posts', [])
+            print(f"  ✅ PASS: Profile loaded, posts={len(posts)}")
+            return True
+        else:
+            print(f"  ❌ FAIL: Status {response.status_code}: {response.text}")
+            return False
             
+    except Exception as e:
+        print(f"  ❌ FAIL: Exception: {e}")
+        return False
+
+def test_feed():
+    """Test 3: GET /api/feed?cursor=0&limit=8"""
+    print("\n[TEST 3] GET /api/feed?cursor=0&limit=8")
+    
+    try:
         response = requests.get(
             f"{BASE_URL}/feed?cursor=0&limit=8",
-            headers=headers,
-            timeout=10
+            timeout=30
         )
+        
         print(f"  Status: {response.status_code}")
         
         if response.status_code == 200:
             data = response.json()
-            print(f"  Response: posts={len(data.get('posts', []))}, hasMore={data.get('hasMore')}")
-            print(f"  ✅ PASS - Feed endpoint working")
+            posts = data.get('posts', [])
+            has_more = data.get('hasMore', False)
+            print(f"  ✅ PASS: Feed loaded, posts={len(posts)}, hasMore={has_more}")
+            return True
         else:
-            print(f"  ❌ FAIL - Expected 200, got {response.status_code}")
-            print(f"  Response: {response.text[:200]}")
-    except Exception as e:
-        print(f"  ❌ FAIL - Exception: {e}")
-    
-    print()
-    
-    # Test 3: GET /api/uploads
-    print("[TEST 3] GET /api/uploads")
-    try:
-        headers = {}
-        if session_token:
-            headers['Authorization'] = f'Bearer {session_token}'
-        if cookie_header:
-            headers['Cookie'] = cookie_header
+            print(f"  ❌ FAIL: Status {response.status_code}: {response.text}")
+            return False
             
+    except Exception as e:
+        print(f"  ❌ FAIL: Exception: {e}")
+        return False
+
+def test_uploads():
+    """Test 4: GET /api/uploads"""
+    print("\n[TEST 4] GET /api/uploads")
+    
+    try:
         response = requests.get(
             f"{BASE_URL}/uploads",
-            headers=headers,
-            timeout=10
+            timeout=30
         )
+        
         print(f"  Status: {response.status_code}")
         
         if response.status_code == 200:
             data = response.json()
-            print(f"  Response: posts={len(data.get('posts', []))}, hasMore={data.get('hasMore')}")
-            print(f"  ✅ PASS - Uploads endpoint working")
+            posts = data.get('posts', [])
+            print(f"  ✅ PASS: Uploads loaded, posts={len(posts)}")
+            return True
         else:
-            print(f"  ❌ FAIL - Expected 200, got {response.status_code}")
-            print(f"  Response: {response.text[:200]}")
-    except Exception as e:
-        print(f"  ❌ FAIL - Exception: {e}")
-    
-    print()
-    
-    # Test 4: GET /api/challenges (with session)
-    print("[TEST 4] GET /api/challenges (with session)")
-    try:
-        headers = {}
-        if session_token:
-            headers['Authorization'] = f'Bearer {session_token}'
-        if cookie_header:
-            headers['Cookie'] = cookie_header
+            print(f"  ❌ FAIL: Status {response.status_code}: {response.text}")
+            return False
             
-        response = requests.get(
-            f"{BASE_URL}/challenges",
-            headers=headers,
-            timeout=10
-        )
-        print(f"  Status: {response.status_code}")
-        
-        if response.status_code == 200:
-            data = response.json()
-            print(f"  Response: challenges={len(data.get('challenges', []))}")
-            print(f"  ✅ PASS - Challenges endpoint working")
-        else:
-            print(f"  ❌ FAIL - Expected 200, got {response.status_code}")
-            print(f"  Response: {response.text[:200]}")
     except Exception as e:
-        print(f"  ❌ FAIL - Exception: {e}")
-    
-    print()
-    
-    # Test 5: GET /api/notifications/unread (with session)
-    print("[TEST 5] GET /api/notifications/unread (with session)")
-    try:
-        headers = {}
-        if session_token:
-            headers['Authorization'] = f'Bearer {session_token}'
-        if cookie_header:
-            headers['Cookie'] = cookie_header
-            
-        response = requests.get(
-            f"{BASE_URL}/notifications/unread",
-            headers=headers,
-            timeout=10
-        )
-        print(f"  Status: {response.status_code}")
-        
-        if response.status_code == 200:
-            data = response.json()
-            print(f"  Response: count={data.get('count')}")
-            print(f"  ✅ PASS - Notifications endpoint working")
-        else:
-            print(f"  ❌ FAIL - Expected 200, got {response.status_code}")
-            print(f"  Response: {response.text[:200]}")
-    except Exception as e:
-        print(f"  ❌ FAIL - Exception: {e}")
-    
-    print()
+        print(f"  ❌ FAIL: Exception: {e}")
+        return False
+
+def main():
     print("=" * 80)
-    print("SMOKE TEST COMPLETE")
+    print("BACKEND SMOKE TEST - Regression Check After Native Android Fix")
     print("=" * 80)
+    print("\nIMPORTANT: This test does NOT verify the native Jetpack Compose bug.")
+    print("The bug (Profile.kt click-through) requires Android SDK + emulator.")
+    print("This only confirms the shared Next.js backend remains healthy.\n")
+    print("=" * 80)
+    
+    results = []
+    
+    # Test 1: Login
+    success, cookies = test_login()
+    results.append(("POST /api/auth/login", success))
+    
+    # Test 2: User profile
+    success = test_user_profile(cookies)
+    results.append(("GET /api/users/luxury", success))
+    
+    # Test 3: Feed
+    success = test_feed()
+    results.append(("GET /api/feed", success))
+    
+    # Test 4: Uploads
+    success = test_uploads()
+    results.append(("GET /api/uploads", success))
+    
+    # Summary
+    print("\n" + "=" * 80)
+    print("SUMMARY")
+    print("=" * 80)
+    
+    all_passed = True
+    for endpoint, passed in results:
+        status = "✅ PASS" if passed else "❌ FAIL"
+        print(f"  {status}: {endpoint}")
+        if not passed:
+            all_passed = False
+    
+    print("\n" + "=" * 80)
+    if all_passed:
+        print("✅ ALL SMOKE TESTS PASSED")
+        print("=" * 80)
+        print("\nBackend is healthy. No regression detected.")
+        print("\nNote: The native Android bug (Profile.kt click-through) cannot be")
+        print("verified in this environment. User must compile APK and test manually.")
+        return 0
+    else:
+        print("❌ SOME TESTS FAILED")
+        print("=" * 80)
+        print("\nBackend regression detected. Investigation needed.")
+        return 1
 
 if __name__ == "__main__":
-    test_smoke()
+    sys.exit(main())
