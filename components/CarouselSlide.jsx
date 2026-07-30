@@ -58,6 +58,16 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
 
   const [sideIdx, setSideIdx] = useState(0) // 0 = A, 1 = B
   const [paused, setPaused] = useState(false)
+  // BUG FIX ("cuando me topo con una publicación que no ha cargado se queda
+  // en negro, debe mostrar un spinner"): antes NINGÚN estado seguía si el
+  // <video> estaba bufferizando — `onWaiting` solo llamaba a reportStall()
+  // (para la estimación de calidad de red), sin ningún indicador visual. Si
+  // la publicación no tenía poster/imagen (o aún no había cargado) y el
+  // vídeo tardaba en bufferizar, la pantalla se quedaba lisa en negro, sin
+  // ninguna señal de que algo se estuviera cargando (indistinguible de un
+  // fallo). Réplica del mismo patrón que DuetSlide.jsx ya usa (loadedA/loadedB
+  // vía onWaiting/onCanPlay/onLoadedData), aplicado aquí al lado VISIBLE.
+  const [buffering, setBuffering] = useState(false)
   const [progress, setProgress] = useState(0)
   const [saved, setSaved] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -544,7 +554,10 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
           poster={s.posterUrl || undefined}
           onPlay={onVideoPlay}
           onPause={onVideoPause}
-          onWaiting={reportStall}
+          onCanPlay={() => setBuffering(false)}
+          onPlaying={() => setBuffering(false)}
+          onLoadedData={() => setBuffering(false)}
+          onWaiting={() => { setBuffering(true); reportStall() }}
         />
       )}
     </div>
@@ -593,6 +606,15 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
       {paused && (
         <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
           <Play size={72} className="text-white drop-shadow-lg" fill="white" />
+        </div>
+      )}
+
+      {/* Spinner de carga: se ve mientras el vídeo del lado visible está
+          bufferizando (antes la pantalla se quedaba lisa en negro, sin
+          ninguna señal de carga, si esa publicación aún no tenía datos). */}
+      {buffering && isActive && !showWinner && !paused && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
+          <div className="w-10 h-10 rounded-full border-2 border-white/25 border-t-white animate-spin" />
         </div>
       )}
 

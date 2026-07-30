@@ -570,10 +570,19 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
               poster={sideA.posterUrl || undefined}
               onCanPlay={() => setLoadedA(true)}
               onLoadedData={() => setLoadedA(true)}
+              onPlaying={() => setLoadedA(true)}
               onWaiting={() => { setLoadedA(false); reportStall() }}
               onPlay={() => setPaused(false)}
               onPause={syncPaused}
             />
+          )}
+          {/* Spinner de carga (lado A): ver comentario completo en
+              CarouselSlide.jsx — antes esta mitad se quedaba lisa en negro
+              sin ninguna señal mientras bufferizaba. */}
+          {isActive && isNear && sideA.mediaType !== 'image' && !loadedA && (
+            <div className="absolute inset-0 z-[6] flex items-center justify-center pointer-events-none">
+              <div className="w-9 h-9 rounded-full border-2 border-white/25 border-t-white animate-spin" />
+            </div>
           )}
           {/* tap layer A */}
           <div
@@ -603,10 +612,18 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
               poster={sideB.posterUrl || undefined}
               onCanPlay={() => setLoadedB(true)}
               onLoadedData={() => setLoadedB(true)}
+              onPlaying={() => setLoadedB(true)}
               onWaiting={() => { setLoadedB(false); reportStall() }}
               onPlay={() => setPaused(false)}
               onPause={syncPaused}
             />
+          )}
+          {/* Spinner de carga (lado B): ver comentario completo en
+              CarouselSlide.jsx. */}
+          {isActive && isNear && sideB.mediaType !== 'image' && !loadedB && (
+            <div className="absolute inset-0 z-[6] flex items-center justify-center pointer-events-none">
+              <div className="w-9 h-9 rounded-full border-2 border-white/25 border-t-white animate-spin" />
+            </div>
           )}
           <div
             className="absolute inset-0 z-10"

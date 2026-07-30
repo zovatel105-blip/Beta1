@@ -508,7 +508,9 @@ private fun CarouselPage(
 
         // ── Capas RECICLADAS estilo TikTok (se resetean al reciclarse la celda) ──
         VideoProgressBar(visiblePlayer, isActive)                                 // barra de progreso
-        BufferingSpinner(visiblePlayer)                                           // spinner de carga
+        // Spinner de carga: ahora vive DENTRO de cada VideoSurface (ver su
+        // propio comentario), así se aplica automáticamente al lado A O B
+        // que esté visible en este carrusel sin necesitar "visiblePlayer" aquí.
         // El burst del icono de voto ahora vive DENTRO de cada VideoSurface
         // (aparece justo en el punto exacto del doble toque, con la misma
         // animación elástica que VoteBurstEffect.jsx en la web).
@@ -945,6 +947,29 @@ private fun VideoSurface(
                 update = { it.player = player },
                 modifier = Modifier.fillMaxSize(),
             )
+            // BUG FIX ("cuando me topo con una publicación que no ha cargado
+            // solo se queda en negro, debe mostrar un spinner"): `VideoSurface`
+            // es el único punto de render de vídeo compartido por CarouselPage
+            // (versus) Y DuetPage (1vs1) — pero `BufferingSpinner` (definido
+            // más abajo, ya usado por CarouselPage desde antes) NUNCA se
+            // llamaba aquí dentro, así que DuetPage (los dos vídeos de un
+            // 1vs1, lado A y lado B) NO TENÍA NINGÚN spinner de carga: si el
+            // vídeo tardaba en bufferizar (red lenta, primera vez que se ve
+            // esa publicación), el usuario solo veía la superficie NEGRA
+            // (`background(Color.Black)`, línea de arriba) sin ninguna señal
+            // de que algo se estuviera cargando, indistinguible de un fallo.
+            // FIX: se mueve `BufferingSpinner` DENTRO de `VideoSurface` (antes
+            // vivía SOLO en CarouselPage, aplicado "desde fuera" al último
+            // `visiblePlayer` del carrusel A/B) — así CADA superficie de
+            // vídeo, sea de un carrusel O de cualquiera de los 2 lados de un
+            // dueto, muestra su PROPIO spinner exactamente mientras SU PROPIO
+            // reproductor esté en `Player.STATE_BUFFERING`, sin importar en
+            // qué pantalla se use `VideoSurface`. Se omite para el lado de
+            // tipo imagen (rama `if (imageUrl != null)` de arriba): una foto
+            // no tiene estado de "buffering" de ExoPlayer, y llamarlo ahí
+            // mostraría un spinner que nunca se apaga (el `player` de ese
+            // lado no tiene ningún medio real que cargar).
+            BufferingSpinner(player)
         }
         // Burst del icono de voto (doble toque) — réplica EXACTA de
         // VoteBurstEffect.jsx + la animación CSS `voteIconPop` de la web
