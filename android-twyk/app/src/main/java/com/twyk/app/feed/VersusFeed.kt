@@ -241,7 +241,7 @@ fun FeedPager(
         modifier = Modifier.fillMaxSize().background(Color.Black).statusBarsPadding(),
     ) { page ->
         val post = posts[page]
-        val active = page == pagerState.currentPage && appInForeground
+        val active = page == pagerState.currentPage && appInForeground && !com.twyk.app.data.AppLifecycle.overlayOpen
         val requestNext: () -> Unit = {
             val next = page + 1
             if (next < posts.size) scope.launch { pagerState.animateScrollToPage(next) }
@@ -463,9 +463,20 @@ private fun CarouselPage(
     // Música adjunta: play/pausa en sincronía con la tarjeta activa (igual
     // que el efecto de audioRef en la web); MediaPlayer.isLooping=true ya
     // repite el preview de 30s mientras la tarjeta esté activa.
-    LaunchedEffect(isActive, showWinner, musicPlayer) {
+    // BUG FIX ("las publicaciones tipo imagen con música: cuando pauso el
+    // vídeo la música sigue reproduciendo"): faltaba `paused` en las claves
+    // Y en la condición — el vídeo (efecto de arriba) SÍ respeta la pausa
+    // manual (toque simple), pero este efecto de la música nunca se
+    // re-evaluaba al cambiar `paused`, así que seguía sonando indefinidamente
+    // aunque el vídeo/imagen ya estuviera en pausa. Réplica exacta de
+    // `shouldPlay = isActive && playbackEnabled && !showWinner &&
+    // !authModalOpen && !globalMuted && ...` en CarouselSlide.jsx, que SÍ
+    // depende del equivalente de `paused` a través de `hasMusic || !paused`
+    // (aquí no hace falta ese `hasMusic ||` porque este bloque entero ya
+    // está dentro de `if (hasMusic)`).
+    LaunchedEffect(isActive, showWinner, paused, musicPlayer) {
         if (hasMusic) {
-            if (isActive && !showWinner) {
+            if (isActive && !showWinner && !paused) {
                 runCatching { if (musicPlayer?.isPlaying == false) musicPlayer?.start() }
             } else {
                 runCatching { if (musicPlayer?.isPlaying == true) musicPlayer?.pause() }
@@ -722,9 +733,12 @@ private fun DuetPage(
             playerA.pause(); playerB.pause()
         }
     }
-    LaunchedEffect(isActive, showWinner, musicPlayer, showContent) {
+    // BUG FIX ("cuando pauso el vídeo la música sigue reproduciendo"): ver
+    // comentario equivalente en CarouselPage — faltaba `paused` en las
+    // claves Y en la condición de este efecto de la música del dueto.
+    LaunchedEffect(isActive, showWinner, paused, musicPlayer, showContent) {
         if (hasMusic) {
-            if (isActive && !showWinner && !showContent) {
+            if (isActive && !showWinner && !paused && !showContent) {
                 runCatching { if (musicPlayer?.isPlaying == false) musicPlayer?.start() }
             } else {
                 runCatching { if (musicPlayer?.isPlaying == true) musicPlayer?.pause() }
@@ -2264,8 +2278,22 @@ fun VSContentCard(
     }
     // Solo el lado VISIBLE reproduce (con audio), igual que OptionMedia en la
     // web pausa el <video> no activo.
-    LaunchedEffect(pagerState.currentPage) {
-        if (pagerState.currentPage == 0) {
+    // BUG FIX ("cuando abro el VSContentCard y cierro la apk el audio sigue
+    // sonando"): esta card crea sus PROPIOS playerA/playerB (con audio real,
+    // muted=false en ambos) para mostrar el contenido a pantalla completa —
+    // a diferencia de CarouselPage/DuetPage (cuyo `isActive` YA combina
+    // `AppLifecycle.inForeground`/`overlayOpen`, ver FeedPager), este efecto
+    // SOLO dependía de `pagerState.currentPage`, sin ninguna noción de que
+    // la app pasara a segundo plano (Home/cambiar de app/apagar pantalla) —
+    // el vídeo visible seguía sonando indefinidamente de fondo aunque toda
+    // la Activity estuviera detenida. FIX: se añade `AppLifecycle.inForeground`
+    // a las claves y a la condición, réplica exacta del mismo patrón ya
+    // usado en FeedPager/CarouselPage/DuetPage.
+    val inForeground = com.twyk.app.data.AppLifecycle.inForeground
+    LaunchedEffect(pagerState.currentPage, inForeground) {
+        if (!inForeground) {
+            playerA.pause(); playerB.pause()
+        } else if (pagerState.currentPage == 0) {
             playerB.pause(); playerA.play()
         } else {
             playerA.pause(); playerB.play()

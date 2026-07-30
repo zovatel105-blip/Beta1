@@ -26,4 +26,21 @@ import androidx.compose.runtime.setValue
 // playbackEnabled && !overlayOpen` de Feed.jsx.
 object AppLifecycle {
     var inForeground by mutableStateOf(true)
+
+    // BUG reportado por el usuario ("las publicaciones siguen reproduciendo
+    // el audio cuando me dirijo a un perfil ajeno"): `inForeground` (arriba)
+    // solo replica la mitad de `effectivePlayback = playbackEnabled &&
+    // !overlayOpen` de Feed.jsx — la parte de "la app entera está en
+    // segundo plano" (onStop/onStart de la Activity), pero NUNCA la parte de
+    // "otra PANTALLA cubre el feed mientras la app sigue en primer plano"
+    // (perfil ajeno, buscador, reto rápido, comentarios, login/registro —
+    // en la web esto es `profileOpen || searchOpen || ... || authOpen`,
+    // ver Feed.jsx). El perfil ajeno se pinta como un OVERLAY sobre el
+    // propio `VersusFeed` (que sigue montado debajo, para poder volver
+    // exactamente a la misma posición de scroll al cerrarlo) — sin esta
+    // señal, `FeedPager` (feed/VersusFeed.kt) no tenía ninguna forma de
+    // saber que debía pausarse mientras esa pantalla está encima.
+    // Actualizado desde MainActivity/TwykApp() con un `SideEffect` que
+    // combina todos los overlays de nivel superior que cubren el feed.
+    var overlayOpen by mutableStateOf(false)
 }

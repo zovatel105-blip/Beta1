@@ -197,6 +197,21 @@ private fun TwykApp() {
         else -> true // Tab.Home, Tab.Profile
     }
 
+    // BUG FIX ("las publicaciones siguen reproduciendo el audio cuando me
+    // dirijo a un perfil ajeno"): ver el comentario completo en
+    // data/AppLifecycle.kt (`overlayOpen`). Réplica de `overlayOpen =
+    // profileOpen || searchOpen || ... || authOpen` en Feed.jsx — cualquiera
+    // de estas pantallas se pinta ENCIMA de `VersusFeed` (que sigue montado
+    // debajo) sin que `tab` cambie de `Tab.Home`, así que `FeedPager` nunca
+    // se enteraba de que debía pausarse. `SideEffect` (no `LaunchedEffect`)
+    // porque es una asignación síncrona y barata, sin necesidad de corrutina;
+    // se re-ejecuta tras CADA composición exitosa, así que siempre queda al
+    // día con el valor real de cada estado.
+    androidx.compose.runtime.SideEffect {
+        com.twyk.app.data.AppLifecycle.overlayOpen =
+            profileUsername != null || searchOpen || quickChallengeTarget != null || commentsPostId != null || authOpen
+    }
+
     // Al abrir la app con una sesión guardada, refresca el usuario desde el
     // backend (no solo la copia local en disco) — así, si `termsAccepted` (o
     // el avatar/nombre) cambió desde otro dispositivo o la web, el modal de
