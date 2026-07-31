@@ -2770,3 +2770,18 @@ agent_communication:
         -working: "NA"
         -agent: "main"
         -comment: "SplashScreen() (MainActivity.kt): Image del logo pasa de size(140.dp) centrado exacto a offset(y=(-30).dp).size(170.dp) — ~20% más grande y 30dp por encima del centro. Import de offset ya presente (lo usa el globo de NavIcon). NO COMPILABLE aquí: verificado por balance de llaves/paréntesis del código sin comentarios/strings (113/113, 202/202). CAPTURA mostrada al usuario mediante maqueta HTML 1:1 con el MISMO asset del APK (auth_logo.png, viewport 390x844, 170px y translateY(-30px)), servida temporalmente desde /public/_splash_preview.html y ELIMINADA tras la captura (cero residuos en la web). Pendiente: usuario recompila el APK y confirma que el splash real coincide con la captura."
+
+  - task: "Ajuste fino: splash nativo 170→185dp; barra inferior web+nativa 40/24→38/22 (avatar 27→25)"
+    implemented: true
+    working: true
+    file: "components/BottomNav.jsx, android-twyk/app/src/main/java/com/twyk/app/MainActivity.kt"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'Un pelín más grande [el logo del splash] y los botones de la barra de navegación un pelín más pequeños'."
+        -working: true
+        -agent: "main"
+        -comment: "SPLASH (nativo, MainActivity.kt): logo 170dp→185dp, offset -30dp intacto; captura 1:1 mostrada al usuario (maqueta HTML con el asset real del APK, eliminada tras capturar). BARRA WEB (BottomNav.jsx): botones w-10→w-[38px], iconos w-6→w-[22px] (incl. Plus de Crear), avatar 27→25px; lint limpio; VERIFICADO EN VIVO (getBoundingClientRect): 5 botones a 38px con glifos de 22px + captura visual de la barra. BARRA NATIVA (MainActivity.kt, paridad 1:1): NavIcon 38dp/22dp, Crear 38dp/Plus 22dp, ProfileNavIcon 38dp/avatar 25dp/invitado 22dp; el margen glifo-botón sigue siendo 8dp/lado ((38-22)/2), por lo que el offset del globo rojo (TopEnd+10,-10) sigue siendo matemáticamente correcto sin tocarlo; balance de código verificado (113/113, 204/204); el único size(24.dp) restante es la lupa de la barra SUPERIOR (fuera de alcance). Sin agentes de testing (instrucción del usuario). Pendiente: recompilar APK."

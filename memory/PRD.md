@@ -297,3 +297,15 @@ grande, muéstrame una captura". Cambio en `SplashScreen()` (MainActivity.kt): l
 compilar Android aquí, la captura mostrada al usuario se generó con una maqueta HTML 1:1
 (mismo asset auth_logo.png del APK, viewport 390x844, 170px translateY(-30px)) servida
 temporalmente desde /public y borrada después. Kotlin verificado por balance de código.
+
+## Ajuste fino (misma sesión): splash 170->185dp, barra inferior 40/24 -> 38/22
+"Un pelín más grande [el splash] y los botones de la barra de navegación un pelín más pequeños".
+- Splash nativo (MainActivity.kt): logo 170dp -> 185dp (offset -30dp intacto). Captura mostrada
+  (maqueta HTML 1:1 con el asset real, borrada tras capturar).
+- Barra inferior WEB (BottomNav.jsx): botones w-10 (40px) -> w-[38px], iconos w-6 (24px) ->
+  w-[22px] (incl. Plus), avatar 27 -> 25px. Verificado en vivo: 5 botones a 38px/22px.
+- Barra inferior NATIVA (MainActivity.kt): NavIcon 38dp/22dp, Crear 38dp/Plus 22dp,
+  ProfileNavIcon 38dp/avatar 25dp/invitado 22dp. Margen glifo-botón sigue 8dp/lado
+  ((38-22)/2), así que el offset del globo rojo (TopEnd+10,-10) sigue siendo correcto.
+  Balance de código verificado (113/113, 204/204). Historial de tamaños: 36/20 (original,
+  paridad web) -> 40/24 (agrandar "un poquito") -> 38/22 (ajuste final "un pelín más pequeño").

@@ -75,11 +75,11 @@ export default function BottomNav({ onOpenUpload, onOpenInbox, onOpenProfile, on
         <button
           aria-label="Home"
           onClick={() => { onGoHome?.() }}
-          className="flex items-center justify-center w-10 h-10 transition-all duration-200 active:scale-90"
+          className="flex items-center justify-center w-[38px] h-[38px] transition-all duration-200 active:scale-90"
         >
           <Home
             className={cn(
-              'w-6 h-6 transition-all duration-200',
+              'w-[22px] h-[22px] transition-all duration-200',
               activeTab === 'home' ? 'text-white' : 'text-white/50'
             )}
             strokeWidth={activeTab === 'home' ? 2.5 : 1.5}
@@ -92,11 +92,11 @@ export default function BottomNav({ onOpenUpload, onOpenInbox, onOpenProfile, on
           <button
             aria-label="Battle"
             onClick={() => { onOpenBattles?.() }}
-            className="flex items-center justify-center w-10 h-10 transition-all duration-200 active:scale-90"
+            className="flex items-center justify-center w-[38px] h-[38px] transition-all duration-200 active:scale-90"
           >
             <Swords
               className={cn(
-                'w-6 h-6 transition-all duration-200',
+                'w-[22px] h-[22px] transition-all duration-200',
                 activeTab === 'explore' ? 'text-white' : 'text-white/50'
               )}
               strokeWidth={activeTab === 'explore' ? 2.5 : 1.5}
@@ -113,7 +113,7 @@ export default function BottomNav({ onOpenUpload, onOpenInbox, onOpenProfile, on
         <button
           aria-label="Create"
           onClick={onOpenUpload}
-          className="flex items-center justify-center w-10 h-10 rounded-xl transition-all duration-200 active:scale-90 relative overflow-hidden flex-shrink-0"
+          className="flex items-center justify-center w-[38px] h-[38px] rounded-xl transition-all duration-200 active:scale-90 relative overflow-hidden flex-shrink-0"
           style={{
             border: '2px solid transparent',
             backgroundImage:
@@ -122,7 +122,7 @@ export default function BottomNav({ onOpenUpload, onOpenInbox, onOpenProfile, on
             backgroundClip: 'padding-box, border-box',
           }}
         >
-          <Plus className="w-6 h-6 text-white relative z-10" strokeWidth={2} />
+          <Plus className="w-[22px] h-[22px] text-white relative z-10" strokeWidth={2} />
         </button>
 
         {/* Mensajes / Inbox */}
@@ -130,11 +130,11 @@ export default function BottomNav({ onOpenUpload, onOpenInbox, onOpenProfile, on
           <button
             aria-label="Inbox"
             onClick={handleInboxClick}
-            className="flex items-center justify-center w-10 h-10 transition-all duration-200 active:scale-90"
+            className="flex items-center justify-center w-[38px] h-[38px] transition-all duration-200 active:scale-90"
           >
             <Inbox
               className={cn(
-                'w-6 h-6 transition-all duration-200',
+                'w-[22px] h-[22px] transition-all duration-200',
                 activeTab === 'messages' ? 'text-white' : 'text-white/50'
               )}
               strokeWidth={activeTab === 'messages' ? 2.5 : 1.5}
@@ -151,15 +151,15 @@ export default function BottomNav({ onOpenUpload, onOpenInbox, onOpenProfile, on
         <button
           aria-label="Profile"
           onClick={handleProfileClick}
-          className="flex items-center justify-center w-10 h-10 transition-all duration-200 active:scale-90"
+          className="flex items-center justify-center w-[38px] h-[38px] transition-all duration-200 active:scale-90"
         >
           {user ? (
             // Usuario registrado: verificar si tiene foto real o es avatar generado
             user.avatarUrl && !user.avatarUrl.includes('dicebear') && !user.avatarUrl.includes('pravatar') ? (
-              // Foto real subida por el usuario: llena el círculo COMPLETO (27px).
+              // Foto real subida por el usuario: llena el círculo COMPLETO (25px).
               // Antes el padding interior (p-[2px]) encogía la imagen a ~18px y
               // se veía más pequeña que el resto al añadir foto de perfil.
-              <div className="w-[27px] h-[27px] rounded-full overflow-hidden bg-zinc-900 ring-1 ring-white/20">
+              <div className="w-[25px] h-[25px] rounded-full overflow-hidden bg-zinc-900 ring-1 ring-white/20">
                 <img
                   src={user.avatarUrl}
                   alt={user.username}
@@ -167,14 +167,14 @@ export default function BottomNav({ onOpenUpload, onOpenInbox, onOpenProfile, on
                 />
               </div>
             ) : (
-              // Sin foto actualizada: DefaultAvatar gris (27px)
-              <DefaultAvatar className="w-[27px] h-[27px]" />
+              // Sin foto actualizada: DefaultAvatar gris (25px)
+              <DefaultAvatar className="w-[25px] h-[25px]" />
             )
           ) : (
-            // Usuario NO registrado: ícono simple (24px)
+            // Usuario NO registrado: ícono simple (22px)
             <User
               className={cn(
-                'w-6 h-6 transition-all duration-200',
+                'w-[22px] h-[22px] transition-all duration-200',
                 activeTab === 'profile' ? 'text-white' : 'text-white/50'
               )}
               strokeWidth={activeTab === 'profile' ? 2.5 : 1.5}
