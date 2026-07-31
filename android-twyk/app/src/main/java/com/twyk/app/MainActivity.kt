@@ -160,10 +160,14 @@ private fun SplashScreen() {
         Modifier.fillMaxSize().background(Color.White),
         contentAlignment = Alignment.Center,
     ) {
+        // Ajuste pedido por el usuario ("centrado un pelín arriba y un poco
+        // más grande"): 140dp -> 170dp (~20% más), y desplazado 30dp por
+        // encima del centro exacto (offset se aplica ANTES de size para que
+        // el desplazamiento no altere la medida del propio logo).
         Image(
             painter = painterResource(R.drawable.auth_logo),
             contentDescription = null,
-            modifier = Modifier.size(140.dp),
+            modifier = Modifier.offset(y = (-30).dp).size(170.dp),
         )
     }
 }

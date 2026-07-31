@@ -289,3 +289,11 @@ web como en la apk". Cambio aplicado EN PARALELO manteniendo paridad 1:1:
   así que la misma matemática deja el globo en la posición equivalente de la web. NO COMPILABLE
   aquí; verificado por revisión manual + balance de llaves/paréntesis del código (113/113, 202/202).
   El único 36dp restante en MainActivity es el botón de búsqueda de la barra SUPERIOR (no se toca).
+
+## Ronda: Splash Screen nativo — logo un pelín arriba y un poco más grande
+Petición: "El logo del Splash Screen debe estar centrado un pelín arriba y hacerlo un poco más
+grande, muéstrame una captura". Cambio en `SplashScreen()` (MainActivity.kt): logo 140dp -> 170dp
+(~20% más) y `offset(y = -30dp)` sobre el centro exacto (offset ANTES de size). Al no poder
+compilar Android aquí, la captura mostrada al usuario se generó con una maqueta HTML 1:1
+(mismo asset auth_logo.png del APK, viewport 390x844, 170px translateY(-30px)) servida
+temporalmente desde /public y borrada después. Kotlin verificado por balance de código.
