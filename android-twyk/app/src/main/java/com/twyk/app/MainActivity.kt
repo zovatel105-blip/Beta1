@@ -494,13 +494,13 @@ private fun TwykBottomNav(
             badgeCount = pendingChallengesCount,
         ) { onSelect(Tab.Battles) }
 
-        // Crear / Subir — borde con degradado lila → azul. Tamaño 36dp con
-        // icono de 20dp para replicar EXACTAMENTE la web (BottomNav.jsx:
-        // `w-9 h-9` = 36px con Plus `w-5 h-5` = 20px). Antes era 38dp/22dp,
-        // desalineando el botón respecto al resto de iconos (20dp).
+        // Crear / Subir — borde con degradado lila → azul. Tamaño 40dp con
+        // icono de 24dp para replicar EXACTAMENTE la web (BottomNav.jsx:
+        // `w-10 h-10` = 40px con Plus `w-6 h-6` = 24px — barra agrandada "un
+        // poquito" a petición del usuario; antes 36dp/20dp).
         Box(
             Modifier
-                .size(36.dp)
+                .size(40.dp)
                 .clip(RoundedCornerShape(12.dp))
                 .border(
                     width = 2.dp,
@@ -510,7 +510,7 @@ private fun TwykBottomNav(
                 .clickable { onSelect(Tab.Upload) },
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Filled.Add, contentDescription = "Subir", tint = Color.White, modifier = Modifier.size(20.dp))
+            Icon(Icons.Filled.Add, contentDescription = "Subir", tint = Color.White, modifier = Modifier.size(24.dp))
         }
 
         // Buzón + globo con notificaciones no leídas (réplica de
@@ -532,7 +532,7 @@ private fun TwykBottomNav(
 private fun ProfileNavIcon(selected: Boolean, onClick: () -> Unit) {
     val user = com.twyk.app.data.Session.user
     Box(
-        Modifier.size(36.dp).clickable(onClick = onClick),
+        Modifier.size(40.dp).clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         if (user != null) {
@@ -545,7 +545,7 @@ private fun ProfileNavIcon(selected: Boolean, onClick: () -> Unit) {
                     model = abs,
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
-                    modifier = Modifier.size(23.dp).clip(CircleShape).background(Color(0xFF18181B))
+                    modifier = Modifier.size(27.dp).clip(CircleShape).background(Color(0xFF18181B))
                         .border(1.dp, Color.White.copy(alpha = 0.2f), CircleShape),
                 )
             } else {
@@ -553,7 +553,7 @@ private fun ProfileNavIcon(selected: Boolean, onClick: () -> Unit) {
                     imageVector = ImageVector.vectorResource(R.drawable.ic_avatar_default),
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
-                    modifier = Modifier.size(23.dp).clip(CircleShape),
+                    modifier = Modifier.size(27.dp).clip(CircleShape),
                 )
             }
         } else {
@@ -561,7 +561,7 @@ private fun ProfileNavIcon(selected: Boolean, onClick: () -> Unit) {
                 ImageVector.vectorResource(R.drawable.ic_user),
                 contentDescription = null,
                 tint = if (selected) Color.White else Color.White.copy(alpha = 0.5f),
-                modifier = Modifier.size(20.dp),
+                modifier = Modifier.size(24.dp),
             )
         }
     }
@@ -570,15 +570,16 @@ private fun ProfileNavIcon(selected: Boolean, onClick: () -> Unit) {
 @Composable
 private fun NavIcon(icon: ImageVector, selected: Boolean, badgeCount: Int = 0, onClick: () -> Unit) {
     Box(
-        Modifier.size(36.dp).clickable(onClick = onClick),
+        Modifier.size(40.dp).clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        // Envoltorio del tamaño EXACTO del glifo (20dp = w-5 h-5 de la web).
-        // Antes era 24dp, lo que hacía que los iconos se vieran DEMASIADO
-        // grandes respecto al avatar de perfil (23dp), invirtiendo la
-        // proporción de la web (iconos 20px, avatar 23px → avatar 1.15x más
-        // grande que los iconos). Con 20dp la barra queda idéntica a la web.
-        Box(Modifier.size(20.dp)) {
+        // Envoltorio del tamaño EXACTO del glifo (24dp = w-6 h-6 de la web).
+        // Barra agrandada "un poquito" a petición del usuario (antes botón
+        // 36dp con glifo 20dp = w-9/w-5): ahora botón 40dp con glifo 24dp,
+        // cambiado EN PARALELO en BottomNav.jsx (web) para mantener la
+        // paridad 1:1. La proporción con el avatar de perfil se conserva
+        // (avatar 27dp ≈ 1.13x el glifo, igual que 23/20 antes).
+        Box(Modifier.size(24.dp)) {
             Icon(
                 icon,
                 contentDescription = null,
@@ -587,17 +588,15 @@ private fun NavIcon(icon: ImageVector, selected: Boolean, badgeCount: Int = 0, o
             )
             // Globo rojo con el contador — réplica exacta del <span> de
             // BottomNav.jsx: `absolute -top-0.5 -right-0.5` está anclado al
-            // CONTENEDOR de 36dp del botón (w-9 h-9), no al glifo de 20dp
-            // (w-5 h-5) que queda centrado DENTRO de ese botón con 8dp de
+            // CONTENEDOR de 40dp del botón (w-10 h-10), no al glifo de 24dp
+            // (w-6 h-6) que queda centrado DENTRO de ese botón con 8dp de
             // margen por lado — por eso, medido desde el propio icono de
-            // 20dp, el globo debe sobresalir claramente por su esquina
-            // superior-derecha (centro del globo en x=22dp/y=-2dp respecto al
-            // icono). ANTES el offset (6dp,-4dp) lo dejaba demasiado metido
-            // hacia dentro/abajo (bug reportado: "la burbuja... no se ve bien
-            // como en la web"); con align(TopEnd)+offset(10dp,-10dp) el
-            // globo queda exactamente en esa posición (10,-10 respecto a la
-            // esquina del icono = centro en 22,-2, la misma matemática que
-            // usa la web al posicionarlo sobre el botón de 36dp completo).
+            // 24dp, el globo debe sobresalir claramente por su esquina
+            // superior-derecha (centro del globo en x=26dp/y=-2dp respecto al
+            // icono). El offset (10,-10) respecto a align(TopEnd) NO cambia
+            // al agrandar la barra (36/20 -> 40/24): el margen lateral sigue
+            // siendo exactamente 8dp por lado, así que la misma matemática
+            // deja el globo en la posición equivalente de la web.
             if (badgeCount > 0) {
                 Box(
                     Modifier

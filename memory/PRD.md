@@ -275,3 +275,17 @@ usuarios/posts re-sembrados + `Config.kt` (BASE_URL nativa) actualizada a la URL
 lucia/twykadmin verificado 200. OJO: el usuario en una ronda anterior pidió mantener una URL vieja en
 Config.kt; esta vez se actualizó a la vigente porque la vieja (ec45bf55) ya no existe — si el usuario
 compila contra otro backend, debe ajustar Config.kt él mismo.
+
+## Ronda: barra de navegación inferior "un poquito más grande" (web + nativa)
+Petición: "haz los botones de la barra de navegación inferior un poquito más grandes tanto en la
+web como en la apk". Cambio aplicado EN PARALELO manteniendo paridad 1:1:
+- **Web (`components/BottomNav.jsx`)**: área táctil de los 5 botones w-9→w-10 (36→40px); iconos
+  w-5→w-6 (20→24px, incluido el Plus del botón Crear); avatar de perfil 23→27px (misma proporción
+  ~1.13x que antes). Verificado en vivo (viewport 390x844): los 5 botones a 40px con glifos de 24px.
+- **Nativa (`MainActivity.kt`)**: `NavIcon` 36→40dp con glifo 20→24dp; botón Crear 36→40dp con
+  Plus 20→24dp (borde degradado y radio 12dp intactos); `ProfileNavIcon` 36→40dp con avatar
+  23→27dp e icono de invitado 20→24dp. El offset del globo rojo (align TopEnd + offset 10,-10)
+  NO cambia: el margen lateral glifo-botón sigue siendo 8dp por lado ((40-24)/2 = (36-20)/2),
+  así que la misma matemática deja el globo en la posición equivalente de la web. NO COMPILABLE
+  aquí; verificado por revisión manual + balance de llaves/paréntesis del código (113/113, 202/202).
+  El único 36dp restante en MainActivity es el botón de búsqueda de la barra SUPERIOR (no se toca).

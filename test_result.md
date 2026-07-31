@@ -2740,3 +2740,18 @@ agent_communication:
 agent_communication:
     -agent: "main"
     -message: "INFRA: /app apareció completamente VACÍO salvo .git (working tree perdido con el pod, HEAD apuntaba a 'master' inexistente) — restaurado con git symbolic-ref HEAD refs/heads/main + git checkout -f main; /app/.env recreado con la URL de preview ACTUAL (3c5fe045-d14d-422d-a98b-ec6052fa01ca, confirmada en supervisord.conf); usuarios re-sembrados (seed-core-users.mjs) + 3 posts demo (seed-posts.mjs); login lucia/twykadmin verificado 200; memory/test_credentials.md recreado y ENV_BACKUP.md actualizado (incluida la nueva nota de recuperación del working tree). Config.kt (BASE_URL de la app nativa) actualizada a la URL vigente porque la que tenía (ec45bf55…) ya no existe. RONDA: reproductor nativo nivel TikTok — ver tarea nueva arriba (FeedPrefetcher + LoadControl 300ms + póster=frame1 + caché 512MB). Backend y web INTACTOS (0 líneas cambiadas) — no se requiere testing de backend; smoke manual: GET /api/feed 200, POST /api/auth/login 200."
+
+  - task: "Barra de navegación inferior más grande (web BottomNav.jsx + nativa TwykBottomNav): botones 36→40, iconos 20→24, avatar 23→27"
+    implemented: true
+    working: true
+    file: "components/BottomNav.jsx, android-twyk/app/src/main/java/com/twyk/app/MainActivity.kt"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'Ahora haz los botones de la barra de navegación inferior un poquito más grandes tanto en la web como en la apk'."
+        -working: true
+        -agent: "main"
+        -comment: "WEB (BottomNav.jsx): área táctil de los 5 botones w-9→w-10 (36→40px), iconos w-5→w-6 (20→24px, incluido el Plus de Crear), avatar 23→27px (proporción ~1.13x conservada). Lint sin issues. VERIFICADO EN VIVO con Playwright (viewport móvil 390x844, medición por getBoundingClientRect): los 5 botones del nav a 40px con glifos SVG de 24px, captura visual correcta. NATIVA (MainActivity.kt, mismos valores para paridad 1:1): NavIcon 36→40dp/glifo 20→24dp, botón Crear 36→40dp/Plus 20→24dp, ProfileNavIcon 36→40dp/avatar 23→27dp/icono invitado 20→24dp. El offset del globo rojo (TopEnd+10,-10) queda intacto: el margen glifo-botón sigue siendo 8dp/lado ((40-24)/2=(36-20)/2), misma matemática documentada en el comentario del código. Kotlin NO COMPILABLE aquí: verificado por revisión manual + balance de llaves/paréntesis del código sin comentarios/strings (113/113, 202/202); el único 36dp restante es el botón de búsqueda de la barra SUPERIOR (fuera de alcance). Sin agentes de testing (instrucción reiterada del usuario); verificación web hecha con captura Playwright manual como en rondas anteriores. Pendiente: usuario recompila el APK para ver el cambio nativo."
