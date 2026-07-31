@@ -11,15 +11,20 @@ import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
 import androidx.media3.datasource.cache.SimpleCache
 import java.io.File
 
-// Cache en disco LRU (150 MB) compartida -> la re-reproduccion de un video ya
+// Cache en disco LRU (512 MB) compartida -> la re-reproduccion de un video ya
 // visto es instantanea (misma idea que compose-reels). Singleton para toda la app.
+// 150 MB -> 512 MB: con la precarga agresiva de FeedPrefetcher (~1.5 MB por
+// video de las proximas 4 publicaciones) 150 MB expulsaba (LRU) videos vistos
+// hace poco; 512 MB retiene ~1h de sesion tipica sin re-descargar nada.
 object VideoCache {
-    private const val MAX_BYTES = 150L * 1024 * 1024
+    private const val MAX_BYTES = 512L * 1024 * 1024
 
     @Volatile
     private var cache: SimpleCache? = null
 
-    private fun cache(context: Context): SimpleCache {
+    // Publico: FeedPrefetcher lo usa para saber que hay ya en disco
+    // (getCachedBytes/getContentMetadata) antes de lanzar una descarga.
+    fun cache(context: Context): SimpleCache {
         return cache ?: synchronized(this) {
             cache ?: SimpleCache(
                 File(context.applicationContext.cacheDir, "media"),
@@ -30,7 +35,13 @@ object VideoCache {
     }
 
     fun cacheDataSourceFactory(context: Context): CacheDataSource.Factory {
-        val http = DefaultHttpDataSource.Factory().setAllowCrossProtocolRedirects(true)
+        // Timeouts agresivos (8 s en vez de los 8/30 s por defecto de
+        // conectar/leer): en red movil mala es mejor fallar rapido y que el
+        // reproductor reintente (o el poster cubra el hueco) que colgarse.
+        val http = DefaultHttpDataSource.Factory()
+            .setAllowCrossProtocolRedirects(true)
+            .setConnectTimeoutMs(8_000)
+            .setReadTimeoutMs(8_000)
         val upstream = DefaultDataSource.Factory(context.applicationContext, http)
         return CacheDataSource.Factory()
             .setCache(cache(context))

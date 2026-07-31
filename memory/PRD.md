@@ -239,3 +239,39 @@ manual + recuento de llaves/paréntesis balanceado (352/352, 1097/1097). Sin cam
 - **`MainActivity.kt` → `ProfileNavIcon`** (invitado): User icon 24.dp → **20.dp** para igualar iconos.
 - Verificación: llaves y paréntesis balanceados en `UiKit.kt` (20/20, 106/106) y `MainActivity.kt`
   (97/97, 208/208). Sin compilación local (limitación del contenedor); requiere validación del usuario.
+
+## Ronda: reproductor nativo nivel TikTok/Reels — "el usuario NUNCA espera" (jul-2026)
+Petición: "Quiero que mi reproductor nativo sea igual o superior al de TikTok/reels; el usuario no
+debe esperar a que cargue, el contenido tiene que estar listo siempre". Confirmado con el usuario:
+plan completo + precarga agresiva de 4 publicaciones (~8-12 MB/ventana, prioridad máxima a fluidez).
+Implementado (solo app nativa Android, cero cambios web/backend), siguiendo PERFORMANCE_BLUEPRINT_TWYK.md:
+1. **`feed/FeedPrefetcher.kt` (NUEVO)**: al cambiar la página activa, descarga en background
+   (CacheWriter -> la MISMA SimpleCache de los ExoPlayer) los primeros ~1.5 MB (init MP4 + 3-6 s)
+   de CADA vídeo (lados A y B) de las publicaciones i+1..i+4 e i-1, en orden de prioridad por
+   cercanía (Semaphore(3) FIFO, máx 3 descargas simultáneas para no robar ancho de banda al vídeo
+   activo); cancela (writer.cancel()+job.cancel()) lo que sale de la ventana en scroll rápido;
+   `alreadyCached()` compara contra min(contentLength, 1.5MB) para no re-descargar clips cortos ya
+   completos; pósters precalentados vía Coil (memoria+disco). Wiring en `FeedPager` (VersusFeed.kt,
+   LaunchedEffect(currentPage, posts.size)) -> beneficia a feed principal, Batallas>Completados y
+   visor del perfil (todos usan FeedPager).
+2. **Arranque instantáneo** (`buildPlayer`, VersusFeed.kt): DefaultLoadControl custom
+   (300 ms para arrancar / 750 ms tras rebuffer, en vez de 2500/5000 por defecto; búfer 15-30 s en
+   vez de 50 s — hay hasta 6 players montados (activa ±1 × 2 vídeos), el default desperdiciaba RAM/red).
+3. **Póster = frame 1** (`VideoSurface`, VersusFeed.kt): el JPG del primer fotograma (que el backend
+   YA genera con ffmpeg, posterFor() en route.js, y la web ya usa como <video poster>) se pinta a
+   0 ms POR ENCIMA del PlayerView y se desvanece (AnimatedVisibility fadeOut 120 ms) al dispararse
+   onRenderedFirstFrame — nunca más pantalla negra; el listener se re-arma en cada reciclado del
+   pager (la superficie nueva vuelve a disparar onRenderedFirstFrame). Spinner de buffering se
+   mantiene (se dibuja sobre el póster solo si de verdad hay stall).
+4. **`feed/VideoCache.kt`**: caché de disco 150 MB -> 512 MB; accessor `cache(context)` ahora público
+   (lo usa el prefetcher); timeouts HTTP 8 s conexión/lectura (fallar rápido + póster cubre el hueco).
+NO COMPILABLE aquí (sin SDK Android): verificado por revisión manual línea a línea + balance de
+llaves/paréntesis del CÓDIGO sin comentarios/strings (VersusFeed 463/463 y 1291/1291; FeedPrefetcher
+17/17, 50/50; VideoCache 5/5, 18/18). Pendiente: usuario compila el APK y valida.
+
+INFRA de esta sesión: /app estaba VACÍO salvo .git (working tree perdido con el pod); restaurado con
+`git checkout -f main` + .env recreado con la URL actual (3c5fe045-d14d-422d-a98b-ec6052fa01ca) +
+usuarios/posts re-sembrados + `Config.kt` (BASE_URL nativa) actualizada a la URL actual. Login
+lucia/twykadmin verificado 200. OJO: el usuario en una ronda anterior pidió mantener una URL vieja en
+Config.kt; esta vez se actualizó a la vigente porque la vieja (ec45bf55) ya no existe — si el usuario
+compila contra otro backend, debe ajustar Config.kt él mismo.

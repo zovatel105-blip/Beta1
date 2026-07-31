@@ -5,6 +5,9 @@ package com.twyk.app.feed
 import android.content.Context
 import android.media.MediaPlayer
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
@@ -116,6 +119,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.datasource.cache.CacheDataSource
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.AspectRatioFrameLayout
@@ -235,6 +239,33 @@ fun FeedPager(
         if (posts.size - pagerState.currentPage <= 3) onNearEnd()
     }
 
+    // PRECARGA AGRESIVA estilo TikTok (ver FeedPrefetcher.kt): cada vez que
+    // cambia la página activa (o llegan posts nuevos), se descargan en
+    // segundo plano los primeros ~1.5 MB de CADA vídeo (lados A y B) de las
+    // próximas 4 publicaciones + la anterior, y se precalientan sus pósters
+    // (frame 1) con Coil. El orden de la lista ES la prioridad (más cercano
+    // primero); lo que sale de la ventana se cancela dentro del prefetcher.
+    // La página ACTIVA no se incluye: sus ExoPlayers ya descargan solos.
+    LaunchedEffect(pagerState.currentPage, posts.size) {
+        val videos = ArrayList<String>()
+        val posters = ArrayList<String>()
+        for (offset in intArrayOf(1, 2, 3, 4, -1)) {
+            val p = posts.getOrNull(pagerState.currentPage + offset) ?: continue
+            for (side in listOf(p.sideA, p.sideB)) {
+                if (side == null) continue
+                if (side.mediaType == "image") {
+                    // Lado de tipo FOTO: no hay vídeo que trocear, la imagen
+                    // completa ES el contenido -> se precarga vía Coil.
+                    absoluteUrl(side.imageUrl ?: side.posterUrl)?.let { posters.add(it) }
+                } else {
+                    absoluteUrl(side.videoUrl)?.let { videos.add(it) }
+                    absoluteUrl(side.posterUrl)?.let { posters.add(it) }
+                }
+            }
+        }
+        FeedPrefetcher.updateWindow(context, videos.distinct(), posters.distinct())
+    }
+
     VerticalPager(
         state = pagerState,
         beyondViewportPageCount = 1,
@@ -280,8 +311,26 @@ private fun buildPlayer(
     url: String?,
     muted: Boolean,
 ): ExoPlayer {
+    // ARRANQUE INSTANTÁNEO (estilo TikTok): el DefaultLoadControl de fábrica
+    // exige ~2.5 s de búfer antes de empezar a reproducir (y 5 s tras un
+    // rebuffer) — con los bytes ya en la caché de disco (FeedPrefetcher) eso
+    // era EL retraso perceptible que quedaba. Aquí basta ~0.3 s para arrancar
+    // (0.75 s tras un rebuffer), y se recorta el búfer máximo en RAM de 50 s
+    // a 30 s: en este feed hay hasta 6 reproductores montados a la vez
+    // (página activa ±1 × 2 vídeos por tarjeta), con el valor de fábrica la
+    // RAM/red se desperdiciaba en segundos lejanos que casi nunca se ven.
+    val loadControl = DefaultLoadControl.Builder()
+        .setBufferDurationsMs(
+            /* minBufferMs = */ 15_000,
+            /* maxBufferMs = */ 30_000,
+            /* bufferForPlaybackMs = */ 300,
+            /* bufferForPlaybackAfterRebufferMs = */ 750,
+        )
+        .setPrioritizeTimeOverSizeThresholds(true)
+        .build()
     val player = ExoPlayer.Builder(context)
         .setMediaSourceFactory(DefaultMediaSourceFactory(factory))
+        .setLoadControl(loadControl)
         .build()
     absoluteUrl(url)?.let { player.setMediaItem(MediaItem.fromUri(it)) }
     player.repeatMode = Player.REPEAT_MODE_ONE
@@ -947,6 +996,47 @@ private fun VideoSurface(
                 update = { it.player = player },
                 modifier = Modifier.fillMaxSize(),
             )
+            // PÓSTER = FRAME 1 (el truco central de TikTok, §3.3 del
+            // PERFORMANCE_BLUEPRINT): el backend genera con ffmpeg un JPG del
+            // primer fotograma de cada vídeo (posterFor() en route.js) y la
+            // web ya lo usa como <video poster>. El nativo NO lo usaba: hasta
+            // que ExoPlayer decodificaba el primer frame solo se veía la
+            // superficie NEGRA (+ spinner). Ahora el póster se pinta a 0 ms
+            // POR ENCIMA del reproductor (Coil lo tiene precalentado en
+            // memoria/disco gracias a FeedPrefetcher) y se desvanece en
+            // 120 ms cuando el reproductor renderiza su primer frame REAL
+            // (onRenderedFirstFrame) — como el póster ES ese mismo frame, el
+            // cambio imagen→vídeo resulta invisible: nunca más pantalla negra.
+            val posterUrl = absoluteUrl(side?.posterUrl)
+            var showPoster by remember(player) { mutableStateOf(true) }
+            DisposableEffect(player) {
+                val listener = object : Player.Listener {
+                    // Se dispara también al RE-adjuntar superficie (la página
+                    // vuelve a la ventana del pager y Compose recrea el
+                    // PlayerView), por lo que el póster re-cubre el hueco en
+                    // cada reciclado y se re-oculta al primer frame nuevo.
+                    override fun onRenderedFirstFrame() {
+                        showPoster = false
+                    }
+                }
+                player.addListener(listener)
+                onDispose { player.removeListener(listener) }
+            }
+            if (posterUrl != null) {
+                AnimatedVisibility(
+                    visible = showPoster,
+                    enter = EnterTransition.None,
+                    exit = fadeOut(tween(120)),
+                    modifier = Modifier.fillMaxSize(),
+                ) {
+                    AsyncImage(
+                        model = posterUrl,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+            }
             // BUG FIX ("cuando me topo con una publicación que no ha cargado
             // solo se queda en negro, debe mostrar un spinner"): `VideoSurface`
             // es el único punto de render de vídeo compartido por CarouselPage
