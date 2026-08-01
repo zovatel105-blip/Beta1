@@ -407,3 +407,9 @@ Los rótulos de PALABRA (visibles con contador 0) sobresalían de los lados del 
    (FeedPager: prefetch+póster+lazy prepare), VSContentCard (buildPlayer), Batallas>Activos (este
    fix); la vista previa de Subir usa vídeo LOCAL (ya instantáneo, no aplica). Balance verificado
    (VersusFeed 466/466, 1305/1305; Battles 160/160, 496/496); @OptIn(UnstableApi) ya presente.
+
+## VALIDADO POR EL USUARIO (APK real): fluidez del reproductor nativo = web
+El usuario compiló el APK y confirmó: "funcionan con la fluidez que muestra la web el contenido".
+Queda validada en dispositivo real toda la arquitectura de reproducción: prepare() perezoso
+(solo página actual, política C1), FeedPrefetcher + caché 512MB, póster=frame1, LoadControl 300ms,
+liberación de decoders al salir/background, overlays solo-pausa, spinner con gracia 500ms.
