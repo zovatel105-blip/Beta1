@@ -13,6 +13,7 @@ import {
   getUserByUsername,
   getCurrentUsersByUsernames,
   updateUserProfile,
+  saveUserInterests,
   getAllUsers,
   getSuggestedUsers,
   createComment as createCommentDB,
@@ -1024,6 +1025,11 @@ export async function POST(request, { params }) {
     return handleAcceptTerms(request)
   }
 
+  // POST /api/profile/interests - Guardar intereses del paso final del registro
+  if (path === '/profile/interests') {
+    return handleSaveInterests(request)
+  }
+
   // POST /api/profile - Actualizar perfil (nombre, bio, avatar)
   if (path === '/profile') {
     return handleUpdateProfile(request)
@@ -1655,6 +1661,31 @@ async function handleUpdateProfile(request) {
   } catch (err) {
     console.error('[profile] update error:', err)
     return NextResponse.json({ error: 'update_failed', detail: String(err?.message || err) }, { status: 500 })
+  }
+}
+
+// POST /api/profile/interests — paso final del registro ("Choose what you
+// like"): guarda la lista de intereses elegidos (o vacía si se pulsó Skip)
+// en el documento del usuario autenticado. Body JSON: { interests: string[] }.
+async function handleSaveInterests(request) {
+  try {
+    const currentUser = await getCurrentUser(request)
+    if (!currentUser) {
+      return NextResponse.json({ error: 'unauthorized', message: 'You must log in' }, { status: 401 })
+    }
+    let body = null
+    try { body = await request.json() } catch { body = null }
+    const raw = Array.isArray(body?.interests) ? body.interests : []
+    const interests = raw
+      .filter((x) => typeof x === 'string')
+      .map((x) => x.trim().slice(0, 40))
+      .filter(Boolean)
+      .slice(0, 20)
+    await saveUserInterests(currentUser.id, interests)
+    return NextResponse.json({ ok: true, interests })
+  } catch (err) {
+    console.error('[profile/interests] error:', err)
+    return NextResponse.json({ error: 'save_failed' }, { status: 500 })
   }
 }
 

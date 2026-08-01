@@ -208,6 +208,9 @@ data class ChallengesResponse(val challenges: List<Challenge>? = null)
 data class PostsResponse(val posts: List<Post>? = null)
 data class OkResponse(val ok: Boolean = false, val error: String? = null)
 
+// Paso final del registro ("Choose what you like") -> POST /api/profile/interests
+data class SaveInterestsRequest(val interests: List<String>)
+
 // ── Perfil ────────────────────────────────────────────────────────────────────
 data class ProfileUser(
     val username: String? = null,

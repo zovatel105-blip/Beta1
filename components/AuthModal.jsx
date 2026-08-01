@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { ChevronDown, ArrowLeft, Cake } from 'lucide-react'
+import { ChevronDown, ArrowLeft, Cake, Eye, EyeOff, Check } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import DateWheelPicker from './DateWheelPicker'
 
@@ -13,9 +13,39 @@ const BRAND_GRADIENT = 'linear-gradient(90deg, #A855F7 0%, #3B82F6 100%)'
 const REG_STEPS = [
   { key: 'birthdate', title: "What's your date of birth?", subtitle: "Your date of birth won't be shown publicly." },
   { key: 'email', title: "What's your email?", subtitle: "We'll send important information to this email." },
-  { key: 'password', title: 'Create a password', subtitle: 'Use at least 6 characters.' },
+  { key: 'password', title: 'Create password', subtitle: '' },
   { key: 'username', title: 'Create your username', subtitle: 'This is how people will find you on Twyk. You can change it later.' },
+  // 5º paso (referencia TikTok): se muestra DESPUÉS de crear la cuenta y
+  // guarda los intereses elegidos vía POST /api/profile/interests.
+  { key: 'interests', title: 'Choose what you like', subtitle: 'Your feed will be personalized based on what you like.' },
 ]
+
+// Categorías del paso "Choose what you like" (imagen de referencia).
+const INTEREST_OPTIONS = [
+  'Science & Education', 'Sports', 'Fitness & Health', 'Music', 'Comedy',
+  'Food & Drink', 'Auto & Vehicle', 'DIY', 'Travel', 'Gaming',
+  'Beauty & Style', 'Animals',
+]
+
+// Reglas de contraseña (imagen de referencia): 8-20 caracteres; al menos 1
+// letra, 1 número y 1 carácter especial; "Strong password" = todo lo anterior
+// con 12+ caracteres (indicador informativo, no bloqueante).
+const PW_SPECIAL = /[#?!@$%^&*()_+\-=\[\]{};':"\\|,.<>/~`]/
+// Fila de requisito de contraseña (punto + texto que se "encienden" al
+// cumplirse la regla) — a nivel de módulo para no recrear el componente en
+// cada render (regla react/no-unstable-nested-components).
+const PwReq = ({ ok, children }) => (
+  <li className="flex items-center gap-3">
+    <span className={`w-1.5 h-1.5 rounded-full shrink-0 transition-colors ${ok ? 'bg-green-500' : 'bg-zinc-300'}`} />
+    <span className={`text-[14.5px] transition-colors ${ok ? 'text-zinc-900' : 'text-zinc-500'}`}>{children}</span>
+  </li>
+)
+
+function passwordRules(pw) {
+  const len = pw.length >= 8 && pw.length <= 20
+  const mix = /[A-Za-z]/.test(pw) && /\d/.test(pw) && PW_SPECIAL.test(pw)
+  return { len, mix, strong: len && mix && pw.length >= 12 }
+}
 
 // Calcula la edad en años a partir de 'YYYY-MM-DD'. Devuelve null si no es válida.
 function computeAge(birthDate) {
@@ -59,6 +89,8 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
   const [ageBlocked, setAgeBlocked] = useState(false)
 
   const [loginData, setLoginData] = useState({ username: '', password: '' })
+  const [showPw, setShowPw] = useState(false)
+  const [interests, setInterests] = useState([])
   const [registerData, setRegisterData] = useState({ username: '', email: '', password: '', birthDate: '' })
 
   // Para el portal: solo renderizamos en cliente (document disponible).
@@ -73,6 +105,8 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
       setRegStep(0)
       setError('')
       setAgeBlocked(false)
+      setShowPw(false)
+      setInterests([])
     }
   }, [open, defaultTab])
 
@@ -91,6 +125,10 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
   const goBack = () => {
     setError('')
     if (view === 'register' && step === 'form') {
+      // En el paso de intereses la cuenta YA está creada: no se puede
+      // "volver" a los pasos del formulario (re-crearía la cuenta) — la
+      // única salida es cerrar (equivalente a Skip).
+      if (REG_STEPS[regStep].key === 'interests') { onClose(); return }
       if (regStep > 0) setRegStep(regStep - 1)
       else setStep('methods')
     } else {
@@ -108,7 +146,9 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
         registerData.birthDate,
       )
       if (result.success) {
-        onClose()
+        // Cuenta creada y sesión iniciada -> avanzar al paso final de
+        // intereses ("Choose what you like"), NO cerrar todavía.
+        setRegStep(REG_STEPS.findIndex((st) => st.key === 'interests'))
       } else if (result.error && /under 13|menores de 13/i.test(result.error)) {
         setAgeBlocked(true)
       } else {
@@ -135,13 +175,39 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
     } else if (key === 'email') {
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(registerData.email)) { setError('Enter a valid email'); return }
     } else if (key === 'password') {
-      if (registerData.password.length < 6) { setError('Password must be at least 6 characters'); return }
+      const rules = passwordRules(registerData.password)
+      if (!rules.len || !rules.mix) {
+        setError('Password must be 8-20 characters with 1 letter, 1 number and 1 special character (# ? ! @)')
+        return
+      }
     } else if (key === 'username') {
       if (registerData.username.trim().length < 3) { setError('Username must be at least 3 characters'); return }
       await doRegister()
       return
+    } else if (key === 'interests') {
+      return // este paso usa su propio pie Skip / Next (N)
     }
     setRegStep(regStep + 1)
+  }
+
+  const toggleInterest = (cat) =>
+    setInterests((prev) => (prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]))
+
+  // Guarda los intereses del paso final (best-effort: si la red falla, la
+  // cuenta ya existe y el modal se cierra igualmente).
+  const saveInterests = async () => {
+    setLoading(true)
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('twyk_token') : null
+      await fetch('/api/profile/interests', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ interests }),
+      })
+    } catch { /* best-effort */ }
+    setLoading(false)
+    onClose()
   }
 
   const handleLogin = async (e) => {
@@ -177,7 +243,6 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
   )
 
   const regStepCfg = REG_STEPS[regStep]
-  const isLastRegStep = regStep === REG_STEPS.length - 1
 
   return createPortal(
     <div className="fixed inset-0 flex flex-col justify-end" style={{ zIndex: 10000 }}>
@@ -193,7 +258,7 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
         {/* Header: flecha abajo (cerrar) en el splash; flecha atrás en los pasos */}
         <div className="relative z-10 flex items-center h-12 px-3 shrink-0"
              style={{ paddingTop: 'max(env(safe-area-inset-top), 6px)' }}>
-          {step === 'methods' || ageBlocked ? (
+          {step === 'methods' || ageBlocked || (isRegister && step === 'form' && regStepCfg.key === 'interests') ? (
             <button aria-label="close" onClick={onClose} className="mx-auto p-2 text-zinc-600 active:scale-90 transition">
               <ChevronDown strokeWidth={2.2} className="w-7 h-7" />
             </button>
@@ -325,10 +390,18 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
                       onChange={(val) => setRegisterData((prev) => ({ ...prev, birthDate: val }))}
                     />
                   </>
+                ) : regStepCfg.key === 'interests' ? (
+                  /* Cabecera alineada a la IZQUIERDA (imagen de referencia). */
+                  <div className="mb-2 text-left">
+                    <h1 className="text-[27px] font-extrabold tracking-tight leading-tight">{regStepCfg.title}</h1>
+                    <p className="text-zinc-500 text-[14px] mt-2 leading-relaxed">{regStepCfg.subtitle}</p>
+                  </div>
                 ) : (
                   <div className="mb-2 text-center flex flex-col items-center">
                     <h1 className="text-[25px] font-extrabold tracking-tight leading-tight max-w-[300px] mx-auto">{regStepCfg.title}</h1>
-                    <p className="text-zinc-500 text-[14px] mt-2.5 max-w-[280px] mx-auto leading-relaxed">{regStepCfg.subtitle}</p>
+                    {regStepCfg.subtitle ? (
+                      <p className="text-zinc-500 text-[14px] mt-2.5 max-w-[280px] mx-auto leading-relaxed">{regStepCfg.subtitle}</p>
+                    ) : null}
                   </div>
                 )}
 
@@ -346,20 +419,41 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
                   </div>
                 )}
 
-                {regStepCfg.key === 'password' && (
-                  <div className="flex flex-col items-center text-center mt-8">
-                    <input
-                      type="password"
-                      autoFocus
-                      value={registerData.password}
-                      onChange={(e) => setRegisterData({ ...registerData, password: e.target.value })}
-                      placeholder="Password"
-                      className={minimalStepInput}
-                      required
-                      minLength={6}
-                    />
-                  </div>
-                )}
+                {regStepCfg.key === 'password' && (() => {
+                  const rules = passwordRules(registerData.password)
+                  return (
+                    <div className="mt-8">
+                      <div className="relative w-full">
+                        <input
+                          type={showPw ? 'text' : 'password'}
+                          autoFocus
+                          value={registerData.password}
+                          onChange={(e) => setRegisterData({ ...registerData, password: e.target.value })}
+                          placeholder="Enter password"
+                          className={minimalStepInput.replace('text-center', 'text-left') + ' pr-12'}
+                          required
+                          minLength={8}
+                          maxLength={20}
+                        />
+                        <button
+                          type="button"
+                          aria-label={showPw ? 'Hide password' : 'Show password'}
+                          onClick={() => setShowPw((v) => !v)}
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 transition-colors"
+                        >
+                          {showPw ? <Eye className="w-5 h-5" strokeWidth={1.8} /> : <EyeOff className="w-5 h-5" strokeWidth={1.8} />}
+                        </button>
+                      </div>
+                      {/* Requisitos (imagen de referencia): el punto y el texto se
+                          "encienden" al cumplirse cada regla. */}
+                      <ul className="mt-6 space-y-3 text-left">
+                        <PwReq ok={rules.len}>8 characters (20 max)</PwReq>
+                        <PwReq ok={rules.mix}>1 letter, 1 number, 1 special character (# ? ! @)</PwReq>
+                        <PwReq ok={rules.strong}>Strong password</PwReq>
+                      </ul>
+                    </div>
+                  )
+                })()}
 
                 {regStepCfg.key === 'username' && (
                   <div className="flex flex-col items-center text-center mt-8">
@@ -376,9 +470,37 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
                   </div>
                 )}
 
+                {regStepCfg.key === 'interests' && (
+                  <div className="mt-6 space-y-3 pb-2">
+                    {INTEREST_OPTIONS.map((cat) => {
+                      const sel = interests.includes(cat)
+                      return (
+                        <button
+                          type="button"
+                          key={cat}
+                          onClick={() => toggleInterest(cat)}
+                          aria-pressed={sel}
+                          className={`w-full flex items-center justify-between rounded-full px-6 py-[15px] text-left text-[16px] font-medium active:scale-[0.99] transition-all duration-150 ${
+                            sel ? 'bg-purple-50 ring-1 ring-purple-300 text-zinc-900' : 'bg-zinc-50 text-zinc-800'
+                          }`}
+                        >
+                          <span>{cat}</span>
+                          {sel ? (
+                            <span className="w-6 h-6 rounded-full flex items-center justify-center shrink-0" style={{ background: BRAND_GRADIENT }}>
+                              <Check className="w-4 h-4 text-white" strokeWidth={3} />
+                            </span>
+                          ) : (
+                            <span className="w-6 h-6 rounded-full border-2 border-zinc-200 shrink-0" />
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+
                 {error && errorChip(error)}
 
-                {isLastRegStep && (
+                {regStepCfg.key === 'username' && (
                   <p className="mt-6 text-zinc-400 text-[12px] leading-relaxed text-center">
                     By creating your account you accept our{' '}
                     <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-zinc-600 underline hover:text-zinc-900">Terms of Use</a>
@@ -391,13 +513,39 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
 
             <div className="px-6 py-4 shrink-0"
                  style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 14px)' }}>
-              <button type="submit" disabled={loading} className={gradientBtn} style={{ background: BRAND_GRADIENT }}>
-                {loading ? (
-                  <div className="w-5 h-5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-                ) : (
-                  isLastRegStep ? 'Create account' : 'Continue'
-                )}
-              </button>
+              {regStepCfg.key === 'interests' ? (
+                /* Pie de la imagen de referencia: Skip + "Next (N)" (deshabilitado con 0). */
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="flex-1 h-[52px] rounded-full bg-zinc-100 text-zinc-900 font-bold text-[16px] active:scale-[0.98] transition-all hover:bg-zinc-200"
+                  >
+                    Skip
+                  </button>
+                  <button
+                    type="button"
+                    onClick={saveInterests}
+                    disabled={interests.length === 0 || loading}
+                    className="flex-1 h-[52px] rounded-full font-bold text-[16px] text-white flex items-center justify-center active:scale-[0.98] transition-all disabled:opacity-40"
+                    style={{ background: BRAND_GRADIENT }}
+                  >
+                    {loading ? (
+                      <div className="w-5 h-5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                    ) : (
+                      `Next (${interests.length})`
+                    )}
+                  </button>
+                </div>
+              ) : (
+                <button type="submit" disabled={loading} className={gradientBtn} style={{ background: BRAND_GRADIENT }}>
+                  {loading ? (
+                    <div className="w-5 h-5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                  ) : (
+                    regStepCfg.key === 'username' ? 'Create account' : 'Continue'
+                  )}
+                </button>
+              )}
             </div>
           </form>
         ) : (

@@ -57,6 +57,11 @@ interface TwykApi {
         @Part avatar: MultipartBody.Part?,
     ): UpdateProfileResponse
 
+    // Paso final del registro ("Choose what you like"): guarda los intereses
+    // elegidos (o lista vacia con Skip) en el usuario autenticado.
+    @POST("api/profile/interests")
+    suspend fun saveInterests(@Body body: SaveInterestsRequest): OkResponse
+
     @GET("api/users/{username}/{type}")
     suspend fun followList(@Path("username") username: String, @Path("type") type: String): FollowListResponse
 

@@ -2834,3 +2834,35 @@ agent_communication:
         -working: true
         -agent: "main"
         -comment: "WEB (OptionsModal.jsx): eliminada la fila 'copy' de los DOS menús (publicación ajena → quedan Not interested/Report/Block user; propia → queda Delete) con limpieza completa de todo lo que quedaba huérfano (función copyLink, estado copied, shareUrl, setCopied del effect de reset, imports Link2/Check — verificado sin otros usos). Lint sin issues. VERIFICADO EN VIVO (Playwright manual, viewport móvil): al abrir los tres puntitos del rail del feed, el bottom sheet muestra SOLO Not interested/Report/Block user + captura visual. NATIVA (MoreOptionsSheet en VersusFeed.kt, paridad 1:1): eliminada la fila equivalente (bloque if(copied) 'Link copied' else 'Copy link'), la función copyLink() (clipboard), el estado copied, el color green600 y los imports Icons.Filled.Check, Icons.Filled.Link y com.twyk.app.Config (grep confirmó cero usos restantes de cada uno en el archivo); comentario de cabecera del sheet actualizado. Balance de código sin comentarios/strings verificado (465/465 llaves, 1301/1301 paréntesis). La hoja de COMPARTIR (ShareModal.jsx web / ShareSheet ui/Sheets.kt nativa) NO se toca: conserva su propia opción de copiar enlace. Sin agentes de testing (instrucción reiterada del usuario; verificación web con captura Playwright manual). Pendiente: recompilar APK."
+
+backend:
+  - task: "POST /api/profile/interests — guardar intereses del nuevo 5º paso del registro"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js, lib/db.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'La contraseña debe ser así [imagen 1: Create password con 3 requisitos] y el paso final debe ser lo de la 2ª imagen de referencia [Choose what you like] por lo que hay que añadir un 5º paso'. Después: 'Continuar sin usar el testing agent'."
+        -working: true
+        -agent: "main"
+        -comment: "Nuevo endpoint POST /api/profile/interests (handleSaveInterests en route.js + saveUserInterests en lib/db.js): guarda hasta 20 strings saneados (trim, máx 40 chars) en users.interests del usuario autenticado; 401 sin sesión. VERIFICADO MANUALMENTE (usuario prohíbe testing agents, instrucción explícita reiterada): curl con token de lucia → {ok:true,interests:[...]}; sin auth → 401; registro E2E real por UI (testreg12938) → mongosh confirma interests:['Sports','Music'] persistido. Cero cambios en endpoints existentes."
+
+  - task: "Registro: paso de contraseña estilo referencia + NUEVO 5º paso 'Choose what you like' (web AuthModal.jsx + nativa AuthSheet/Sheets.kt)"
+    implemented: true
+    working: true
+    file: "components/AuthModal.jsx, android-twyk/.../ui/Sheets.kt, data/TwykApi.kt, data/Models.kt"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "main"
+        -comment: "WEB: REG_STEPS pasa de 4 a 5 pasos. (1) Password rediseñado según imagen 1: título 'Create password' sin subtítulo, input alineado a la izquierda con ojo mostrar/ocultar (Eye/EyeOff), 3 requisitos con punto que se enciende en verde ('8 characters (20 max)', '1 letter, 1 number, 1 special character (# ? ! @)', 'Strong password'=todo+12 chars, informativo); validación bloqueante de las 2 primeras reglas (passwordRules, PwReq a nivel de módulo por react/no-unstable-nested-components). (2) NUEVO paso final 'interests' según imagen 2: cabecera alineada a la IZQUIERDA, 12 categorías en píldoras con radio a la derecha (seleccionada = check blanco sobre degradado de marca + fondo lila), pie Skip + 'Next (N)' (deshabilitado con 0); doRegister ya NO cierra el modal: avanza a interests tras crear la cuenta; Next → POST /api/profile/interests (Bearer de localStorage) → cierra; Skip/flecha/chevron en interests = cerrar (la cuenta ya existe, no se puede volver a los pasos del formulario); textos legales movidos al paso username ('Create account'). VERIFICADO EN VIVO E2E con Playwright manual: capturas del paso password (regla 1 verde con 'abc12345', falta especial) y del paso interests con Next (2); cuenta real creada, ConsentGate aceptado, modal cerrado tras Next y Mongo persistiendo los 2 intereses. Lint limpio. NATIVA (paridad 1:1): Models.kt +SaveInterestsRequest; TwykApi.kt +saveInterests (@POST api/profile/interests) — un primer intento de inserción por regex cortó la firma multipart de updateProfile y fue REPARADO de inmediato (verificado el bloque completo restaurado); Sheets.kt: REG_STEPS 5 pasos + INTEREST_OPTIONS (misma lista) + pwRules() + PwReqRow, password con BasicTextField + Visibility/VisibilityOff (extended icons ya usados en el proyecto) + placeholder 'Enter password' izq, paso interests réplica exacta (píldoras, check degradado, pie Skip/Next con alpha 0.4 deshabilitado), doRegister → regStep=interests sin cerrar, goBack/cabecera chevron-cerrar en interests, legal/'Create account' en username; los paddings nuevos usan la forma encadenada .padding(horizontal).padding(top). Balance de código: Sheets 340/340 y 1156/1156; TwykApi 6/6, 131/131; Models 0/0, 43/43. NO SE INVOCÓ NINGÚN AGENTE DE TESTING (instrucción explícita del usuario 'Continuar sin usar el testing agent', reiterada en todas las rondas; verificación = curl + E2E Playwright manual + mongosh para backend/web, revisión manual + balance para Kotlin). Pendiente: usuario recompila el APK para validar el flujo nativo."
+
+agent_communication:
+    -agent: "main"
+    -message: "Ronda 'registro 5 pasos': backend nuevo POST /api/profile/interests verificado manualmente (curl 200/401 + persistencia en Mongo vía registro E2E real por UI); web verificada en vivo con capturas (paso password según imagen de referencia 1, paso interests según imagen 2, Next(2) guardando y cerrando); nativa espejada 1:1 (Sheets.kt/TwykApi.kt/Models.kt) verificada por revisión manual + balance. El usuario ordenó explícitamente continuar SIN testing agent — se respetó (los cambios web/backend se validaron con pruebas manuales equivalentes documentadas arriba; el Kotlin no es ejecutable en este entorno)."

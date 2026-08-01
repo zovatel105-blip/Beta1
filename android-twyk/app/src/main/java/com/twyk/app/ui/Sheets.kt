@@ -44,6 +44,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Login
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -108,6 +110,7 @@ import com.twyk.app.data.Post
 import com.twyk.app.data.PostEvents
 import com.twyk.app.data.RegisterRequest
 import com.twyk.app.data.RetrofitProvider
+import com.twyk.app.data.SaveInterestsRequest
 import com.twyk.app.data.Session
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -877,9 +880,28 @@ private data class RegStep(val key: String, val title: String, val subtitle: Str
 private val REG_STEPS = listOf(
     RegStep("birthdate", "What's your date of birth?", "Your date of birth won't be shown publicly."),
     RegStep("email", "What's your email?", "We'll send important information to this email."),
-    RegStep("password", "Create a password", "Use at least 6 characters."),
+    RegStep("password", "Create password", ""),
     RegStep("username", "Create your username", "This is how people will find you on Twyk. You can change it later."),
+    // 5o paso (referencia TikTok, paridad con AuthModal.jsx): tras crear la
+    // cuenta, guarda los intereses vía POST /api/profile/interests.
+    RegStep("interests", "Choose what you like", "Your feed will be personalized based on what you like."),
 )
+
+// Categorías del paso "Choose what you like" (misma lista que la web).
+private val INTEREST_OPTIONS = listOf(
+    "Science & Education", "Sports", "Fitness & Health", "Music", "Comedy",
+    "Food & Drink", "Auto & Vehicle", "DIY", "Travel", "Gaming",
+    "Beauty & Style", "Animals",
+)
+
+// Reglas de contraseña (imagen de referencia / passwordRules() en la web):
+// 8-20 caracteres; 1 letra + 1 número + 1 especial; "Strong" = todo + 12+.
+private fun pwRules(pw: String): Triple<Boolean, Boolean, Boolean> {
+    val len = pw.length in 8..20
+    val mix = pw.any { it.isLetter() } && pw.any { it.isDigit() } &&
+        pw.any { !it.isLetterOrDigit() && !it.isWhitespace() }
+    return Triple(len, mix, len && mix && pw.length >= 12)
+}
 
 @Composable
 fun AuthSheet(onClose: () -> Unit, onAuthed: () -> Unit) {
@@ -900,6 +922,7 @@ fun AuthSheet(onClose: () -> Unit, onAuthed: () -> Unit) {
     var error by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
     var ageBlocked by remember { mutableStateOf(false) }
+    var interests by remember { mutableStateOf(listOf<String>()) }
 
     fun switchMode(mode: String) {
         view = mode; step = "methods"; regStep = 0; error = null; ageBlocked = false
@@ -908,6 +931,9 @@ fun AuthSheet(onClose: () -> Unit, onAuthed: () -> Unit) {
     fun goBack() {
         error = null
         if (view == "register" && step == "form") {
+            // En intereses la cuenta YA existe: no se puede volver atrás
+            // (re-crearía la cuenta); salir equivale a Skip.
+            if (REG_STEPS[regStep].key == "interests") { onClose(); return }
             if (regStep > 0) regStep -= 1 else step = "methods"
         } else {
             step = "methods"
@@ -920,7 +946,10 @@ fun AuthSheet(onClose: () -> Unit, onAuthed: () -> Unit) {
             runCatching { RetrofitProvider.api.register(RegisterRequest(username.trim(), email.trim(), password, birthDate ?: "")) }
                 .onSuccess { r ->
                     if (r.token != null) {
-                        Session.set(r.token, r.user); onAuthed()
+                        // Cuenta creada y sesión iniciada -> paso final de
+                        // intereses (paridad con doRegister() en AuthModal.jsx).
+                        Session.set(r.token, r.user)
+                        regStep = REG_STEPS.indexOfFirst { st -> st.key == "interests" }
                     } else {
                         val msg = r.message ?: r.error ?: "Sign up error"
                         if (msg.contains("under 13", ignoreCase = true)) ageBlocked = true else error = msg
@@ -941,13 +970,31 @@ fun AuthSheet(onClose: () -> Unit, onAuthed: () -> Unit) {
                 if (age < 13) { ageBlocked = true; return }
             }
             "email" -> if (!email.contains("@") || !email.substringAfter("@").contains(".")) { error = "Enter a valid email"; return }
-            "password" -> if (password.length < 6) { error = "Password must be at least 6 characters"; return }
+            "password" -> {
+                val (rLen, rMix, _) = pwRules(password)
+                if (!rLen || !rMix) {
+                    error = "Password must be 8-20 characters with 1 letter, 1 number and 1 special character (# ? ! @)"
+                    return
+                }
+            }
             "username" -> {
                 if (username.trim().length < 3) { error = "Username must be at least 3 characters"; return }
                 doRegister(); return
             }
+            "interests" -> return // usa su propio pie Skip / Next (N)
         }
         regStep += 1
+    }
+
+    // Guarda los intereses del paso final (best-effort, como la web: si la
+    // red falla, la cuenta ya existe y la hoja se cierra igualmente).
+    fun saveInterests() {
+        busy = true
+        scope.launch {
+            runCatching { RetrofitProvider.api.saveInterests(SaveInterestsRequest(interests)) }
+            busy = false
+            onAuthed()
+        }
     }
 
     fun handleLogin() {
@@ -994,7 +1041,7 @@ fun AuthSheet(onClose: () -> Unit, onAuthed: () -> Unit) {
                 Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0xFFE4E4E7)))
                 // Header: flecha abajo (cerrar) en el splash/bloqueo por edad; flecha atrás en los pasos.
                 Box(Modifier.fillMaxWidth().statusBarsPadding().height(48.dp)) {
-                    if (step == "methods" || ageBlocked) {
+                    if (step == "methods" || ageBlocked || (view == "register" && step == "form" && REG_STEPS[regStep].key == "interests")) {
                         Box(Modifier.align(Alignment.Center).size(36.dp).clip(CircleShape).clickable { onClose() }, contentAlignment = Alignment.Center) {
                             Icon(Icons.Filled.KeyboardArrowDown, "cerrar", tint = Color(0xFF52525B), modifier = Modifier.size(28.dp))
                         }
@@ -1021,6 +1068,12 @@ fun AuthSheet(onClose: () -> Unit, onAuthed: () -> Unit) {
                             username = username, onUsername = { username = it },
                             error = error, busy = busy,
                             onSubmit = { handleRegisterNext() },
+                            interests = interests,
+                            onToggleInterest = { cat ->
+                                interests = if (interests.contains(cat)) interests - cat else interests + cat
+                            },
+                            onSkip = { onAuthed() },
+                            onNextInterests = { saveInterests() },
                         )
                         else -> AuthLoginScreen(
                             username = loginUsername, onUsername = { loginUsername = it },
@@ -1110,9 +1163,15 @@ private fun AuthRegisterStepScreen(
     username: String, onUsername: (String) -> Unit,
     error: String?, busy: Boolean,
     onSubmit: () -> Unit,
+    interests: List<String> = emptyList(),
+    onToggleInterest: (String) -> Unit = {},
+    onSkip: () -> Unit = {},
+    onNextInterests: () -> Unit = {},
 ) {
     val stepCfg = REG_STEPS[regStep]
-    val isLast = regStep == REG_STEPS.lastIndex
+    // La cuenta se crea en el paso 'username' (el 5o, intereses, va DESPUÉS
+    // de crearla y tiene su propio pie Skip / Next).
+    val isUsername = stepCfg.key == "username"
 
     Column(Modifier.fillMaxSize()) {
         Column(
@@ -1167,14 +1226,85 @@ private fun AuthRegisterStepScreen(
                 // réplica exacta del espaciado de la web.
                 Spacer(Modifier.height(24.dp))
                 DateWheelPicker(birthDate = birthDate, onBirthDate = onBirthDate)
+            } else if (stepCfg.key == "interests") {
+                // Cabecera alineada a la IZQUIERDA (imagen de referencia) +
+                // lista de píldoras con radio a la derecha, réplica 1:1 del
+                // paso 'interests' de AuthModal.jsx.
+                Column(Modifier.fillMaxWidth()) {
+                    Text(stepCfg.title, color = Color(0xFF18181B), fontSize = 27.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-0.3).sp)
+                    Spacer(Modifier.height(8.dp))
+                    Text(stepCfg.subtitle, color = Color(0xFF71717A), fontSize = 14.sp, lineHeight = 19.sp)
+                    Spacer(Modifier.height(24.dp))
+                    INTEREST_OPTIONS.forEach { cat ->
+                        val sel = interests.contains(cat)
+                        Row(
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(50))
+                                .background(if (sel) Color(0xFFFAF5FF) else Color(0xFFFAFAFA))
+                                .then(if (sel) Modifier.border(1.dp, Color(0xFFD8B4FE), RoundedCornerShape(50)) else Modifier)
+                                .clickable { onToggleInterest(cat) }
+                                .padding(horizontal = 24.dp, vertical = 15.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(cat, color = Color(0xFF18181B), fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                            if (sel) {
+                                Box(Modifier.size(24.dp).clip(CircleShape).background(AuthGradient), contentAlignment = Alignment.Center) {
+                                    Icon(Icons.Filled.Check, null, tint = Color.White, modifier = Modifier.size(16.dp))
+                                }
+                            } else {
+                                Box(Modifier.size(24.dp).clip(CircleShape).border(2.dp, Color(0xFFE4E4E7), CircleShape))
+                            }
+                        }
+                        Spacer(Modifier.height(12.dp))
+                    }
+                }
             } else {
                 Text(stepCfg.title, color = Color(0xFF18181B), fontSize = 25.sp, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center, letterSpacing = (-0.3).sp, modifier = Modifier.widthIn(max = 300.dp))
-                Spacer(Modifier.height(10.dp))
-                Text(stepCfg.subtitle, color = Color(0xFF71717A), fontSize = 14.sp, textAlign = TextAlign.Center, modifier = Modifier.widthIn(max = 280.dp))
+                if (stepCfg.subtitle.isNotBlank()) {
+                    Spacer(Modifier.height(10.dp))
+                    Text(stepCfg.subtitle, color = Color(0xFF71717A), fontSize = 14.sp, textAlign = TextAlign.Center, modifier = Modifier.widthIn(max = 280.dp))
+                }
                 Spacer(Modifier.height(32.dp))
                 when (stepCfg.key) {
                     "email" -> MinimalAuthInput(email, "you@email.com", onChange = onEmail)
-                    "password" -> MinimalAuthInput(password, "Password", isPassword = true, onChange = onPassword)
+                    "password" -> {
+                        // Paso de contraseña (imagen de referencia): input a la
+                        // izquierda con ojo mostrar/ocultar + 3 requisitos que
+                        // se "encienden" al cumplirse (paridad con la web).
+                        var showPw by remember { mutableStateOf(false) }
+                        Box(
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFFFAFAFA)).padding(vertical = 10.dp, horizontal = 16.dp),
+                        ) {
+                            if (password.isEmpty()) {
+                                Text(
+                                    "Enter password", color = Color(0xFFA1A1AA), fontSize = 17.sp,
+                                    fontWeight = FontWeight.Light, letterSpacing = (-0.2).sp,
+                                    modifier = Modifier.align(Alignment.CenterStart),
+                                )
+                            }
+                            BasicTextField(
+                                value = password, onValueChange = onPassword, singleLine = true,
+                                visualTransformation = if (showPw) VisualTransformation.None else PasswordVisualTransformation(),
+                                textStyle = TextStyle(color = Color(0xFF18181B), fontSize = 17.sp, fontWeight = FontWeight.Medium, letterSpacing = (-0.2).sp),
+                                cursorBrush = SolidColor(Color(0xFF18181B)),
+                                modifier = Modifier.fillMaxWidth().padding(end = 32.dp).align(Alignment.CenterStart),
+                            )
+                            Icon(
+                                if (showPw) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
+                                contentDescription = if (showPw) "Hide password" else "Show password",
+                                tint = Color(0xFFA1A1AA),
+                                modifier = Modifier.align(Alignment.CenterEnd).size(20.dp).clip(CircleShape).clickable { showPw = !showPw },
+                            )
+                        }
+                        Spacer(Modifier.height(24.dp))
+                        val (rLen, rMix, rStrong) = pwRules(password)
+                        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            PwReqRow(rLen, "8 characters (20 max)")
+                            PwReqRow(rMix, "1 letter, 1 number, 1 special character (# ? ! @)")
+                            PwReqRow(rStrong, "Strong password")
+                        }
+                    }
                     "username" -> MinimalAuthInput(username, "username", onChange = onUsername)
                 }
             }
@@ -1184,15 +1314,54 @@ private fun AuthRegisterStepScreen(
                 AuthErrorChip(it)
             }
 
-            if (isLast) {
+            if (isUsername) {
                 Spacer(Modifier.height(24.dp))
                 LegalFooterText("By creating your account you accept our ")
             }
             Spacer(Modifier.height(12.dp))
         }
-        Box(Modifier.fillMaxWidth().padding(horizontal = 24.dp, top = 16.dp).navigationBarsPadding()) {
-            AuthGradientButton(if (isLast) "Create account" else "Continue", busy = busy, onClick = onSubmit)
+        if (stepCfg.key == "interests") {
+            // Pie de la imagen de referencia: Skip + "Next (N)" (deshabilitado
+            // con 0 seleccionados), réplica del pie de AuthModal.jsx.
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(top = 16.dp).navigationBarsPadding(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Box(
+                    Modifier.weight(1f).height(52.dp).clip(RoundedCornerShape(50))
+                        .background(Color(0xFFF4F4F5)).clickable(enabled = !busy) { onSkip() },
+                    contentAlignment = Alignment.Center,
+                ) { Text("Skip", color = Color(0xFF18181B), fontSize = 16.sp, fontWeight = FontWeight.Bold) }
+                val nextEnabled = interests.isNotEmpty() && !busy
+                Box(
+                    Modifier.weight(1f).height(52.dp).clip(RoundedCornerShape(50))
+                        .background(AuthGradient, alpha = if (nextEnabled) 1f else 0.4f)
+                        .clickable(enabled = nextEnabled) { onNextInterests() },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (busy) {
+                        CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
+                    } else {
+                        Text("Next (" + interests.size + ")", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        } else {
+            Box(Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(top = 16.dp).navigationBarsPadding()) {
+                AuthGradientButton(if (isUsername) "Create account" else "Continue", busy = busy, onClick = onSubmit)
+            }
         }
+    }
+}
+
+// Fila de requisito de contraseña (punto + texto que se "encienden" al
+// cumplirse la regla) — réplica de PwReq en AuthModal.jsx.
+@Composable
+private fun PwReqRow(ok: Boolean, text: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(6.dp).clip(CircleShape).background(if (ok) Color(0xFF22C55E) else Color(0xFFD4D4D8)))
+        Spacer(Modifier.width(12.dp))
+        Text(text, color = if (ok) Color(0xFF18181B) else Color(0xFF71717A), fontSize = 14.5.sp)
     }
 }
 

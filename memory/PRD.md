@@ -366,3 +366,22 @@ Petición: "en el feed, en los tres puntitos (más ajustes), elimina copiar enla
   actualizado. Balance de código verificado (465/465, 1301/1301).
 - NO se toca la hoja de COMPARTIR (ShareModal.jsx / ShareSheet en ui/Sheets.kt), que mantiene su
   propia opción de copiar enlace.
+
+## Ronda: contraseña estilo TikTok + 5º paso "Choose what you like" (web + nativa + backend)
+Referencias del usuario: (1) paso Create password con input izq + ojo + 3 requisitos
+("8 characters (20 max)" / "1 letter, 1 number, 1 special character (# ? ! @)" / "Strong password");
+(2) paso FINAL nuevo "Choose what you like" (píldoras con radio, Skip + "Next (N)").
+- BACKEND: nuevo POST /api/profile/interests (route.js handleSaveInterests + lib/db.js
+  saveUserInterests) — guarda hasta 20 strings saneados en users.interests; 401 sin sesión.
+  Verificado por curl: {ok:true,...} con auth, 401 sin auth; persistencia confirmada en Mongo.
+- WEB (AuthModal.jsx): REG_STEPS ahora 5 pasos; passwordRules() (8-20 + letra/número/especial,
+  strong=todo+12); paso password rediseñado (Enter password + Eye/EyeOff + PwReq con punto verde);
+  validación bloqueante de las 2 primeras reglas; paso interests (cabecera izq, 12 categorías,
+  check degradado, Skip=cerrar / Next(N) deshabilitado con 0 → POST interests → cerrar);
+  doRegister ya NO cierra: avanza a interests; goBack/cabecera en interests = cerrar (cuenta ya
+  creada); textos legales movidos al paso username. VERIFICADO EN VIVO end-to-end (registro real
+  testreg12938, ConsentGate aceptado, Next(2) → Mongo: interests:["Sports","Music"]) + capturas.
+- NATIVA (Sheets.kt + TwykApi.kt saveInterests + Models.kt SaveInterestsRequest): réplica 1:1 —
+  pwRules(), password con BasicTextField + Visibility/VisibilityOff + PwReqRow, paso interests con
+  INTEREST_OPTIONS (misma lista), pie Skip/Next(N) (degradado alpha 0.4 deshabilitado), doRegister
+  → regStep=interests, goBack/chevron cerrar en interests, legal en username. Balance verificado.
