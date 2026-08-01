@@ -309,3 +309,34 @@ temporalmente desde /public y borrada después. Kotlin verificado por balance de
   ((38-22)/2), así que el offset del globo rojo (TopEnd+10,-10) sigue siendo correcto.
   Balance de código verificado (113/113, 204/204). Historial de tamaños: 36/20 (original,
   paridad web) -> 40/24 (agrandar "un poquito") -> 38/22 (ajuste final "un pelín más pequeño").
+
+## Ronda: CAUSA RAÍZ del feed nativo no instantáneo — prepare() perezoso (política C1)
+Usuario (tras compilar el APK): "las publicaciones siguen sin ser instantáneas, incluso la web carga
+al instante pero la apk no; identifícalo y corrígelo al 100%; no usarás el testing agent".
+CAUSAS RAÍZ encontradas (feed/VersusFeed.kt):
+1. **6 ExoPlayers preparados a la vez**: buildPlayer() llamaba prepare() al construir, y el pager
+   compone i-1/i/i+1 (beyondViewportPageCount=1) con 2 players cada una → 6 decoders HW pedidos a la
+   vez (los móviles tienen 2-4 para AVC: sobrantes caen a decodificación software o cola, a veces la
+   página ACTIVA) + 6 descargas de 15s de búfer compitiendo entre sí, con el prefetcher y con el
+   vídeo visible (hasta 9 flujos → el activo se quedaba sin ancho de banda).
+2. **Bytes duplicados**: los players de i±1 y FeedPrefetcher escribían la MISMA región de la
+   SimpleCache (1 escritor por span → el player hacía bypass y re-descargaba de la red).
+3. **Spinner a los 0ms**: BufferingSpinner aparecía en CUALQUIER STATE_BUFFERING, incluso los
+   ~100-300ms normales de arranque → "se ve cargando" en cada swipe aunque fuera rápido.
+FIX (política C1 del blueprint para feed dual — solo la tarjeta actual tiene decoders):
+- buildPlayer() YA NO llama prepare(). Nuevos helpers preparePair()/releasePair().
+- Nuevo parámetro `isCurrent` en CarouselPage/DuetPage (= página actual del pager && app en primer
+  plano, SIN overlayOpen): LaunchedEffect(isCurrent) → actual = preparePair (lee la caché de disco
+  del prefetcher → primer frame ~100-300ms cubierto por el póster); no actual = releasePair (stop():
+  libera MediaCodec y búfer RAM; bytes quedan en disco). isCurrent se separó de isActive A PROPÓSITO:
+  overlays (comentarios/login/compartir/reto — overlayOpen) solo PAUSAN (frame+posición conservados,
+  como la web); liberar ahí reiniciaría el vídeo al cerrar el modal. Background (G3) sí libera.
+- Póster re-mostrado al pasar a STATE_IDLE (stop/error) → volver a una página nunca muestra negro;
+  además reintento automático tras error (prepare si IDLE).
+- BufferingSpinner con GRACIA de 500ms (umbral del watchdog §3.2): solo aparece si el stall persiste.
+- VSContentCard (long-press) prepara sus 2 players al abrirse (dependía del prepare() interno).
+Presupuesto resultante: ~2 decoders vivos (4 transitorios con content card), 1 solo flujo de descarga
+del player activo + 3 prefetch pequeños. Battles.kt/Upload.kt no usan buildPlayer (sin impacto).
+Verificado: revisión línea a línea + balance de código (473/473, 1314/1314) + análisis de flujo
+completo (10 escenarios). SIN testing agent (orden explícita y reiterada del usuario; además el fix
+es 100% Kotlin, incompilable/inejecutable en este entorno). Pendiente: usuario recompila el APK.

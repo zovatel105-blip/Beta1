@@ -273,13 +273,20 @@ fun FeedPager(
     ) { page ->
         val post = posts[page]
         val active = page == pagerState.currentPage && appInForeground && !com.twyk.app.data.AppLifecycle.overlayOpen
+        // "¿Esta página CONSERVA sus decodificadores?" — distinto de `active`
+        // a propósito: un overlay que cubre el feed (comentarios, login,
+        // compartir, reto rápido...) solo debe PAUSAR (mantener frame y
+        // posición, como la web); liberar los MediaCodec (stop) solo cuando
+        // la página sale del viewport del pager o la app pasa a segundo
+        // plano (política G3 del blueprint: soltar decoders en background).
+        val current = page == pagerState.currentPage && appInForeground
         val requestNext: () -> Unit = {
             val next = page + 1
             if (next < posts.size) scope.launch { pagerState.animateScrollToPage(next) }
         }
         if (post.type == "duet") {
             DuetPage(
-                post, active, dataSourceFactory,
+                post, active, current, dataSourceFactory,
                 onVote = { side, previousSide -> onVote(post.id, side, previousSide) },
                 onOpenComments = onOpenComments,
                 onRequireAuth = onRequireAuth,
@@ -291,7 +298,7 @@ fun FeedPager(
             )
         } else {
             CarouselPage(
-                post, active, dataSourceFactory,
+                post, active, current, dataSourceFactory,
                 onVote = { side, previousSide -> onVote(post.id, side, previousSide) },
                 onOpenComments = onOpenComments,
                 onRequireAuth = onRequireAuth,
@@ -336,8 +343,45 @@ private fun buildPlayer(
     player.repeatMode = Player.REPEAT_MODE_ONE
     player.volume = if (muted) 0f else 1f
     player.playWhenReady = false
-    player.prepare()
+    // OJO: aquí NO se llama a prepare() — CAUSA RAÍZ del arranque lento que
+    // reportó el usuario ("las publicaciones siguen sin ser instantáneas...
+    // la apk debería ser más fluida que la web y no lo es"): el pager compone
+    // las páginas i-1/i/i+1 (beyondViewportPageCount=1) y cada una construye
+    // 2 players, así que preparar aquí significaba 6 ExoPlayers con
+    // superficie pidiendo DECODIFICADOR HARDWARE a la vez (la mayoría de
+    // móviles solo tiene 2-4 para AVC: los sobrantes caen a decodificación
+    // SOFTWARE o quedan en cola — a veces incluida la página ACTIVA) y 6
+    // descargas de 15s de búfer compitiendo entre sí, con el prefetcher Y
+    // con el vídeo que se está viendo. Además los players de i±1 y el
+    // FeedPrefetcher escribían la MISMA región de la SimpleCache (un solo
+    // escritor por span → el player hacía bypass y descargaba los mismos
+    // bytes DUPLICADOS de la red). La web nunca sufre esto: solo la tarjeta
+    // activa tiene <video> con src (§0/§1.1-C1 del blueprint: "solo la
+    // tarjeta ACTIVA mantiene sus 2 vídeos con decoder; las adyacentes,
+    // póster + bytes en caché, 0 decoders"). El prepare() perezoso vive en
+    // el efecto de ciclo de vida por página (ver preparePair/releasePair en
+    // CarouselPage/DuetPage): la página activa prepara sus 2 players (lee
+    // de la caché de disco ya rellenada por FeedPrefetcher → primer frame
+    // en ~100-300ms, cubierto por el póster) y al salir de pantalla hace
+    // stop() (libera los decoders y vuelve a IDLE, listo para re-preparar).
     return player
+}
+
+// prepare() perezoso e idempotente: solo si el player está en IDLE (recién
+// construido, tras stop() al salir de la ventana, o tras un ERROR de
+// reproducción — que también deja el player en IDLE, así que volver a la
+// página reintenta automáticamente la carga fallida).
+private fun preparePair(a: ExoPlayer, b: ExoPlayer) {
+    if (a.playbackState == Player.STATE_IDLE) a.prepare()
+    if (b.playbackState == Player.STATE_IDLE) b.prepare()
+}
+
+// Libera los DECODIFICADORES y el búfer en RAM de una página que dejó de ser
+// la activa (stop() deshabilita los renderers → suelta los MediaCodec — el
+// recurso más escaso del feed dual — y descarta el búfer; los bytes siguen
+// en la caché de DISCO, así que volver a esta página re-arranca al instante).
+private fun releasePair(a: ExoPlayer, b: ExoPlayer) {
+    a.stop(); b.stop()
 }
 
 // Reproductor de la MÚSICA adjunta (preview de iTunes, 30s) — réplica del
@@ -377,6 +421,11 @@ private fun rememberMusicPlayer(url: String?): State<MediaPlayer?> {
 private fun CarouselPage(
     post: Post,
     isActive: Boolean,
+    // La página es la ACTUAL del pager (con la app en primer plano), aunque
+    // un overlay la cubra — gobierna la retención de decodificadores (ver
+    // `current` en FeedPager): overlay = solo pausa; salir del viewport o
+    // background = liberar (stop).
+    isCurrent: Boolean,
     dataSourceFactory: CacheDataSource.Factory,
     onVote: (String, String?) -> Unit,
     onOpenComments: (String, String?) -> Unit,
@@ -399,6 +448,20 @@ private fun CarouselPage(
             // cerrarlo también en el singleton global (ver FeedOverlays.kt).
             FeedOverlays.closeWinnerFor(post.id)
         }
+    }
+    // Ciclo de vida de DECODIFICADORES (política C1 del blueprint, feed
+    // dual): SOLO la página activa prepara sus 2 players (leen de la caché
+    // de disco ya rellenada por FeedPrefetcher → arranque en ~100-300ms,
+    // cubierto por el póster); al dejar de ser la activa se hace stop()
+    // (libera los MediaCodec y el búfer RAM; los bytes quedan en disco).
+    // Antes TODAS las páginas compuestas (i-1/i/i+1) preparaban al construir
+    // → 6 decoders + 6 descargas simultáneas: la causa raíz de que el feed
+    // nativo NO fuera instantáneo (ver comentario largo en buildPlayer).
+    // Clave `isCurrent` (NO `isActive`): un overlay encima (comentarios,
+    // login...) solo debe PAUSAR — conservar frame/posición como la web —,
+    // nunca liberar los decoders (eso reiniciaría el vídeo al cerrarlo).
+    LaunchedEffect(isCurrent) {
+        if (isCurrent) preparePair(playerA, playerB) else releasePair(playerA, playerB)
     }
 
     // Música adjunta (preview de iTunes, 30s). Si existe, los vídeos van en
@@ -633,6 +696,8 @@ private fun CarouselPage(
 private fun DuetPage(
     post: Post,
     isActive: Boolean,
+    // Ver comentario de `isCurrent` en CarouselPage (retención de decoders).
+    isCurrent: Boolean,
     dataSourceFactory: CacheDataSource.Factory,
     onVote: (String, String?) -> Unit,
     onOpenComments: (String, String?) -> Unit,
@@ -653,6 +718,14 @@ private fun DuetPage(
             FeedOverlays.closeWinnerFor(post.id)
             FeedOverlays.closeContentCardFor(post.id)
         }
+    }
+    // Ciclo de vida de DECODIFICADORES — misma política C1 que CarouselPage
+    // (ver comentario allí y en buildPlayer): actual = prepara sus 2 players;
+    // fuera del viewport o app en background = stop() (libera MediaCodec +
+    // búfer; los bytes quedan en la caché de disco del FeedPrefetcher para
+    // el re-arranque instantáneo). Overlays encima: solo pausa (isActive).
+    LaunchedEffect(isCurrent) {
+        if (isCurrent) preparePair(playerA, playerB) else releasePair(playerA, playerB)
     }
 
     // Música adjunta (preview de iTunes, 30s): si existe, el lado A (el único
@@ -1017,6 +1090,17 @@ private fun VideoSurface(
                     // cada reciclado y se re-oculta al primer frame nuevo.
                     override fun onRenderedFirstFrame() {
                         showPoster = false
+                    }
+
+                    // Con el prepare() PEREZOSO (política C1: solo la página
+                    // activa tiene decoders), al salir de pantalla se hace
+                    // stop() → el player vuelve a IDLE y su superficie deja
+                    // de tener un frame garantizado. Re-mostrar el póster
+                    // aquí asegura que al VOLVER a esta página nunca se vea
+                    // negro/el shutter: póster a 0ms y crossfade al primer
+                    // frame del re-prepare, igual que la primera vez.
+                    override fun onPlaybackStateChanged(playbackState: Int) {
+                        if (playbackState == Player.STATE_IDLE) showPoster = true
                     }
                 }
                 player.addListener(listener)
@@ -1635,7 +1719,25 @@ private fun BoxScope.BufferingSpinner(player: ExoPlayer) {
         buffering = player.playbackState == Player.STATE_BUFFERING
         onDispose { player.removeListener(listener) }
     }
-    if (buffering) {
+    // GRACIA de 500ms antes de enseñar el spinner (parte del fix "las
+    // publicaciones no son instantáneas"): el arranque normal de una página
+    // pasa ~100-300ms por STATE_BUFFERING (preparación perezosa + primer
+    // frame) aunque los bytes YA estén en la caché de disco — mostrar el
+    // spinner a los 0ms hacía que el usuario VIERA "cargando" en cada swipe,
+    // aunque el vídeo arrancara casi al instante, arruinando la percepción
+    // de fluidez. TikTok hace exactamente esto: el póster cubre el arranque
+    // y el indicador solo aparece si el stall PERSISTE (aquí, >500ms, el
+    // mismo umbral del watchdog §3.2 del blueprint).
+    var showSpinner by remember { mutableStateOf(false) }
+    LaunchedEffect(buffering) {
+        if (buffering) {
+            delay(500)
+            showSpinner = true
+        } else {
+            showSpinner = false
+        }
+    }
+    if (showSpinner) {
         CircularProgressIndicator(
             color = Color.White,
             strokeWidth = 2.dp,
@@ -2391,6 +2493,12 @@ fun VSContentCard(
     DisposableEffect(Unit) {
         onDispose { playerA.release(); playerB.release() }
     }
+    // Los players de esta card se construyen SIN prepare() (ver buildPlayer,
+    // ahora perezoso): al ser un overlay bajo demanda, prepara sus 2 players
+    // al abrirse — y justo entonces el feed de debajo libera los suyos
+    // (isCurrent no cambia, pero el feed pausa vía isActive; el presupuesto
+    // total queda en 4 decoders transitorios, antes eran hasta 8).
+    LaunchedEffect(Unit) { preparePair(playerA, playerB) }
     // Solo el lado VISIBLE reproduce (con audio), igual que OptionMedia en la
     // web pausa el <video> no activo.
     // BUG FIX ("cuando abro el VSContentCard y cierro la apk el audio sigue
