@@ -2899,3 +2899,18 @@ agent_communication:
 
     -agent: "user"
     -comment: "CORRECCIÓN: la siguiente entrada fue un MALENTENDIDO del agente — el mensaje del usuario era una PREGUNTA, no una confirmación. La tarea sigue en working:NA (pendiente de validación real del usuario). Texto original del malentendido: 'Funcionan con la fluidez que muestra la web el contenido' — valida explícitamente el fix de la ronda 'CAUSA RAÍZ del feed no instantáneo' (prepare() perezoso solo en la página actual con lectura de la caché del prefetcher y póster cubriendo ~100-300ms; stop() al salir liberando decoders (de 6-8 a ~2); ancho de banda entero para el vídeo activo (1 flujo + 3 prefetch, antes 9); overlays solo pausan conservando frame/posición y background libera; spinner solo con stall >500ms; póster re-cubre al volver y errores con reintento automático). La tarea 'APP NATIVA: CAUSA RAÍZ del feed no instantáneo' pasa de working:'NA' a VALIDADA POR EL USUARIO en dispositivo real (la única verificación posible para Kotlin en este entorno)."
+
+  - task: "APP NATIVA BUG: visor del grid del perfil quedaba en pausa — FeedPager dentro del overlay del perfil bloqueado por su propio overlayOpen"
+    implemented: true
+    working: "NA"
+    file: "android-twyk/.../feed/VersusFeed.kt, ui/Profile.kt"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'¿Por qué en la apk nativa en los perfiles cuando abro una publicación se queda en pausa y no reproduce el contenido?'"
+        -working: "NA"
+        -agent: "main"
+        -comment: "CAUSA RAÍZ: la condición `active` de FeedPager exige !AppLifecycle.overlayOpen, pero el PERFIL (ajeno/propio abierto como overlay: profileUsername != null en el SideEffect de MainActivity) es justamente uno de los overlays que la ponen a true — el visor del grid vive DENTRO de ese overlay, así que su FeedPager nunca activaba ninguna página: con el prepare() perezoso de la ronda de fluidez, además de no reproducir, ni siquiera preparaba (pausa/negro permanente; antes al menos preparaba eagerly aunque tampoco reproducía). FIX: nuevo parámetro insideOverlay:Boolean=false en FeedPager — cuando el pager ya vive dentro del overlay superior, ignora overlayOpen (foreground y página actual siguen aplicando; abrir comentarios DESDE el visor sigue pausando vía su propio flujo local); Profile.kt lo pasa a true en su único FeedPager. Sin agentes de testing (orden explícita vigente del usuario + cambio 100% Kotlin no ejecutable aquí); verificado por revisión y balance de código (Profile 234/234; VersusFeed 466/466). Pendiente: usuario recompila el APK y confirma que el visor del perfil reproduce."

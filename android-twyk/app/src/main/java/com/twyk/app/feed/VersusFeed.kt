@@ -211,6 +211,15 @@ fun FeedPager(
     // GRID del perfil (propio o ajeno), NUNCA en el feed principal. Ver
     // Profile.kt (único lugar que pasa `true`).
     showCommentInput: Boolean = false,
+    // BUG reportado ("en los perfiles cuando abro una publicación se queda en
+    // pausa"): `active` exige !AppLifecycle.overlayOpen, pero el PERFIL AJENO
+    // es precisamente uno de esos overlays (profileUsername != null en
+    // MainActivity) — el visor del grid del perfil vive DENTRO del overlay,
+    // así que su FeedPager nunca se activaba y todo quedaba pausado. Este
+    // flag lo declara: cuando el pager ya está dentro del overlay superior,
+    // ignora overlayOpen (el resto de señales, foreground/página actual,
+    // siguen aplicando). Profile.kt lo pasa a true.
+    insideOverlay: Boolean = false,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -270,7 +279,7 @@ fun FeedPager(
         modifier = Modifier.fillMaxSize().background(Color.Black).statusBarsPadding(),
     ) { page ->
         val post = posts[page]
-        val active = page == pagerState.currentPage && appInForeground && !com.twyk.app.data.AppLifecycle.overlayOpen
+        val active = page == pagerState.currentPage && appInForeground && (insideOverlay || !com.twyk.app.data.AppLifecycle.overlayOpen)
         // "¿Esta página CONSERVA sus decodificadores?" — distinto de `active`
         // a propósito: un overlay que cubre el feed (comentarios, login,
         // compartir, reto rápido...) solo debe PAUSAR (mantener frame y

@@ -606,6 +606,7 @@ fun ProfileScreen(
         viewerIndex?.let { idx ->
             Box(Modifier.fillMaxSize()) {
                 FeedPager(
+                    insideOverlay = true, // el visor vive dentro del overlay del perfil (fix pausa)
                     posts = viewerList,
                     initialPage = idx,
                     onOpenComments = { id, side -> viewerCommentsPostId = id; viewerVotedSide = side },
