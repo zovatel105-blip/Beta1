@@ -2819,3 +2819,18 @@ agent_communication:
         -working: true
         -agent: "main"
         -comment: "WEB (ProfilePage.jsx): ColumnsIcon gana prop `filled` (svg fill=currentColor manteniendo stroke, mismo mecanismo que el fill-current del Bookmark de Saved); TABS pasa filled={active}; el uso del estado vacío queda sin relleno. VERIFICADO EN VIVO (Playwright manual, sesión de lucia sembrada por localStorage + consentimiento aceptado): pestaña polls activa → svg fill='currentColor' (aria-selected=true) y captura visual muestra los 6 rectángulos RELLENOS de blanco; saved inactiva → fill='none'. NATIVA (UiKit.kt/Profile.kt, paridad 1:1): ColumnsIcon con parámetro filled:Boolean=false → dibuja Fill + trazo por rectángulo (misma silueta exacta que fill+stroke de la web), import androidx.compose.ui.graphics.drawscope.Fill añadido, la pestaña 'polls' pasa filled=active; el estado vacío (28dp gris) intacto. Balance de código verificado (UiKit 21/21 llaves, 92/92 paréntesis; Profile 234/234, 626/626). Sin agentes de testing (instrucción reiterada del usuario; verificación web hecha con captura Playwright manual). Pendiente: recompilar APK para ver el cambio nativo."
+
+  - task: "Eliminar 'Copy link' del menú de los tres puntitos del feed (web OptionsModal.jsx + nativa MoreOptionsSheet)"
+    implemented: true
+    working: true
+    file: "components/OptionsModal.jsx, android-twyk/app/src/main/java/com/twyk/app/feed/VersusFeed.kt"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'En la web y apk en el feed más ajustes los tres puntitos elimina copiar enlace'."
+        -working: true
+        -agent: "main"
+        -comment: "WEB (OptionsModal.jsx): eliminada la fila 'copy' de los DOS menús (publicación ajena → quedan Not interested/Report/Block user; propia → queda Delete) con limpieza completa de todo lo que quedaba huérfano (función copyLink, estado copied, shareUrl, setCopied del effect de reset, imports Link2/Check — verificado sin otros usos). Lint sin issues. VERIFICADO EN VIVO (Playwright manual, viewport móvil): al abrir los tres puntitos del rail del feed, el bottom sheet muestra SOLO Not interested/Report/Block user + captura visual. NATIVA (MoreOptionsSheet en VersusFeed.kt, paridad 1:1): eliminada la fila equivalente (bloque if(copied) 'Link copied' else 'Copy link'), la función copyLink() (clipboard), el estado copied, el color green600 y los imports Icons.Filled.Check, Icons.Filled.Link y com.twyk.app.Config (grep confirmó cero usos restantes de cada uno en el archivo); comentario de cabecera del sheet actualizado. Balance de código sin comentarios/strings verificado (465/465 llaves, 1301/1301 paréntesis). La hoja de COMPARTIR (ShareModal.jsx web / ShareSheet ui/Sheets.kt nativa) NO se toca: conserva su propia opción de copiar enlace. Sin agentes de testing (instrucción reiterada del usuario; verificación web con captura Playwright manual). Pendiente: recompilar APK."

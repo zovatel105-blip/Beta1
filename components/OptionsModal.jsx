@@ -1,13 +1,15 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { EyeOff, Flag, Ban, Link2, Check, ChevronDown, ChevronLeft, Loader2, Trash2 } from 'lucide-react'
+import { EyeOff, Flag, Ban, ChevronDown, ChevronLeft, Loader2, Trash2 } from 'lucide-react'
 import BottomSheet from './BottomSheet'
 import { useAuth } from '@/contexts/AuthContext'
 
 /**
  * OptionsModal — Hoja inferior de "tres puntos" estilo Instagram.
- * Opciones: No me interesa, Reportar (con motivo), Bloquear usuario, Copiar enlace.
+ * Opciones: No me interesa, Reportar (con motivo), Bloquear usuario.
+ * (La fila "Copy link" se ELIMINÓ a petición del usuario — el enlace se sigue
+ * pudiendo copiar desde el modal de Compartir, que no se toca.)
  * Reportar y Bloquear son FUNCIONALES (persisten en MongoDB vía /api/reports y
  * /api/users/block).
  */
@@ -35,7 +37,6 @@ function authHeaders() {
 
 export default function OptionsModal({ open, postId, author, isOwner = false, onClose, onDeleted }) {
   const { user } = useAuth()
-  const [copied, setCopied] = useState(false)
   const [view, setView] = useState('menu') // 'menu' | 'report'
   const [busy, setBusy] = useState(false)
   const [done, setDone] = useState('') // mensaje de confirmación
@@ -46,21 +47,8 @@ export default function OptionsModal({ open, postId, author, isOwner = false, on
       setView('menu')
       setBusy(false)
       setDone('')
-      setCopied(false)
     }
   }, [open])
-
-  const shareUrl = typeof window !== 'undefined' ? `${window.location.origin}/?post=${postId}` : ''
-
-  const copyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(shareUrl)
-      setCopied(true)
-      setTimeout(() => { setCopied(false); onClose?.() }, 900)
-    } catch {
-      onClose?.()
-    }
-  }
 
   const submitReport = async (reason) => {
     if (!user) { setDone('You must log in to report'); return }
@@ -115,7 +103,6 @@ export default function OptionsModal({ open, postId, author, isOwner = false, on
     { key: 'ni', label: 'Not interested', icon: <EyeOff className="w-[22px] h-[22px] text-zinc-700" strokeWidth={1.7} />, onClick: () => onClose?.(), danger: false },
     { key: 'report', label: 'Report', icon: <Flag className="w-[22px] h-[22px] text-red-600" strokeWidth={1.7} />, onClick: () => { setDone(''); setView('report') }, danger: true },
     { key: 'block', label: 'Block user', icon: <Ban className="w-[22px] h-[22px] text-red-600" strokeWidth={1.7} />, onClick: blockUser, danger: true },
-    { key: 'copy', label: copied ? 'Link copied' : 'Copy link', icon: copied ? <Check className="w-[22px] h-[22px] text-green-600" strokeWidth={2} /> : <Link2 className="w-[22px] h-[22px] text-zinc-700" strokeWidth={1.7} />, onClick: copyLink, danger: false },
   ]
 
   // Eliminar la publicación (solo el dueño). Llama al backend que valida la
@@ -148,7 +135,6 @@ export default function OptionsModal({ open, postId, author, isOwner = false, on
   // la propia publicación, no de "reportar/bloquear" como en una ajena.
   const ownerRows = [
     { key: 'delete', label: 'Delete', icon: <Trash2 className="w-[22px] h-[22px] text-red-600" strokeWidth={1.7} />, onClick: () => { setDone(''); setView('confirmDelete') }, danger: true },
-    { key: 'copy', label: copied ? 'Link copied' : 'Copy link', icon: copied ? <Check className="w-[22px] h-[22px] text-green-600" strokeWidth={2} /> : <Link2 className="w-[22px] h-[22px] text-zinc-700" strokeWidth={1.7} />, onClick: copyLink, danger: false },
   ]
 
   const menuRows = isOwner ? ownerRows : rows

@@ -53,14 +53,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Block
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -125,7 +123,6 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
-import com.twyk.app.Config
 import com.twyk.app.R
 import com.twyk.app.absoluteUrl
 import com.twyk.app.data.BlockRequest
@@ -2179,10 +2176,12 @@ private val REPORT_REASONS = listOf(
 )
 
 // Hoja inferior "Más opciones" — réplica EXACTA de OptionsModal.jsx: mismo
-// orden de filas (Not interested/Report/Block user/Copy link en contenido
-// ajeno; Delete/Copy link en el propio), cabecera con flecha-abajo para
+// orden de filas (Not interested/Report/Block user en contenido ajeno;
+// Delete en el propio — la fila "Copy link" se ELIMINÓ a petición del
+// usuario en web y nativa a la vez; el enlace sigue en la hoja de
+// Compartir), cabecera con flecha-abajo para
 // cerrar en el menú y flecha-atrás + título en "Report post"/"Delete post",
-// feedback "Link copied" antes de cerrar, y bloqueo DIRECTO de un solo tap
+// y bloqueo DIRECTO de un solo tap
 // (sin paso de confirmación intermedio, igual que la web) vía POST
 // /api/users/block. En el PROPIO permite Eliminar la publicación (DELETE
 // /api/posts/{id}, notifica via PostEvents para quitarla de todas las
@@ -2200,23 +2199,11 @@ fun MoreOptionsSheet(
     // menu | report | deleteConfirm | deleting | done
     var step by remember { mutableStateOf("menu") }
     var doneMsg by remember { mutableStateOf("") }
-    var copied by remember { mutableStateOf(false) }
     var reportBusy by remember { mutableStateOf(false) }
     var blockBusy by remember { mutableStateOf(false) }
 
     fun requireAuthOrRun(action: () -> Unit) {
         if (Session.token == null) { onClose(); onRequireAuth() } else action()
-    }
-
-    // Copiar enlace: feedback "Link copied" (900ms) antes de cerrar — réplica
-    // exacta de copyLink() en OptionsModal.jsx.
-    fun copyLink() {
-        runCatching {
-            val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-            cm.setPrimaryClip(android.content.ClipData.newPlainText("twyk", Config.BASE_URL.trimEnd('/') + "/?post=" + postId))
-        }
-        copied = true
-        scope.launch { delay(900); copied = false; onClose() }
     }
 
     fun submitReport(reason: String) {
@@ -2281,7 +2268,6 @@ fun MoreOptionsSheet(
     val zinc500 = Color(0xFF71717A)
     val zinc300 = Color(0xFFD4D4D8)
     val zinc100 = Color(0xFFF4F4F5)
-    val green600 = Color(0xFF16A34A)
     val red600 = Color(0xFFDC2626)
 
     Box(
@@ -2337,11 +2323,10 @@ fun MoreOptionsSheet(
                         } else {
                             SheetItem(Icons.Filled.Delete, "Delete", red600) { requireAuthOrRun { step = "deleteConfirm" } }
                         }
-                        if (copied) {
-                            SheetItem(Icons.Filled.Check, "Link copied", green600) {}
-                        } else {
-                            SheetItem(Icons.Filled.Link, "Copy link", zinc900) { copyLink() }
-                        }
+                        // La fila "Copy link" se ELIMINÓ a petición del usuario
+                        // (web y nativa a la vez, ver OptionsModal.jsx) — el
+                        // enlace sigue disponible en la hoja de Compartir
+                        // (ShareSheet, ui/Sheets.kt), que no se toca.
                     }
                 }
                 "report" -> {

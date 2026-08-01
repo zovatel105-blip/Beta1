@@ -353,3 +353,16 @@ interior como ocurre con el icono de saved". Cambios:
   silueta con el medio trazo exterior); import drawscope.Fill añadido; la pestaña "polls" pasa
   `filled = active`. El otro uso (estado vacío, 28dp gris) sin cambios. Balance verificado
   (UiKit 21/21, 92/92; Profile 234/234, 626/626).
+
+## Ronda: eliminar "Copy link" del menú de los tres puntitos del feed — web + nativa
+Petición: "en el feed, en los tres puntitos (más ajustes), elimina copiar enlace".
+- WEB (OptionsModal.jsx): quitada la fila 'copy' de AMBOS menús (ajeno: quedan Not interested/
+  Report/Block user; propio: queda Delete). Limpieza completa: copyLink(), estado `copied`,
+  shareUrl, setCopied del reset, e imports Link2/Check (sin otros usos). Lint limpio. Verificado
+  en vivo: el sheet muestra solo Not interested/Report/Block user.
+- NATIVA (VersusFeed.kt MoreOptionsSheet): quitada la fila equivalente (if copied Link copied /
+  else Copy link), función copyLink(), estado `copied`, color green600 e imports
+  Icons.Filled.Check/Link y Config (sin otros usos en el archivo); comentario de cabecera
+  actualizado. Balance de código verificado (465/465, 1301/1301).
+- NO se toca la hoja de COMPARTIR (ShareModal.jsx / ShareSheet en ui/Sheets.kt), que mantiene su
+  propia opción de copiar enlace.
