@@ -340,3 +340,16 @@ del player activo + 3 prefetch pequeños. Battles.kt/Upload.kt no usan buildPlay
 Verificado: revisión línea a línea + balance de código (473/473, 1314/1314) + análisis de flujo
 completo (10 escenarios). SIN testing agent (orden explícita y reiterada del usuario; además el fix
 es 100% Kotlin, incompilable/inejecutable en este entorno). Pendiente: usuario recompila el APK.
+
+## Ronda: icono de Polls (pestaña del perfil) relleno al estar seleccionado — web + nativa
+Petición: "el icono de poll cuando esté seleccionado debe mostrar los 6 rectángulos en blanco en el
+interior como ocurre con el icono de saved". Cambios:
+- WEB (ProfilePage.jsx): `ColumnsIcon` acepta prop `filled` → svg fill=currentColor (manteniendo el
+  stroke, como hace `fill-current` en el Bookmark de Saved); TABS pasa `filled={active}`. El uso del
+  estado vacío (w-7 zinc-500) queda sin relleno (default false). Verificado en vivo con sesión de
+  lucia: pestaña polls activa → fill='currentColor' + captura visual; saved inactiva → fill='none'.
+- NATIVA (UiKit.kt `ColumnsIcon` + Profile.kt): nuevo parámetro `filled: Boolean = false` — dibuja
+  cada rectángulo con style=Fill Y ADEMÁS el trazo (réplica exacta de fill+stroke de la web, misma
+  silueta con el medio trazo exterior); import drawscope.Fill añadido; la pestaña "polls" pasa
+  `filled = active`. El otro uso (estado vacío, 28dp gris) sin cambios. Balance verificado
+  (UiKit 21/21, 92/92; Profile 234/234, 626/626).

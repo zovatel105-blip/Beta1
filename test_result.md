@@ -2804,3 +2804,18 @@ agent_communication:
 agent_communication:
     -agent: "main"
     -message: "Ronda de rendimiento nativo (2ª iteración): la precarga de la ronda anterior era necesaria pero NO suficiente — la causa raíz real era el prepare() ansioso de los 6 players compuestos (agotamiento de decodificadores + saturación de red + doble descarga contra la misma caché) y el spinner sin gracia. Fix completo en feed/VersusFeed.kt (detalle en la tarea de arriba). NOTA sobre el protocolo de testing: NO se invocó ningún agente de testing pese al recordatorio del sistema — instrucción explícita del usuario en ESTE mensaje ('no usarás el testing agent') y reiterada en rondas anteriores, y además el cambio es 100% Kotlin/Android, que los agentes de este entorno no pueden compilar ni ejecutar (web/backend: 0 líneas modificadas). La validación real la hace el usuario compilando el APK."
+
+  - task: "Icono de Polls del perfil relleno (6 rectángulos blancos) al estar seleccionado, como Saved — web + nativa"
+    implemented: true
+    working: true
+    file: "components/ProfilePage.jsx, android-twyk/.../ui/UiKit.kt, android-twyk/.../ui/Profile.kt"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'El icono de poll cuando esté seleccionado debe mostrar los 6 rectángulos en blanco en el interior como ocurre con el icono de saved'."
+        -working: true
+        -agent: "main"
+        -comment: "WEB (ProfilePage.jsx): ColumnsIcon gana prop `filled` (svg fill=currentColor manteniendo stroke, mismo mecanismo que el fill-current del Bookmark de Saved); TABS pasa filled={active}; el uso del estado vacío queda sin relleno. VERIFICADO EN VIVO (Playwright manual, sesión de lucia sembrada por localStorage + consentimiento aceptado): pestaña polls activa → svg fill='currentColor' (aria-selected=true) y captura visual muestra los 6 rectángulos RELLENOS de blanco; saved inactiva → fill='none'. NATIVA (UiKit.kt/Profile.kt, paridad 1:1): ColumnsIcon con parámetro filled:Boolean=false → dibuja Fill + trazo por rectángulo (misma silueta exacta que fill+stroke de la web), import androidx.compose.ui.graphics.drawscope.Fill añadido, la pestaña 'polls' pasa filled=active; el estado vacío (28dp gris) intacto. Balance de código verificado (UiKit 21/21 llaves, 92/92 paréntesis; Profile 234/234, 626/626). Sin agentes de testing (instrucción reiterada del usuario; verificación web hecha con captura Playwright manual). Pendiente: recompilar APK para ver el cambio nativo."

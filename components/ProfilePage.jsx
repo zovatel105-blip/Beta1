@@ -31,9 +31,11 @@ const videoFor = (p) =>
 
 // Icono de cuadrícula (6 rectángulos con bordes redondeados: 3 por fila, 2 filas),
 // juntos entre sí con una línea fina de separación (trazo 1.1, hueco geométrico
-// 1.7 -> separación neta visible ~0.6).
-const ColumnsIcon = ({ className }) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round" className={className}>
+// 1.7 -> separación neta visible ~0.6). `filled`: en la pestaña ACTIVA los 6
+// rectángulos se RELLENAN de blanco (petición del usuario: mismo comportamiento
+// que el icono de Saved, que hace `fill-current` al estar seleccionado).
+const ColumnsIcon = ({ className, filled = false }) => (
+  <svg viewBox="0 0 24 24" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <rect x="3.7" y="3.85" width="4.4" height="7.3" rx="1.1" />
     <rect x="9.8" y="3.85" width="4.4" height="7.3" rx="1.1" />
     <rect x="15.9" y="3.85" width="4.4" height="7.3" rx="1.1" />
@@ -284,7 +286,7 @@ const PostViewer = ({ posts, startId, onClose, onChallenge, onOpenProfile }) => 
 const TABS = [
   { 
     key: 'polls', 
-    icon: (active) => <ColumnsIcon className={`w-[18px] h-[18px] transition-transform duration-200 ${active ? 'scale-105' : 'scale-100'}`} />
+    icon: (active) => <ColumnsIcon filled={active} className={`w-[18px] h-[18px] transition-transform duration-200 ${active ? 'scale-105' : 'scale-100'}`} />
   },
   { 
     key: 'saved', 

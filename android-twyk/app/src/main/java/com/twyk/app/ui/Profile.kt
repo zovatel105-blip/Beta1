@@ -1019,6 +1019,10 @@ private fun ProfileTabsBar(
                     "polls" -> ColumnsIcon(
                         Modifier.size(18.dp).graphicsLayer(scaleX = iconScale, scaleY = iconScale),
                         if (active) Color.White else ZincText,
+                        // Pestaña activa: los 6 rectángulos RELLENOS de
+                        // blanco (petición del usuario: igual que Saved,
+                        // que pasa a ic_bookmark_filled al seleccionarse).
+                        filled = active,
                     )
                     else -> Icon(
                         ImageVector.vectorResource(if (active) R.drawable.ic_bookmark_filled else R.drawable.ic_bookmark),

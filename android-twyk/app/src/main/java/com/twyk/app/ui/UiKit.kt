@@ -32,6 +32,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -124,8 +125,14 @@ fun GoldGlow(height: androidx.compose.ui.unit.Dp = 320.dp, alpha: Float = 0.09f)
 // 6 rectángulos redondeados en una cuadrícula de 3x2 (NO líneas cruzadas,
 // que es lo que dibujaba esta función antes por error). viewBox de referencia
 // 24x24, coordenadas escaladas al tamaño real del composable.
+// `filled`: con la pestaña ACTIVA los 6 rectángulos se RELLENAN de blanco
+// (petición del usuario: igual que el icono de Saved, que pasa a
+// ic_bookmark_filled al seleccionarse; en la web es `fill-current` /
+// fill=currentColor). Se dibuja el RELLENO y ADEMÁS el trazo (la web
+// mantiene stroke=currentColor junto al fill, así que el rectángulo lleno
+// abarca también el medio trazo exterior — misma silueta exacta).
 @Composable
-fun ColumnsIcon(modifier: Modifier = Modifier, color: Color = Color.White) {
+fun ColumnsIcon(modifier: Modifier = Modifier, color: Color = Color.White, filled: Boolean = false) {
     Canvas(modifier) {
         val scale = size.width / 24f
         val strokeW = 1.1f * scale
@@ -137,6 +144,15 @@ fun ColumnsIcon(modifier: Modifier = Modifier, color: Color = Color.White) {
         val stroke = Stroke(width = strokeW, cap = StrokeCap.Round, join = StrokeJoin.Round)
         ys.forEach { fy ->
             xs.forEach { fx ->
+                if (filled) {
+                    drawRoundRect(
+                        color = color,
+                        topLeft = Offset(fx * scale, fy * scale),
+                        size = Size(rectW, rectH),
+                        cornerRadius = CornerRadius(radius, radius),
+                        style = Fill,
+                    )
+                }
                 drawRoundRect(
                     color = color,
                     topLeft = Offset(fx * scale, fy * scale),
