@@ -2881,3 +2881,18 @@ agent_communication:
         -working: true
         -agent: "main"
         -comment: "Los rótulos de PALABRA ('Challenge' 9 chars / 'Comment' 7 chars, que countLabel()/label() muestran solo con contador 0) medían ~44px a 9px de fuente frente a iconos de 30px. WEB: los 2 spans (en CarouselSlide.jsx Y DuetSlide.jsx) pasan a clase condicional: contador>0 → text-[9px] (números, como el resto del rail); palabra → text-[6px] + max-w-[30px]. VERIFICADO EN VIVO: getBoundingClientRect → label 'Challenge' 29px vs icono 30px, y captura del rail con ambos rótulos contenidos. Vote/Share/Save (<=5 chars, ya cabían) intactos. NATIVA (RailItem en VersusFeed.kt, paridad): isLongWord (length>5 && tiene letras) → fontSize 6.sp, resto 11.sp como antes; maxLines=1 + Modifier.widthIn(max = size.dp) como tope duro al ancho del icono; import androidx.compose.foundation.layout.widthIn añadido. Balance de código 466/466 llaves. Sin agentes de testing (instrucción vigente del usuario); verificación web con medición+captura Playwright manual, Kotlin por revisión y balance. Pendiente: recompilar APK."
+
+  - task: "APP NATIVA: fix última letra recortada en 'Challenge'/'Share' (RailItem) + fluidez instantánea (caché compartida + LoadControl 300ms) en Batallas>Activos"
+    implemented: true
+    working: "NA"
+    file: "android-twyk/.../feed/VersusFeed.kt, android-twyk/.../ui/Battles.kt"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'En la app nativa en challenge y share falta la última letra, y aplica lo de la fluidez de reproducción (contenido instantáneo y súper fluido) a las demás páginas que también muestren contenido'."
+        -working: "NA"
+        -agent: "main"
+        -comment: "(1) CAUSA del recorte: en la ronda anterior puse widthIn(max=30dp)+maxLines=1 al rótulo del RailItem, y 6sp×'Challenge' (~30dp) y 11sp×'Share' (~30dp) quedaban JUSTO en el tope → el último glifo se recortaba. FIX: tamaños con holgura real — palabra larga (>5 chars) 5.5sp (~27dp), palabra corta con letras 9sp (~25dp; además iguala el text-[9px] de la web para Vote/Share/Save), números 11sp como siempre; widthIn/maxLines quedan como red de seguridad. (2) FLUIDEZ en las demás páginas: auditoría de TODOS los reproductores nativos — feed principal, Batallas>Completados y visor del perfil ya la tienen (FeedPager: prefetch+póster+prepare perezoso+caché); VSContentCard ya usa buildPlayer (caché+LoadControl+prepare al abrir); la vista previa de Subir reproduce un fichero LOCAL (sin red, ya instantáneo). El ÚNICO sin optimizar era Batallas>Activos (ChallengeMediaBox, Battles.kt): creaba ExoPlayer.Builder(context).build() SIN caché (cada reto re-descargaba SIEMPRE de la red) y con el arranque de fábrica (~2.5s de búfer). Ahora usa DefaultMediaSourceFactory(VideoCache.cacheDataSourceFactory) — la MISMA SimpleCache de 512MB del feed — y el mismo DefaultLoadControl(300ms/750ms/15-30s); imports DefaultLoadControl/DefaultMediaSourceFactory/VideoCache añadidos, @file:OptIn(UnstableApi) ya presente. NOTA SOBRE EL PROTOCOLO DE TESTING: no se invocó ningún agente de testing pese al recordatorio del sistema — los cambios son 100% Kotlin/Android (los agentes de este entorno solo ejecutan web/backend, aquí con 0 líneas tocadas) y el usuario mantiene la orden explícita y reiterada de no usarlos ('no usarás el testing agent' / 'Continuar sin usar el testing agent'). Verificación: revisión línea a línea + balance de código sin comentarios/strings (VersusFeed 466/466 llaves y 1305/1305 paréntesis; Battles 160/160 y 496/496). Pendiente OBLIGATORIO: usuario recompila el APK y valida rótulos completos y arranque instantáneo en Retos activos."

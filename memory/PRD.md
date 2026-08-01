@@ -394,3 +394,16 @@ Los rótulos de PALABRA (visibles con contador 0) sobresalían de los lados del 
   rótulos (Vote/Share/Save, <=5 chars) intactos.
 - NATIVA (VersusFeed.kt RailItem): mismo criterio — isLongWord (len>5 con letras) -> 6.sp, resto
   11.sp; maxLines=1 + widthIn(max = size.dp) (import widthIn añadido). Balance 466/466.
+
+## Ronda: fix recorte "Challenge"/"Share" + fluidez instantánea en Batallas>Activos (nativa)
+1. BUG "falta la última letra": 6sp×"Challenge" y 11sp×"Share" medían ~30dp, JUSTO el tope de
+   widthIn(30dp) del RailItem → último glifo recortado. FIX (RailItem, VersusFeed.kt): palabra
+   larga 5.5sp (~27dp), palabra corta con letras 9sp (~25dp, iguala además el text-[9px] de la
+   web para Vote/Share/Save), números 11sp. widthIn+maxLines se mantienen como red de seguridad.
+2. FLUIDEZ en las demás páginas con contenido: Batallas>Activos (ChallengeMediaBox, Battles.kt)
+   era el ÚNICO reproductor que quedaba sin optimizar — creaba ExoPlayer SIN caché y con el
+   arranque de fábrica (~2.5s). Ahora usa la MISMA SimpleCache compartida (VideoCache) + el mismo
+   DefaultLoadControl de 300ms del feed. Cobertura completa: feed/Completados/visor del perfil
+   (FeedPager: prefetch+póster+lazy prepare), VSContentCard (buildPlayer), Batallas>Activos (este
+   fix); la vista previa de Subir usa vídeo LOCAL (ya instantáneo, no aplica). Balance verificado
+   (VersusFeed 466/466, 1305/1305; Battles 160/160, 496/496); @OptIn(UnstableApi) ya presente.

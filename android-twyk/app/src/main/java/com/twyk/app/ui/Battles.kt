@@ -75,8 +75,11 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.AspectRatioFrameLayout
+import com.twyk.app.feed.VideoCache
 import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
 import com.twyk.app.R
@@ -579,13 +582,27 @@ private fun ChallengeMediaBox(
             else -> {
                 val context = LocalContext.current
                 val player = remember(mediaUrl) {
-                    ExoPlayer.Builder(context).build().apply {
-                        setMediaItem(MediaItem.fromUri(mediaUrl))
-                        repeatMode = Player.REPEAT_MODE_ONE
-                        volume = 0f
-                        playWhenReady = false
-                        prepare()
-                    }
+                    // FLUIDEZ (petición del usuario: mismo comportamiento
+                    // instantáneo del feed en las demás páginas con contenido):
+                    // (1) la MISMA caché de disco compartida (VideoCache) que
+                    // el feed — un reto ya visto (o cuyo vídeo aparezca en el
+                    // feed) se reproduce desde disco sin red; (2) el mismo
+                    // LoadControl de arranque con ~300ms de búfer en vez de
+                    // los ~2.5s de fábrica (ver buildPlayer en VersusFeed.kt).
+                    val loadControl = DefaultLoadControl.Builder()
+                        .setBufferDurationsMs(15_000, 30_000, 300, 750)
+                        .setPrioritizeTimeOverSizeThresholds(true)
+                        .build()
+                    ExoPlayer.Builder(context)
+                        .setMediaSourceFactory(DefaultMediaSourceFactory(VideoCache.cacheDataSourceFactory(context)))
+                        .setLoadControl(loadControl)
+                        .build().apply {
+                            setMediaItem(MediaItem.fromUri(mediaUrl))
+                            repeatMode = Player.REPEAT_MODE_ONE
+                            volume = 0f
+                            playWhenReady = false
+                            prepare()
+                        }
                 }
                 DisposableEffect(mediaUrl) { onDispose { player.release() } }
                 // El lado VISIBLE reproduce CON audio; el otro va en silencio y

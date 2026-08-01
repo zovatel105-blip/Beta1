@@ -1538,11 +1538,17 @@ private fun RailItem(icon: ImageVector, label: String, tint: Color, size: Int = 
             // hace caber "Challenge" en ~30dp) y se acota el ancho máximo al
             // del propio icono. Los contadores numéricos y las palabras
             // cortas ("Vote"/"Share"/"Save", <=5 chars) se quedan como están.
-            val isLongWord = label.length > 5 && label.any { ch -> ch.isLetter() }
+            // BUG reportado ("en challenge y share falta la última letra"):
+            // 6sp x "Challenge" y 11sp x "Share" median ~30dp, JUSTO el tope
+            // de widthIn(30dp) -> el último glifo quedaba recortado. Tamaños
+            // con holgura real: palabra larga 5.5sp (~27dp), palabra corta
+            // 9sp (~25dp, ademas iguala el text-[9px] de la web para
+            // Vote/Share/Save), numeros 11sp como siempre.
+            val hasLetters = label.any { ch -> ch.isLetter() }
             Text(
                 label,
                 color = Color.White,
-                fontSize = if (isLongWord) 6.sp else 11.sp,
+                fontSize = if (hasLetters && label.length > 5) 5.5.sp else if (hasLetters) 9.sp else 11.sp,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
                 modifier = Modifier.widthIn(max = size.dp),
