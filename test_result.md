@@ -2866,3 +2866,18 @@ backend:
 agent_communication:
     -agent: "main"
     -message: "Ronda 'registro 5 pasos': backend nuevo POST /api/profile/interests verificado manualmente (curl 200/401 + persistencia en Mongo vía registro E2E real por UI); web verificada en vivo con capturas (paso password según imagen de referencia 1, paso interests según imagen 2, Next(2) guardando y cerrando); nativa espejada 1:1 (Sheets.kt/TwykApi.kt/Models.kt) verificada por revisión manual + balance. El usuario ordenó explícitamente continuar SIN testing agent — se respetó (los cambios web/backend se validaron con pruebas manuales equivalentes documentadas arriba; el Kotlin no es ejecutable en este entorno)."
+
+  - task: "Rótulos 'Challenge'/'Comment' del rail social sin sobresalir del ancho del icono (web CarouselSlide/DuetSlide + nativa RailItem)"
+    implemented: true
+    working: true
+    file: "components/CarouselSlide.jsx, components/DuetSlide.jsx, android-twyk/.../feed/VersusFeed.kt"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'El título de los iconos de los botones sociales (challenge y comentar) no debe sobresalir de los lados del icono'."
+        -working: true
+        -agent: "main"
+        -comment: "Los rótulos de PALABRA ('Challenge' 9 chars / 'Comment' 7 chars, que countLabel()/label() muestran solo con contador 0) medían ~44px a 9px de fuente frente a iconos de 30px. WEB: los 2 spans (en CarouselSlide.jsx Y DuetSlide.jsx) pasan a clase condicional: contador>0 → text-[9px] (números, como el resto del rail); palabra → text-[6px] + max-w-[30px]. VERIFICADO EN VIVO: getBoundingClientRect → label 'Challenge' 29px vs icono 30px, y captura del rail con ambos rótulos contenidos. Vote/Share/Save (<=5 chars, ya cabían) intactos. NATIVA (RailItem en VersusFeed.kt, paridad): isLongWord (length>5 && tiene letras) → fontSize 6.sp, resto 11.sp como antes; maxLines=1 + Modifier.widthIn(max = size.dp) como tope duro al ancho del icono; import androidx.compose.foundation.layout.widthIn añadido. Balance de código 466/466 llaves. Sin agentes de testing (instrucción vigente del usuario); verificación web con medición+captura Playwright manual, Kotlin por revisión y balance. Pendiente: recompilar APK."

@@ -45,6 +45,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.VerticalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -1531,7 +1532,21 @@ private fun RailItem(icon: ImageVector, label: String, tint: Color, size: Int = 
         )
         if (label.isNotEmpty()) {
             Spacer(Modifier.height(3.dp))
-            Text(label, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+            // Los rótulos de PALABRA ("Challenge"/"Comment", visibles solo con
+            // contador 0) sobresalían por los lados del icono (30dp) — el
+            // usuario pidió que NUNCA excedan su ancho: se reducen (6sp, que
+            // hace caber "Challenge" en ~30dp) y se acota el ancho máximo al
+            // del propio icono. Los contadores numéricos y las palabras
+            // cortas ("Vote"/"Share"/"Save", <=5 chars) se quedan como están.
+            val isLongWord = label.length > 5 && label.any { ch -> ch.isLetter() }
+            Text(
+                label,
+                color = Color.White,
+                fontSize = if (isLongWord) 6.sp else 11.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                modifier = Modifier.widthIn(max = size.dp),
+            )
         }
     }
 }

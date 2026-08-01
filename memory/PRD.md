@@ -385,3 +385,12 @@ Referencias del usuario: (1) paso Create password con input izq + ojo + 3 requis
   pwRules(), password con BasicTextField + Visibility/VisibilityOff + PwReqRow, paso interests con
   INTEREST_OPTIONS (misma lista), pie Skip/Next(N) (degradado alpha 0.4 deshabilitado), doRegister
   → regStep=interests, goBack/chevron cerrar en interests, legal en username. Balance verificado.
+
+## Ronda: rótulos "Challenge"/"Comment" del rail social sin sobresalir del icono — web + nativa
+Los rótulos de PALABRA (visibles con contador 0) sobresalían de los lados del icono (30px).
+- WEB (CarouselSlide.jsx + DuetSlide.jsx): esos 2 spans pasan a clase condicional — con contador >0
+  siguen a 9px (números cortos); con la palabra, 6px + max-w-[30px]. Verificado en vivo: label
+  "Challenge" 29px vs icono 30px + captura del rail (ambos rótulos dentro del icono). El resto de
+  rótulos (Vote/Share/Save, <=5 chars) intactos.
+- NATIVA (VersusFeed.kt RailItem): mismo criterio — isLongWord (len>5 con letras) -> 6.sp, resto
+  11.sp; maxLines=1 + widthIn(max = size.dp) (import widthIn añadido). Balance 466/466.
