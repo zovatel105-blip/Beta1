@@ -23,6 +23,16 @@ class FeedViewModel : ViewModel() {
     private var hasMore = true
     private var loading = false
 
+    // Página activa del pager (FeedPager) en el momento de dejar de estar
+    // visible (cambio a otra pestaña, ver comentario completo en
+    // VersusFeed.kt/FeedPager). Al SOBREVIVIR este ViewModel a esos cambios
+    // de pestaña (se instancia a nivel de TwykApp(), no dentro de VersusFeed),
+    // permite reabrir el feed exactamente en la misma publicación en vez de
+    // volver siempre a la primera. `handleGoHome`/`handleGoHomeDouble`
+    // (MainActivity.kt) la resetean a 0 explícitamente (1 click en Home SÍ
+    // debe volver arriba — función "actualizar el feed").
+    var lastActivePage: Int = 0
+
     init {
         loadInitial()
         // Si se elimina una publicación desde "Más opciones" (propia, en

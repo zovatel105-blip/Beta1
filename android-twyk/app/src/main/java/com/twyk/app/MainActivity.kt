@@ -242,6 +242,7 @@ private fun TwykApp() {
         profileUsername = null
         tab = Tab.Home
         followingMode = false
+        feedViewModel.lastActivePage = 0
         feedViewModel.refresh()
         feedReloadKey++
     }
@@ -253,6 +254,7 @@ private fun TwykApp() {
         profileUsername = null
         tab = Tab.Home
         followingMode = !followingMode
+        feedViewModel.lastActivePage = 0
         feedReloadKey++
     }
     // No puedes retarte a ti mismo (igual que la web: se ignora en silencio).

@@ -75,6 +75,10 @@ class FollowingFeedViewModel : ViewModel() {
     private var hasMore = true
     private var loading = false
 
+    // Misma persistencia de página activa que FeedViewModel.lastActivePage —
+    // ver el comentario completo ahí y en VersusFeed.kt/FeedPager.
+    var lastActivePage: Int = 0
+
     init {
         loadInitial()
         // Mismas 2 suscripciones que FeedViewModel (feed principal): un post
@@ -222,5 +226,7 @@ fun FollowingFeedScreen(
         onVote = { id, side, previousSide -> vm.vote(id, side, previousSide) },
         onNearEnd = { vm.loadMore() },
         onChallenge = onChallenge,
+        initialPage = vm.lastActivePage,
+        onPageChanged = { vm.lastActivePage = it },
     )
 }

@@ -105,6 +105,21 @@
 user_problem_statement: "Las publicaciones normales deben ser un carrusel de 2 vídeos (opción A / opción B) entre los que se desliza y se vota tocando el vídeo. Se suben 2 vídeos. Reemplaza el vídeo normal. AÑADIDO: votar = doble toque, quitar el corazón/Me gusta, y nueva función 'Retar' (solicitud de enfrentamiento con un vídeo subido que el retado acepta/cancela en la Bandeja). NUEVO: buscador de usuarios en la esquina superior derecha de la página de inicio (icono de lupa que abre un overlay)."
 
 backend:
+  - task: "APP NATIVA (Android/Compose): al cambiar de pestaña (Batallas/Subir/Buzón/Perfil) y volver al feed, siempre reiniciaba en la primera publicación en vez de continuar donde estaba"
+    implemented: true
+    working: "NA"
+    file: "android-twyk/app/src/main/java/com/twyk/app/feed/VersusFeed.kt, android-twyk/app/src/main/java/com/twyk/app/feed/FeedViewModel.kt, android-twyk/app/src/main/java/com/twyk/app/feed/FollowingFeed.kt, android-twyk/app/src/main/java/com/twyk/app/MainActivity.kt"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'En la apk nativa cuando cambio de pagina y vuelvo al feed vuelve a la primera publicacion en vez de continuar en la publicacion en la que estaba'."
+        -working: "NA"
+        -agent: "main"
+        -comment: "100% Kotlin nativo, NO COMPILABLE en este contenedor (sin Android SDK). CAUSA RAÍZ: en MainActivity.kt, `when(tab) { Tab.Home -> ...; Tab.Battles -> ...; ... }` solo compone la rama de la pestaña activa — al cambiar a Batallas/Subir/Buzón/Perfil propio, la rama `Tab.Home` (VersusFeed/FeedPager) se elimina POR COMPLETO de la composición, destruyendo su `rememberPagerState` (incluida la página activa); al volver a Inicio se crea una instancia NUEVA con `initialPage` en su valor por defecto (0). (El perfil AJENO, en cambio, SÍ conservaba la posición porque se pinta como OVERLAY encima de VersusFeed, que sigue montado debajo sin cambiar de `tab`.) FIX: nuevo campo `lastActivePage` en `FeedViewModel`/`FollowingFeedViewModel` (ambos SOBREVIVEN a esos cambios de pestaña porque se instancian vía `viewModel()`, ligados al ViewModelStore de la Activity, no a la posición en el árbol de composición); `FeedPager` (VersusFeed.kt) recibe un nuevo callback `onPageChanged: (Int) -> Unit` invocado desde un `LaunchedEffect(pagerState.currentPage)`; `VersusFeed`/`FollowingFeedScreen` lo conectan a `vm.lastActivePage = it` y pasan `initialPage = vm.lastActivePage` al montar — así, al volver a la pestaña Inicio (por cualquier vía que NO sea tocar el propio botón Home: gesto/botón Atrás, flecha de Buzón, cerrar Batallas, terminar de Subir), el pager se reabre en la MISMA publicación. IMPORTANTE (para no romper la función 'click para actualizar' ya pedida antes): un click explícito en el botón Home (simple o doble, ver handleGoHome/handleGoHomeDouble) SÍ debe volver arriba — por eso ambos handlers ahora resetean `feedViewModel.lastActivePage = 0` explícitamente antes de `feedReloadKey++`, preservando ese comportamiento intencional. Verificado SOLO por revisión manual del código (sin agente de testing propio: cambio 100% Kotlin nativo fuera del alcance de los agentes disponibles). Pendiente: el usuario debe compilar el APK y confirmar que, tras scrollear varias publicaciones en Inicio y abrir Batallas/Subir/Buzón/Perfil propio (o pulsar Atrás desde ahí), el feed vuelve exactamente a la misma publicación; y que tocar el botón Home (simple o doble click) SIGUE volviendo arriba como antes."
+
   - task: "APP NATIVA (Android/Compose): aplicar a la app nativa lo que ya tiene la web — página 'Siguiendo' (doble-click en Home) y 'click para actualizar' (1 click en Home refresca el feed)"
     implemented: true
     working: "NA"

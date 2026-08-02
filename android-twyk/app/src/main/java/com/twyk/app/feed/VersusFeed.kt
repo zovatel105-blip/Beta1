@@ -190,6 +190,24 @@ fun VersusFeed(
         onVote = { id, side, previousSide -> vm.vote(id, side, previousSide) },
         onNearEnd = { vm.loadMore() },
         onChallenge = onChallenge,
+        // BUG reportado por el usuario ("cuando cambio de página y vuelvo al
+        // feed vuelve a la primera publicación en vez de continuar en la
+        // publicación en la que estaba"): al cambiar de pestaña (Batallas/
+        // Subir/Buzón/Perfil propio), el `when(tab)` de MainActivity.kt deja
+        // de componer esta rama por completo -> se destruye el
+        // `rememberPagerState` de FeedPager (y con él, la página activa) y al
+        // volver se crea uno NUEVO desde 0 (a diferencia del perfil AJENO,
+        // que es un overlay y mantiene VersusFeed montado debajo — por eso
+        // ESE caso sí conservaba la posición). FIX: la página activa se
+        // guarda en `vm.lastActivePage` (FeedViewModel, que SÍ sobrevive a
+        // esos cambios de pestaña: ver TwykApp(), donde ahora se instancia a
+        // ese nivel) en cada cambio, y se usa como `initialPage` al volver a
+        // montar. Un click explícito en Home SÍ debe volver a la primera
+        // publicación (función "actualizar el feed" ya pedida antes) — por
+        // eso `handleGoHome`/`handleGoHomeDouble` (MainActivity.kt) resetean
+        // `vm.lastActivePage = 0` antes de forzar el remontaje.
+        initialPage = vm.lastActivePage,
+        onPageChanged = { vm.lastActivePage = it },
     )
 }
 
@@ -204,6 +222,14 @@ fun FeedPager(
     onVote: (String, String, String?) -> Unit = { _, _, _ -> },
     onNearEnd: () -> Unit = {},
     initialPage: Int = 0,
+    // Reporta CADA cambio de página activa (réplica del propósito de
+    // `activeIndexRef`/`setActiveIndex` en Feed.jsx, aunque ahí es la web la
+    // que lo consume para la ventana de montaje DOM de 3 tarjetas). Aquí lo
+    // usan VersusFeed/FollowingFeedScreen para persistir la página activa en
+    // su ViewModel (que sobrevive al desmontar/remontar por cambio de
+    // pestaña) y así poder reabrir el feed en la MISMA publicación — ver el
+    // comentario completo en VersusFeed() más arriba.
+    onPageChanged: (Int) -> Unit = {},
     onChallenge: (QuickChallengeTarget) -> Unit = {},
     hideChallenge: Boolean = false,
     // Barra de "Añadir comentario" al pie (réplica de `showCommentInput` en
@@ -245,6 +271,8 @@ fun FeedPager(
     LaunchedEffect(pagerState.currentPage, posts.size) {
         if (posts.size - pagerState.currentPage <= 3) onNearEnd()
     }
+    // Ver el comentario de `onPageChanged` en la firma de esta función.
+    LaunchedEffect(pagerState.currentPage) { onPageChanged(pagerState.currentPage) }
 
     // PRECARGA AGRESIVA estilo TikTok (ver FeedPrefetcher.kt): cada vez que
     // cambia la página activa (o llegan posts nuevos), se descargan en
