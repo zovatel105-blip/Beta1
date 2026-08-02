@@ -761,7 +761,7 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
             onChallenge?.({ postId: post.id, mediaType: current.mediaType, videoUrl: current.videoUrl, imageUrl: current.imageUrl, posterUrl: current.posterUrl, author: headAuthor, description: current.description || post.description, music: current.music || post.music });
           }} className="flex flex-col items-center gap-1 w-14 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
             <Swords className="w-[30px] h-[30px] text-white" strokeWidth={1.25} />
-            <span className={`${challengeCount > 0 ? 'text-[9px] font-semibold' : 'text-[6px] font-bold'} max-w-[30px] text-white leading-none text-center whitespace-nowrap`}>{countLabel(challengeCount, 'Be 1st')}</span>
+            <span className={`${challengeCount > 0 ? 'text-[9px] font-semibold' : 'text-[8px] font-bold'} max-w-[30px] overflow-hidden text-white leading-none text-center whitespace-nowrap`}>{countLabel(challengeCount, 'Be 1st')}</span>
           </button>
         )}
         <button aria-label="comments" onClick={(e) => { 
@@ -773,7 +773,7 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
           setCommentsOpen(true);
         }} className="flex flex-col items-center gap-1 w-14 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
           <MessageCircle className="w-[30px] h-[30px] text-white" strokeWidth={1.25} />
-          <span className={`${commentCount > 0 ? 'text-[9px] font-semibold' : 'text-[6px] font-bold'} max-w-[30px] text-white leading-none text-center whitespace-nowrap`}>{countLabel(commentCount, 'Add 1st')}</span>
+          <span className={`${commentCount > 0 ? 'text-[9px] font-semibold' : 'text-[8px] font-bold'} max-w-[30px] overflow-hidden text-white leading-none text-center whitespace-nowrap`}>{countLabel(commentCount, 'Add 1st')}</span>
         </button>
         <button aria-label="share" onClick={(e) => { e.stopPropagation(); setShareOpen(true) }} className="flex flex-col items-center gap-1 w-14 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
           <ShareIcon className="w-[30px] h-[30px] text-white" strokeWidth={1.4} />

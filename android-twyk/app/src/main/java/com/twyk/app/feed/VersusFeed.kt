@@ -1547,29 +1547,27 @@ private fun RailItem(icon: ImageVector, label: String, tint: Color, size: Int = 
             Spacer(Modifier.height(3.dp))
             // Los rótulos de PALABRA ("Be 1st"/"Add 1st", visibles solo con
             // contador 0) sobresalían por los lados del icono (30dp) — el
-            // usuario pidió que NUNCA excedan su ancho: se reducen (6sp, que
-            // hace caber "Challenge" en ~30dp) y se acota el ancho máximo al
-            // del propio icono. Los contadores numéricos y las palabras
-            // cortas ("Vote"/"Share"/"Save", <=5 chars) se quedan como están.
-            // BUG reportado ("en challenge y share falta la última letra"):
-            // 6sp x "Challenge" y 11sp x "Share" median ~30dp, JUSTO el tope
-            // de widthIn(30dp) -> el último glifo quedaba recortado. Tamaños
-            // con holgura real: palabra larga 5.5sp (~27dp), palabra corta
-            // 9sp (~25dp, ademas iguala el text-[9px] de la web para
-            // Vote/Share/Save), numeros 11sp como siempre.
+            // usuario pidió que NUNCA excedan su ancho: se acota el ancho
+            // máximo al del propio icono. Los contadores numéricos y las
+            // palabras cortas ("Vote"/"Share"/"Save", <=5 chars) se quedan
+            // como están.
             // BUG reportado ("Be 1st/Add 1st debe ser del grosor de Save"):
-            // a 5.5sp, SemiBold se percibía más fino que el "Save" de 9sp —
-            // réplica del fix web (font-bold solo en la rama de 6px): la
-            // palabra larga usa Bold (trazo más grueso que compensa el
-            // tamaño pequeño); números y palabras cortas siguen en SemiBold.
+            // a 5.5sp, Bold seguía viéndose más fino que el "Save" de 9sp
+            // simplemente por ser mucho más pequeño (el grosor de fuente por
+            // sí solo no compensa la diferencia de TAMAÑO) — réplica del fix
+            // web (de 6px a 8px, +overflow=Clip explícito como red de
+            // seguridad ya que a 8px "Add 1st" queda más cerca del límite de
+            // 30dp): palabra larga ahora 8sp + Bold (antes 5.5sp), números y
+            // palabras cortas siguen en SemiBold sin cambios.
             val hasLetters = label.any { ch -> ch.isLetter() }
             val isLongWord = hasLetters && label.length > 5
             Text(
                 label,
                 color = Color.White,
-                fontSize = if (isLongWord) 5.5.sp else if (hasLetters) 9.sp else 11.sp,
+                fontSize = if (isLongWord) 8.sp else if (hasLetters) 9.sp else 11.sp,
                 fontWeight = if (isLongWord) FontWeight.Bold else FontWeight.SemiBold,
                 maxLines = 1,
+                overflow = TextOverflow.Clip,
                 modifier = Modifier.widthIn(max = size.dp),
             )
         }
