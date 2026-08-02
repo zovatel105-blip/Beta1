@@ -173,15 +173,23 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
     if (Math.abs(e.clientX - s.x) > 10 || Math.abs(e.clientY - s.y) > 10) cancelLongPress()
   }, [cancelLongPress])
 
-  // Read prior vote from localStorage
+  // Read prior vote from localStorage — la clave incluye el ID del usuario
+  // (antes solo post.id): mismo bug/fix que CarouselSlide.jsx (ver comentario
+  // allí) — sin esto, el voto de una cuenta se filtraba a otra cuenta distinta
+  // en el MISMO navegador.
   useEffect(() => {
     if (typeof window === 'undefined') return
-    try {
-      const v = localStorage.getItem(`duet_vote_${post.id}`)
+    if (!user?.id) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (v === 'a' || v === 'b') setUserVote(v)
+      setUserVote(null)
+      return
+    }
+    try {
+      const v = localStorage.getItem(`duet_vote_${post.id}_${user.id}`)
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setUserVote(v === 'a' || v === 'b' ? v : null)
     } catch { /* ignore */ }
-  }, [post.id])
+  }, [post.id, user?.id])
 
   const isHorizontal = (post.layout || 'horizontal') === 'horizontal'
 
@@ -447,7 +455,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
     spawnVoteBurst(side, pt)
     // Mostrar la tarjeta de ganador después de la animación del icono
     setTimeout(() => setShowWinner(true), 650)
-    try { localStorage.setItem(`duet_vote_${post.id}`, side) } catch { /* ignore */ }
+    try { localStorage.setItem(`duet_vote_${post.id}_${user.id}`, side) } catch { /* ignore */ }
     try {
       const res = await fetch('/api/vote', {
         method: 'POST',

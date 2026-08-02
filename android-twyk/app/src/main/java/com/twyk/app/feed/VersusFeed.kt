@@ -478,13 +478,14 @@ private fun CarouselPage(
 
     val sidePager = rememberPagerState(pageCount = { 2 })
     // Voto restaurado de SharedPreferences (réplica de leer
-    // `localStorage.getItem('versus_vote_'+id)` en el `useEffect` de montaje
-    // de CarouselSlide.jsx) — antes SIEMPRE arrancaba en null, así que un
-    // voto ya emitido dejaba de verse como votado en cuanto la tarjeta se
-    // recomponía desde cero (reabrir la app, o reciclado del pager).
-    var voted by remember(post.id) { mutableStateOf(VoteStore.get(post.id)) }
-    // Cierra sobre el post.id y el voto ACTUAL de esta tarjeta (réplica de
-    // votedSide={userVote} que CarouselSlide.jsx pasa a <CommentsModal>).
+    // `localStorage.getItem('versus_vote_'+id+'_'+userId)` en el `useEffect`
+    // de montaje de CarouselSlide.jsx) — antes SIEMPRE arrancaba en null, así
+    // que un voto ya emitido dejaba de verse como votado en cuanto la tarjeta
+    // se recomponía desde cero (reabrir la app, o reciclado del pager). La
+    // clave (ver VoteStore) incluye el userId de la sesión actual: si cambia
+    // (login/logout de otra cuenta en el mismo dispositivo), `remember` se
+    // recalcula y `voted` NUNCA se queda con el voto de la cuenta anterior.
+    var voted by remember(post.id, Session.user?.id) { mutableStateOf(VoteStore.get(post.id, Session.user?.id)) }
     val onCommentsLocal: () -> Unit = { onOpenComments(post.id, voted) }
     var votes by remember(post.id) { mutableStateOf(post.votes ?: Votes()) }
     var showWinner by remember(post.id) { mutableStateOf(false) }
@@ -516,7 +517,7 @@ private fun CarouselPage(
             val previous = voted
             votes = if (previous != null) switchVote(votes, previous, side) else bump(votes, side)
             voted = side
-            VoteStore.set(post.id, side)
+            VoteStore.set(post.id, Session.user?.id, side)
             voteTrigger = System.currentTimeMillis()
             onVote(side, previous)
         }
@@ -741,9 +742,12 @@ private fun DuetPage(
     val musicPlayer by rememberMusicPlayer(post.musicPreviewUrl)
 
     // Voto restaurado de SharedPreferences (réplica de leer
-    // `localStorage.getItem('duet_vote_'+id)` en el `useEffect` de montaje
-    // de DuetSlide.jsx) — antes SIEMPRE arrancaba en null.
-    var voted by remember(post.id) { mutableStateOf(VoteStore.get(post.id)) }
+    // `localStorage.getItem('duet_vote_'+id+'_'+userId)` en el `useEffect` de
+    // montaje de DuetSlide.jsx) — antes SIEMPRE arrancaba en null. La clave
+    // incluye el userId de la sesión actual (ver comentario en CarouselPage
+    // y en VoteStore) para que el voto no se filtre entre cuentas distintas
+    // en el mismo dispositivo.
+    var voted by remember(post.id, Session.user?.id) { mutableStateOf(VoteStore.get(post.id, Session.user?.id)) }
     // Réplica de votedSide={userVote} que DuetSlide.jsx pasa a <CommentsModal>.
     val onCommentsLocal: () -> Unit = { onOpenComments(post.id, voted) }
     var votes by remember(post.id) { mutableStateOf(post.votes ?: Votes()) }
@@ -788,7 +792,7 @@ private fun DuetPage(
             votes = if (previous != null) switchVote(votes, previous, side) else bump(votes, side)
             voted = side
             audibleSide = side
-            VoteStore.set(post.id, side)
+            VoteStore.set(post.id, Session.user?.id, side)
             voteTrigger = System.currentTimeMillis()
             onVote(side, previous)
         }

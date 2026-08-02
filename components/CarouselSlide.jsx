@@ -203,15 +203,28 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
   const srcA = useMemo(() => pickQuality(sideA.qualities, sideA.videoUrl), [sideA.qualities, sideA.videoUrl])
   const srcB = useMemo(() => pickQuality(sideB.qualities, sideB.videoUrl), [sideB.qualities, sideB.videoUrl])
 
-  // Restaurar voto previo
+  // Restaurar voto previo — la clave incluye el ID del usuario (antes solo
+  // usaba post.id): BUG reportado ("el usuario ajeno debe votar la opción que
+  // el propietario no votó para que el voto funcione") causado porque el
+  // voto se guardaba SOLO por post.id en localStorage, así que en el MISMO
+  // navegador, el voto de una cuenta se leía como "ya votado" al entrar con
+  // otra cuenta distinta (el toque en la MISMA opción quedaba como no-op y el
+  // toque en la OTRA opción se enviaba como un "cambio" que además restaba el
+  // voto real del primer usuario). Al cambiar de cuenta sin voto propio
+  // guardado, se limpia el estado en vez de dejar el de la cuenta anterior.
   useEffect(() => {
     if (typeof window === 'undefined') return
-    try {
-      const v = localStorage.getItem(`versus_vote_${post.id}`)
+    if (!user?.id) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (v === 'a' || v === 'b') setUserVote(v)
+      setUserVote(null)
+      return
+    }
+    try {
+      const v = localStorage.getItem(`versus_vote_${post.id}_${user.id}`)
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setUserVote(v === 'a' || v === 'b' ? v : null)
     } catch { /* ignore */ }
-  }, [post.id])
+  }, [post.id, user?.id])
 
   const getVisible = useCallback(() => (sideIdx === 0 ? videoARef.current : videoBRef.current), [sideIdx])
   const getHidden = useCallback(() => (sideIdx === 0 ? videoBRef.current : videoARef.current), [sideIdx])
@@ -395,7 +408,7 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
     spawnVoteBurst(s, pt)
     // Mostrar la tarjeta de ganador después de la animación del icono
     setTimeout(() => setShowWinner(true), 650)
-    try { localStorage.setItem(`versus_vote_${post.id}`, s) } catch { /* ignore */ }
+    try { localStorage.setItem(`versus_vote_${post.id}_${user.id}`, s) } catch { /* ignore */ }
     try {
       const res = await fetch('/api/vote', {
         method: 'POST',
