@@ -1545,7 +1545,7 @@ private fun RailItem(icon: ImageVector, label: String, tint: Color, size: Int = 
         )
         if (label.isNotEmpty()) {
             Spacer(Modifier.height(3.dp))
-            // Los rótulos de PALABRA ("Challenge"/"Comment", visibles solo con
+            // Los rótulos de PALABRA ("Be 1st"/"Add 1st", visibles solo con
             // contador 0) sobresalían por los lados del icono (30dp) — el
             // usuario pidió que NUNCA excedan su ancho: se reducen (6sp, que
             // hace caber "Challenge" en ~30dp) y se acota el ancho máximo al
@@ -1557,12 +1557,18 @@ private fun RailItem(icon: ImageVector, label: String, tint: Color, size: Int = 
             // con holgura real: palabra larga 5.5sp (~27dp), palabra corta
             // 9sp (~25dp, ademas iguala el text-[9px] de la web para
             // Vote/Share/Save), numeros 11sp como siempre.
+            // BUG reportado ("Be 1st/Add 1st debe ser del grosor de Save"):
+            // a 5.5sp, SemiBold se percibía más fino que el "Save" de 9sp —
+            // réplica del fix web (font-bold solo en la rama de 6px): la
+            // palabra larga usa Bold (trazo más grueso que compensa el
+            // tamaño pequeño); números y palabras cortas siguen en SemiBold.
             val hasLetters = label.any { ch -> ch.isLetter() }
+            val isLongWord = hasLetters && label.length > 5
             Text(
                 label,
                 color = Color.White,
-                fontSize = if (hasLetters && label.length > 5) 5.5.sp else if (hasLetters) 9.sp else 11.sp,
-                fontWeight = FontWeight.SemiBold,
+                fontSize = if (isLongWord) 5.5.sp else if (hasLetters) 9.sp else 11.sp,
+                fontWeight = if (isLongWord) FontWeight.Bold else FontWeight.SemiBold,
                 maxLines = 1,
                 modifier = Modifier.widthIn(max = size.dp),
             )
