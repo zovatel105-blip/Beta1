@@ -477,10 +477,12 @@ private fun TwykBottomNav(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            // "Bajar un pelín la barra de navegación inferior" (petición del
-            // usuario) — réplica del mismo desplazamiento en BottomNav.jsx
-            // (transform: translateY(6px)).
-            .offset(y = 6.dp)
+            // "Bajar un pelín la barra de navegación inferior, pero un pelín
+            // más arriba para no tapar la línea de segundos de reproducción"
+            // (2 peticiones seguidas del usuario) — réplica del mismo ajuste
+            // en BottomNav.jsx (transform: translateY(1px); antes 6px, bajado
+            // demasiado y tapaba la barra de progreso del vídeo).
+            .offset(y = 1.dp)
             .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
             .background(Color.Black)
             .navigationBarsPadding()
