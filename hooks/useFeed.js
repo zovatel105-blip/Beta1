@@ -55,29 +55,39 @@ export function useFeed() {
     if (fresh.length) setPosts((prev) => [...prev, ...fresh])
   }, [])
 
-  // Carga inicial: uploads + primera página del feed (en paralelo).
-  useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      const [uploads, page] = await Promise.all([
-        fetchUploads(),
-        fetchFeedPage(0).catch(() => ({ posts: [], nextCursor: 0, hasMore: false })),
-      ])
-      if (cancelled) return
-      cursorRef.current = page.nextCursor ?? 0
-      hasMoreRef.current = page.hasMore !== false
-      const merged = []
-      for (const p of [...uploads, ...(page.posts || [])]) {
-        if (p && p.id && !seenRef.current.has(p.id)) {
-          seenRef.current.add(p.id)
-          merged.push(p)
-        }
+  // Carga (inicial Y refresco): uploads + primera página del feed en paralelo.
+  // Extraída a función reutilizable para que refresh() (botón Home, 1 click,
+  // ver BottomNav/Feed.jsx) pueda repetir EXACTAMENTE la misma carga inicial,
+  // sustituyendo el feed entero por contenido fresco desde el principio.
+  const loadInitial = useCallback(async () => {
+    const [uploads, page] = await Promise.all([
+      fetchUploads(),
+      fetchFeedPage(0).catch(() => ({ posts: [], nextCursor: 0, hasMore: false })),
+    ])
+    cursorRef.current = page.nextCursor ?? 0
+    hasMoreRef.current = page.hasMore !== false
+    seenRef.current = new Set()
+    const merged = []
+    for (const p of [...uploads, ...(page.posts || [])]) {
+      if (p && p.id && !seenRef.current.has(p.id)) {
+        seenRef.current.add(p.id)
+        merged.push(p)
       }
-      setPosts(merged)
-      setReady(true)
-    })()
-    return () => { cancelled = true }
+    }
+    setPosts(merged)
+    setReady(true)
   }, [])
+
+  useEffect(() => {
+    loadInitial().catch(() => {})
+  }, [loadInitial])
+
+  // Refresco explícito (1 click en Home): re-descarga desde el principio y
+  // SUSTITUYE el feed entero (no acumula) — el llamador (Feed.jsx) además
+  // resetea el scroll a la primera tarjeta.
+  const refresh = useCallback(async () => {
+    await loadInitial()
+  }, [loadInitial])
 
   // Paginación del feed (scroll infinito). Idempotente y con guard de concurrencia.
   const loadMore = useCallback(async () => {
@@ -130,7 +140,7 @@ export function useFeed() {
     setPosts((prev) => patchCommentCountInList(prev, postId, count))
   }), [])
 
-  return { posts, ready, loadMore, prependPost, patchAuthorAvatar }
+  return { posts, ready, loadMore, prependPost, patchAuthorAvatar, refresh }
 }
 
 export default useFeed

@@ -2,7 +2,7 @@
 /* eslint-disable react-hooks/set-state-in-effect -- setState dirigido por IntersectionObserver y handlers (no por píxel de scroll). */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Check, X, Search } from 'lucide-react'
+import { Check, X, Search, Users } from 'lucide-react'
 import DuetSlide from './DuetSlide'
 import CarouselSlide from './CarouselSlide'
 import BottomNav from './BottomNav'
@@ -19,6 +19,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { notificationsUnreadCount } from '@/lib/notifications'
 import { startNetworkMonitor, pickQuality, shouldConserve } from '@/lib/networkQuality'
 import { useFeed } from '@/hooks/useFeed'
+import { useFollowingFeed } from '@/hooks/useFollowingFeed'
 import { useGuestTracking } from '@/hooks/useGuestTracking'
 import { useBackableOverlay } from '@/hooks/useBackableOverlay'
 import { reportBackground, reportDecoderReleaseMs } from '@/lib/perfMetrics'
@@ -76,7 +77,20 @@ const slotPoster = (p) => p && (p.posterUrl || p.sideA?.posterUrl || p.thumbnail
  *  REGLA #2 — la liberación agresiva del decoder vive DENTRO de las tarjetas.
  */
 export default function Feed() {
-  const { posts, ready, loadMore, prependPost, patchAuthorAvatar } = useFeed()
+  // followingMode: false = feed principal (para todos); true = feed
+  // "Siguiendo" (nueva página, solo posts de cuentas que sigues) — se abre
+  // con doble-click en Home (ver BottomNav/handleGoHomeDouble más abajo).
+  // Ambos hooks se llaman SIEMPRE (regla de los hooks de React); solo el
+  // activo según el modo alimenta el resto del componente (posts/ready/
+  // loadMore) — así TODA la lógica de reproducción/ventana DOM/prefetch de
+  // abajo (ya existente) funciona igual en los dos modos sin duplicarla.
+  const [followingMode, setFollowingMode] = useState(false)
+  const homeFeed = useFeed()
+  const followingFeed = useFollowingFeed(followingMode)
+  const activeFeedSource = followingMode ? followingFeed : homeFeed
+  const { posts, ready, loadMore } = activeFeedSource
+  const followingUnauthorized = followingFeed.unauthorized
+  const { prependPost, patchAuthorAvatar, refresh: refreshHomeFeed } = homeFeed
   const { trackVideoView, isGuest } = useGuestTracking()
   const { user } = useAuth()
 
@@ -140,6 +154,9 @@ export default function Feed() {
   useBackableOverlay(battlesOpen || activeChallengesOpen, useCallback(() => { setBattlesOpen(false); setActiveChallengesOpen(false) }, []))
   useBackableOverlay(searchOpen, useCallback(() => setSearchOpen(false), []))
   useBackableOverlay(suggestionsOpen, useCallback(() => setSuggestionsOpen(false), []))
+  // Página "Siguiendo" (nueva, doble-click en Home): el gesto/botón Atrás
+  // también vuelve al feed principal, igual que el resto de páginas overlay.
+  useBackableOverlay(followingMode, useCallback(() => setFollowingMode(false), []))
   useBackableOverlay(challengeOpen, useCallback(() => setChallengeOpen(false), []))
   useBackableOverlay(authOpen, useCallback(() => setAuthOpen(false), []))
 
@@ -457,6 +474,41 @@ export default function Feed() {
     if (el) el.scrollTo({ top: 0, behavior: 'auto' })
   }, [handleUploaded])
 
+  // Reset de scroll compartido por los 2 handlers de Home de abajo — misma
+  // fórmula que handleChallengeAccepted, extraída para no repetirla.
+  const resetScrollTop = useCallback(() => {
+    activeIndexRef.current = 0
+    setActiveIndex(0)
+    const el = containerRef.current
+    if (el) el.scrollTo({ top: 0, behavior: 'auto' })
+  }, [])
+
+  // Home, 1 click (BottomNav): vuelve al feed PRINCIPAL (sale de "Siguiendo"
+  // si estaba activo) Y LO REFRESCA — contenido fresco desde el principio +
+  // scroll arriba (petición del usuario: "al hacer 1 click en el home
+  // actualizar el feed").
+  const handleGoHome = useCallback(() => {
+    setProfileOpen(false)
+    setInboxOpen(false)
+    setBattlesOpen(false)
+    setActiveChallengesOpen(false)
+    setFollowingMode(false)
+    resetScrollTop()
+    refreshHomeFeed()
+  }, [resetScrollTop, refreshHomeFeed])
+
+  // Home, doble click (BottomNav): alterna entre el feed principal y la
+  // nueva página "Siguiendo" (solo publicaciones de las cuentas que sigues).
+  // Doble click otra vez (ya en Siguiendo) vuelve al feed principal.
+  const handleGoHomeDouble = useCallback(() => {
+    setProfileOpen(false)
+    setInboxOpen(false)
+    setBattlesOpen(false)
+    setActiveChallengesOpen(false)
+    setFollowingMode((v) => !v)
+    resetScrollTop()
+  }, [resetScrollTop])
+
   return (
     <div className="feed-container fixed inset-0 bg-black" onPointerDown={muted ? onFirstInteraction : undefined}>
       {/* Buscador de usuarios: lupa fija arriba a la derecha (estilo TikTok). */}
@@ -468,7 +520,36 @@ export default function Feed() {
       >
         <Search size={24} strokeWidth={2.2} />
       </button>
-      {!ready || posts.length === 0 ? (
+      {!ready ? (
+        <div className="w-full h-full flex items-center justify-center">
+          <div className="w-12 h-12 rounded-full border-2 border-white/20 border-t-white animate-spin" />
+        </div>
+      ) : posts.length === 0 && followingMode ? (
+        // Página "Siguiendo" vacía: invitado -> pedir login; con sesión pero
+        // sin publicaciones de cuentas seguidas -> mensaje informativo.
+        <div className="w-full h-full flex flex-col items-center justify-center px-8 text-center gap-3">
+          <div className="w-14 h-14 rounded-full bg-white/5 flex items-center justify-center">
+            <Users size={26} className="text-white/40" />
+          </div>
+          {followingUnauthorized || !user ? (
+            <>
+              <p className="text-white text-[15px] font-semibold">Log in to see who you follow</p>
+              <p className="text-white/50 text-[13px] max-w-xs">Sign in to your account to view posts from people you follow.</p>
+              <button
+                onClick={() => { setAuthTab('login'); setAuthOpen(true) }}
+                className="mt-1 px-5 py-2 rounded-full bg-white text-black text-[13px] font-semibold active:scale-95 transition"
+              >
+                Log in
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="text-white text-[15px] font-semibold">No posts yet</p>
+              <p className="text-white/50 text-[13px] max-w-xs">Follow people to see their posts here.</p>
+            </>
+          )}
+        </div>
+      ) : posts.length === 0 ? (
         <div className="w-full h-full flex items-center justify-center">
           <div className="w-12 h-12 rounded-full border-2 border-white/20 border-t-white animate-spin" />
         </div>
@@ -550,12 +631,8 @@ export default function Feed() {
           onOpenUpload={requestUpload}
           onOpenInbox={requestInbox}
           onOpenProfile={() => { setProfileUsername(null); setProfileOpen(true) }}
-          onGoHome={() => {
-            setProfileOpen(false)
-            setInboxOpen(false)
-            setBattlesOpen(false)
-            setActiveChallengesOpen(false)
-          }}
+          onGoHome={handleGoHome}
+          onGoHomeDouble={handleGoHomeDouble}
           onOpenBattles={requestBattles}
           unreadCount={notificationsUnreadCount}
           challengesCount={pendingCount}

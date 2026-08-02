@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Home, Swords, Plus, Inbox, User } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
@@ -25,7 +25,7 @@ const DefaultAvatar = ({ className = '' }) => (
  * 
  * @param {string} activeTab - Tab activo actual ('home', 'explore', 'messages', 'profile')
  */
-export default function BottomNav({ onOpenUpload, onOpenInbox, onOpenProfile, onGoHome, onOpenBattles, unreadCount = 0, challengesCount = 0, activeTab = 'home' }) {
+export default function BottomNav({ onOpenUpload, onOpenInbox, onOpenProfile, onGoHome, onGoHomeDouble, onOpenBattles, unreadCount = 0, challengesCount = 0, activeTab = 'home' }) {
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [notificationsCount, setNotificationsCount] = useState(0)
   const { user } = useAuth()
@@ -65,6 +65,29 @@ export default function BottomNav({ onOpenUpload, onOpenInbox, onOpenProfile, on
     setNotificationsCount(0) // Reset al abrir
   }
 
+  // Home: 1 click = ir a inicio (y refrescar el feed); doble click = abrir/
+  // cerrar la página "Siguiendo" (petición del usuario). Mismo patrón de
+  // ventana de 280ms que el doble-toque para votar en CarouselSlide.jsx —
+  // el primer click espera esa ventana antes de disparar onGoHome, por si
+  // llega un segundo click a tiempo (en cuyo caso se cancela y se dispara
+  // onGoHomeDouble en su lugar).
+  const homeClickRef = useRef({ count: 0, timer: null })
+  const handleHomeClick = () => {
+    const ref = homeClickRef.current
+    ref.count += 1
+    if (ref.count === 1) {
+      ref.timer = setTimeout(() => {
+        ref.count = 0
+        onGoHome?.()
+      }, 280)
+    } else {
+      clearTimeout(ref.timer)
+      ref.count = 0
+      onGoHomeDouble?.()
+    }
+  }
+  useEffect(() => () => clearTimeout(homeClickRef.current.timer), [])
+
   return (
     <nav
       className="fixed bottom-0 left-0 right-0 z-50 bg-black rounded-t-3xl"
@@ -74,7 +97,7 @@ export default function BottomNav({ onOpenUpload, onOpenInbox, onOpenProfile, on
         {/* Home */}
         <button
           aria-label="Home"
-          onClick={() => { onGoHome?.() }}
+          onClick={handleHomeClick}
           className="flex items-center justify-center w-[38px] h-[38px] transition-all duration-200 active:scale-90"
         >
           <Home

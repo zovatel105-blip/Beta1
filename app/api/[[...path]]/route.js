@@ -526,6 +526,46 @@ export async function GET(request, { params }) {
     }
   }
 
+  // Feed "Siguiendo" (nueva página, doble-click en Home del BottomNav):
+  // SOLO publicaciones de las cuentas que el usuario sigue, en orden
+  // cronológico (sin ranking del recomendador — es un feed explícito, no
+  // personalizado). Exige sesión — un invitado recibe 401 y el frontend le
+  // pide iniciar sesión en su lugar.
+  if (path === '/feed/following') {
+    const currentUser = await getCurrentUser(request)
+    if (!currentUser) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    }
+    const { searchParams } = new URL(request.url)
+    const cursor = parseInt(searchParams.get('cursor') || '0', 10)
+    const limit = Math.min(parseInt(searchParams.get('limit') || '8', 10), 20)
+
+    const followingUsernames = new Set(await getFollowingUsernames(currentUser.id))
+    let candidates = []
+    try {
+      const meta = await readUploadMeta()
+      candidates = (meta || []).filter((p) =>
+        (p.type === 'versus' || p.type === 'duet') && followingUsernames.has(p.author?.username))
+    } catch { /* ignore */ }
+    candidates = await filterBlockedPosts(candidates, currentUser)
+
+    const total = candidates.length
+    let posts = candidates.slice(cursor, cursor + limit)
+
+    posts = await refreshPostAvatars(posts)
+    posts = await refreshPostCommentCounts(posts)
+    // Todos los autores de este feed son, por definición, seguidos.
+    const markFollowing = (a) => (a && a.username ? { ...a, isFollowing: true } : a)
+    posts = posts.map((p) => ({
+      ...p,
+      author: markFollowing(p.author),
+      sideA: p.sideA ? { ...p.sideA, author: markFollowing(p.sideA.author) } : p.sideA,
+      sideB: p.sideB ? { ...p.sideB, author: markFollowing(p.sideB.author) } : p.sideB,
+    }))
+
+    return NextResponse.json({ posts, nextCursor: cursor + limit, hasMore: cursor + limit < total })
+  }
+
   if (path === '/feed') {
     const { searchParams } = new URL(request.url)
     const cursor = parseInt(searchParams.get('cursor') || '0', 10)
