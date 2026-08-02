@@ -105,6 +105,21 @@
 user_problem_statement: "Las publicaciones normales deben ser un carrusel de 2 vídeos (opción A / opción B) entre los que se desliza y se vota tocando el vídeo. Se suben 2 vídeos. Reemplaza el vídeo normal. AÑADIDO: votar = doble toque, quitar el corazón/Me gusta, y nueva función 'Retar' (solicitud de enfrentamiento con un vídeo subido que el retado acepta/cancela en la Bandeja). NUEVO: buscador de usuarios en la esquina superior derecha de la página de inicio (icono de lupa que abre un overlay)."
 
 backend:
+  - task: "APP NATIVA (Android/Compose): botones Seguir y Challenge en 'Sugeridos' deben ser idénticos token por token a los de la web (SuggestedUsersPage.jsx)"
+    implemented: true
+    working: "NA"
+    file: "android-twyk/app/src/main/java/com/twyk/app/ui/SuggestedUsers.kt"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'Los botones seguir y challenge debe ser igual a Los de la web token por token en sugerencias'."
+        -working: "NA"
+        -agent: "main"
+        -comment: "100% Kotlin nativo (ui/SuggestedUsers.kt, `SuggestedRow`). Comparado clase-por-clase Tailwind vs Compose contra SuggestedUsersPage.jsx, se encontraron 4 tokens que no coincidían: (1) botón Challenge SIN borde (web: `border border-white/15`, el nativo no tenía ningún `.border(...)`) — AÑADIDO. (2) padding horizontal del botón Challenge 10dp vs `px-3`=12dp de la web — CORREGIDO a 12dp. (3) icono Swords del botón Challenge 12dp vs `size={13}` de la web — CORREGIDO a 13dp. (4) separación entre el bloque de perfil y los botones 8dp vs `gap-2.5`=10dp de la web — CORREGIDO a 10dp. Además, ambos botones (Seguir/Challenge) en la web tienen `active:scale-95 transition` (pulsación con encogido) y el botón Seguir tiene `disabled:opacity-60` mientras se procesa — NINGUNO de los dos existía en el nativo (solo deshabilitaba el toque, sin atenuar ni animar) — AÑADIDOS ambos vía `MutableInteractionSource`+`collectIsPressedAsState()`+`animateFloatAsState` (escala) y `Modifier.alpha()` (opacidad durante `busy`), con `indication = null` para no mezclar el ripple de Material con la animación de escala (la web tampoco tiene ripple). El resto de tokens ya coincidían exactamente (tamaño 32dp/rounded-full, colores bg-white/bg-white-6%, iconos UserRoundPlus/UserRoundCheck/Swords ya usaban los SVG exactos de lucide-react, fontSize 11.5sp/font-semibold, gap-1.5=6dp entre ambos botones). NO se invocó agente de testing (a petición explícita y repetida del usuario en esta sesión: cambios 100% Kotlin nativo, no compilables/verificables en este entorno sin Android SDK). Pendiente: el usuario debe compilar el APK y comparar visualmente 'Sugeridos' contra la web."
+
   - task: "APP NATIVA (Android/Compose): en Batallas > Completados, el aviso 'Swipe to compare - double-tap to vote' quedaba demasiado pegado/detrás de la barra 'Completed | Active'"
     implemented: true
     working: "NA"

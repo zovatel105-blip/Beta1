@@ -1,8 +1,11 @@
 package com.twyk.app.ui
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,7 +39,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.vectorResource
@@ -192,19 +197,28 @@ private fun SuggestedRow(
                 }
             }
         }
-        Spacer(Modifier.width(8.dp))
+        Spacer(Modifier.width(10.dp))
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            // Botón Seguir — MISMO icono que la web (UserRoundPlus/
-            // UserRoundCheck de lucide-react, réplica exacta vía
-            // ic_user_round_plus.xml/ic_user_round_check.xml, antes usaba los
-            // iconos de Material Icons PersonAddAlt/Check, distintos a la web).
+            // Botón Seguir — réplica token por token del botón de
+            // SuggestedUsersPage.jsx (web): `w-8 h-8 rounded-full` (32dp),
+            // `bg-white text-black` sin seguir / `bg-white/[0.06] border
+            // border-white/15 text-white` siguiendo, `disabled:opacity-60`
+            // mientras se procesa (antes SOLO deshabilitaba el toque, sin
+            // atenuar visualmente) y `active:scale-95` al pulsar (antes sin
+            // ninguna animación de pulsación).
+            val followInteraction = remember { MutableInteractionSource() }
+            val followPressed by followInteraction.collectIsPressedAsState()
+            val followScale by animateFloatAsState(if (followPressed) 0.95f else 1f, label = "followScale")
             Box(
-                Modifier.size(32.dp).clip(CircleShape)
+                Modifier
+                    .scale(followScale)
+                    .alpha(if (busy) 0.6f else 1f)
+                    .size(32.dp).clip(CircleShape)
                     .background(if (u.isFollowing) Color.White.copy(alpha = 0.06f) else Color.White)
                     .then(
                         if (u.isFollowing) Modifier.border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape) else Modifier,
                     )
-                    .clickable(enabled = !busy) { onFollow() },
+                    .clickable(enabled = !busy, interactionSource = followInteraction, indication = null) { onFollow() },
                 contentAlignment = Alignment.Center,
             ) {
                 when {
@@ -213,15 +227,26 @@ private fun SuggestedRow(
                     else -> Icon(ImageVector.vectorResource(R.drawable.ic_user_round_plus), null, tint = Color.Black, modifier = Modifier.size(14.dp))
                 }
             }
+            // Botón Challenge — réplica token por token: `h-8 px-3
+            // rounded-full ... bg-transparent border border-white/15
+            // text-white` (antes SIN el borde, un token que faltaba por
+            // completo) y `gap-1` (4dp) entre el icono (Swords size=13) y el
+            // texto; `active:scale-95` igual que el botón Seguir.
+            val challengeInteraction = remember { MutableInteractionSource() }
+            val challengePressed by challengeInteraction.collectIsPressedAsState()
+            val challengeScale by animateFloatAsState(if (challengePressed) 0.95f else 1f, label = "challengeScale")
             Row(
-                Modifier.height(32.dp).clip(RoundedCornerShape(50))
+                Modifier
+                    .scale(challengeScale)
+                    .height(32.dp).clip(RoundedCornerShape(50))
                     .background(Color.Transparent)
-                    .clickable { onChallenge() }
-                    .padding(horizontal = 10.dp),
+                    .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(50))
+                    .clickable(interactionSource = challengeInteraction, indication = null) { onChallenge() }
+                    .padding(horizontal = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                Icon(ImageVector.vectorResource(R.drawable.ic_swords), null, tint = Color.White, modifier = Modifier.size(12.dp))
+                Icon(ImageVector.vectorResource(R.drawable.ic_swords), null, tint = Color.White, modifier = Modifier.size(13.dp))
                 Text("Challenge", color = Color.White, fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold)
             }
         }
