@@ -21,7 +21,7 @@ import time
 import sys
 
 # Base URL from .env
-BASE_URL = "https://social-interact-5.preview.emergentagent.com/api"
+BASE_URL = "https://sync-followed-users.preview.emergentagent.com/api"
 
 def create_dummy_video():
     """Create a minimal dummy video file for testing"""

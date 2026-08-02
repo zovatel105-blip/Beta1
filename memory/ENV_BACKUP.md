@@ -16,8 +16,8 @@ scripts/seed-core-users.mjs y memory/test_credentials.md).
 ```
 MONGO_URL=mongodb://localhost:27017/twyk
 ADMIN_EMAILS=twyk.apk@gmail.com
-NEXT_PUBLIC_BASE_URL=https://social-interact-5.preview.emergentagent.com
-CORS_ORIGINS=https://social-interact-5.preview.emergentagent.com
+NEXT_PUBLIC_BASE_URL=https://sync-followed-users.preview.emergentagent.com
+CORS_ORIGINS=https://sync-followed-users.preview.emergentagent.com
 ```
 
 NOTA: si la URL de preview cambia (nuevo dominio *.preview.emergentagent.com),
@@ -25,7 +25,7 @@ actualizar NEXT_PUBLIC_BASE_URL y CORS_ORIGINS con el valor de la variable de
 entorno APP_URL definida en /etc/supervisor/conf.d/*.conf (bloque [program:nextjs]).
 
 ## Última URL usada (actualizada automáticamente al restaurar)
-NEXT_PUBLIC_BASE_URL=https://504885d7-d05a-4efd-bdbc-ef37ba023532.preview.emergentagent.com
+NEXT_PUBLIC_BASE_URL=https://sync-followed-users.preview.emergentagent.com
 
 ## IMPORTANTE: también actualizar la app nativa Android
 Cuando la URL de preview cambia, además de /app/.env también hay que
