@@ -66,7 +66,7 @@ import {
   getAllBuiltinVotes,
   incrementBuiltinVote,
 } from '@/lib/stores'
-import { rankFeed, recordVote, recordImpressions, recordWatch, computeMetrics } from '@/lib/recommender'
+import { rankFeed, recordVote, recordImpressions, recordWatch, recordEngagement, recordSocialAffinity, computeMetrics } from '@/lib/recommender'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -593,7 +593,13 @@ export async function GET(request, { params }) {
     const totalCandidates = candidates.length
 
     // ── Ranking con TWYK Engine (multi-señal + BPR + re-ranking multi-objetivo).
-    const ctx = { hour: new Date().getHours() }
+    // Los autores seguidos se cargan ANTES del ranking: dan boost social en el
+    // Para Ti y se reutilizan después para anotar isFollowing (1 sola consulta).
+    let followingSet = new Set()
+    if (currentUser) {
+      try { followingSet = new Set(await getFollowingUsernames(currentUser.id)) } catch { /* ignore */ }
+    }
+    const ctx = { hour: new Date().getHours(), following: followingSet }
     const { items } = await rankFeed(candidates, { viewerKey, context: ctx, limit, cursor })
     let posts = items.filter(Boolean).map((it) => it.post)
 
@@ -615,11 +621,10 @@ export async function GET(request, { params }) {
     // creación del post (normalmente 0) en vez del número actual.
     posts = await refreshPostCommentCounts(posts)
 
-    // Anota el estado isFollowing de cada autor para el usuario logueado (UNA
-    // sola consulta). Así el botón "Following" del feed persiste tras recargar.
+    // Anota el estado isFollowing de cada autor para el usuario logueado,
+    // reutilizando el followingSet ya cargado antes del ranking.
     if (currentUser) {
       try {
-        const followingSet = new Set(await getFollowingUsernames(currentUser.id))
         const annotate = (a) => (a && a.username ? { ...a, isFollowing: followingSet.has(a.username) } : a)
         posts = posts.map((p) => ({
           ...p,
@@ -1045,6 +1050,12 @@ export async function POST(request, { params }) {
     return handleSavePost(request)
   }
 
+  // POST /api/share - Registrar un compartido (señal fuerte del TWYK Engine).
+  // Fire-and-forget desde el botón de compartir (web y APK): nunca bloquea la UI.
+  if (path === '/share') {
+    return handleShare(request)
+  }
+
   // POST /api/auth/register - Registrar nuevo usuario
   if (path === '/auth/register') {
     return handleRegister(request)
@@ -1230,6 +1241,9 @@ async function handleFollow(username, request) {
       return NextResponse.json({ error: 'cannot_follow_yourself' }, { status: 400 })
     }
     const result = await toggleFollowByUsername(currentUser.id, targetUsername)
+    // TWYK Engine: seguir es la señal de afinidad más explícita → sube fuerte
+    // al creador en el perfil del viewer (sus batallas suben en el Para Ti).
+    recordSocialAffinity(`u:${currentUser.id}`, targetUsername, result.following ? 'follow' : 'unfollow').catch(() => {})
     // La notificación de 'follow' la crea toggleFollowByUsername (db.js) al
     // empezar a seguir; no la dupliquemos aquí.
     return NextResponse.json({ ok: true, ...result })
@@ -1808,6 +1822,9 @@ async function handleCreateChallenge(request) {
       createdAt: new Date().toISOString(),
     }
     await insertChallenge(challenge)
+    // TWYK Engine: retar a alguien (botón Challenge) es afinidad social máxima
+    // hacia ese creador (+2.5 en el perfil del retador).
+    recordSocialAffinity(`u:${currentUser.id}`, targetAuthor?.username, 'challenge').catch(() => {})
 
     // Notificar al usuario retado.
     try {
@@ -2210,6 +2227,13 @@ async function handleCreateComment(request) {
       replyToId,
     })
 
+    // TWYK Engine: comentar es señal de engagement (+0.8 en Q/oleadas) + afinidad.
+    try {
+      const metaEng = await readUploadMeta()
+      const pEng = metaEng.find((x) => x.id === postId)
+      if (pEng) recordEngagement(pEng, 'comment', `u:${currentUser.id}`).catch(() => {})
+    } catch { /* ignore */ }
+
     if (safeParentId && parentComment) {
       // RESPUESTA a un comentario: notifica al AUTOR del comentario padre
       // (no al dueño del post, salvo que sea la misma persona).
@@ -2306,6 +2330,30 @@ async function handleLikeComment(request) {
 }
 
 // POST /api/save - Guardar/quitar de guardados
+// POST /api/share - Registra que el viewer compartió un post. Suma al contador
+// visible (stats.shares) y alimenta el TWYK Engine (la señal positiva más
+// difícil de fingir: peso 1.5 en calidad Q y promoción de oleadas).
+async function handleShare(request) {
+  try {
+    const body = await request.json().catch(() => null)
+    const id = body?.id
+    if (!id) return NextResponse.json({ error: 'missing_id' }, { status: 400 })
+    const currentUser = await getCurrentUser(request)
+    const gid = request.cookies.get('twyk_gid')?.value
+    const viewerKey = currentUser?.id ? `u:${currentUser.id}` : (gid ? `g:${gid}` : null)
+    const meta = await readUploadMeta()
+    const post = meta.find((x) => x.id === id)
+    if (post) {
+      updatePost(id, { 'stats.shares': (post.stats?.shares || 0) + 1 }).catch(() => {})
+      recordEngagement(post, 'share', viewerKey).catch(() => {})
+    }
+    return NextResponse.json({ ok: true })
+  } catch {
+    // Fire-and-forget: registrar el share nunca debe romper la UI de compartir.
+    return NextResponse.json({ ok: true })
+  }
+}
+
 async function handleSavePost(request) {
   try {
     const currentUser = await getCurrentUser(request)
@@ -2321,6 +2369,12 @@ async function handleSavePost(request) {
     }
 
     const result = await toggleSaveDB(postId, currentUser.id)
+    // TWYK Engine: guardar es señal de calidad (+1.2 en oleadas/Q) + afinidad.
+    try {
+      const meta = await readUploadMeta()
+      const post = meta.find((x) => x.id === postId)
+      if (post) recordEngagement(post, result.saved ? 'save' : 'unsave', `u:${currentUser.id}`).catch(() => {})
+    } catch { /* ignore */ }
     return NextResponse.json({ ok: true, ...result })
   } catch (err) {
     console.error('save post error', err)

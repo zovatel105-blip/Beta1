@@ -76,6 +76,10 @@ data class FeedResponse(
 // body { id, side, previousSide } que ya envía CarouselSlide.jsx/DuetSlide.jsx.
 data class VoteRequest(val id: String, val side: String, val previousSide: String? = null)
 
+// TWYK Engine: registrar un compartido (señal fuerte del algoritmo del feed).
+data class ShareRequest(val id: String)
+data class ShareResponse(val ok: Boolean? = null)
+
 data class VoteResponse(val votes: Votes? = null)
 
 // ── Usuario / sesión ──────────────────────────────────────────────────────────

@@ -111,6 +111,7 @@ import com.twyk.app.data.PostEvents
 import com.twyk.app.data.RegisterRequest
 import com.twyk.app.data.RetrofitProvider
 import com.twyk.app.data.SaveInterestsRequest
+import com.twyk.app.data.ShareRequest
 import com.twyk.app.data.Session
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -127,6 +128,10 @@ fun sharePost(context: Context, post: Post) {
         putExtra(Intent.EXTRA_TEXT, text)
     }
     context.startActivity(Intent.createChooser(intent, "Share"))
+    // TWYK Engine: registra el share en el backend (fire-and-forget).
+    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+        runCatching { RetrofitProvider.api.share(ShareRequest(post.id)) }
+    }
 }
 
 // ── Hoja de COMPARTIR — réplica EXACTA de ShareModal.jsx: hoja BLANCA (no
@@ -194,21 +199,21 @@ fun ShareSheet(postId: String, onClose: () -> Unit) {
                 Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 24.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                ShareOptionIcon("Send to", Icons.Filled.Send, zinc100, zinc700) { sendTo(); scope.launch { PostEvents.emitShared(postId) }; onClose() }
+                ShareOptionIcon("Send to", Icons.Filled.Send, zinc100, zinc700) { sendTo(); scope.launch { PostEvents.emitShared(postId); runCatching { RetrofitProvider.api.share(ShareRequest(postId)) } }; onClose() }
                 ShareOptionIcon(
                     if (copied) "Copied" else "Copy link",
                     if (copied) Icons.Filled.Check else Icons.Filled.Link,
                     zinc100, if (copied) green600 else zinc700,
-                ) { copyLink(); scope.launch { PostEvents.emitShared(postId) } }
+                ) { copyLink(); scope.launch { PostEvents.emitShared(postId); runCatching { RetrofitProvider.api.share(ShareRequest(postId)) } } }
                 ShareOptionIcon(
                     "Instagram", ImageVector.vectorResource(R.drawable.ic_instagram), null, Color.White,
                     gradient = Brush.linearGradient(listOf(Color(0xFFFACC15), Color(0xFFEC4899), Color(0xFF9333EA))),
-                ) { openUrl("https://www.instagram.com/"); scope.launch { PostEvents.emitShared(postId) }; onClose() }
+                ) { openUrl("https://www.instagram.com/"); scope.launch { PostEvents.emitShared(postId); runCatching { RetrofitProvider.api.share(ShareRequest(postId)) } }; onClose() }
                 ShareOptionIcon("WhatsApp", ImageVector.vectorResource(R.drawable.ic_whatsapp), Color(0xFF25D366), Color.White) {
-                    openUrl("https://wa.me/?text=" + Uri.encode(shareUrl)); scope.launch { PostEvents.emitShared(postId) }; onClose()
+                    openUrl("https://wa.me/?text=" + Uri.encode(shareUrl)); scope.launch { PostEvents.emitShared(postId); runCatching { RetrofitProvider.api.share(ShareRequest(postId)) } }; onClose()
                 }
                 ShareOptionIcon("X", ImageVector.vectorResource(R.drawable.ic_x_logo), Color.Black, Color.White) {
-                    openUrl("https://twitter.com/intent/tweet?url=" + Uri.encode(shareUrl)); scope.launch { PostEvents.emitShared(postId) }; onClose()
+                    openUrl("https://twitter.com/intent/tweet?url=" + Uri.encode(shareUrl)); scope.launch { PostEvents.emitShared(postId); runCatching { RetrofitProvider.api.share(ShareRequest(postId)) } }; onClose()
                 }
             }
         }

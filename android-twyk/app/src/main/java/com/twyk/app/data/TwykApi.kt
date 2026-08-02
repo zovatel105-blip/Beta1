@@ -46,6 +46,10 @@ interface TwykApi {
     @POST("api/save")
     suspend fun save(@Body body: SaveRequest): SaveResponse
 
+    // TWYK Engine: registra un compartido (fire-and-forget, alimenta el feed).
+    @POST("api/share")
+    suspend fun share(@Body body: ShareRequest): ShareResponse
+
     @POST("api/auth/login")
     suspend fun login(@Body body: LoginRequest): AuthResponse
 

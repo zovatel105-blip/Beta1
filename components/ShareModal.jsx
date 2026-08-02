@@ -28,17 +28,31 @@ export default function ShareModal({ open, postId, onClose, onShared }) {
 
   const shareUrl = typeof window !== 'undefined' ? `${window.location.origin}/?post=${postId}` : ''
 
+  // TWYK Engine: registra el compartido (señal fuerte del algoritmo del feed).
+  // Fire-and-forget: nunca bloquea ni rompe la UI de compartir.
+  const trackShare = () => {
+    try {
+      fetch('/api/share', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: postId }),
+        credentials: 'include',
+      }).catch(() => {})
+    } catch { /* noop */ }
+  }
+
   const copyLink = async () => {
     try {
       await navigator.clipboard.writeText(shareUrl)
       setCopied(true)
       setTimeout(() => setCopied(false), 1800)
+      trackShare()
     } catch { /* noop */ }
   }
-  const openUrl = (url) => { try { window.open(url, '_blank', 'noopener') } catch { /* noop */ } }
+  const openUrl = (url) => { try { trackShare(); window.open(url, '_blank', 'noopener') } catch { /* noop */ } }
   const sendTo = async () => {
     if (typeof navigator !== 'undefined' && navigator.share) {
-      try { await navigator.share({ url: shareUrl }) } catch { /* noop */ }
+      try { await navigator.share({ url: shareUrl }); trackShare() } catch { /* noop */ }
     } else {
       copyLink()
     }
