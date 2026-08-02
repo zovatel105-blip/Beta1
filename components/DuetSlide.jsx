@@ -833,22 +833,18 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
         <button aria-label="mas-opciones" onClick={(e) => { e.stopPropagation(); setMenuOpen(true) }} className="flex flex-col items-center hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
           <MoreVertical className="w-[18px] h-[18px] text-white" strokeWidth={1.25} fill="currentColor" />
         </button>
-        {/* Disco de música (estilo TikTok) — ahora con aspecto de VINILO REAL:
-            surcos concéntricos + agujero central, y GIRA mientras se
-            reproduce audio/música (se detiene, sin resetear el ángulo, en
-            pausa) — reemplaza el disco fijo anterior. Las ondas circulares
-            ritmo real del audio. Si no hay canción, la portada es el propio
-            vídeo (el lado que suena). */}
+        {/* Disco de música (estilo TikTok) — círculo NORMAL completo (sin
+            agujero ni surcos de vinilo, a petición del usuario: "el
+            reproductor debe ser normal, no un disco de vinilo, un círculo
+            completo"). Sigue GIRANDO mientras se reproduce audio/música (se
+            detiene, sin resetear el ángulo, en pausa). Si no hay canción, la
+            portada es el propio vídeo (el lado que suena). */}
         <div className="relative mt-1 w-10 h-10 shrink-0">
           <div
             aria-label="music"
             title={hasMusic ? [post.musicTitle, post.musicArtist].filter(Boolean).join(' · ') : undefined}
             className="vinyl-spin relative w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-zinc-700 to-black flex items-center justify-center"
-            style={{
-              animationPlayState: isAudioPlaying ? 'running' : 'paused',
-              WebkitMaskImage: 'radial-gradient(circle at center, transparent 0px, transparent 2px, black 3px, black 100%)',
-              maskImage: 'radial-gradient(circle at center, transparent 0px, transparent 2px, black 3px, black 100%)',
-            }}
+            style={{ animationPlayState: isAudioPlaying ? 'running' : 'paused' }}
           >
             {hasMusic ? (
               post.musicArtwork ? (
@@ -861,18 +857,8 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
             ) : (
               <Avatar src={headAuthor.avatarUrl} alt="" className="w-6 h-6 rounded-full" />
             )}
-            {/* Surcos de vinilo — superpuestos sobre la portada (no la
-                reemplazan), réplica del relieve concéntrico de un disco real. */}
-            <div
-              className="absolute inset-0 rounded-full pointer-events-none"
-              style={{ background: 'repeating-radial-gradient(circle at center, transparent 0px, transparent 2.6px, rgba(0,0,0,0.32) 2.6px, rgba(0,0,0,0.32) 3.2px)' }}
-            />
-            {/* Viñeta interior sutil para dar profundidad al disco */}
+            {/* Viñeta interior sutil para dar profundidad al círculo */}
             <div className="absolute inset-0 rounded-full pointer-events-none" style={{ boxShadow: 'inset 0 0 5px 1px rgba(0,0,0,0.55)' }} />
-            {/* Agujero/eje central — TRANSPARENTE (vía mask-image en el
-                contenedor de arriba) para que se vea el contenido real
-                (vídeo/imagen) detrás del disco, sin ningún aro/borde
-                decorativo alrededor del agujero. */}
           </div>
         </div>
       </div>

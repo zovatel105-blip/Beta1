@@ -16,7 +16,6 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.keyframes
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -95,7 +94,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -1610,8 +1608,6 @@ private fun MusicDisc(
     // `active` es true, y se CONGELA en el ángulo EXACTO donde estaba al
     // pausar (nunca vuelve a 0°) — réplica exacta de
     // animationPlayState:'running'/'paused' en CarouselSlide.jsx/DuetSlide.jsx.
-    // Sustituye por completo el "pulso" sintético de escala que tenía antes
-    // el nativo (0↔1.14, latido de ecualizer) — ESO no existe en la web.
     var angle by remember { mutableStateOf(0f) }
     LaunchedEffect(active) {
         if (active) {
@@ -1624,23 +1620,18 @@ private fun MusicDisc(
             }
         }
     }
+    // Círculo NORMAL completo — a petición del usuario ("el reproductor debe
+    // ser normal, no un disco de vinilo, un círculo completo") se quitó el
+    // agujero central (antes recortado con drawCircle+DstOut) y los surcos
+    // de vinilo (antes un Canvas con anillos concéntricos), réplica exacta
+    // del mismo cambio en CarouselSlide.jsx/DuetSlide.jsx. Sigue girando
+    // igual, solo cambia el aspecto.
     Box(
         Modifier
             .size(40.dp)
-            .graphicsLayer(rotationZ = angle, compositingStrategy = CompositingStrategy.Offscreen)
+            .graphicsLayer(rotationZ = angle)
             .clip(CircleShape)
-            .background(Brush.linearGradient(listOf(Color(0xFF3F3F46), Color.Black)))
-            // Agujero/eje central — TRANSPARENTE de verdad (réplica exacta del
-            // mask-image: radial-gradient(...) del contenedor .vinyl-spin en
-            // la web): recorta un agujero real a través de TODAS las capas de
-            // este disco (portada, surcos, viñeta, fondo), dejando ver el
-            // contenido real detrás — SIN ningún aro/borde decorativo
-            // alrededor (quitado también de la web por petición del usuario).
-            // NO lleva ya el borde blanco exterior de 1dp (quitado en la web).
-            .drawWithContent {
-                drawContent()
-                drawCircle(color = Color.Black, radius = 2.dp.toPx(), center = center, blendMode = BlendMode.DstOut)
-            },
+            .background(Brush.linearGradient(listOf(Color(0xFF3F3F46), Color.Black))),
         contentAlignment = Alignment.Center,
     ) {
         // Portada: MISMA prioridad exacta que hasMusic/musicArtwork/cover en
@@ -1662,19 +1653,7 @@ private fun MusicDisc(
             )
             else -> TwykAvatar(avatarUrl, 24.dp)
         }
-        // Surcos de vinilo — superpuestos sobre la portada (no la
-        // reemplazan), réplica del repeating-radial-gradient de la web
-        // (anillos cada ~3.2px, negro semitransparente 0.32 alpha).
-        Canvas(Modifier.matchParentSize()) {
-            val step = 3.2.dp.toPx()
-            val band = 0.6.dp.toPx()
-            var r = step
-            while (r < size.minDimension / 2f) {
-                drawCircle(color = Color.Black.copy(alpha = 0.32f), radius = r, style = Stroke(width = band))
-                r += step
-            }
-        }
-        // Viñeta interior sutil para dar profundidad al disco — réplica del
+        // Viñeta interior sutil para dar profundidad al círculo — réplica del
         // inset box-shadow de la web.
         Box(
             Modifier
