@@ -1468,12 +1468,12 @@ private fun BoxScope.SocialRail(
         // CarouselSlide.jsx/DuetSlide.jsx. Before, the native app always
         // showed this button even on your own posts.
         if (!hideChallenge && headAuthorUsername != Session.user?.username) {
-            RailItem(ImageVector.vectorResource(R.drawable.ic_swords), label(challengeCount, "Challenge"), Color.White, size = 30) {
+            RailItem(ImageVector.vectorResource(R.drawable.ic_swords), label(challengeCount, "Be 1st"), Color.White, size = 30) {
                 if (Session.token == null) onRequireAuth() else onChallengeClick()
             }
         }
         // Comment (round bubble, same as the web)
-        RailItem(ImageVector.vectorResource(R.drawable.ic_comment), label(commentCount, "Comment"), Color.White, size = 30) { onComments() }
+        RailItem(ImageVector.vectorResource(R.drawable.ic_comment), label(commentCount, "Add 1st"), Color.White, size = 30) { onComments() }
         // Share (TikTok-style arrow) — abre la hoja de opciones (Send to/Copy
         // link/Instagram/WhatsApp/X), igual que ShareModal.jsx en la web. Se
         // pide vía el singleton FeedOverlays (ver data/FeedOverlays.kt) para
