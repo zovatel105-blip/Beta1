@@ -92,7 +92,6 @@ export default function SuggestedUsersPage({ open, onClose, onOpenProfile, onCha
         </button>
         <div className="min-w-0">
           <h1 className="text-white text-[17px] font-bold leading-tight">Suggested for you</h1>
-          <p className="text-white/45 text-[12px] leading-tight">People you may know</p>
         </div>
       </div>
 

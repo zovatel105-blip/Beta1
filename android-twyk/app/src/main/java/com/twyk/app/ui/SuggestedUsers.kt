@@ -1,6 +1,7 @@
 package com.twyk.app.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,7 +23,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.PersonAddAlt
 import androidx.compose.material.icons.outlined.People
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -108,10 +108,9 @@ fun SuggestedUsersScreen(
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, "close", tint = Color.White.copy(alpha = 0.85f), modifier = Modifier.size(20.dp))
                 }
                 Spacer(Modifier.width(6.dp))
-                Column {
-                    Text("Suggested for you", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
-                    Text("People you may know", color = Color.White.copy(alpha = 0.45f), fontSize = 12.sp)
-                }
+                // Solo el título — se quita la descripción "People you may
+                // know" del header (petición del usuario).
+                Text("Suggested for you", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
             }
 
             when {
@@ -195,16 +194,23 @@ private fun SuggestedRow(
         }
         Spacer(Modifier.width(8.dp))
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            // Botón Seguir — MISMO icono que la web (UserRoundPlus/
+            // UserRoundCheck de lucide-react, réplica exacta vía
+            // ic_user_round_plus.xml/ic_user_round_check.xml, antes usaba los
+            // iconos de Material Icons PersonAddAlt/Check, distintos a la web).
             Box(
                 Modifier.size(32.dp).clip(CircleShape)
                     .background(if (u.isFollowing) Color.White.copy(alpha = 0.06f) else Color.White)
+                    .then(
+                        if (u.isFollowing) Modifier.border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape) else Modifier,
+                    )
                     .clickable(enabled = !busy) { onFollow() },
                 contentAlignment = Alignment.Center,
             ) {
                 when {
                     busy -> CircularProgressIndicator(color = if (u.isFollowing) Color.White else Color.Black, strokeWidth = 1.5.dp, modifier = Modifier.size(13.dp))
-                    u.isFollowing -> Icon(Icons.Filled.Check, null, tint = Color.White, modifier = Modifier.size(14.dp))
-                    else -> Icon(Icons.Filled.PersonAddAlt, null, tint = Color.Black, modifier = Modifier.size(14.dp))
+                    u.isFollowing -> Icon(ImageVector.vectorResource(R.drawable.ic_user_round_check), null, tint = Color.White, modifier = Modifier.size(14.dp))
+                    else -> Icon(ImageVector.vectorResource(R.drawable.ic_user_round_plus), null, tint = Color.Black, modifier = Modifier.size(14.dp))
                 }
             }
             Row(
