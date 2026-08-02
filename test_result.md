@@ -105,6 +105,21 @@
 user_problem_statement: "Las publicaciones normales deben ser un carrusel de 2 vídeos (opción A / opción B) entre los que se desliza y se vota tocando el vídeo. Se suben 2 vídeos. Reemplaza el vídeo normal. AÑADIDO: votar = doble toque, quitar el corazón/Me gusta, y nueva función 'Retar' (solicitud de enfrentamiento con un vídeo subido que el retado acepta/cancela en la Bandeja). NUEVO: buscador de usuarios en la esquina superior derecha de la página de inicio (icono de lupa que abre un overlay)."
 
 backend:
+  - task: "APP NATIVA (Android/Compose): aplicar a la app nativa lo que ya tiene la web — página 'Siguiendo' (doble-click en Home) y 'click para actualizar' (1 click en Home refresca el feed)"
+    implemented: true
+    working: "NA"
+    file: "android-twyk/app/src/main/java/com/twyk/app/data/TwykApi.kt, android-twyk/app/src/main/java/com/twyk/app/feed/FeedViewModel.kt, android-twyk/app/src/main/java/com/twyk/app/feed/FollowingFeed.kt, android-twyk/app/src/main/java/com/twyk/app/MainActivity.kt"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'Aplica en la apk lo que tiene la web la pagina de seguidos y click para actualizar'."
+        -working: "NA"
+        -agent: "main"
+        -comment: "100% Kotlin nativo (android-twyk/), NO COMPILABLE en este contenedor (sin Android SDK) — el usuario debe compilar el APK en Android Studio. Réplica exacta de 2 mecanismos ya existentes en la web (Feed.jsx/BottomNav.jsx/hooks/useFollowingFeed.js) que la app nativa NO tenía: (1) PÁGINA 'SIGUIENDO': nuevo endpoint Retrofit `feedFollowing()` (TwykApi.kt) -> GET /api/feed/following (backend ya existía, sin cambios en route.js/web); nuevo `FollowingFeedViewModel` (feed/FollowingFeed.kt, réplica de useFollowingFeed.js: posts/ready/unauthorized como StateFlow, loadInitial/loadMore, captura HttpException 401 con Retrofit) instanciado de forma perezosa vía `viewModel()` SOLO cuando se monta `FollowingFeedScreen` (paridad con el `enabled`+`startedRef` del hook web: no repite la carga al alternar); `FollowingFeedScreen` reutiliza el MISMO `FeedPager` ya existente (mismo reproductor ExoPlayer/doble-toque para votar/comentarios/retar) y replica los 2 estados vacíos de Feed.jsx (invitado/401 -> botón 'Log in' que abre AuthSheet; con sesión sin publicaciones de cuentas seguidas -> mensaje informativo). (2) 'CLICK PARA ACTUALIZAR': nuevo `refresh()` en FeedViewModel (limpia el set de dedupe y repite loadInitial(), réplica exacta de refresh() en useFeed.js). (3) MainActivity.kt: `FeedViewModel` ahora se instancia a nivel de `TwykApp()` (no dentro de VersusFeed) para poder llamar `feedViewModel.refresh()` desde fuera; nuevo estado `followingMode`; `TwykBottomNav` ahora distingue 1 click vs doble click en el botón Home con una ventana de 280ms (mismo patrón ya usado en la web para el doble-toque de votar) — 1 click -> `handleGoHome` (sale de Siguiendo, refresca el feed principal, `feedReloadKey++` para remontar y resetear el scroll a la primera tarjeta, mismo mecanismo ya usado por Upload/onDone); doble click -> `handleGoHomeDouble` (alterna followingMode, mismo reset de scroll). La rama `Tab.Home` ahora renderiza `FollowingFeedScreen` o `VersusFeed` según `followingMode`. Verificado SOLO por revisión manual del código (sin agente de testing, a petición explícita del usuario: cambio 100% Kotlin nativo fuera del alcance de los agentes de testing disponibles, que solo cubren el backend/frontend Next.js compartido). Pendiente: el usuario debe compilar el APK y confirmar (a) doble-click en Home abre/cierra la página Siguiendo con posts solo de cuentas seguidas (o el estado vacío correcto); (b) 1 click en Home, estando en cualquier pestaña o en Siguiendo, vuelve al feed principal YA actualizado con scroll arriba."
+
   - task: "APP NATIVA (Android/Compose): 3 bugs de audio que sigue sonando cuando no debería (perfil ajeno, pausa manual con música adjunta, VSContentCard tras cerrar la app)"
     implemented: true
     working: "NA"

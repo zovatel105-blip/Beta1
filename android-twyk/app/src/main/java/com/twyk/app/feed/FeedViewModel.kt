@@ -52,9 +52,22 @@ class FeedViewModel : ViewModel() {
             val page = runCatching { api.feed(0) }.getOrNull()
             cursor = page?.nextCursor ?: 0
             hasMore = page?.hasMore != false
+            // Réplica de `seenRef.current = new Set()` en useFeed.js: tanto la
+            // carga inicial como refresh() sustituyen el feed ENTERO desde el
+            // principio, así que el set de "vistos" también debe reiniciarse
+            // (si no, un refresh() posterior a la carga inicial no volvería a
+            // añadir los mismos ids y el feed quedaría vacío).
+            seen.clear()
             val merged = (uploads + (page?.posts ?: emptyList())).filter { seen.add(it.id) }
             _posts.value = merged
         }
+    }
+
+    // Refresco explícito (1 click en Home, ver MainActivity.kt/handleGoHome):
+    // re-descarga desde el principio y SUSTITUYE el feed entero (no acumula)
+    // — réplica exacta de `refresh()` en hooks/useFeed.js (web).
+    fun refresh() {
+        loadInitial()
     }
 
     fun loadMore() {

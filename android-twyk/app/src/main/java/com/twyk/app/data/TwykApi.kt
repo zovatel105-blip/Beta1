@@ -22,6 +22,15 @@ interface TwykApi {
     @GET("api/feed")
     suspend fun feed(@Query("cursor") cursor: Int, @Query("limit") limit: Int = 8): FeedResponse
 
+    // Feed "Siguiendo" (nueva página, doble-click en Home del BottomNav,
+    // ver MainActivity.kt/FollowingFeed.kt) — SOLO publicaciones de las
+    // cuentas que el usuario sigue. Réplica exacta de GET /api/feed/following
+    // (route.js) usada por hooks/useFollowingFeed.js en la web. Exige sesión:
+    // sin token, el backend responde 401 (Retrofit lo lanza como
+    // HttpException, capturado en FollowingFeedViewModel).
+    @GET("api/feed/following")
+    suspend fun feedFollowing(@Query("cursor") cursor: Int, @Query("limit") limit: Int = 8): FeedResponse
+
     @POST("api/vote")
     suspend fun vote(@Body body: VoteRequest): VoteResponse
 

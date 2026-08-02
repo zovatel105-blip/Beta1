@@ -39,6 +39,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,7 +56,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.twyk.app.feed.FeedViewModel
+import com.twyk.app.feed.FollowingFeedScreen
 import com.twyk.app.feed.VersusFeed
 import com.twyk.app.ui.AuthSheet
 import com.twyk.app.ui.BattlesScreen
@@ -66,6 +70,7 @@ import com.twyk.app.ui.ProfileScreen
 import com.twyk.app.ui.SearchScreen
 import com.twyk.app.ui.UploadScreen
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 // Twyk Android — app NATIVA (Jetpack Compose + Media3/ExoPlayer).
 // El feed se adapta al formato de cada publicación; la barra inferior navega
@@ -176,6 +181,14 @@ private fun SplashScreen() {
 @Composable
 private fun TwykApp() {
     var tab by remember { mutableStateOf(Tab.Home) }
+    // Feed principal — instanciado a este nivel (no dentro de VersusFeed) para
+    // poder llamar a `feedViewModel.refresh()` desde el botón Home de la barra
+    // inferior (1 click = "actualizar el feed", ver handleGoHome más abajo).
+    val feedViewModel: FeedViewModel = viewModel()
+    // followingMode: false = feed principal (para todos); true = página
+    // "Siguiendo" (nueva, doble-click en Home del BottomNav), solo posts de
+    // las cuentas que sigues. Réplica exacta de followingMode en Feed.jsx (web).
+    var followingMode by remember { mutableStateOf(false) }
     var commentsPostId by remember { mutableStateOf<String?>(null) }
     // Voto ACTUAL del usuario sobre esa publicación en el momento de abrir el
     // modal (réplica de votedSide={userVote} que CarouselSlide.jsx/DuetSlide.jsx
@@ -217,6 +230,30 @@ private fun TwykApp() {
     val openProfile: (String) -> Unit = { uname ->
         if (uname == com.twyk.app.data.Session.user?.username) tab = Tab.Profile
         else profileUsername = uname
+    }
+    // Home, 1 click (BottomNav, ver TwykBottomNav/handleHomeClick más abajo):
+    // vuelve al feed PRINCIPAL (sale de "Siguiendo" si estaba activo) Y LO
+    // REFRESCA — contenido fresco desde el principio + scroll arriba.
+    // Réplica exacta de handleGoHome en Feed.jsx (web). `feedReloadKey++`
+    // remonta VersusFeed/FollowingFeedScreen (mismo mecanismo ya usado por
+    // Upload/onDone para "resetear el feed"), lo que recrea `rememberPagerState`
+    // en la página 0 — equivalente nativo de `resetScrollTop()` en la web.
+    val handleGoHome: () -> Unit = {
+        profileUsername = null
+        tab = Tab.Home
+        followingMode = false
+        feedViewModel.refresh()
+        feedReloadKey++
+    }
+    // Home, doble click: alterna entre el feed principal y la página
+    // "Siguiendo" (solo publicaciones de las cuentas que sigues). Doble click
+    // otra vez (ya en Siguiendo) vuelve al feed principal. Réplica exacta de
+    // handleGoHomeDouble en Feed.jsx (web).
+    val handleGoHomeDouble: () -> Unit = {
+        profileUsername = null
+        tab = Tab.Home
+        followingMode = !followingMode
+        feedReloadKey++
     }
     // No puedes retarte a ti mismo (igual que la web: se ignora en silencio).
     val onChallenge: (com.twyk.app.data.QuickChallengeTarget) -> Unit = { target ->
@@ -320,12 +357,22 @@ private fun TwykApp() {
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         when (tab) {
             Tab.Home -> key(feedReloadKey) {
-                VersusFeed(
-                    onOpenComments = { id, side -> commentsPostId = id; commentsVotedSide = side },
-                    onRequireAuth = { authOpen = true },
-                    onOpenProfile = openProfile,
-                    onChallenge = onChallenge,
-                )
+                if (followingMode) {
+                    FollowingFeedScreen(
+                        onOpenComments = { id, side -> commentsPostId = id; commentsVotedSide = side },
+                        onRequireAuth = { authOpen = true },
+                        onOpenProfile = openProfile,
+                        onChallenge = onChallenge,
+                    )
+                } else {
+                    VersusFeed(
+                        onOpenComments = { id, side -> commentsPostId = id; commentsVotedSide = side },
+                        onRequireAuth = { authOpen = true },
+                        onOpenProfile = openProfile,
+                        onChallenge = onChallenge,
+                        vm = feedViewModel,
+                    )
+                }
             }
             Tab.Upload -> UploadScreen(
                 onRequireAuth = { authOpen = true },
@@ -374,6 +421,8 @@ private fun TwykApp() {
                     if (it == Tab.Inbox) unreadCount = 0
                     tab = it
                 },
+                onHomeClick = handleGoHome,
+                onHomeDoubleClick = handleGoHomeDouble,
                 unreadCount = unreadCount,
                 pendingChallengesCount = pendingChallengesCount,
                 modifier = Modifier.align(Alignment.BottomCenter),
@@ -470,10 +519,36 @@ private fun TwykApp() {
 private fun TwykBottomNav(
     current: Tab,
     onSelect: (Tab) -> Unit,
+    onHomeClick: () -> Unit,
+    onHomeDoubleClick: () -> Unit,
     unreadCount: Int = 0,
     pendingChallengesCount: Int = 0,
     modifier: Modifier = Modifier,
 ) {
+    // Home: 1 click = onHomeClick (ir a inicio y refrescar el feed); doble
+    // click = onHomeDoubleClick (abrir/cerrar la página "Siguiendo"). Réplica
+    // exacta del patrón de ventana de 280ms de handleHomeClick en
+    // BottomNav.jsx (web) — el mismo criterio ya usado para el doble-toque de
+    // votar en CarouselSlide.jsx/DuetSlide.jsx: el primer click espera esa
+    // ventana antes de disparar onHomeClick, por si llega un segundo click a
+    // tiempo (en cuyo caso se cancela y se dispara onHomeDoubleClick).
+    val scope = rememberCoroutineScope()
+    var homeClickCount by remember { mutableStateOf(0) }
+    var homeClickJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+    val handleHomeClick: () -> Unit = {
+        homeClickCount += 1
+        if (homeClickCount == 1) {
+            homeClickJob = scope.launch {
+                delay(280)
+                homeClickCount = 0
+                onHomeClick()
+            }
+        } else {
+            homeClickJob?.cancel()
+            homeClickCount = 0
+            onHomeDoubleClick()
+        }
+    }
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -494,7 +569,7 @@ private fun TwykBottomNav(
         NavIcon(
             icon = ImageVector.vectorResource(if (current == Tab.Home) R.drawable.ic_home_filled else R.drawable.ic_home),
             selected = current == Tab.Home,
-        ) { onSelect(Tab.Home) }
+        ) { handleHomeClick() }
 
         // Batallas — espadas cruzadas (icono de la web) + globo con el número
         // de retos pendientes por responder (réplica de challengesCount en
