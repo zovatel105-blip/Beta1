@@ -68,7 +68,7 @@ export default function BottomNav({ onOpenUpload, onOpenInbox, onOpenProfile, on
   return (
     <nav
       className="fixed bottom-0 left-0 right-0 z-50 bg-black rounded-t-3xl"
-      style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 8px)' }}
+      style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 8px)', transform: 'translateY(6px)' }}
     >
       <div className="flex items-center justify-around px-4 py-2.5">
         {/* Home */}
