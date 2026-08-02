@@ -2658,7 +2658,8 @@ fun VSContentCard(
                     )
                 }
 
-                // Indicadores neutros (sin color), réplica de los dots de la web.
+                // Indicadores neutros (sin color), réplica de los dots de la
+                // web — más finos (3dp, antes 6dp, a petición del usuario).
                 Row(
                     Modifier
                         .align(Alignment.BottomCenter)
@@ -2669,8 +2670,8 @@ fun VSContentCard(
                         val activeDot = pagerState.currentPage == i
                         Box(
                             Modifier
-                                .size(width = if (activeDot) 16.dp else 6.dp, height = 6.dp)
-                                .clip(RoundedCornerShape(3.dp))
+                                .size(width = if (activeDot) 16.dp else 6.dp, height = 3.dp)
+                                .clip(RoundedCornerShape(1.5.dp))
                                 .background(Color.White.copy(alpha = if (activeDot) 0.9f else 0.35f)),
                         )
                     }

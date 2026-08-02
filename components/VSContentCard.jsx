@@ -136,7 +136,10 @@ export default function VSContentCard({
           ))}
         </div>
 
-        {/* Indicadores neutros, sin color (no dependen de la opción activa) */}
+        {/* Indicadores neutros, sin color (no dependen de la opción activa).
+            Línea más fina (3px, igual que los puntos del carrusel principal
+            en CarouselSlide.jsx) — antes 6px, más gruesos que el resto de
+            indicadores de la app. */}
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5">
           {slides.map((_, i) => (
             <span
@@ -144,8 +147,8 @@ export default function VSContentCard({
               className="rounded-full transition-all duration-200"
               style={
                 activeIdx === i
-                  ? { width: 16, height: 6, background: 'rgba(255,255,255,0.9)', boxShadow: '0 0 8px rgba(255,255,255,0.5)' }
-                  : { width: 6, height: 6, background: 'rgba(255,255,255,0.35)' }
+                  ? { width: 16, height: 3, background: 'rgba(255,255,255,0.9)', boxShadow: '0 0 8px rgba(255,255,255,0.5)' }
+                  : { width: 6, height: 3, background: 'rgba(255,255,255,0.35)' }
               }
             />
           ))}

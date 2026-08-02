@@ -543,7 +543,8 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
                   {/* Panel inferior: descripción + publicar */}
                   <div className="relative z-20 mt-auto px-4 space-y-3"
                        style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 18px)' }}>
-                    {/* Versus: puntitos del carrusel */}
+                    {/* Versus: puntitos del carrusel — más finos (3px, igual
+                        que los puntos del feed en CarouselSlide.jsx), antes 6px. */}
                     {mode === 'versus' && (
                       <div className="flex items-center justify-center gap-1.5">
                         {[0, 1].map((i) => (
@@ -551,7 +552,7 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
                             key={i}
                             aria-label={`video ${i === 0 ? 'A' : 'B'}`}
                             onClick={() => setVersusIdx(i)}
-                            className={`rounded-full transition-all duration-200 ${versusIdx === i ? 'w-5 h-1.5 bg-white' : 'w-1.5 h-1.5 bg-white/40'}`}
+                            className={`rounded-full transition-all duration-200 ${versusIdx === i ? 'w-5 h-[3px] bg-white' : 'w-1.5 h-[3px] bg-white/40'}`}
                           />
                         ))}
                       </div>

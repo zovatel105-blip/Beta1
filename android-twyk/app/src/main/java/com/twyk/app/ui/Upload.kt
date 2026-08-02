@@ -534,11 +534,13 @@ private fun FileStep(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             if (mode == "versus") {
+                // Puntitos más finos (3dp, antes 6dp, a petición del usuario) —
+                // réplica del mismo ajuste en UploadDialog.jsx.
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
                     (0..1).forEach { i ->
                         Box(
                             Modifier.padding(horizontal = 3.dp)
-                                .width(if (versusIdx == i) 20.dp else 6.dp).height(6.dp)
+                                .width(if (versusIdx == i) 20.dp else 6.dp).height(3.dp)
                                 .clip(RoundedCornerShape(50))
                                 .background(if (versusIdx == i) Color.White else Color.White.copy(alpha = 0.40f))
                                 .clickable { versusIdx = i },
