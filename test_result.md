@@ -2914,3 +2914,33 @@ agent_communication:
         -working: "NA"
         -agent: "main"
         -comment: "CAUSA RAÍZ: la condición `active` de FeedPager exige !AppLifecycle.overlayOpen, pero el PERFIL (ajeno/propio abierto como overlay: profileUsername != null en el SideEffect de MainActivity) es justamente uno de los overlays que la ponen a true — el visor del grid vive DENTRO de ese overlay, así que su FeedPager nunca activaba ninguna página: con el prepare() perezoso de la ronda de fluidez, además de no reproducir, ni siquiera preparaba (pausa/negro permanente; antes al menos preparaba eagerly aunque tampoco reproducía). FIX: nuevo parámetro insideOverlay:Boolean=false en FeedPager — cuando el pager ya vive dentro del overlay superior, ignora overlayOpen (foreground y página actual siguen aplicando; abrir comentarios DESDE el visor sigue pausando vía su propio flujo local); Profile.kt lo pasa a true en su único FeedPager. Sin agentes de testing (orden explícita vigente del usuario + cambio 100% Kotlin no ejecutable aquí); verificado por revisión y balance de código (Profile 234/234; VersusFeed 466/466). Pendiente: usuario recompila el APK y confirma que el visor del perfil reproduce."
+
+frontend:
+  - task: "BUG FIX VERIFICATION: Vote burst animation CSS (voteIconPop keyframes) - icon shrinking below normal size"
+    implemented: true
+    working: true
+    file: "app/globals.css, components/VoteBurstEffect.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "Usuario reportó: 'Cuando realizo un voto parece que el icono se hace más pequeño o se contrae' ('When I vote, the icon looks like it gets smaller / shrinks'). Bug en la animación del burst de voto (doble-tap en vídeo)."
+        -working: "NA"
+        -agent: "main"
+        -comment: "CAUSA RAÍZ: el @keyframes voteIconPop en /app/app/globals.css (aplicado por la clase .vote-icon-pop, usada por components/VoteBurstEffect.jsx, que es renderizado por CarouselSlide.jsx y DuetSlide.jsx en cada voto) tenía la escala bajando a 0.92 en el 50% de la animación (después de subir a 1.4) — es decir, brevemente se encogía a MENOS que su tamaño de reposo normal (1.0) antes de volver a crecer. Ese 'undershoot' (caída por debajo de 1.0) es lo que el usuario percibía como 'el icono se encoge'. FIX APLICADO: reescrito el @keyframes voteIconPop para que la curva de escala NUNCA baje de 1.0 después del keyframe inicial — nueva secuencia: 0% scale(0.15) → 30% scale(1.4) → 55% scale(1.12) → 75% scale(1.22) → 100% scale(1.15) (la opacidad se desvanece de 0→1 al 30%, luego 1→0 al 100%). La animación es de 800ms total, clase .vote-icon-pop, aplicada en un elemento con animation: voteIconPop 800ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards. Comentario documentando el bug y el fix añadido en globals.css (líneas 56-65)."
+        -working: true
+        -agent: "testing"
+        -comment: "✅ FIX VERIFICADO mediante inspección CSSOM (método primario autorizado por la review request). Navegado a la home page (https://504885d7-d05a-4efd-bdbc-ef37ba023532.preview.emergentagent.com) y usado page.evaluate() para leer el @keyframes voteIconPop real desde document.styleSheets del navegador. RESULTADOS: (1) ✓ La regla @keyframes voteIconPop EXISTE en las hojas de estilo cargadas. (2) ✓ Estructura de keyframes coincide con lo esperado: 0%, 30%, 55%, 75%, 100%. (3) ✓ Valores de escala extraídos: 0%→scale(0.15), 30%→scale(1.40), 55%→scale(1.12), 75%→scale(1.22), 100%→scale(1.15). (4) ✓ NINGÚN valor de escala después del 0% está por debajo de 1.0 (NO hay undershoot). (5) ✓ El valor buggy antiguo scale(0.92) NO está presente en ningún keyframe. CONCLUSIÓN: El fix ha sido aplicado correctamente. La animación del icono de voto ya NO se encogerá por debajo de su tamaño normal durante el rebote. El usuario ya no debería percibir que 'el icono se hace más pequeño o se contrae' al votar. Verificación secundaria: la clase .vote-icon-pop tiene una animación definida (confirmado con getComputedStyle). Screenshot guardado en .screenshots/vote-animation-fix-home.png (muestra página de 'mobile-only', comportamiento esperado para viewport móvil sin login, pero el CSS se cargó correctamente y fue inspeccionado)."
+
+test_plan:
+  current_focus:
+    - "BUG FIX VERIFICATION: Vote burst animation CSS (voteIconPop keyframes) - icon shrinking below normal size"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    -agent: "testing"
+    -message: "VERIFICACIÓN COMPLETADA: Bug fix del vote burst animation (CSS @keyframes voteIconPop) verificado exitosamente mediante inspección CSSOM del navegador. El valor buggy scale(0.92) ha sido eliminado y todos los valores de escala después del keyframe inicial (0%) son >= 1.0, confirmando que el icono ya no se encogerá durante la animación. El fix está correctamente aplicado y funcionando según lo esperado. No se requieren más acciones para esta tarea."

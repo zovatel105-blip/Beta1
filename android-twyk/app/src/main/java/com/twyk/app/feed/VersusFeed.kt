@@ -1768,6 +1768,13 @@ private fun BoxScope.BufferingSpinner(player: ExoPlayer) {
 // app nativa. Aparece centrado en el punto EXACTO del doble toque, 60dp por
 // encima (misma fórmula que `translate(-50%,-60px)` + el propio centrado del
 // icono en VoteBurstEffect.jsx/CSS de la web).
+// BUG reportado ("cuando voto el icono se hace más pequeño / se contrae"):
+// el rebote pasaba por 0.92f a los 400ms (más pequeño que el tamaño de
+// reposo, 1f) — un "undershoot" elástico normal, pero percibido como un
+// encogimiento no deseado. FIX (réplica exacta del nuevo @keyframes
+// voteIconPop de la web, ver globals.css): la curva ya NUNCA baja de 1f tras
+// el pico inicial (1.4 → 1.12 → 1.22 → 1.15), solo se desvanece (opacity)
+// sin sensación de "contraerse".
 @Composable
 private fun VoteBurst(id: Long, tapOffset: Offset, color: Color, onEnd: () -> Unit) {
     val density = LocalDensity.current
@@ -1781,15 +1788,14 @@ private fun VoteBurst(id: Long, tapOffset: Offset, color: Color, onEnd: () -> Un
         launch {
             scaleAnim.snapTo(0.15f)
             scaleAnim.animateTo(
-                1.08f,
+                1.15f,
                 animationSpec = keyframes {
                     durationMillis = 800
                     0.15f at 0
-                    1.4f at 256
-                    0.92f at 400
-                    1.1f at 560
-                    1.0f at 680
-                    1.08f at 800
+                    1.4f at 240
+                    1.12f at 440
+                    1.22f at 600
+                    1.15f at 800
                 },
             )
         }
@@ -1800,7 +1806,7 @@ private fun VoteBurst(id: Long, tapOffset: Offset, color: Color, onEnd: () -> Un
                 animationSpec = keyframes {
                     durationMillis = 800
                     0f at 0
-                    1f at 256
+                    1f at 240
                     0f at 800
                 },
             )
@@ -1812,10 +1818,9 @@ private fun VoteBurst(id: Long, tapOffset: Offset, color: Color, onEnd: () -> Un
                 animationSpec = keyframes {
                     durationMillis = 800
                     -18f at 0
-                    8f at 256
-                    -4f at 400
-                    2f at 560
-                    0f at 680
+                    8f at 240
+                    -2f at 440
+                    2f at 600
                     0f at 800
                 },
             )

@@ -54,14 +54,21 @@ html, body, #__next {
 .like-pop { animation: likePop 800ms ease-out forwards; }
 
 /* Vote burst — animación al votar (doble toque): ÚNICAMENTE el icono de
-   voto con un rebote elástico, sin halo, ondas ni chispas alrededor. */
+   voto con un rebote elástico, sin halo, ondas ni chispas alrededor.
+   BUG reportado ("cuando voto el icono se hace más pequeño / se contrae"):
+   el rebote pasaba por scale(0.92) a la mitad (más pequeño que su tamaño de
+   reposo, 1) antes de volver a crecer — un "undershoot" normal en un rebote
+   elástico, pero que el usuario percibía como un encogimiento no deseado.
+   FIX: la curva ya NUNCA baja de scale(1) tras el pico inicial — el rebote
+   se mantiene siempre igual o más grande que el tamaño de reposo (1.4 → 1.12
+   → 1.22 → 1.15), solo se desvanece (opacity) sin dar la sensación de
+   "contraerse". */
 @keyframes voteIconPop {
     0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.15) rotate(-18deg); }
-    32%  { opacity: 1; transform: translate(-50%, -50%) scale(1.4) rotate(8deg); }
-    50%  { transform: translate(-50%, -50%) scale(0.92) rotate(-4deg); }
-    70%  { transform: translate(-50%, -50%) scale(1.1) rotate(2deg); }
-    85%  { transform: translate(-50%, -50%) scale(1) rotate(0deg); }
-    100% { opacity: 0; transform: translate(-50%, -50%) scale(1.08) rotate(0deg); }
+    30%  { opacity: 1; transform: translate(-50%, -50%) scale(1.4) rotate(8deg); }
+    55%  { transform: translate(-50%, -50%) scale(1.12) rotate(-2deg); }
+    75%  { transform: translate(-50%, -50%) scale(1.22) rotate(2deg); }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(1.15) rotate(0deg); }
 }
 .vote-icon-pop {
     position: absolute; top: 0; left: 0; display: inline-flex;
