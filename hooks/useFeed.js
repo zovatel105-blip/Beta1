@@ -58,30 +58,23 @@ export function useFeed() {
   // Carga inicial: uploads + primera página del feed (en paralelo).
   useEffect(() => {
     let cancelled = false
-    console.log('[DEBUG useFeed] effect start')
     ;(async () => {
-      try {
-        const [uploads, page] = await Promise.all([
-          fetchUploads(),
-          fetchFeedPage(0).catch((err) => { console.log('[DEBUG useFeed] fetchFeedPage error', err); return { posts: [], nextCursor: 0, hasMore: false } }),
-        ])
-        console.log('[DEBUG useFeed] fetched', { uploads: uploads?.length, pagePosts: page?.posts?.length, cancelled })
-        if (cancelled) return
-        cursorRef.current = page.nextCursor ?? 0
-        hasMoreRef.current = page.hasMore !== false
-        const merged = []
-        for (const p of [...uploads, ...(page.posts || [])]) {
-          if (p && p.id && !seenRef.current.has(p.id)) {
-            seenRef.current.add(p.id)
-            merged.push(p)
-          }
+      const [uploads, page] = await Promise.all([
+        fetchUploads(),
+        fetchFeedPage(0).catch(() => ({ posts: [], nextCursor: 0, hasMore: false })),
+      ])
+      if (cancelled) return
+      cursorRef.current = page.nextCursor ?? 0
+      hasMoreRef.current = page.hasMore !== false
+      const merged = []
+      for (const p of [...uploads, ...(page.posts || [])]) {
+        if (p && p.id && !seenRef.current.has(p.id)) {
+          seenRef.current.add(p.id)
+          merged.push(p)
         }
-        console.log('[DEBUG useFeed] setting posts', merged.length)
-        setPosts(merged)
-        setReady(true)
-      } catch (err) {
-        console.log('[DEBUG useFeed] CRASH', err)
       }
+      setPosts(merged)
+      setReady(true)
     })()
     return () => { cancelled = true }
   }, [])
