@@ -968,8 +968,15 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
           engrosa al grosor "actual" pedido por el usuario (2px) mientras se
           toca/arrastra para adelantar o retroceder. El hit-area (16px) es
           más alta que la línea visible para que sea fácil de agarrar con el
-          dedo sin desplazar la posición visual de la línea. */}
-      {post.mediaType !== 'image' && (
+          dedo sin desplazar la posición visual de la línea.
+          BUG reportado ("no debe aparecer en publicaciones con imágenes"):
+          antes comprobaba `post.mediaType` (el campo de nivel superior, que
+          en un dueto solo refleja el lado A) en vez del lado que REALMENTE
+          sigue la barra (`audibleSide` — puede ser B, y A/B pueden tener
+          tipos de media distintos). Ahora comprueba el lado seguido de
+          verdad y exige además que tenga `videoUrl` (por si `mediaType`
+          queda `undefined` en algún post). */}
+      {(audibleSide === 'b' ? sideB : sideA).mediaType !== 'image' && (audibleSide === 'b' ? sideB : sideA).videoUrl && (
         <div
           className="absolute left-0 right-0 z-20 flex items-center cursor-pointer"
           style={{

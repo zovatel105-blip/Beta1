@@ -879,8 +879,13 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
           toca/arrastra para adelantar o retroceder. El hit-area (16px) es
           más alta que la línea visible para que sea fácil de agarrar con el
           dedo sin desplazar la posición visual de la línea (centrada dentro
-          del hit-area, en el mismo sitio de siempre). */}
-      {current.mediaType !== 'image' && (
+          del hit-area, en el mismo sitio de siempre).
+          BUG reportado ("no debe aparecer en publicaciones con imágenes"):
+          antes solo comprobaba `current.mediaType !== 'image'`, que puede
+          quedar `undefined` (ni 'video' ni 'image') según el origen del
+          post — se añade `&& current.videoUrl` como segunda comprobación:
+          solo se muestra si de verdad hay un vídeo que reproducir. */}
+      {current.mediaType !== 'image' && current.videoUrl && (
         <div
           className="absolute left-0 right-0 z-20 flex items-center cursor-pointer"
           style={{

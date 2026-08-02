@@ -627,7 +627,15 @@ private fun CarouselPage(
         }
 
         // ── Capas RECICLADAS estilo TikTok (se resetean al reciclarse la celda) ──
-        VideoProgressBar(visiblePlayer, isActive)                                 // barra de progreso
+        // BUG reportado ("la barra de progreso no debe aparecer en
+        // publicaciones con imágenes"): réplica del mismo fix en
+        // CarouselSlide.jsx — antes se llamaba siempre a VideoProgressBar sin
+        // comprobar el lado VISIBLE actual; ahora solo se muestra si ese
+        // lado es de verdad un vídeo (mediaType != "image" Y tiene videoUrl).
+        val visibleSide = if (sidePager.currentPage == 0) post.sideA else post.sideB
+        if (visibleSide?.mediaType != "image" && !visibleSide?.videoUrl.isNullOrBlank()) {
+            VideoProgressBar(visiblePlayer, isActive)                             // barra de progreso
+        }
         // Spinner de carga: ahora vive DENTRO de cada VideoSurface (ver su
         // propio comentario), así se aplica automáticamente al lado A O B
         // que esté visible en este carrusel sin necesitar "visiblePlayer" aquí.
