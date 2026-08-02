@@ -1962,7 +1962,15 @@ private fun BoxScope.VoteHint(text: String) {
     Box(
         Modifier
             .align(Alignment.TopCenter)
-            .padding(top = 40.dp)
+            // BUG reportado por el usuario (con captura, "Batallas > Completados"):
+            // este aviso quedaba demasiado pegado a la barra "Completed | Active"
+            // de arriba (BattlesHeader, ui/Battles.kt: statusBarsPadding + 8dp +
+            // 36dp de la píldora + 16dp de padding inferior = 60dp), a veces
+            // solapándose visualmente con su borde inferior. Subido de 40dp a
+            // 64dp para dejar un margen claro por debajo de esa barra (en el
+            // feed principal, que no tiene esa barra, el aviso simplemente
+            // queda "un poquito más abajo" que antes, sin chocar con nada).
+            .padding(top = 64.dp)
             .clip(RoundedCornerShape(20.dp))
             .background(Color.Black.copy(alpha = 0.45f))
             .padding(horizontal = 12.dp, vertical = 5.dp),

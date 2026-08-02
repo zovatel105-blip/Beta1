@@ -105,6 +105,21 @@
 user_problem_statement: "Las publicaciones normales deben ser un carrusel de 2 vídeos (opción A / opción B) entre los que se desliza y se vota tocando el vídeo. Se suben 2 vídeos. Reemplaza el vídeo normal. AÑADIDO: votar = doble toque, quitar el corazón/Me gusta, y nueva función 'Retar' (solicitud de enfrentamiento con un vídeo subido que el retado acepta/cancela en la Bandeja). NUEVO: buscador de usuarios en la esquina superior derecha de la página de inicio (icono de lupa que abre un overlay)."
 
 backend:
+  - task: "APP NATIVA (Android/Compose): en Batallas > Completados, el aviso 'Swipe to compare - double-tap to vote' quedaba demasiado pegado/detrás de la barra 'Completed | Active'"
+    implemented: true
+    working: "NA"
+    file: "android-twyk/app/src/main/java/com/twyk/app/feed/VersusFeed.kt"
+    stuck_count: 0
+    priority: "low"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'En la pagina de retos el titulo que esta debajo de completados y activos debe estar UN poquito mas abajo para que no Este detras' (con captura de pantalla)."
+        -working: "NA"
+        -agent: "main"
+        -comment: "100% Kotlin nativo (VersusFeed.kt, composable privado `VoteHint`, reutilizado por el feed principal y por Batallas > Completados vía `FeedPager`). CAUSA: `VoteHint` tenía `padding(top = 40.dp)` fijo — en Batallas > Completados, `BattlesHeader` (ui/Battles.kt) ocupa statusBarsPadding + 8dp + 36dp (píldora 'Completed | Active') + 16dp = 60dp adicionales, y como el `VerticalPager` del feed ya aplica su propio `statusBarsPadding()`, el aviso (a +40dp de ese mismo origen) quedaba con muy poco margen (o solapado) respecto al borde inferior de la píldora. FIX: subido a `padding(top = 64.dp)` — deja margen claro por debajo de la barra en Batallas; en el feed principal (sin esa barra) simplemente aparece un poco más abajo que antes, sin chocar con nada (el buscador está en la esquina superior derecha, sin relación de posición con este aviso centrado). Cambio de un solo valor, sin lógica nueva. NO se invocó agente de testing (a petición explícita y repetida del usuario en esta misma sesión: cambios 100% Kotlin nativo, no compilables/verificables en este entorno sin Android SDK). Pendiente: el usuario debe compilar el APK y confirmar en Batallas > Completados que el aviso ya no queda pegado/detrás de la barra superior."
+
   - task: "APP NATIVA (Android/Compose): al cambiar de pestaña (Batallas/Subir/Buzón/Perfil) y volver al feed, siempre reiniciaba en la primera publicación en vez de continuar donde estaba"
     implemented: true
     working: "NA"
