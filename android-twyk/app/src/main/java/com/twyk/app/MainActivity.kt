@@ -557,7 +557,6 @@ private fun ProfileNavIcon(selected: Boolean, onClick: () -> Unit) {
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.size(25.dp).clip(CircleShape).background(Color(0xFF18181B))
-                        .border(1.dp, Color.White.copy(alpha = 0.2f), CircleShape),
                 )
             } else {
                 Image(
