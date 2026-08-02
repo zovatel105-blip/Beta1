@@ -20,6 +20,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -142,6 +143,7 @@ import com.twyk.app.data.Votes
 import com.twyk.app.data.VoteStore
 import com.twyk.app.data.WinnerRequest
 import com.twyk.app.ui.sharePost
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -1685,37 +1687,77 @@ private fun BoxScope.Dots(active: Int, commentBarActive: Boolean = false) {
     }
 }
 
-// Barra de progreso (reciclada): línea blanca fina que sigue al vídeo VISIBLE.
+// Barra de progreso (reciclada): línea FINA en reposo (1dp) que se engrosa al
+// grosor "actual" pedido por el usuario (2dp) mientras se toca/arrastra para
+// adelantar o retroceder — réplica exacta del mismo comportamiento en
+// CarouselSlide.jsx/DuetSlide.jsx (scrubbing + seekFromClientX). El hit-area
+// (16dp) es más alto que la línea visible para que sea fácil de agarrar con
+// el dedo sin desplazar la posición visual de la línea.
 @Composable
 private fun BoxScope.VideoProgressBar(player: ExoPlayer, active: Boolean) {
     var progress by remember { mutableStateOf(0f) }
+    var scrubbing by remember { mutableStateOf(false) }
     LaunchedEffect(player, active) {
         if (!active) {
             progress = 0f
             return@LaunchedEffect
         }
         while (true) {
-            val dur = runCatching { player.duration }.getOrDefault(0L)
-            val pos = runCatching { player.currentPosition }.getOrDefault(0L)
-            progress = if (dur > 0) (pos.toFloat() / dur).coerceIn(0f, 1f) else 0f
+            if (!scrubbing) {
+                val dur = runCatching { player.duration }.getOrDefault(0L)
+                val pos = runCatching { player.currentPosition }.getOrDefault(0L)
+                progress = if (dur > 0) (pos.toFloat() / dur).coerceIn(0f, 1f) else 0f
+            }
             delay(150)
         }
+    }
+    fun seek(ratio: Float) {
+        progress = ratio.coerceIn(0f, 1f)
+        val dur = runCatching { player.duration }.getOrDefault(0L)
+        if (dur > 0) runCatching { player.seekTo((progress * dur).toLong()) }
     }
     Box(
         Modifier
             .align(Alignment.BottomCenter)
             .navigationBarsPadding()
-            .padding(bottom = 56.dp)
+            .padding(bottom = 49.dp)
             .fillMaxWidth()
-            .height(2.dp)
-            .background(Color.White.copy(alpha = 0.15f)),
+            .height(16.dp)
+            .pointerInput(player) {
+                coroutineScope {
+                    launch {
+                        detectTapGestures { offset -> seek(offset.x / size.width) }
+                    }
+                    launch {
+                        detectDragGestures(
+                            onDragStart = { offset ->
+                                scrubbing = true
+                                seek(offset.x / size.width)
+                            },
+                            onDragEnd = { scrubbing = false },
+                            onDragCancel = { scrubbing = false },
+                        ) { change, _ ->
+                            seek(change.position.x / size.width)
+                            change.consume()
+                        }
+                    }
+                }
+            },
+        contentAlignment = Alignment.CenterStart,
     ) {
         Box(
             Modifier
-                .fillMaxWidth(progress)
-                .height(2.dp)
-                .background(Color.White.copy(alpha = 0.8f)),
-        )
+                .fillMaxWidth()
+                .height(if (scrubbing) 2.dp else 1.dp)
+                .background(Color.White.copy(alpha = 0.15f)),
+        ) {
+            Box(
+                Modifier
+                    .fillMaxWidth(progress)
+                    .fillMaxHeight()
+                    .background(Color.White.copy(alpha = 0.8f)),
+            )
+        }
     }
 }
 

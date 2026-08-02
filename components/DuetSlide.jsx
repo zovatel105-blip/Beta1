@@ -65,6 +65,10 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
   const [loadedA, setLoadedA] = useState(false)
   const [loadedB, setLoadedB] = useState(false)
   const [progress, setProgress] = useState(0)
+  // Arrastrar/tocar la barra de progreso para adelantar/retroceder — la línea
+  // se engrosa mientras se toca (grosor "actual" pedido por el usuario, 2px)
+  // y vuelve a ser fina (1px) en reposo.
+  const [scrubbing, setScrubbing] = useState(false)
   const [audibleSide, setAudibleSide] = useState('a') // 'a' | 'b'
   const [saved, setSaved] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -428,6 +432,36 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
     const burstId = Math.random().toString(36).slice(2)
     setVoteBursts((b) => [...b, { id: burstId, color: burstColor, side, x: pt?.x, y: pt?.y }])
     setTimeout(() => setVoteBursts((b) => b.filter((x) => x.id !== burstId)), 900)
+  }, [])
+
+  // Arrastrar/tocar la barra de progreso para adelantar/retroceder — sigue al
+  // MISMO lado que alimenta la barra (audibleSide, ver el efecto de arriba).
+  const seekFromClientX = useCallback((clientX, el) => {
+    const ref = audibleSide === 'b' ? videoBRef.current : videoARef.current
+    if (!ref || !(ref.duration > 0) || !el) return
+    const rect = el.getBoundingClientRect()
+    const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width))
+    try { ref.currentTime = ratio * ref.duration } catch { /* ignore */ }
+    setProgress(ratio * 100)
+  }, [audibleSide])
+
+  const handleProgressPointerDown = useCallback((e) => {
+    e.stopPropagation()
+    setScrubbing(true)
+    try { e.currentTarget.setPointerCapture(e.pointerId) } catch { /* ignore */ }
+    seekFromClientX(e.clientX, e.currentTarget)
+  }, [seekFromClientX])
+
+  const handleProgressPointerMove = useCallback((e) => {
+    if (!scrubbing) return
+    e.stopPropagation()
+    seekFromClientX(e.clientX, e.currentTarget)
+  }, [scrubbing, seekFromClientX])
+
+  const handleProgressPointerEnd = useCallback((e) => {
+    e.stopPropagation()
+    setScrubbing(false)
+    try { e.currentTarget.releasePointerCapture(e.pointerId) } catch { /* ignore */ }
   }, [])
 
   const submitVote = useCallback(async (side, pt) => {
@@ -930,13 +964,27 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
         </div>
       </BottomSheet>
 
-      {/* progress bar (solo para vídeo) */}
+      {/* Barra de progreso del vídeo — línea FINA en reposo (1px) que se
+          engrosa al grosor "actual" pedido por el usuario (2px) mientras se
+          toca/arrastra para adelantar o retroceder. El hit-area (16px) es
+          más alta que la línea visible para que sea fácil de agarrar con el
+          dedo sin desplazar la posición visual de la línea. */}
       {post.mediaType !== 'image' && (
         <div
-          className="absolute left-0 right-0 z-20 h-[2px] bg-white/15"
-          style={showCommentInput ? { bottom: `calc(${COMMENT_BAR_RESERVE} - 2px)` } : { bottom: 64 }}
+          className="absolute left-0 right-0 z-20 flex items-center cursor-pointer"
+          style={{
+            height: 16,
+            touchAction: 'none',
+            ...(showCommentInput ? { bottom: `calc(${COMMENT_BAR_RESERVE} - 9px)` } : { bottom: 57 }),
+          }}
+          onPointerDown={handleProgressPointerDown}
+          onPointerMove={handleProgressPointerMove}
+          onPointerUp={handleProgressPointerEnd}
+          onPointerCancel={handleProgressPointerEnd}
         >
-          <div className="h-full bg-white/80" style={{ width: `${progress}%`, transform: 'translateZ(0)' }} />
+          <div className={cn('w-full bg-white/15 transition-[height] duration-150', scrubbing ? 'h-[2px]' : 'h-[1px]')}>
+            <div className="h-full bg-white/80" style={{ width: `${progress}%`, transform: 'translateZ(0)' }} />
+          </div>
         </div>
       )}
 
