@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Swiper, SwiperSlide } from 'swiper/react'
 import { Mousewheel, Keyboard } from 'swiper/modules'
 import 'swiper/css'
-import { Swords, Check, X, Loader2, Film, ChevronDown, Image as ImageIcon } from 'lucide-react'
+import { Swords, Check, X, Loader2, Film, ChevronUp, Image as ImageIcon } from 'lucide-react'
 import Avatar from './Avatar'
 
 /**
@@ -27,7 +27,7 @@ const RingAvatar = ({ src, size = 'w-11 h-11' }) => (
   </div>
 )
 
-const ChallengeSlide = ({ c, active, busy, onAccept, onReject, muted }) => {
+const ChallengeSlide = ({ c, active, busy, onAccept, onReject, muted, showNextHint }) => {
   const [idx, setIdx] = useState(0)
   const innerRef = useRef(null)
   const fileRef = useRef(null)
@@ -245,6 +245,22 @@ const ChallengeSlide = ({ c, active, busy, onAccept, onReject, muted }) => {
       {/* Compact bottom panel (fixed, does not move with the carousel) */}
       <div className="absolute inset-x-0 bottom-0 z-20 px-4 pt-8"
            style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 14px)' }}>
+        {/* Right-middle indicator: only a slim, animated hint arrow when there
+            is another challenge below in the vertical scroll (hidden on the
+            last card, since there's nothing further to swipe to) — computed
+            in the OUTER component (list/activeCard live there) and passed
+            down as `showNextHint`, since this panel belongs to ChallengeSlide
+            (one instance per card). Anchored to THIS panel (not to the
+            screen center) so it always sits right ABOVE the carousel dots
+            below, regardless of how much content the card has beneath them.
+            Inverted (ChevronUp) since it now sits above the dots instead of
+            floating at the vertical center. */}
+        {showNextHint && (
+          <div aria-label="Swipe down for the next challenge" className="absolute right-1 top-0 z-40 text-white/70">
+            <ChevronUp className="w-4 h-4 animate-bounce" strokeWidth={2.5} />
+          </div>
+        )}
+
         {/* Carousel dots — slim */}
         {videos.length > 1 && (
           <div className="flex items-center justify-center gap-1.5 mb-2.5">
@@ -413,18 +429,6 @@ export default function ActiveChallengesPage({ open, onClose, onOpenCompleted, o
         </div>
       </div>
 
-      {/* Right-middle indicator: only a slim, animated hint arrow when there
-          is another challenge below in the vertical scroll (hidden on the
-          last card, since there's nothing further to swipe to). */}
-      {list.length > 1 && activeCard < list.length - 1 && (
-        <div
-          aria-label={`Swipe down for the next challenge (${activeCard + 2} of ${list.length})`}
-          className="absolute right-2.5 top-1/2 -translate-y-1/2 z-40 text-white/70"
-        >
-          <ChevronDown className="w-4 h-4 animate-bounce" strokeWidth={2.5} />
-        </div>
-      )}
-
       {/* Full-screen content */}
       {loading ? (
         <div className="w-full h-full flex items-center justify-center">
@@ -454,7 +458,15 @@ export default function ActiveChallengesPage({ open, onClose, onOpenCompleted, o
         >
           {list.map((c, i) => (
             <SwiperSlide key={c.id}>
-              <ChallengeSlide c={c} active={activeCard === i} busy={busyId === c.id} onAccept={accept} onReject={reject} muted={muted} />
+              <ChallengeSlide
+                c={c}
+                active={activeCard === i}
+                busy={busyId === c.id}
+                onAccept={accept}
+                onReject={reject}
+                muted={muted}
+                showNextHint={list.length > 1 && i < list.length - 1}
+              />
             </SwiperSlide>
           ))}
         </Swiper>

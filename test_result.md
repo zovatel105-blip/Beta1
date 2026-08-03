@@ -3174,6 +3174,21 @@ agent_communication:
         -agent: "main"
         -comment: "CAMBIO UI simple (sin lógica). WEB (components/ProfilePage.jsx/SettingsDrawer): eliminado el `<div>` decorativo con `background: radial-gradient(circle, rgba(168,85,247,0.14) 0%, rgba(168,85,247,0) 70%)` (esquina superior derecha del panel). APP NATIVA (android-twyk/.../ui/ProfileMenu.kt): encontrada y eliminada la RÉPLICA EXACTA de ese mismo glow (mismo color `0xFFA855F7`/alpha 0.14, mismo `Brush.radialGradient`, ya documentada en el propio código como réplica intencional de la web) — se revisó proactivamente aunque el usuario no mencionó 'app nativa' esta vez, dado que ambas plataformas comparten este mismo panel de Ajustes y el patrón de esta sesión ha sido mantener paridad total; también se quitó el import ahora no usado de `Brush`. Lint limpio en ProfilePage.jsx (solo 1 warning preexistente no relacionado). NO se invocó ningún agente de testing (instrucción explícita y reiterada del usuario en esta sesión: 'Nunca usar el testing agent'). Pendiente: el usuario debe confirmar visualmente en la web que el glow ya no aparece, y (si compila el APK) que tampoco aparece en la app nativa."
 
+  - task: "Retos activos (ActiveChallengesPage.jsx): la flecha animada de 'siguiente reto' (centro-derecha) debe estar encima de los indicadores de slide, e invertida"
+    implemented: true
+    working: "NA"
+    file: "components/ActiveChallengesPage.jsx"
+    stuck_count: 0
+    priority: "low"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'Ahora en retos activos la flecha animada que ESTA en centro derecho debe estar encima de los indicadores de slide y invertirlo'."
+        -working: "NA"
+        -agent: "main"
+        -comment: "REPOSICIÓN + INVERSIÓN: la flecha (`ChevronDown` animada, pista de 'hay otro reto más abajo en el scroll vertical') estaba anclada al CENTRO VERTICAL de toda la pantalla (`top-1/2 -translate-y-1/2`, en el componente EXTERNO `ActiveChallengesPage`, con acceso a `list`/`activeCard`) — independiente de dónde cayeran los puntos del carrusel (dentro de `ChallengeSlide`, un componente distinto, uno por tarjeta). FIX: (1) la flecha se movió DENTRO del 'Compact bottom panel' de `ChallengeSlide` (mismo contenedor que los puntos), anclada a `top-0` de ese panel — así queda SIEMPRE justo ENCIMA de los puntos, sin importar cuánto contenido tenga la tarjeta debajo (nombre de usuarios, botones aceptar/rechazar, etc.), en vez de flotar en el centro absoluto de la pantalla. (2) invertida: `ChevronDown` -> `ChevronUp` (import actualizado, sin más usos del icono viejo en el archivo). BUG DE SCOPE encontrado y corregido durante el propio cambio (detectado por `mcp_lint_javascript`, ANTES de entregar): al mover el JSX de la flecha al panel de `ChallengeSlide`, quedó referenciando `list`/`activeCard`, que son estado de `ActiveChallengesPage` (el componente que SÍ mapea la lista y sabe qué tarjeta está activa) — `ChallengeSlide` es un componente de nivel superior aparte (no un closure anidado), así que esas variables no existían ahí (`no-undef` x5 en el lint). FIX del scope: nueva prop `showNextHint` calculada en el `.map()` de `ActiveChallengesPage` (`list.length > 1 && i < list.length - 1`) y pasada a cada `<ChallengeSlide>`; el panel interno ahora solo comprueba `{showNextHint && (...)}`, sin depender de nada externo. Verificado con `mcp_lint_javascript`: 0 errores tras el fix (solo 1 warning preexistente no relacionado); página raíz cargada con Playwright sin errores de compilación/runtime (el gate 'mobile-only' impide ver la app completa en un navegador de escritorio automatizado, limitación ya documentada muchas veces en este archivo — no relacionada con este cambio). NO se invocó ningún agente de testing (instrucción explícita y reiterada del usuario en esta sesión: 'Nunca usar el testing agent'). Pendiente: el usuario debe confirmar visualmente en Retos Activos (con más de un reto pendiente) que la flecha ahora aparece justo encima de los puntos del carrusel, apuntando hacia arriba en vez de hacia abajo."
+
 
 
 
