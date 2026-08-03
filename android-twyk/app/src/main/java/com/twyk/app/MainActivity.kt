@@ -403,9 +403,16 @@ private fun TwykApp() {
                 onShowNavChange = { battlesShowNav = it },
             )
         }
-        // Buscador de usuarios: lupa fija arriba a la derecha (solo en Inicio,
-        // igual que la web).
-        if (tab == Tab.Home) {
+        // Buscador de usuarios: lupa fija arriba a la derecha (solo en el feed
+        // PRINCIPAL de Inicio, igual que la web) — BUG: la condición original
+        // solo comprobaba `tab == Tab.Home`, pero "Siguiendo" (followingMode)
+        // NO es una pestaña aparte, es un MODO dentro de la MISMA pestaña Home
+        // (alternado con doble-click en Home, ver followingMode arriba) — así
+        // que la lupa aparecía también en Siguiendo, donde no debe (réplica
+        // exacta del bug ya corregido en la web, components/Feed.jsx: ahí la
+        // condición es `{!followingMode && (...)}`). FIX: se añade
+        // `&& !followingMode` a la condición.
+        if (tab == Tab.Home && !followingMode) {
             Box(
                 Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(top = 4.dp, end = 12.dp)
                     .size(36.dp).clickable { searchOpen = true },
