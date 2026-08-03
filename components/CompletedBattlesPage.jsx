@@ -56,7 +56,7 @@ const EmptyCompletedState = ({ onOpenUpload, onOpenActive }) => {
   )
 }
 
-export default function CompletedBattlesPage({ open, onClose, onOpenActive, onOpenUpload, onOpenInbox, onOpenProfile, onOpenSuggestions, refreshKey = 0 }) {
+export default function CompletedBattlesPage({ open, onClose, onOpenActive, onOpenUpload, onOpenInbox, onOpenProfile, onOpenSuggestions, onGoHome, onGoHomeDouble, refreshKey = 0 }) {
   const [posts, setPosts] = useState([])
   const [loading, setLoading] = useState(false)
   const [activeIndex, setActiveIndex] = useState(0)
@@ -187,9 +187,18 @@ export default function CompletedBattlesPage({ open, onClose, onOpenActive, onOp
         </Swiper>
       )}
 
-      {/* Bottom navigation bar — same as the feed */}
+      {/* Bottom navigation bar — same as the feed. BUG FIX ("cuando estoy en
+          otra página [Retos > Completados] y presiono Home, no actualiza el
+          feed"): antes `onGoHome={onClose}` solo cerraba esta pantalla,
+          dejando el feed de fondo TAL CUAL estaba (sin refrescar ni volver
+          arriba) — a diferencia del `<BottomNav>` real del feed principal
+          (Feed.jsx), que usa `handleGoHome` (cierra overlays + refresca +
+          resetea scroll). Ahora se recibe y reutiliza ESE MISMO handler
+          (que ya incluye `setBattlesOpen(false)`, así que también cierra
+          esta pantalla correctamente) en vez de un simple `onClose`. */}
       <BottomNav
-        onGoHome={onClose}
+        onGoHome={onGoHome}
+        onGoHomeDouble={onGoHomeDouble}
         onOpenBattles={() => {}}
         onOpenUpload={onOpenUpload}
         onOpenInbox={onOpenInbox}

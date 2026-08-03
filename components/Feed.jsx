@@ -719,6 +719,8 @@ export default function Feed() {
         onOpenInbox={() => { setBattlesOpen(false); setInboxOpen(true) }}
         onOpenProfile={() => { setBattlesOpen(false); setProfileOpen(true) }}
         onOpenSuggestions={() => setSuggestionsOpen(true)}
+        onGoHome={handleGoHome}
+        onGoHomeDouble={handleGoHomeDouble}
       />
       <ActiveChallengesPage
         open={activeChallengesOpen}
