@@ -352,26 +352,25 @@ const CircularCrop = ({ isOpen, onClose, onImageCropped, initialImage = null }) 
         )}
       </div>
 
-      {/* Footer - Botones Cancel y Save */}
+      {/* Footer - Botones Cancel y Save (pastilla, blanco y negro) */}
       {image && (
         <div className="px-6 py-6 bg-white" style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 24px)' }}>
           <div className="flex items-center justify-center space-x-4">
-            {/* Botón Cancel - gris como en la referencia */}
+            {/* Botón Cancel - pastilla BLANCA con borde/texto negro */}
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 bg-gray-200 hover:bg-gray-300 text-black font-medium py-4 rounded-xl transition-all duration-200 max-w-[150px]"
+              className="flex-1 bg-white hover:bg-zinc-50 text-black font-semibold py-4 rounded-full border-2 border-black transition-all duration-200 max-w-[150px] active:scale-95"
             >
               Cancel
             </button>
 
-            {/* Botón Save - púrpura como guardar cambios del perfil */}
+            {/* Botón Save - pastilla NEGRA sólida con texto blanco */}
             <button
               type="button"
               onClick={handleCropImage}
               disabled={loading}
-              className="flex-1 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-4 rounded-xl transition-all duration-200 max-w-[150px]"
-              style={{ backgroundColor: '#B061FF', boxShadow: '0 10px 15px -3px rgba(176, 97, 255, 0.25)' }}
+              className="flex-1 bg-black hover:bg-zinc-900 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-4 rounded-full transition-all duration-200 max-w-[150px] active:scale-95"
             >
               {loading ? 'Saving...' : 'Save'}
             </button>
