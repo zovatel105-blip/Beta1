@@ -528,15 +528,19 @@ export default function Feed() {
 
   return (
     <div className="feed-container fixed inset-0 bg-black" onPointerDown={muted ? onFirstInteraction : undefined}>
-      {/* Buscador de usuarios: lupa fija arriba a la derecha (estilo TikTok). */}
-      <button
-        aria-label="Buscar usuarios"
-        onClick={() => setSearchOpen(true)}
-        className="absolute right-3 z-40 w-9 h-9 flex items-center justify-center text-white active:scale-95 transition drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)]"
-        style={{ top: 'max(env(safe-area-inset-top), 12px)' }}
-      >
-        <Search size={24} strokeWidth={2.2} />
-      </button>
+      {/* Buscador de usuarios: lupa fija arriba a la derecha (estilo TikTok).
+          Solo en el feed PRINCIPAL — la página "Siguiendo" (followingMode) no
+          debe mostrar el icono de búsqueda. */}
+      {!followingMode && (
+        <button
+          aria-label="Buscar usuarios"
+          onClick={() => setSearchOpen(true)}
+          className="absolute right-3 z-40 w-9 h-9 flex items-center justify-center text-white active:scale-95 transition drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)]"
+          style={{ top: 'max(env(safe-area-inset-top), 12px)' }}
+        >
+          <Search size={24} strokeWidth={2.2} />
+        </button>
+      )}
       {!ready ? (
         <div className="w-full h-full flex items-center justify-center">
           <div className="w-12 h-12 rounded-full border-2 border-white/20 border-t-white animate-spin" />
