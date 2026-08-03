@@ -480,7 +480,12 @@ export default function Feed() {
     activeIndexRef.current = 0
     setActiveIndex(0)
     const el = containerRef.current
-    if (el) el.scrollTo({ top: 0, behavior: 'auto' })
+    if (el) {
+      el.scrollTo({ top: 0, behavior: 'auto' })
+      // Refuerzo: algunos navegadores móviles ignoran scrollTo() programático
+      // con scroll-snap activo o durante el momentum del gesto.
+      el.scrollTop = 0
+    }
   }, [])
 
   // Home, 1 click (BottomNav): vuelve al feed PRINCIPAL (sale de "Siguiendo"
@@ -494,7 +499,19 @@ export default function Feed() {
     setActiveChallengesOpen(false)
     setFollowingMode(false)
     resetScrollTop()
-    refreshHomeFeed()
+    // BUG FIX "al actualizar no vuelve arriba": el reset de arriba ocurre
+    // ANTES de que llegue el feed nuevo; al SUSTITUIRSE los posts, el
+    // navegador re-ancla el scroll a la tarjeta que estaba visible
+    // (scroll anchoring + snap). Se re-fuerza el scroll a la primera tarjeta
+    // DESPUÉS de que el contenido nuevo haya renderizado (2 frames).
+    Promise.resolve(refreshHomeFeed())
+      .then(() => {
+        requestAnimationFrame(() => {
+          resetScrollTop()
+          requestAnimationFrame(() => resetScrollTop())
+        })
+      })
+      .catch(() => {})
   }, [resetScrollTop, refreshHomeFeed])
 
   // Home, doble click (BottomNav): alterna entre el feed principal y la
