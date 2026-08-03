@@ -55,20 +55,24 @@ export function useFeed() {
     if (fresh.length) setPosts((prev) => [...prev, ...fresh])
   }, [])
 
-  // Carga (inicial Y refresco): uploads + primera página del feed en paralelo.
-  // Extraída a función reutilizable para que refresh() (botón Home, 1 click,
-  // ver BottomNav/Feed.jsx) pueda repetir EXACTAMENTE la misma carga inicial,
-  // sustituyendo el feed entero por contenido fresco desde el principio.
+  // Carga (inicial Y refresco): SOLO el feed rankeado por el TWYK Engine.
+  // ANTES se cargaba /api/uploads (cronológico fijo) + /api/feed en paralelo,
+  // con uploads PRIMERO: como /api/uploads contiene TODOS los posts, el dedupe
+  // descartaba los del feed rankeado y el usuario veía SIEMPRE el mismo orden
+  // cronológico (el algoritmo nunca llegaba a pintarse). /api/feed usa esas
+  // mismas publicaciones como candidatos, así que uploads queda solo como
+  // FALLBACK si el feed falla o llega vacío.
   const loadInitial = useCallback(async () => {
-    const [uploads, page] = await Promise.all([
-      fetchUploads(),
-      fetchFeedPage(0).catch(() => ({ posts: [], nextCursor: 0, hasMore: false })),
-    ])
-    cursorRef.current = page.nextCursor ?? 0
-    hasMoreRef.current = page.hasMore !== false
+    const page = await fetchFeedPage(0).catch(() => null)
+    let list = page?.posts || []
+    if (list.length === 0) {
+      list = await fetchUploads()
+    }
+    cursorRef.current = page?.nextCursor ?? 0
+    hasMoreRef.current = page ? page.hasMore !== false : false
     seenRef.current = new Set()
     const merged = []
-    for (const p of [...uploads, ...(page.posts || [])]) {
+    for (const p of list) {
       if (p && p.id && !seenRef.current.has(p.id)) {
         seenRef.current.add(p.id)
         merged.push(p)

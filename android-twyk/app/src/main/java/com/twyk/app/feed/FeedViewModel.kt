@@ -57,8 +57,11 @@ class FeedViewModel : ViewModel() {
 
     private fun loadInitial() {
         viewModelScope.launch {
-            val uploads = runCatching { api.uploads().posts.orEmpty().filter(::isFeedPost) }
-                .getOrDefault(emptyList())
+            // SOLO el feed rankeado por el TWYK Engine. ANTES se cargaba
+            // api.uploads() (cronológico fijo) PRIMERO + el feed después: como
+            // /api/uploads contiene TODOS los posts, el dedupe descartaba los
+            // del feed rankeado y el usuario veía SIEMPRE el mismo orden.
+            // uploads queda solo como FALLBACK si el feed falla o llega vacío.
             val page = runCatching { api.feed(0) }.getOrNull()
             cursor = page?.nextCursor ?: 0
             hasMore = page?.hasMore != false
@@ -68,8 +71,12 @@ class FeedViewModel : ViewModel() {
             // (si no, un refresh() posterior a la carga inicial no volvería a
             // añadir los mismos ids y el feed quedaría vacío).
             seen.clear()
-            val merged = (uploads + (page?.posts ?: emptyList())).filter { seen.add(it.id) }
-            _posts.value = merged
+            var list = page?.posts.orEmpty().filter(::isFeedPost)
+            if (list.isEmpty()) {
+                list = runCatching { api.uploads().posts.orEmpty().filter(::isFeedPost) }
+                    .getOrDefault(emptyList())
+            }
+            _posts.value = list.filter { seen.add(it.id) }
         }
     }
 
