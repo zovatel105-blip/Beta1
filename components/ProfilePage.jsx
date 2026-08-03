@@ -594,6 +594,17 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
     setEditOpen(false)
   }
 
+  // Autoguardado del avatar al recortarlo (ver CircularCrop.jsx/onImageCropped
+  // en EditProfileModal): a diferencia de handleProfileUpdated, NO cierra el
+  // modal de Edit Profile — el usuario puede seguir editando nombre/bio; la
+  // foto ya quedó guardada en el backend independientemente de si termina
+  // pulsando el botón "Save" de la cabecera o cierra sin tocar nada más.
+  const handleAvatarSaved = (updatedUser) => {
+    if (!updatedUser) return
+    setProfile((prev) => ({ ...(prev || {}), user: { ...(prev?.user || {}), ...updatedUser } }))
+    updateUser?.(updatedUser)
+  }
+
   // Cerrar sesión: limpia la sesión y vuelve al feed.
   const handleLogout = async () => {
     setMenuOpen(false)
@@ -1035,6 +1046,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
           initial={{ name: me.name, bio: me.bio, avatarUrl: me.avatarUrl }}
           onClose={() => setEditOpen(false)}
           onSaved={handleProfileUpdated}
+          onAvatarSaved={handleAvatarSaved}
         />
       )}
 
@@ -1350,7 +1362,7 @@ const FollowListModal = ({ type, users, loading, onClose, onOpenUser, onSwitch }
 
 
 // Modal para editar el perfil propio: avatar (subida de imagen), nombre y bio.
-const EditProfileModal = ({ initial, onClose, onSaved }) => {
+const EditProfileModal = ({ initial, onClose, onSaved, onAvatarSaved }) => {
   const [name, setName] = useState(initial?.name || '')
   const [bio, setBio] = useState(initial?.bio || '')
   const [avatarUrl, setAvatarUrl] = useState(initial?.avatarUrl || '')
@@ -1380,12 +1392,54 @@ const EditProfileModal = ({ initial, onClose, onSaved }) => {
     e.target.value = ''
   }
 
-  const onImageCropped = (croppedUrl, blob) => {
+  // Envía el FormData a /api/profile y devuelve el usuario actualizado (o
+  // lanza si falla) — compartido por el botón "Save" de la cabecera y por el
+  // autoguardado inmediato al recortar la foto (ver onImageCropped).
+  const postProfile = async (fd) => {
+    const token = (typeof window !== 'undefined' && localStorage.getItem('twyk_token')) || ''
+    const res = await fetch('/api/profile', {
+      method: 'POST',
+      body: fd,
+      cache: 'no-store',
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    })
+    if (!res.ok) throw new Error('save_failed')
+    const data = await res.json()
+    return data?.user || null
+  }
+
+  // BUG reportado por el usuario ("con darle al botón Save [del recorte] debe
+  // guardarse sin necesidad de volver a darle Save en editar perfil"): antes,
+  // recortar la foto SOLO la guardaba en memoria (avatarFile/preview) — había
+  // que además pulsar el botón "Save" de la cabecera de Edit Profile para que
+  // se subiera de verdad al backend. FIX: en cuanto se recorta, se guarda YA
+  // (POST /api/profile con el avatar recién recortado + el nombre/bio
+  // actuales, para no perder esos campos si ya se habían editado) — el botón
+  // "Save" de la cabecera sigue existiendo para nombre/bio, pero la foto ya
+  // quedó persistida independientemente de si se llega a pulsar o no. El
+  // modal de Edit Profile NO se cierra (onAvatarSaved, a diferencia de
+  // onSaved) para que el usuario pueda seguir editando nombre/bio si quiere.
+  const onImageCropped = async (croppedUrl, blob) => {
     const croppedFile = new File([blob], 'avatar.jpg', { type: 'image/jpeg' })
-    setAvatarFile(croppedFile)
-    setPreview(croppedUrl)
+    setPreview(croppedUrl) // feedback visual instantáneo mientras se sube
     setCropOpen(false)
     setRawImage(null)
+    setSaving(true)
+    setError('')
+    try {
+      const fd = new FormData()
+      fd.append('name', name)
+      fd.append('bio', bio)
+      fd.append('avatar', croppedFile)
+      const updatedUser = await postProfile(fd)
+      setAvatarFile(null) // ya se guardó: el botón Save de la cabecera no necesita re-enviarla
+      if (updatedUser?.avatarUrl) { setAvatarUrl(updatedUser.avatarUrl); setPreview(updatedUser.avatarUrl) }
+      onAvatarSaved?.(updatedUser)
+    } catch {
+      setError("Couldn't save the photo. Try again.")
+    } finally {
+      setSaving(false)
+    }
   }
 
   const handleSave = async () => {
@@ -1396,17 +1450,12 @@ const EditProfileModal = ({ initial, onClose, onSaved }) => {
       const fd = new FormData()
       fd.append('name', name)
       fd.append('bio', bio)
+      // La foto ya se guarda al instante al recortarla (ver onImageCropped);
+      // avatarFile solo queda pendiente aquí en el caso residual de que ese
+      // autoguardado hubiera fallado y el usuario reintente con este botón.
       if (avatarFile) fd.append('avatar', avatarFile)
-      const token = (typeof window !== 'undefined' && localStorage.getItem('twyk_token')) || ''
-      const res = await fetch('/api/profile', {
-        method: 'POST',
-        body: fd,
-        cache: 'no-store',
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      })
-      if (!res.ok) throw new Error('save_failed')
-      const data = await res.json()
-      onSaved?.(data?.user || { name, bio, avatarUrl })
+      const updatedUser = await postProfile(fd)
+      onSaved?.(updatedUser || { name, bio, avatarUrl })
     } catch {
       setError("Couldn't save. Try again.")
     } finally {
