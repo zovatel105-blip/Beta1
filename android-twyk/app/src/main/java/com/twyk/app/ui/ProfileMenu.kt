@@ -48,7 +48,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
@@ -150,29 +149,6 @@ fun ProfileMenuSheet(
                 Box(
                     Modifier.align(Alignment.CenterStart).fillMaxHeight().width(1.dp)
                         .background(Color.White.copy(alpha = 0.06f)),
-                )
-
-                // Resplandor de marca sutil en la esquina superior derecha —
-                // réplica EXACTA de `-top-24 -right-24 w-56 h-56` +
-                // `radial-gradient(circle, rgba(168,85,247,0.14) 0%,
-                // rgba(168,85,247,0) 70%)` de SettingsDrawer.jsx: forma de
-                // 224dp (56×4), desplazada 96dp (24×4) MÁS ALLÁ de la esquina
-                // superior-derecha en ambos ejes (antes 40dp, un valor
-                // inventado que no correspondía a ningún token de la web), y
-                // el degradado se apaga del todo al 70% del radio (antes
-                // llegaba hasta el 100%, dejando un halo visualmente más
-                // ancho/difuso que en la web).
-                Box(
-                    Modifier
-                        .align(Alignment.TopEnd)
-                        .offset(x = 96.dp, y = (-96).dp)
-                        .size(224.dp)
-                        .background(
-                            Brush.radialGradient(
-                                0f to Color(0xFFA855F7).copy(alpha = 0.14f),
-                                0.7f to Color.Transparent,
-                            ),
-                        ),
                 )
 
                 // Indicador de arrastre: flecha ">" en el borde izquierdo del

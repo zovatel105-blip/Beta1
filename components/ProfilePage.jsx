@@ -1230,13 +1230,6 @@ const SettingsDrawer = ({ open, onClose, onLogout, isAdmin }) => {
           open ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
-        {/* Resplandor de marca sutil, solo decorativo */}
-        <div
-          aria-hidden
-          className="absolute -top-24 -right-24 w-56 h-56 rounded-full pointer-events-none"
-          style={{ background: 'radial-gradient(circle, rgba(168,85,247,0.14) 0%, rgba(168,85,247,0) 70%)' }}
-        />
-
         {/* Indicador de arrastre: flecha ">" en el borde izquierdo del panel
             (sugiere la dirección del gesto para cerrar) */}
         <div aria-hidden className="absolute left-1 top-1/2 -translate-y-1/2 pointer-events-none text-white/25">

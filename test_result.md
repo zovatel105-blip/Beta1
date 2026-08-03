@@ -3159,6 +3159,21 @@ agent_communication:
         -agent: "main"
         -comment: "CAUSA RAÍZ encontrada de inmediato en el propio vector drawable (100% Android/XML, sin relación con Compose): `res/drawable/ic_x.xml` (usado ÚNICAMENTE en EditProfile.kt, un solo punto de uso — ningún otro botón 'cerrar' de la app usa este drawable, así que el bug no afecta a nada más) tenía `android:pathData=\"M18 6 6 18 m6 6 12 12\"`. Decodificado el mini-lenguaje de paths SVG (el mismo que usa `pathData` de Android): 'M18 6 6 18' dibuja bien la 1ª diagonal (18,6)->(6,18); pero ' m6 6 12 12' usa una 'm' MINÚSCULA (moveTo RELATIVO, no absoluto) — relativo al punto anterior (6,18), se mueve a (12,24) y de ahí, por el lineTo implícito que añade el 2º par de números, hasta (24,36): AMBOS puntos de esa 2ª diagonal caen en o más allá del borde del viewport de 24x24, así que casi toda esa línea se dibuja FUERA del icono visible — solo se ve la puntita inicial (el 'fragmento suelto' de la captura del usuario). Debía ser 'M6 6 18 18' (M MAYÚSCULA = moveTo ABSOLUTO a (6,6), lineTo a (18,18)) para formar la 2ª diagonal completa de la X, simétrica a la primera. FIX: `pathData` corregido a `\"M18 6 6 18 M6 6 18 18\"`. VERIFICACIÓN VISUAL CONCLUYENTE (sin agente de testing, instrucción explícita y reiterada del usuario 'Nunca usar el testing agent' — en su lugar, mcp_screenshot_tool sobre un SVG local propio, NO la app/APK, solo para renderizar el mismo pathData con el motor de paths estándar que sigue Android): capturada una comparación lado a lado del path ANTES (roto) vs DESPUÉS (corregido) — el 'antes' reproduce EXACTAMENTE el síntoma de la captura del usuario (una diagonal + un fragmento suelto abajo), el 'después' muestra una X completa y simétrica. Confirmado con grep que `ic_x` se usa en un ÚNICO sitio de todo el proyecto (EditProfile.kt), así que el fix no tiene efectos secundarios en ningún otro botón de cerrar. 100% recurso Android nativo (XML), NO COMPILABLE/instalable en este contenedor (sin Android SDK); requiere rebuild del APK. Pendiente: el usuario debe compilar el APK y confirmar que la X del header de 'Edit profile' se ve completa."
 
+  - task: "Ajustes del perfil (menú hamburguesa 'Settings', web y app nativa): quitar el resplandor/glow morado decorativo de la esquina superior derecha"
+    implemented: true
+    working: "NA"
+    file: "components/ProfilePage.jsx, android-twyk/app/src/main/java/com/twyk/app/ui/ProfileMenu.kt"
+    stuck_count: 0
+    priority: "low"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'Elimina el glow de los ajustes de la hamburguesa del perfil el glow morado' (captura adjunta: panel 'Settings' con un resplandor morado visible en la esquina superior derecha)."
+        -working: "NA"
+        -agent: "main"
+        -comment: "CAMBIO UI simple (sin lógica). WEB (components/ProfilePage.jsx/SettingsDrawer): eliminado el `<div>` decorativo con `background: radial-gradient(circle, rgba(168,85,247,0.14) 0%, rgba(168,85,247,0) 70%)` (esquina superior derecha del panel). APP NATIVA (android-twyk/.../ui/ProfileMenu.kt): encontrada y eliminada la RÉPLICA EXACTA de ese mismo glow (mismo color `0xFFA855F7`/alpha 0.14, mismo `Brush.radialGradient`, ya documentada en el propio código como réplica intencional de la web) — se revisó proactivamente aunque el usuario no mencionó 'app nativa' esta vez, dado que ambas plataformas comparten este mismo panel de Ajustes y el patrón de esta sesión ha sido mantener paridad total; también se quitó el import ahora no usado de `Brush`. Lint limpio en ProfilePage.jsx (solo 1 warning preexistente no relacionado). NO se invocó ningún agente de testing (instrucción explícita y reiterada del usuario en esta sesión: 'Nunca usar el testing agent'). Pendiente: el usuario debe confirmar visualmente en la web que el glow ya no aparece, y (si compila el APK) que tampoco aparece en la app nativa."
+
 
 
 
