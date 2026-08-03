@@ -165,17 +165,14 @@ private fun SplashScreen() {
         Modifier.fillMaxSize().background(Color.White),
         contentAlignment = Alignment.Center,
     ) {
-        // NUEVO ajuste pedido por el usuario ("mover el logo del splash un
-        // poco arriba manteniéndolo centrado"): se añade un desplazamiento
-        // vertical MODERADO hacia arriba (-24dp) — el `Box` sigue centrando
-        // ambos ejes (contentAlignment=Center), así que el logo permanece
-        // centrado HORIZONTALMENTE (offset solo en Y); verticalmente queda
-        // un poco por encima del centro exacto, no pegado arriba del todo.
-        // Tamaño sin cambios: 205dp.
+        // AJUSTE ("un poco más" arriba, tras el -24dp anterior): subido a
+        // -36dp — sigue centrado horizontalmente (Box contentAlignment=
+        // Center), solo se incrementa el desplazamiento vertical hacia
+        // arriba. Tamaño sin cambios: 205dp.
         Image(
             painter = painterResource(R.drawable.auth_logo),
             contentDescription = null,
-            modifier = Modifier.offset(y = (-24).dp).size(205.dp),
+            modifier = Modifier.offset(y = (-36).dp).size(205.dp),
         )
     }
 }
