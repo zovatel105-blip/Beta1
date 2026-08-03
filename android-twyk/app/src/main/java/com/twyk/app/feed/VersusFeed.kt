@@ -1595,6 +1595,22 @@ private fun RailItem(icon: ImageVector, label: String, tint: Color, size: Int = 
             // seguridad ya que a 8px "Add 1st" queda más cerca del límite de
             // 30dp): palabra larga ahora 8sp + Bold (antes 5.5sp), números y
             // palabras cortas siguen en SemiBold sin cambios.
+            // BUG NUEVO reportado ("en el botón de comentar aparece Add pero
+            // falta 1st"): el tope de ancho anterior (30dp, igual al icono)
+            // era DEMASIADO estrecho para "Add 1st"/"Be 1st" a 8sp Bold (~7-8
+            // caracteres, ancho real ≈35-40dp) — con TextAlign por defecto
+            // (Start) y overflow=Clip, el sobrante se recorta por la DERECHA,
+            // es decir la palabra final "1st" desaparecía por completo,
+            // dejando solo "Add"/"Be" visible. Como este rail es VERTICAL
+            // (RailItem se apila en una Column, no compite por ancho con
+            // ningún icono vecino en la misma fila — el siguiente elemento
+            // está DEBAJO, no al lado), no hay riesgo real de colisión al
+            // ensanchar solo la etiqueta larga: se sube el tope a 1.8x el
+            // icono (54dp con size=30, de sobra para "Add 1st"/"Be 1st") y se
+            // centra el texto (TextAlign.Center, igual que la web con
+            // text-center) para que, si algún dispositivo extremo aún no
+            // cupiera, el recorte sea simétrico en vez de perder la palabra
+            // final entera.
             val hasLetters = label.any { ch -> ch.isLetter() }
             val isLongWord = hasLetters && label.length > 5
             Text(
@@ -1604,7 +1620,8 @@ private fun RailItem(icon: ImageVector, label: String, tint: Color, size: Int = 
                 fontWeight = if (isLongWord) FontWeight.Bold else FontWeight.SemiBold,
                 maxLines = 1,
                 overflow = TextOverflow.Clip,
-                modifier = Modifier.widthIn(max = size.dp),
+                textAlign = TextAlign.Center,
+                modifier = Modifier.widthIn(max = (if (isLongWord) size * 1.8 else size.toDouble()).dp),
             )
         }
     }
