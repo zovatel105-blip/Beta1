@@ -165,17 +165,16 @@ private fun SplashScreen() {
         Modifier.fillMaxSize().background(Color.White),
         contentAlignment = Alignment.Center,
     ) {
-        // Ajuste pedido por el usuario ("centrado un pelín arriba y un poco
-        // más grande"): 140dp -> 185dp (ajustado 2 veces: 170dp y después
-        // "un pelín más grande" -> 185dp) -> 205dp ("un poquito más grande",
-        // misma sesión en la que también se agrandó el logo del ícono de la
-        // app — ver mipmap-*/ic_launcher_foreground.png), y desplazado 30dp
-        // por encima del centro exacto (offset se aplica ANTES de size para
-        // que el desplazamiento no altere la medida del propio logo).
+        // NUEVO ajuste pedido por el usuario ("el splash screen debe estar
+        // centrado"): se retira el desplazamiento de -30dp hacia arriba (de
+        // una sesión anterior, "centrado un pelín arriba") — ahora el logo
+        // queda EXACTAMENTE centrado en el `Box` (contentAlignment=Center ya
+        // centra tanto horizontal como verticalmente sin ningún offset).
+        // Tamaño sin cambios en este ajuste: 205dp.
         Image(
             painter = painterResource(R.drawable.auth_logo),
             contentDescription = null,
-            modifier = Modifier.offset(y = (-30).dp).size(205.dp),
+            modifier = Modifier.size(205.dp),
         )
     }
 }
