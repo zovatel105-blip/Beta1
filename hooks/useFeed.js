@@ -116,6 +116,14 @@ export function useFeed() {
     setPosts((prev) => [post, ...prev.filter((p) => p.id !== post.id)])
   }, [])
 
+  // MEJORA E ("No me interesa"): quita una publicación concreta del feed ya
+  // cargado en memoria, sin recargar nada. El backend (POST
+  // /api/feed/not-interested) ya se encarga de excluirla de futuras páginas.
+  const removePost = useCallback((postId) => {
+    if (!postId) return
+    setPosts((prev) => prev.filter((p) => p.id !== postId))
+  }, [])
+
   // Actualiza EN MEMORIA el avatar/nombre de un autor en TODOS los posts del
   // feed (author + lados A/B). Se usa cuando el usuario cambia su foto de
   // perfil: el feed ya cargado guarda un snapshot del avatar, así que lo
@@ -144,7 +152,7 @@ export function useFeed() {
     setPosts((prev) => patchCommentCountInList(prev, postId, count))
   }), [])
 
-  return { posts, ready, loadMore, prependPost, patchAuthorAvatar, refresh }
+  return { posts, ready, loadMore, prependPost, removePost, patchAuthorAvatar, refresh }
 }
 
 export default useFeed

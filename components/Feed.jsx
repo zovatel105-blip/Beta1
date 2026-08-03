@@ -88,11 +88,19 @@ export default function Feed() {
   const homeFeed = useFeed()
   const followingFeed = useFollowingFeed(followingMode)
   const activeFeedSource = followingMode ? followingFeed : homeFeed
-  const { posts, ready, loadMore } = activeFeedSource
+  const { posts, ready, loadMore, removePost: removeActivePost } = activeFeedSource
   const followingUnauthorized = followingFeed.unauthorized
   const { prependPost, patchAuthorAvatar, refresh: refreshHomeFeed } = homeFeed
   const { trackVideoView, isGuest } = useGuestTracking()
   const { user } = useAuth()
+
+  // MEJORA E ("No me interesa"): el registro en backend (POST
+  // /api/feed/not-interested) ya lo dispara OptionsModal.jsx; aquí solo
+  // quitamos la tarjeta del feed que esté activo en ese momento (Para Ti o
+  // Siguiendo — el usuario puede abrir el menú desde cualquiera de los dos).
+  const handleNotInterested = useCallback((postId) => {
+    removeActivePost?.(postId)
+  }, [removeActivePost])
 
   const [activeIndex, setActiveIndex] = useState(0)
   const [muted, setMuted] = useState(true)
@@ -614,6 +622,7 @@ export default function Feed() {
                       onRequestNext={goNext}
                       onChallenge={openChallenge}
                       onOpenProfile={openAuthorProfile}
+                      onNotInterested={handleNotInterested}
                     />
                   ) : (
                     <CarouselSlide
@@ -628,6 +637,7 @@ export default function Feed() {
                       onRequestNext={goNext}
                       onChallenge={openChallenge}
                       onOpenProfile={openAuthorProfile}
+                      onNotInterested={handleNotInterested}
                     />
                   )
                 ) : inPosterWindow && poster ? (

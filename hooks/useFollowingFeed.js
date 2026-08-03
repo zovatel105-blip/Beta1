@@ -85,6 +85,14 @@ export function useFollowingFeed(enabled) {
     if (fresh.length) setPosts((prev) => [...prev, ...fresh])
   }, [])
 
+  // MEJORA E ("No me interesa"): quita una publicación concreta de esta
+  // lista en memoria (el registro del backend es independiente de qué feed
+  // estaba viendo el usuario en ese momento).
+  const removePost = useCallback((postId) => {
+    if (!postId) return
+    setPosts((prev) => prev.filter((p) => p.id !== postId))
+  }, [])
+
   const loadMore = useCallback(async () => {
     if (loadingRef.current || !hasMoreRef.current) return
     loadingRef.current = true
@@ -105,7 +113,7 @@ export function useFollowingFeed(enabled) {
     setPosts((prev) => patchCommentCountInList(prev, postId, count))
   }), [])
 
-  return { posts, ready, loadMore, refresh, unauthorized }
+  return { posts, ready, loadMore, refresh, removePost, unauthorized }
 }
 
 export default useFollowingFeed

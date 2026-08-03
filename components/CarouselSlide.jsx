@@ -42,7 +42,7 @@ const COMMENT_BAR_RESERVE = '58px + max(env(safe-area-inset-bottom, 0px), 12px)'
  * Se vota tocando directamente el vídeo (toca = vota la opción visible).
  * La UI (cabecera + columna social) es la misma que la de un vídeo normal.
  */
-function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: globalMuted, playbackEnabled = true, onRequestNext, onChallenge, onOpenProfile, infoBottom = false, hideChallenge = false, showCommentInput = false }) {
+function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: globalMuted, playbackEnabled = true, onRequestNext, onChallenge, onOpenProfile, onNotInterested, infoBottom = false, hideChallenge = false, showCommentInput = false }) {
   const { user } = useAuth()
   const overlayRef = useRef(null)
   const videoARef = useRef(null)
@@ -857,6 +857,7 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
         author={headAuthor}
         isOwner={isOwner}
         onClose={() => setMenuOpen(false)}
+        onNotInterested={onNotInterested}
       />
 
       {/* Puntitos del carrusel */}

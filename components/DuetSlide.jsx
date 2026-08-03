@@ -48,7 +48,7 @@ const COMMENT_BAR_RESERVE = '58px + max(env(safe-area-inset-bottom, 0px), 12px)'
  *   - double tap  -> like (corazón flotante).
  * La UI (cabecera superior + columna social derecha) es idéntica a la del vídeo normal.
  */
-function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: globalMuted, playbackEnabled = true, onRequestNext, onChallenge, onOpenProfile, infoBottom = false, hideChallenge = false, showCommentInput = false }) {
+function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: globalMuted, playbackEnabled = true, onRequestNext, onChallenge, onOpenProfile, onNotInterested, infoBottom = false, hideChallenge = false, showCommentInput = false }) {
   const { user } = useAuth()
   const videoARef = useRef(null)
   const videoBRef = useRef(null)
@@ -904,6 +904,7 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
         author={headAuthor}
         isOwner={isOwner}
         onClose={() => setMenuOpen(false)}
+        onNotInterested={onNotInterested}
       />
 
       {/* Selector de reto — elige explícitamente la opción A o B a la que retar.

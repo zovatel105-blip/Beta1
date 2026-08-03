@@ -66,7 +66,7 @@ import {
   getAllBuiltinVotes,
   incrementBuiltinVote,
 } from '@/lib/stores'
-import { rankFeed, recordVote, recordImpressions, recordWatch, recordEngagement, recordSocialAffinity, computeMetrics } from '@/lib/recommender'
+import { rankFeed, recordVote, recordImpressions, recordWatch, recordEngagement, recordSocialAffinity, recordNotInterested, getNotInterestedIds, computeMetrics } from '@/lib/recommender'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -590,6 +590,17 @@ export async function GET(request, { params }) {
 
     // Moderación: oculta posts de autores bloqueados (en ambos sentidos).
     candidates = await filterBlockedPosts(candidates, currentUser)
+
+    // MEJORA E: excluye publicaciones marcadas "No me interesa" por este
+    // viewer — para siempre, hasta que decida lo contrario (no hay endpoint
+    // para deshacerlo, igual que en TikTok/Instagram). Solo afecta al Para
+    // Ti; NO se aplica a /api/uploads, /api/feed/following ni al perfil.
+    if (viewerKey) {
+      try {
+        const notInterestedIds = await getNotInterestedIds(viewerKey)
+        if (notInterestedIds.size) candidates = candidates.filter((p) => !notInterestedIds.has(p.id))
+      } catch { /* ignore */ }
+    }
     const totalCandidates = candidates.length
 
     // ── Ranking con TWYK Engine (multi-señal + BPR + re-ranking multi-objetivo).
@@ -599,7 +610,10 @@ export async function GET(request, { params }) {
     if (currentUser) {
       try { followingSet = new Set(await getFollowingUsernames(currentUser.id)) } catch { /* ignore */ }
     }
-    const ctx = { hour: new Date().getHours(), following: followingSet }
+    // MEJORA A: intereses elegidos en el registro (POST /api/profile/interests)
+    // — bootstrap del cold-start, ver rankFeed/contentPart.
+    const declaredInterests = Array.isArray(currentUser?.interests) ? currentUser.interests : []
+    const ctx = { hour: new Date().getHours(), following: followingSet, interests: declaredInterests }
     const { items } = await rankFeed(candidates, { viewerKey, context: ctx, limit, cursor })
     let posts = items.filter(Boolean).map((it) => it.post)
 
@@ -1056,6 +1070,13 @@ export async function POST(request, { params }) {
     return handleShare(request)
   }
 
+  // POST /api/feed/not-interested - MEJORA E: feedback negativo explícito
+  // ("No me interesa" del menú de tres puntos). Fire-and-forget: la tarjeta
+  // ya se quita del feed en el cliente aunque esta petición tarde/falle.
+  if (path === '/feed/not-interested') {
+    return handleNotInterested(request)
+  }
+
   // POST /api/auth/register - Registrar nuevo usuario
   if (path === '/auth/register') {
     return handleRegister(request)
@@ -1438,11 +1459,21 @@ async function handleTrack(request) {
     const viewerKey = currentUser?.id ? `u:${currentUser.id}` : (gid ? `g:${gid}` : null)
 
     // Reconstruye el post para asociar la visualización a sus categorías.
+    // BUG PRE-EXISTENTE encontrado y corregido: los posts DEMO usan el id
+    // "versus_<n>" (solo dígitos, ver makePosts), pero los posts REALES
+    // subidos también empiezan por "versus_" ("versus_up_<hex>" / normal,
+    // "versus_ch_<hex>" / reto aceptado) — el chequeo antiguo
+    // `startsWith('versus_')` los trataba a TODOS como demo, y como
+    // parseInt("up"/"ch")===NaN, el post real se quedaba en el fallback
+    // `{ id }` (sin sideA/sideB/author): la señal de "completar el vídeo"
+    // nunca alimentaba las categorías/creador para NINGÚN post real de tipo
+    // "versus" (sí funcionaba para "duet_<hex>", que no colisiona). FIX: solo
+    // se trata como demo si el resto del id son ÚNICAMENTE dígitos.
     let post = { id }
     try {
-      if (String(id).startsWith('versus_')) {
-        const n = parseInt(String(id).split('_')[1], 10)
-        if (!isNaN(n)) post = makePosts(n, 1)[0]
+      const demoMatch = String(id).match(/^versus_(\d+)$/)
+      if (demoMatch) {
+        post = makePosts(parseInt(demoMatch[1], 10), 1)[0]
       } else {
         const meta = await readUploadMeta()
         const found = (meta || []).find((p) => p.id === id)
@@ -2353,6 +2384,30 @@ async function handleShare(request) {
     return NextResponse.json({ ok: true })
   }
 }
+
+// MEJORA E — "No me interesa" (menú de tres puntos, ver OptionsModal.jsx).
+// Requiere identidad (usuario logueado o invitado con cookie de dispositivo,
+// mismo criterio que /api/feed) para poder excluir la publicación de futuras
+// llamadas a /api/feed de ESE viewer. Fire-and-forget desde el cliente.
+async function handleNotInterested(request) {
+  try {
+    const body = await request.json().catch(() => null)
+    const postId = body?.postId
+    if (!postId) return NextResponse.json({ error: 'missing_postId' }, { status: 400 })
+    const currentUser = await getCurrentUser(request)
+    const gid = request.cookies.get('twyk_gid')?.value
+    const viewerKey = currentUser?.id ? `u:${currentUser.id}` : (gid ? `g:${gid}` : null)
+    if (!viewerKey) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    const meta = await readUploadMeta()
+    const post = meta.find((x) => x.id === postId) || { id: postId }
+    await recordNotInterested(post, viewerKey)
+    return NextResponse.json({ ok: true })
+  } catch (err) {
+    console.error('not-interested error', err)
+    return NextResponse.json({ error: 'not_interested_failed' }, { status: 500 })
+  }
+}
+
 
 async function handleSavePost(request) {
   try {

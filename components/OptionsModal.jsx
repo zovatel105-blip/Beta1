@@ -35,7 +35,7 @@ function authHeaders() {
   }
 }
 
-export default function OptionsModal({ open, postId, author, isOwner = false, onClose, onDeleted }) {
+export default function OptionsModal({ open, postId, author, isOwner = false, onClose, onDeleted, onNotInterested }) {
   const { user } = useAuth()
   const [view, setView] = useState('menu') // 'menu' | 'report'
   const [busy, setBusy] = useState(false)
@@ -49,6 +49,21 @@ export default function OptionsModal({ open, postId, author, isOwner = false, on
       setDone('')
     }
   }, [open])
+
+  // "No me interesa" — feedback negativo explícito para el TWYK Engine (ver
+  // POST /api/feed/not-interested). Fire-and-forget: la tarjeta se quita del
+  // feed en el cliente (onNotInterested) sin esperar la respuesta del
+  // backend, para que se sienta instantáneo igual que en TikTok/Instagram.
+  const notInterested = () => {
+    fetch('/api/feed/not-interested', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ postId }),
+    }).catch(() => { /* best-effort, la tarjeta ya se quitó igualmente */ })
+    onNotInterested?.(postId)
+    onClose?.()
+  }
 
   const submitReport = async (reason) => {
     if (!user) { setDone('You must log in to report'); return }
@@ -100,7 +115,7 @@ export default function OptionsModal({ open, postId, author, isOwner = false, on
   }
 
   const rows = [
-    { key: 'ni', label: 'Not interested', icon: <EyeOff className="w-[22px] h-[22px] text-zinc-700" strokeWidth={1.7} />, onClick: () => onClose?.(), danger: false },
+    { key: 'ni', label: 'Not interested', icon: <EyeOff className="w-[22px] h-[22px] text-zinc-700" strokeWidth={1.7} />, onClick: notInterested, danger: false },
     { key: 'report', label: 'Report', icon: <Flag className="w-[22px] h-[22px] text-red-600" strokeWidth={1.7} />, onClick: () => { setDone(''); setView('report') }, danger: true },
     { key: 'block', label: 'Block user', icon: <Ban className="w-[22px] h-[22px] text-red-600" strokeWidth={1.7} />, onClick: blockUser, danger: true },
   ]
