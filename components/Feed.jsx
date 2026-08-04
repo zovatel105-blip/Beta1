@@ -496,16 +496,26 @@ export default function Feed() {
     }
   }, [])
 
-  // Home, 1 click (BottomNav): vuelve al feed PRINCIPAL (sale de "Siguiendo"
-  // si estaba activo) Y LO REFRESCA — contenido fresco desde el principio +
-  // scroll arriba (petición del usuario: "al hacer 1 click en el home
-  // actualizar el feed").
+  // Home, 1 click (BottomNav): CORRECCIÓN del usuario ("cuando estoy en otra
+  // página y le doy a Home NO debe actualizar, solo volver a la publicación
+  // en la que me quedé") — antes esto refrescaba SIEMPRE, sin importar de
+  // dónde vinieras, deshaciendo el scroll/página en la que estabas. Ahora se
+  // distingue el origen: si ya estabas viendo el feed principal (ningún
+  // overlay abierto, no en Siguiendo) y pulsas Home, es un gesto EXPLÍCITO de
+  // "actualizar" (petición original del usuario: "al hacer 1 click en el
+  // home actualizar el feed") -> refresca y sube arriba. Si en cambio vienes
+  // de OTRA pantalla (perfil, retos, siguiendo...), simplemente cierra esa
+  // pantalla y revela el feed TAL CUAL estaba — el contenedor del feed nunca
+  // se desmonta detrás de esos overlays, así que su scroll ya se conserva
+  // solo, sin tocar nada más.
   const handleGoHome = useCallback(() => {
+    const cameFromElsewhere = profileOpen || inboxOpen || battlesOpen || activeChallengesOpen || followingMode
     setProfileOpen(false)
     setInboxOpen(false)
     setBattlesOpen(false)
     setActiveChallengesOpen(false)
     setFollowingMode(false)
+    if (cameFromElsewhere) return // solo volver — sin refrescar, sin resetear scroll
     resetScrollTop()
     // BUG FIX "al actualizar no vuelve arriba": el reset de arriba ocurre
     // ANTES de que llegue el feed nuevo; al SUSTITUIRSE los posts, el
@@ -520,7 +530,7 @@ export default function Feed() {
         })
       })
       .catch(() => {})
-  }, [resetScrollTop, refreshHomeFeed])
+  }, [resetScrollTop, refreshHomeFeed, profileOpen, inboxOpen, battlesOpen, activeChallengesOpen, followingMode])
 
   // Home, doble click (BottomNav): alterna entre el feed principal y la
   // nueva página "Siguiendo" (solo publicaciones de las cuentas que sigues).

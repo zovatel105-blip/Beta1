@@ -230,25 +230,40 @@ private fun TwykApp() {
         if (uname == com.twyk.app.data.Session.user?.username) tab = Tab.Profile
         else profileUsername = uname
     }
-    // Home, 1 click (BottomNav, ver TwykBottomNav/handleHomeClick más abajo):
-    // vuelve al feed PRINCIPAL (sale de "Siguiendo" si estaba activo) Y LO
-    // REFRESCA — contenido fresco desde el principio + scroll arriba.
-    // Réplica exacta de handleGoHome en Feed.jsx (web). `feedReloadKey++`
-    // remonta VersusFeed/FollowingFeedScreen (mismo mecanismo ya usado por
-    // Upload/onDone para "resetear el feed"), lo que recrea `rememberPagerState`
-    // en la página 0 — equivalente nativo de `resetScrollTop()` en la web.
+    // Home, 1 click (BottomNav, ver TwykBottomNav/handleHomeClick más abajo).
+    // CORRECCIÓN del usuario ("cuando estoy en otra página y le doy a Home
+    // NO debe actualizar, solo volver a la publicación en la que me quedé"):
+    // antes esto refrescaba SIEMPRE y reseteaba `lastActivePage` a 0 sin
+    // importar de dónde vinieras — deshaciendo el propio mecanismo de
+    // "recordar la página activa" ya implementado (ver `lastActivePage`/
+    // `onPageChanged` en FeedPager, VersusFeed.kt) para que volver de
+    // Batallas/Perfil/Subir/Buzón reanude EXACTAMENTE en la misma
+    // publicación. Ahora se distingue el origen: si YA estabas en el feed
+    // principal (Tab.Home, sin Siguiendo activo, sin perfil ajeno abierto) y
+    // pulsas Home, es un gesto EXPLÍCITO de "actualizar" (petición original:
+    // "al hacer 1 click en el home actualizar el feed") -> refresca, resetea
+    // a la página 0 y remonta. Si vienes de OTRA pantalla, solo cambia de
+    // pestaña/cierra ese overlay — `lastActivePage` queda intacto (con lo
+    // último que dejó `onPageChanged`), así el feed reanuda solo donde
+    // estabas, sin refrescar ni remontar nada.
     val handleGoHome: () -> Unit = {
+        val cameFromElsewhere = tab != Tab.Home || followingMode || profileUsername != null
         profileUsername = null
         tab = Tab.Home
         followingMode = false
-        feedViewModel.lastActivePage = 0
-        feedViewModel.refresh()
-        feedReloadKey++
+        if (!cameFromElsewhere) {
+            feedViewModel.lastActivePage = 0
+            feedViewModel.refresh()
+            feedReloadKey++
+        }
     }
     // Home, doble click: alterna entre el feed principal y la página
     // "Siguiendo" (solo publicaciones de las cuentas que sigues). Doble click
     // otra vez (ya en Siguiendo) vuelve al feed principal. Réplica exacta de
-    // handleGoHomeDouble en Feed.jsx (web).
+    // handleGoHomeDouble en Feed.jsx (web). Sin cambios en este fix — alternar
+    // Siguiendo SIEMPRE muestra una fuente de datos distinta, así que
+    // reiniciar el scroll a la primera publicación sigue teniendo sentido
+    // sea cual sea el origen (no es el caso que el usuario reportó).
     val handleGoHomeDouble: () -> Unit = {
         profileUsername = null
         tab = Tab.Home
