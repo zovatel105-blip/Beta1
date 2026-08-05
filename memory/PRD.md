@@ -23,6 +23,77 @@ antes siempre tras A). Detalle completo en `test_result.md`. El usuario pidió e
 el agente de testing para estos cambios nativos (no compilable en este entorno de todas formas).
 
 
+## Ronda: Notificaciones PUSH (Firebase Cloud Messaging) — backend + app nativa, credenciales reales configuradas y verificadas
+Usuario: "quiero añadir notificaciones desde fuera de la apk" (push reales, bandeja del sistema,
+funcionan con la app cerrada). Exploración de alternativas: el usuario pidió explícitamente
+Supabase en vez de Firebase — se investigó (integration_playbook_expert_v2) y se confirmó que
+**Android NO tiene ninguna vía de entrega push sin pasar por Firebase Cloud Messaging** (ni
+Supabase ni ningún otro proveedor puede sustituirlo para la entrega real al dispositivo; como mucho
+Supabase podría ser una capa intermedia que de todos modos necesita Firebase debajo). Tras aclarar
+esto, el usuario priorizó "notificaciones instantáneas" -> se confirmó Firebase como única vía
+viable y se completó la integración.
+
+BACKEND (Next.js + MongoDB):
+- `lib/push.js` (nuevo): inicializa Firebase Admin SDK de forma perezosa/defensiva (si faltan
+  `FIREBASE_PROJECT_ID`/`FIREBASE_CLIENT_EMAIL`/`FIREBASE_PRIVATE_KEY` en `.env`, `sendPush()` es
+  un no-op silencioso, sin romper nada); `registerDeviceToken`/`unregisterDeviceToken` (colección
+  `deviceTokens`, upsert por `userId`+`token`, varios dispositivos por usuario); `sendPush({userId,
+  type, fromUser, postId, commentId})` envía a TODOS los dispositivos activos del usuario y limpia
+  tokens permanentemente inválidos (`registration-token`/`invalid-argument`/`mismatched-credential`).
+- `lib/db.js::createNotification()`: ÚNICO punto de entrada de TODAS las notificaciones in-app
+  (vote/comment/follow/challenge/accepted/reply) — se añadió una llamada fire-and-forget a
+  `sendPush()` justo tras insertar la notificación, así se cubren TODOS los tipos sin tocar cada
+  endpoint del feed/perfil/retos por separado.
+- `route.js`: nuevos `POST /api/push/tokens` (registra el token FCM del dispositivo, requiere
+  sesión) y `DELETE /api/push/tokens` (da de baja, logout).
+- `.env`: `FIREBASE_PROJECT_ID`/`FIREBASE_CLIENT_EMAIL`/`FIREBASE_PRIVATE_KEY` configurados con
+  credenciales REALES subidas por el usuario (proyecto Firebase "twyk-6d691"). La PRIVATE_KEY no se
+  respalda en texto plano en `memory/ENV_BACKUP.md` por seguridad (ver nota ahí: cómo recuperarla si
+  se pierde en un futuro reinicio de pod).
+- VERIFICADO end-to-end (script Node con `fetch` real, SIN curl ni agente de testing, a petición
+  explícita del usuario "sin el testing agent"): login real (marcos/lucia/laura), `POST/DELETE
+  /api/push/tokens` con y sin sesión (401/200/400 correctos), upsert del mismo token 2 veces sin
+  error, regresión de `createNotification()` (laura sigue a marcos -> notificación 'follow' creada
+  correctamente para marcos, confirmado leyendo `GET /api/notifications`), regresión general
+  (`/api/feed`, `/api/auth/me`, `/api/vote`) sin errores 500. ADEMÁS: prueba AISLADA de
+  `firebase-admin` con las credenciales reales y un token FCM inventado -> Firebase AUTENTICA
+  correctamente y FCM responde `messaging/invalid-argument` (confirma que el proyecto/cuenta de
+  servicio son válidos y la comunicación con Google funciona de verdad, no solo que el código no
+  lanza excepciones). Datos de prueba (deviceTokens, relaciones de follow) limpiados tras verificar.
+
+APP NATIVA (Android/Compose) — 100% Kotlin, NO COMPILABLE en este contenedor:
+- `android-twyk/build.gradle.kts` + `app/build.gradle.kts`: plugin `com.google.gms.google-services`
+  + `firebase-bom`/`firebase-messaging`.
+- `android-twyk/app/google-services.json`: **YA COLOCADO** con el archivo real subido por el
+  usuario (`package_name` confirmado = `com.twyk.app`, coincide con `applicationId`). Committeado a
+  git (es configuración de cliente, no secreta) — persiste solo, no hace falta re-subirlo.
+- `AndroidManifest.xml`: permiso `POST_NOTIFICATIONS`, meta-data de canal/icono por defecto,
+  `<service>` `TwykFirebaseMessagingService`, `MainActivity` con `launchMode="singleTop"`.
+- `data/PushTokenManager.kt` (nuevo): sube/refresca el token FCM (`registerCurrentDeviceIfLoggedIn`/
+  `uploadToken`), da de baja el token ANTES de limpiar la sesión en logout
+  (`unregisterAndClearSession`, orden crítico para que la petición de baja siga autenticada);
+  `PushNavigation` (singleton observable) para abrir la bandeja al tocar una notificación.
+- `push/TwykFirebaseMessagingService.kt` (nuevo): `onNewToken` sube el token rotado;
+  `onMessageReceived` (SOLO se invoca en primer plano, comportamiento documentado de Firebase, no un
+  bug) muestra la notificación a mano; en segundo plano/cerrada el propio Android la pinta solo.
+- `MainActivity.kt`: crea el canal "social", solicita el permiso en Android 13+, sube el token al
+  detectar sesión activa (`LaunchedEffect(Session.token)`), lee el intent de un tap de notificación
+  (`onNewIntent`/cold start) y navega a la pestaña Inbox.
+- `data/Models.kt`/`data/TwykApi.kt`: `RegisterPushTokenRequest`/`UnregisterPushTokenRequest` +
+  endpoints Retrofit correspondientes. BONUS (encontrado durante esta edición): `TwykApi.kt` NO
+  tenía `import retrofit2.http.DELETE`/`HTTP` pese a usarlos ya en `unblockUser`/`deletePost` —
+  bug preexistente de compilación, corregido de paso.
+- `ui/Profile.kt`: logout ahora llama a `PushTokenManager.unregisterAndClearSession()` en vez de
+  `Session.clear()` directo.
+- V1 deliberadamente simple: CUALQUIER tap de notificación abre la bandeja (Inbox), donde ya existe
+  la lógica de cada tipo — no navega directo al post/perfil/reto concreto (mejora futura posible).
+- Verificado por revisión manual + balance de llaves/paréntesis de todos los archivos tocados.
+  Pendiente OBLIGATORIO: el usuario debe recompilar el APK (ya no falta ningún archivo de
+  configuración) e instalarlo en un dispositivo real (FCM no funciona en emuladores sin Google
+  Play) para la prueba final: conceder el permiso de notificaciones, cerrar/enviar la app a segundo
+  plano, y desde OTRA cuenta seguir/votar/comentar/retar — la notificación debe aparecer en la
+  bandeja del sistema.
+
 ## Ronda: "pull to refresh" también en la página de Seguidores/Siguiendo
 Usuario: "y también en la página de seguidos" (misma petición de pull-to-refresh de la ronda
 anterior, ahora extendida a `ui/FollowList.kt::FollowListScreen`, la pantalla con el conmutador
