@@ -23,6 +23,27 @@ antes siempre tras A). Detalle completo en `test_result.md`. El usuario pidió e
 el agente de testing para estos cambios nativos (no compilable en este entorno de todas formas).
 
 
+## Ronda: "pull to refresh" también en la página de Seguidores/Siguiendo
+Usuario: "y también en la página de seguidos" (misma petición de pull-to-refresh de la ronda
+anterior, ahora extendida a `ui/FollowList.kt::FollowListScreen`, la pantalla con el conmutador
+Followers/Following que se abre desde los contadores del perfil). Aplica a AMBAS pestañas (no solo
+"Following"), sin condicional adicional. Mismo patrón que en `Profile.kt`: `loadUsers(showSpinner:
+Boolean)` reutilizable + estado `refreshing` + `onRefresh()`. Cambio adicional (necesario para que
+el pull-to-refresh funcione en CUALQUIER estado, no solo con la lista ya cargada): las 3 ramas que
+antes eran composables independientes vía `when` (spinner de carga / estado vacío / `LazyColumn`)
+ahora son `item { ... }` DENTRO de un único `LazyColumn` siempre presente — el nested scroll que
+necesita `PullToRefreshBox` para detectar el gesto exige un descendiente desplazable SIEMPRE
+montado, no solo cuando hay resultados. De paso, `Modifier.weight(1f)` sustituye al
+`Modifier.fillMaxSize()` que tenía cada rama del `when` anterior (dentro de una `Column` sin peso,
+un hijo `fillMaxSize()` mide con la altura TOTAL de la pantalla en vez de la restante bajo la
+cabecera de 56dp — no se notaba porque el desbordamiento sobrante caía fuera de la pantalla sin
+recorte visible, pero `weight(1f)` es la forma correcta de repartir el espacio en una `Column`).
+100% Kotlin nativo (`FollowList.kt`), NO COMPILABLE en este contenedor (sin Android SDK); no se
+tocó backend ni web (feature nueva solo nativa, sin equivalente en `ProfilePage.jsx`). Verificado
+por revisión manual + balance de llaves/paréntesis del archivo completo (39/39, 142/142). Pendiente
+OBLIGATORIO: el usuario debe compilar el APK y confirmar que deslizar hacia abajo en la lista de
+Seguidores y en la de Siguiendo (ambas pestañas, con y sin resultados) refresca correctamente.
+
 ## Ronda: "pull to refresh" (deslizar hacia abajo para actualizar) en el perfil (propio y ajeno)
 Usuario: "en la página de perfil ajeno y propio cuando deslice hacia abajo el perfil debe
 actualizar". Feature NUEVA (no existe en la web, `ProfilePage.jsx` no tiene ningún gesto
