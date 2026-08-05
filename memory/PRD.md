@@ -23,6 +23,50 @@ antes siempre tras A). Detalle completo en `test_result.md`. El usuario pidió e
 el agente de testing para estos cambios nativos (no compilable en este entorno de todas formas).
 
 
+## Ronda: Notificaciones push ENRIQUECIDAS (logo de la app, avatar de quien interactuó, miniatura de la publicación)
+Usuario: "las notificaciones tienen que tener el logo de la apk y mostrar el avatar y la
+publicación en la que se interactuó". CAMBIO DE ARQUITECTURA CLAVE: el payload FCM pasó de
+`notification+data` a **SOLO `data`** — con `notification`, Android auto-pinta la notificación él
+mismo mientras la app está en segundo plano/cerrada, SIN pasar por `onMessageReceived`, así que el
+avatar/imagen nunca podrían mostrarse en ese caso (solo con la app abierta). Con solo `data`,
+Android entrega el mensaje SIEMPRE a `onMessageReceived` (comportamiento oficial de Firebase),
+permitiendo construir la notificación enriquecida en todos los estados de la app por igual.
+
+BACKEND (`lib/push.js`): `toAbsoluteUrl()` convierte rutas relativas (`/uploads/...`, avatares
+subidos/pósters de publicaciones) en URLs absolutas usando `NEXT_PUBLIC_BASE_URL` (Android no
+comparte origen con el backend); `resolvePostImageUrl(postId)` busca la publicación vía
+`getAllPosts()` (mismo patrón `meta.find` ya usado en route.js) y devuelve su `posterUrl`/
+`thumbnailUrl`; `sendPush()` ahora incluye `avatarUrl`/`postImageUrl`/`title`/`body` dentro de
+`data` (todo como string, requisito de FCM) y ya NO envía el bloque `notification`.
+
+ANDROID (`push/TwykFirebaseMessagingService.kt`, reescrito): `onMessageReceived` ahora SIEMPRE
+descarga (en un `CoroutineScope(Dispatchers.IO)`, con timeout de 4s) el avatar y la miniatura antes
+de construir la notificación — `setLargeIcon(avatarBitmap)` (foto circular junto al título, mismo
+lugar que WhatsApp/Instagram) y `NotificationCompat.BigPictureStyle().bigPicture(postBitmap)`
+(imagen grande al expandir). El icono pequeño de la barra de estado (`setSmallIcon`) cambió de
+`ic_inbox` genérico a `R.mipmap.ic_launcher_foreground` (el logo REAL de la app, capa "foreground"
+del ícono adaptativo — verificado con Pillow que tiene canal alpha recortando la marca exacta,
+sin fondo blanco). Nota aclarada en el propio código: Android SIEMPRE renderiza el icono pequeño en
+un solo color/silueta (igual que todas las apps), no es una limitación de este cambio.
+
+VERIFICADO end-to-end (script Node+fetch real, sin curl ni agente de testing): login real,
+comentario real de marcos en una publicación real existente -> log temporal de depuración (ya
+eliminado) confirmó el payload EXACTO enviado: `avatarUrl` resuelto a la URL de dicebear (ya
+absoluta, sin cambios) y `postImageUrl` correctamente convertido de `/uploads/xxx.jpg` a
+`https://.../uploads/xxx.jpg` (URL completa y descargable). Regresión: push de token
+inválido/vote/comment sin errores 500. Dato de prueba (comentario) eliminado tras verificar.
+
+INFRA (hallado durante esta misma verificación): la URL de preview había cambiado de nuevo a
+`native-app-repair.preview.emergentagent.com` (distinta de la que reflejaba `APP_URL` en
+supervisord.conf, ver nota nueva en `memory/ENV_BACKUP.md` sobre esta discrepancia) — `.env`
+(`NEXT_PUBLIC_BASE_URL` ya se había auto-sincronizado solo, pero `CORS_ORIGINS` quedó
+desactualizado) y `Config.kt` (Android) corregidos a la URL real.
+
+Pendiente OBLIGATORIO: el usuario debe recompilar el APK y confirmar en un dispositivo real que,
+al recibir una notificación (con la app en cualquier estado), aparece el logo de Twyk en la barra
+de estado, el avatar de quien interactuó junto al texto, y — al expandir — la miniatura de la
+publicación.
+
 ## Ronda: Notificaciones PUSH (Firebase Cloud Messaging) — backend + app nativa, credenciales reales configuradas y verificadas
 Usuario: "quiero añadir notificaciones desde fuera de la apk" (push reales, bandeja del sistema,
 funcionan con la app cerrada). Exploración de alternativas: el usuario pidió explícitamente

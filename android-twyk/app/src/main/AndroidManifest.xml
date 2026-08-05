@@ -16,19 +16,18 @@
         android:usesCleartextTraffic="true"
         android:theme="@style/Theme.Twyk">
 
-        <!-- Canal de notificación por defecto para mensajes FCM recibidos
-             mientras la app está en segundo plano/cerrada (el sistema pinta
-             la notificación automáticamente a partir del payload
-             "notification", sin pasar por TwykFirebaseMessagingService). El
-             canal real ("social") se crea en tiempo de ejecución en
-             MainActivity.kt (los canales deben existir ANTES de que llegue
-             cualquier notificación que los use). -->
+        <!-- Canal de notificación por defecto — solo aplicaría si algún
+             mensaje llegara con bloque "notification" (ya NO es el caso
+             actual: lib/push.js envía solo "data", ver
+             TwykFirebaseMessagingService.kt), se deja como red de
+             seguridad/valor por defecto. El canal real ("social") se crea
+             en tiempo de ejecución en MainActivity.kt. -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="social" />
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_icon"
-            android:resource="@drawable/ic_inbox" />
+            android:resource="@mipmap/ic_launcher_foreground" />
 
         <service
             android:name=".push.TwykFirebaseMessagingService"
