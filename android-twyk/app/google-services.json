@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "813761455309",
+    "project_id": "twyk-6d691",
+    "storage_bucket": "twyk-6d691.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:813761455309:android:5e3f2f27d75fb3ea8db584",
+        "android_client_info": {
+          "package_name": "com.twyk.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB6GfjpLyWdwTQIHr2NK8y_RMxiElOePdE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -25,10 +25,25 @@ FIREBASE_PRIVATE_KEY=
 
 NOTA (push notifications, ver lib/push.js): las 3 variables FIREBASE_* son
 necesarias para que el backend pueda ENVIAR notificaciones push (Firebase
-Cloud Messaging); si el usuario ya las configuró antes, restaurar también
-sus valores REALES aquí (no dejarlas vacías) para no desactivar el push tras
-un reinicio de pod. Si todavía no las configuró, dejarlas vacías es seguro
-(sendPush() es un no-op silencioso).
+Cloud Messaging). YA ESTÁN CONFIGURADAS con credenciales reales (proyecto
+Firebase "twyk-6d691", cuenta de servicio
+firebase-adminsdk-fbsvc@twyk-6d691.iam.gserviceaccount.com) subidas por el
+usuario en esta sesión. Por seguridad, la PRIVATE_KEY real NO se guarda en
+este archivo (que sí persiste en git) — si tras un reinicio de pod
+`/app/.env` vuelve a faltar y las notificaciones push dejan de funcionar
+(sendPush queda en modo no-op silencioso, el resto de la app sigue
+funcionando), hay 2 formas de recuperarla:
+  1) Pedir al usuario que vuelva a subir el archivo JSON del "Admin SDK"
+     (Firebase Console -> Configuración del proyecto -> Cuentas de
+     servicio -> Generar nueva clave privada -> descarga un JSON nuevo;
+     puede generar tantas como quiera, las viejas siguen siendo válidas
+     también salvo que las revoque) y volver a extraer sus 3 campos
+     (project_id, client_email, private_key) hacia FIREBASE_PROJECT_ID/
+     FIREBASE_CLIENT_EMAIL/FIREBASE_PRIVATE_KEY.
+  2) El archivo Android `android-twyk/app/google-services.json` (NO es
+     secreto, es configuración de cliente) SÍ persiste en git — de ahí se
+     puede confirmar el `project_id` (`twyk-6d691`) para no perder la
+     referencia de qué proyecto de Firebase usar.
 
 NOTA: si la URL de preview cambia (nuevo dominio *.preview.emergentagent.com),
 actualizar NEXT_PUBLIC_BASE_URL y CORS_ORIGINS con el valor de la variable de
