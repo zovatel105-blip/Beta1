@@ -2,6 +2,12 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
+    // Notificaciones push (Firebase Cloud Messaging) — requiere el archivo
+    // `google-services.json` en esta misma carpeta (`android-twyk/app/`),
+    // descargado desde la consola de Firebase. SIN ese archivo, la
+    // sincronización de Gradle FALLARÁ con "File google-services.json is
+    // missing". Ver memory/PRD.md para instrucciones completas.
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -68,4 +74,11 @@ dependencies {
     // subir e incluso a que el sistema recree el proceso) — ver
     // data/UploadWorker.kt.
     implementation("androidx.work:work-runtime-ktx:2.10.0")
+
+    // Notificaciones push (Firebase Cloud Messaging) — ver
+    // data/PushTokenManager.kt, push/TwykFirebaseMessagingService.kt y el
+    // backend (lib/push.js). El BoM alinea la versión de firebase-messaging
+    // automáticamente (no fijar su versión por separado).
+    implementation(platform("com.google.firebase:firebase-bom:33.10.0"))
+    implementation("com.google.firebase:firebase-messaging")
 }

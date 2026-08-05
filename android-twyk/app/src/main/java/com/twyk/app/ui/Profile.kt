@@ -725,7 +725,7 @@ fun ProfileScreen(
         ProfileMenuSheet(
             open = menuOpen,
             onClose = { menuOpen = false },
-            onLogout = { Session.clear() },
+            onLogout = { com.twyk.app.data.PushTokenManager.unregisterAndClearSession() },
             isAdmin = Session.user?.role == "admin",
         )
     }

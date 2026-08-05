@@ -67,6 +67,7 @@ import {
   incrementBuiltinVote,
 } from '@/lib/stores'
 import { rankFeed, recordVote, recordImpressions, recordWatch, recordEngagement, recordSocialAffinity, recordNotInterested, getNotInterestedIds, computeMetrics } from '@/lib/recommender'
+import { registerDeviceToken, unregisterDeviceToken } from '@/lib/push'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -1112,6 +1113,13 @@ export async function POST(request, { params }) {
     return handleMarkNotificationsRead(request)
   }
 
+  // POST /api/push/tokens - Registrar (o refrescar) el token FCM de ESTE
+  // dispositivo para el usuario autenticado (ver lib/push.js). Llamado por
+  // la app nativa al iniciar sesión / al rotar el token (onNewToken).
+  if (path === '/push/tokens') {
+    return handleRegisterPushToken(request)
+  }
+
   // Crear un reto (solicitud de enfrentamiento) con un vídeo subido.
   if (path === '/challenges') {
     return handleCreateChallenge(request)
@@ -2151,6 +2159,54 @@ async function handleAcceptTerms(request) {
 }
 
 // POST /api/notifications/read - Marcar notificaciones como leídas
+// POST /api/push/tokens  body: { token, appVersion? }
+// Registra el token FCM de este dispositivo para el usuario autenticado
+// (ver lib/push.js: registerDeviceToken). Un usuario puede tener varios
+// dispositivos; se identifica cada uno por (userId, token).
+async function handleRegisterPushToken(request) {
+  try {
+    const currentUser = await getCurrentUser(request)
+    if (!currentUser) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    }
+    const body = await request.json().catch(() => ({}))
+    const token = (body?.token || '').toString().trim()
+    if (!token) {
+      return NextResponse.json({ error: 'missing_token' }, { status: 400 })
+    }
+    await registerDeviceToken(currentUser.id, token, {
+      platform: (body?.platform || 'android').toString(),
+      appVersion: body?.appVersion ? String(body.appVersion) : null,
+    })
+    return NextResponse.json({ ok: true })
+  } catch (err) {
+    console.error('register push token error', err)
+    return NextResponse.json({ error: 'register_push_token_failed' }, { status: 500 })
+  }
+}
+
+// DELETE /api/push/tokens  body: { token }
+// Desactiva el token de este dispositivo (logout) para dejar de recibir
+// notificaciones push ahí sin afectar a otros dispositivos del usuario.
+async function handleUnregisterPushToken(request) {
+  try {
+    const currentUser = await getCurrentUser(request)
+    if (!currentUser) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    }
+    const body = await request.json().catch(() => ({}))
+    const token = (body?.token || '').toString().trim()
+    if (!token) {
+      return NextResponse.json({ error: 'missing_token' }, { status: 400 })
+    }
+    await unregisterDeviceToken(currentUser.id, token)
+    return NextResponse.json({ ok: true })
+  } catch (err) {
+    console.error('unregister push token error', err)
+    return NextResponse.json({ error: 'unregister_push_token_failed' }, { status: 500 })
+  }
+}
+
 async function handleMarkNotificationsRead(request) {
   try {
     const currentUser = await getCurrentUser(request)
@@ -2512,6 +2568,11 @@ export async function DELETE(request, { params }) {
   // DELETE /api/users/block - Desbloquear a un usuario.
   if (path === '/users/block') {
     return handleUnblockUser(request)
+  }
+
+  // DELETE /api/push/tokens - Desactivar el token de ESTE dispositivo (logout).
+  if (path === '/push/tokens') {
+    return handleUnregisterPushToken(request)
   }
 
   return NextResponse.json({ error: 'not_found' }, { status: 404 })

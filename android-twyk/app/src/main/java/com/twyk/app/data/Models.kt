@@ -212,6 +212,12 @@ data class ChallengesResponse(val challenges: List<Challenge>? = null)
 data class PostsResponse(val posts: List<Post>? = null)
 data class OkResponse(val ok: Boolean = false, val error: String? = null)
 
+// Notificaciones push (Firebase Cloud Messaging) — ver data/PushTokenManager.kt
+// y backend lib/push.js. registerPushToken se llama al iniciar sesión y cada
+// vez que rota el token (onNewToken); unregisterPushToken al cerrar sesión.
+data class RegisterPushTokenRequest(val token: String, val platform: String = "android", val appVersion: String? = null)
+data class UnregisterPushTokenRequest(val token: String)
+
 // Paso final del registro ("Choose what you like") -> POST /api/profile/interests
 data class SaveInterestsRequest(val interests: List<String>)
 

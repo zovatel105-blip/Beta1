@@ -7,7 +7,9 @@ import okhttp3.RequestBody
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
+import retrofit2.http.HTTP
 import retrofit2.http.Multipart
 import retrofit2.http.POST
 import retrofit2.http.Part
@@ -144,6 +146,17 @@ interface TwykApi {
 
     @POST("api/notifications/read")
     suspend fun markNotificationsRead(@Body body: MarkReadRequest): OkResponse
+
+    // Notificaciones push (Firebase Cloud Messaging) — ver
+    // data/PushTokenManager.kt (quién llama a estos 2 endpoints) y backend
+    // lib/push.js. `unregisterPushToken` usa `@HTTP` con `hasBody=true`
+    // porque `@DELETE` de Retrofit no admite `@Body` por defecto (mismo
+    // patrón ya usado más abajo para `unblockUser`).
+    @POST("api/push/tokens")
+    suspend fun registerPushToken(@Body body: RegisterPushTokenRequest): OkResponse
+
+    @HTTP(method = "DELETE", path = "api/push/tokens", hasBody = true)
+    suspend fun unregisterPushToken(@Body body: UnregisterPushTokenRequest): OkResponse
 
     @GET("api/challenges")
     suspend fun challenges(@Query("role") role: String = "to"): ChallengesResponse

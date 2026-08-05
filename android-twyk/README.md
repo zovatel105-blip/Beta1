@@ -75,6 +75,22 @@ const val BASE_URL = "https://fe1c2c39-8ae1-4296-b2aa-0a2f2efbd4fb.preview.emerg
 ```
 Cuando despliegues tu web a un dominio propio, cambia solo esa línea (acaba en `/`).
 
+## Notificaciones push (Firebase Cloud Messaging)
+> ⚠️ **Paso obligatorio antes de compilar** tras esta sesión: descarga tu
+> `google-services.json` desde la consola de Firebase (Configuración del
+> proyecto → Tus apps → Android, package `com.twyk.app`) y colócalo en
+> `android-twyk/app/google-services.json`. **Sin ese archivo, Gradle
+> FALLARÁ al sincronizar** ("File google-services.json is missing").
+>
+> También necesitas generar una clave del "Admin SDK" (Configuración del
+> proyecto → Cuentas de servicio → Generar nueva clave privada) y pegar sus
+> 3 campos (`project_id`, `client_email`, `private_key`) en `/app/.env`
+> (`FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`)
+> — eso es lo que permite al BACKEND enviar las notificaciones.
+>
+> Sin ninguno de los 2 archivos, la app compila igual pero las push quedan
+> desactivadas (no rompe nada más).
+
 ## Cómo abrirlo y generar el APK
 1. Abre Android Studio → **New Project → Empty Activity (Compose)**.
    - Name: `Twyk` | Package: `com.twyk.app` | Language: Kotlin | Minimum SDK: API 24

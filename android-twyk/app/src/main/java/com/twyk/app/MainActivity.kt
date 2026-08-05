@@ -1,11 +1,19 @@
 package com.twyk.app
 
+import android.Manifest
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Color as AndroidColor
+import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Image
@@ -76,6 +84,16 @@ import kotlinx.coroutines.launch
 // El feed se adapta al formato de cada publicación; la barra inferior navega
 // entre secciones. La barra de estado queda intacta y el vídeo se ve por detrás.
 class MainActivity : ComponentActivity() {
+    // Debe registrarse ANTES de que la Activity llegue a STARTED (por eso es
+    // una propiedad, no algo llamado dentro de onCreate) — lanza el diálogo
+    // nativo de permiso "Allow notifications?" (Android 13+/API 33). No se
+    // reintenta automáticamente si el usuario lo deniega (mismo criterio que
+    // recomienda la documentación de Android: no insistir sin una acción
+    // explícita del usuario).
+    private val notificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { /* concedido o denegado: sin acción adicional por ahora */ }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -90,6 +108,17 @@ class MainActivity : ComponentActivity() {
         // Contadores sociales por publicación (guardados/retos) persistidos —
         // ver data/SocialCountStore.kt.
         com.twyk.app.data.SocialCountStore.init(applicationContext)
+
+        // Notificaciones push (Firebase Cloud Messaging) — ver
+        // data/PushTokenManager.kt. El canal debe existir ANTES de que
+        // llegue cualquier notificación que lo use (tanto las que pinta el
+        // propio sistema en segundo plano como las que muestra a mano
+        // TwykFirebaseMessagingService en primer plano).
+        createNotificationChannel()
+        requestNotificationPermissionIfNeeded()
+        // Si la app se abrió TOCANDO una notificación push (cold start), el
+        // intent ya viene con el extra "open_inbox" desde el primer frame.
+        handlePushIntent(intent)
 
         // Edge-to-edge: el contenido se dibuja detrás de las barras del sistema.
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -145,6 +174,41 @@ class MainActivity : ComponentActivity() {
         super.onStart()
         com.twyk.app.data.AppLifecycle.inForeground = true
     }
+
+    // Warm start: la Activity YA existe y se relanza (p.ej. al tocar la
+    // notificación con la app en segundo plano) — el intent nuevo llega
+    // aquí en vez de a onCreate.
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handlePushIntent(intent)
+    }
+
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel("social", "Social activity", NotificationManager.IMPORTANCE_DEFAULT)
+            getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+        }
+    }
+
+    private fun requestNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT >= 33 &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
+    // Lee el extra que TwykFirebaseMessagingService añade al PendingIntent de
+    // la notificación (ver push/TwykFirebaseMessagingService.kt) y lo
+    // traduce a una petición de navegación observable por TwykApp() (ver
+    // data/PushTokenManager.kt::PushNavigation).
+    private fun handlePushIntent(intent: Intent?) {
+        if (intent?.getBooleanExtra("open_inbox", false) == true) {
+            com.twyk.app.data.PushNavigation.openInboxRequested = true
+            intent.removeExtra("open_inbox")
+        }
+    }
 }
 
 private enum class Tab {
@@ -180,6 +244,25 @@ private fun SplashScreen() {
 @Composable
 private fun TwykApp() {
     var tab by remember { mutableStateOf(Tab.Home) }
+
+    // Notificaciones push: sube el token FCM de este dispositivo cada vez
+    // que hay sesión activa (arranque con sesión restaurada, login o
+    // registro recién hechos — `Session.token` es estado de Compose, así
+    // que este efecto se relanza automáticamente en cada uno de esos casos).
+    LaunchedEffect(com.twyk.app.data.Session.token) {
+        if (com.twyk.app.data.Session.token != null) {
+            com.twyk.app.data.PushTokenManager.registerCurrentDeviceIfLoggedIn()
+        }
+    }
+    // Al tocar una notificación push (ver MainActivity::handlePushIntent +
+    // push/TwykFirebaseMessagingService.kt), navega a la bandeja (Inbox).
+    LaunchedEffect(com.twyk.app.data.PushNavigation.openInboxRequested) {
+        if (com.twyk.app.data.PushNavigation.openInboxRequested) {
+            tab = Tab.Inbox
+            com.twyk.app.data.PushNavigation.openInboxRequested = false
+        }
+    }
+
     // Feed principal — instanciado a este nivel (no dentro de VersusFeed) para
     // poder llamar a `feedViewModel.refresh()` desde el botón Home de la barra
     // inferior (1 click = "actualizar el feed", ver handleGoHome más abajo).
