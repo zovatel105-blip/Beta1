@@ -23,6 +23,30 @@ antes siempre tras A). Detalle completo en `test_result.md`. El usuario pidió e
 el agente de testing para estos cambios nativos (no compilable en este entorno de todas formas).
 
 
+## Ronda: botón "Challenge" (reto) roto en perfiles ajenos abiertos desde Seguidores/Siguiendo
+Usuario reportó: "en los perfiles ajenos... el botón social de reto no funciona" (confirmó APK nueva
+instalada, backend funcionando, y que al pulsar el botón "no pasa nada, ni se abre el diálogo").
+CAUSA RAÍZ (`ui/Profile.kt`): existen 3 llamadas a `ProfileScreen()` en toda la app — (1)
+`Tab.Profile` (perfil propio), (2) overlay `profileUsername` de `MainActivity.kt` (perfil ajeno
+abierto al tocar un autor en el feed principal) y (3) `nestedProfileUsername` DENTRO de
+`Profile.kt` mismo (perfil anidado, abierto al tocar a alguien desde la lista de
+Followers/Following de CUALQUIER perfil, o desde el visor de publicaciones dentro de un perfil).
+Las 2 primeras pasaban correctamente `onOpenChallenge`; la 3ª (anidada) NO lo pasaba, así que
+usaba el valor por defecto del parámetro (`onOpenChallenge: (QuickChallengeTarget) -> Unit = {}`),
+un no-op literal — el botón de reto (icono de espadas en la barra colapsada + píldora bajo el
+avatar) seguía correctamente cableado internamente, pero al no llegar ningún callback real desde
+fuera, pulsarlo no hacía nada en absoluto. FIX de 1 línea: se propaga `onOpenChallenge =
+onOpenChallenge` (el mismo parámetro recibido por la instancia actual) hacia la instancia anidada,
+igual que ya se hacía con `onRequireAuth`. 100% Kotlin nativo, NO COMPILABLE en este contenedor
+(sin Android SDK); no se tocó backend ni web. Verificado por revisión manual línea a línea de las
+3 llamadas a `ProfileScreen()` de todo el proyecto (grep) + balance de llaves/paréntesis del
+archivo completo (242/242, 832/832). Además, en esta misma ronda: `/app/.env` había desaparecido
+de nuevo (causa raíz recurrente, ver `memory/ENV_BACKUP.md`) y la URL de preview había cambiado —
+restaurado `.env`, re-sembrada la base de datos (`node scripts/seed-core-users.mjs`), actualizado
+`android-twyk/.../Config.kt` con la URL nueva. Pendiente OBLIGATORIO: el usuario debe compilar el
+APK y confirmar que el botón de reto ya funciona al abrir un perfil ajeno desde la lista de
+Seguidores/Siguiendo (la ruta exacta que reportó como rota).
+
 ## Sesión actual — cambios aplicados (app nativa Android)
 
 ### Ronda 1 — Modales + botón Retar

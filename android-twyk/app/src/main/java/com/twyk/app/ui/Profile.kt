@@ -640,12 +640,32 @@ fun ProfileScreen(
 
         // Perfil anidado de OTRO autor — puede abrirse desde el visor de
         // publicaciones o desde la lista de Followers/Following.
+        // BUG REPORTADO POR EL USUARIO ("en los perfiles ajenos el botón
+        // social de reto no funciona"): esta instancia ANIDADA de
+        // ProfileScreen NO pasaba `onOpenChallenge`, así que usaba el valor
+        // por defecto del parámetro (`= {}` en la firma de ProfileScreen,
+        // ver más arriba) — un no-op literal. El botón "Challenge" (icono de
+        // espadas en la barra colapsada + píldora bajo el avatar) SÍ estaba
+        // correctamente cableado a `onChallenge` -> `onOpenChallenge(target)`
+        // dentro de este archivo, pero al no llegar ningún callback real
+        // desde aquí, pulsar el botón en un perfil abierto por esta vía
+        // (desde Seguidores/Siguiendo de CUALQUIER perfil, o al tocar al
+        // autor de una publicación dentro del visor de un perfil) no abría
+        // el diálogo de reto ni pasaba nada visible — exactamente el
+        // síntoma reportado. Las otras 2 instancias de ProfileScreen
+        // (Tab.Profile y el overlay `profileUsername` de MainActivity.kt)
+        // SÍ pasaban `onOpenChallenge` correctamente, por eso el bug solo
+        // aparecía en perfiles abiertos por esta ruta anidada. FIX: se
+        // propaga el MISMO `onOpenChallenge` recibido por esta instancia
+        // (parámetro de función, línea ~103) hacia la instancia anidada,
+        // igual que ya se hace con `onRequireAuth`.
         nestedProfileUsername?.let { uname ->
             ProfileScreen(
                 username = uname,
                 isOverlay = true,
                 onClose = { nestedProfileUsername = null },
                 onRequireAuth = onRequireAuth,
+                onOpenChallenge = onOpenChallenge,
             )
         }
 
