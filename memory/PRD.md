@@ -23,6 +23,27 @@ antes siempre tras A). Detalle completo en `test_result.md`. El usuario pidió e
 el agente de testing para estos cambios nativos (no compilable en este entorno de todas formas).
 
 
+## Ronda: "pull to refresh" (deslizar hacia abajo para actualizar) en el perfil (propio y ajeno)
+Usuario: "en la página de perfil ajeno y propio cuando deslice hacia abajo el perfil debe
+actualizar". Feature NUEVA (no existe en la web, `ProfilePage.jsx` no tiene ningún gesto
+equivalente que replicar — es un patrón nativo estándar, no un bug de paridad). Implementado en
+`ui/Profile.kt` con `PullToRefreshBox` de Material3 (`@OptIn(ExperimentalMaterial3Api::class)`):
+(1) la carga inicial del perfil (antes un `LaunchedEffect` en línea) se extrajo a una función
+reutilizable `loadProfile(showSpinner: Boolean)`; (2) nuevo estado `refreshing` + `onRefresh()`
+que llama a `loadProfile(showSpinner = false)` (evita el spinner de pantalla completa; el propio
+indicador de `PullToRefreshBox` ya comunica el estado) y, si la pestaña activa es "saved" (solo
+perfil propio), también refresca `savedPosts`; (3) el `Box` raíz de todo el contenido de la
+pantalla (grid + barras fijas + overlays anidados) se envolvió en `PullToRefreshBox(isRefreshing
+= refreshing, onRefresh = onRefresh)` — el gesto solo se activa cuando el `LazyVerticalGrid`
+interior ya está en scroll 0 y el usuario sigue arrastrando hacia abajo (nested scroll estándar de
+Compose), así que no interfiere con el scroll normal ni con las barras fijas superiores. Aplica
+igual a perfil propio y ajeno (ambos usan el mismo `ProfileScreen`, sin condicional `isOwn`
+adicional). 100% Kotlin nativo (`Profile.kt`), NO COMPILABLE en este contenedor (sin Android SDK);
+no se tocó backend ni web. Verificado por revisión manual + balance de llaves/paréntesis del
+archivo completo (250/250, 859/859). Pendiente OBLIGATORIO: el usuario debe compilar el APK y
+confirmar que deslizar hacia abajo desde arriba del todo (perfil propio y de otra persona) muestra
+el indicador nativo de "actualizando" y refresca los datos/publicaciones.
+
 ## Ronda: botón "Challenge" (reto) roto en perfiles ajenos abiertos desde Seguidores/Siguiendo
 Usuario reportó: "en los perfiles ajenos... el botón social de reto no funciona" (confirmó APK nueva
 instalada, backend funcionando, y que al pulsar el botón "no pasa nada, ni se abre el diálogo").

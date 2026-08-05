@@ -36,8 +36,10 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -94,6 +96,14 @@ import kotlin.math.roundToInt
 // Pantalla de PERFIL (propio o ajeno) — réplica de ProfilePage.jsx de la web.
 // Fondo #0a0a0b + glow dorado, stats alrededor del avatar, nombre/handle,
 // botones (Editar/Compartir o Seguir/Retar), pestañas y cuadrícula 3 columnas.
+// NUEVA FEATURE (usuario: "en la página de perfil ajeno y propio cuando
+// deslice hacia abajo el perfil debe actualizar"): "pull to refresh" — ni la
+// web ni el nativo tenían este gesto en ningún sitio (no hay equivalente en
+// ProfilePage.jsx que replicar; es una feature nueva SOLO para el nativo,
+// donde el gesto de "deslizar hacia abajo para refrescar" es un patrón
+// estándar de plataforma). Implementado con `PullToRefreshBox` de
+// Material3 (ver más abajo).
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
     username: String?,
@@ -159,8 +169,13 @@ fun ProfileScreen(
         }
     }
 
-    LaunchedEffect(target) {
-        loading = true
+    // Carga (y recarga) los datos del perfil. Extraído en una función
+    // reutilizable para poder llamarla también desde el pull-to-refresh
+    // (mismo endpoint, `showSpinner=false` evita parpadear el spinner de
+    // pantalla completa mientras el indicador de PullToRefreshBox ya se
+    // encarga de mostrar el estado de "actualizando").
+    suspend fun loadProfile(showSpinner: Boolean) {
+        if (showSpinner) loading = true
         runCatching { RetrofitProvider.api.userProfile(target) }
             .onSuccess { r ->
                 profile = r.user
@@ -168,8 +183,10 @@ fun ProfileScreen(
                 following = r.user?.isFollowing ?: false
                 followers = r.user?.followers ?: 0
             }
-        loading = false
+        if (showSpinner) loading = false
     }
+
+    LaunchedEffect(target) { loadProfile(showSpinner = true) }
 
     val isOwn = username == null || target == Session.user?.username
     val votos = posts.sumOf { (it.votes?.a ?: 0) + (it.votes?.b ?: 0) }
@@ -182,6 +199,25 @@ fun ProfileScreen(
     // `type` inflaba el contador "Challenges" del perfil con publicaciones
     // normales; contar por `isChallenge` es lo correcto.
     val retos = posts.count { it.isChallenge == true }
+
+    // Pull-to-refresh (deslizar hacia abajo estando arriba del todo para
+    // actualizar) — feature nueva pedida por el usuario, aplica tanto al
+    // perfil propio como al ajeno. Refresca el perfil (datos + stats +
+    // publicaciones) y, si la pestaña activa es "saved" (solo posible en el
+    // perfil propio), también las publicaciones guardadas.
+    var refreshing by remember(target) { mutableStateOf(false) }
+    val onRefresh: () -> Unit = {
+        if (!refreshing) {
+            refreshing = true
+            scope.launch {
+                loadProfile(showSpinner = false)
+                if (activeTab == "saved" && isOwn && Session.token != null) {
+                    savedPosts = runCatching { RetrofitProvider.api.saves().posts.orEmpty() }.getOrDefault(savedPosts)
+                }
+                refreshing = false
+            }
+        }
+    }
 
     // BUG reportado por el usuario ("aparece la barra de navegación inferior
     // que no debería aparecer" al recortar la foto de perfil): "Edit profile"
@@ -447,6 +483,17 @@ fun ProfileScreen(
         (availableContentAreaPx - realContentHeightPx).coerceAtLeast(0f)
     }
 
+    // PullToRefreshBox envuelve TODO el contenido de la pantalla (grid +
+    // barras superpuestas + overlays anidados) — solo intercepta el gesto
+    // cuando el LazyVerticalGrid interior ya está en la posición de scroll 0
+    // y el usuario sigue arrastrando hacia abajo (comportamiento estándar de
+    // Compose vía nested scroll), así que no interfiere con el scroll normal
+    // del grid ni con las barras fijas (que solo consumen taps, no arrastres).
+    PullToRefreshBox(
+        isRefreshing = refreshing,
+        onRefresh = onRefresh,
+        modifier = Modifier.fillMaxSize(),
+    ) {
     Box(Modifier.fillMaxSize().background(TwykBg).onSizeChanged { viewportSize = it }) {
         // NOTA: la web (ProfilePage.jsx) NO tiene ningún glow superior en el
         // perfil principal ("todo el perfil usa el mismo negro grisáceo
@@ -681,6 +728,7 @@ fun ProfileScreen(
             onLogout = { Session.clear() },
             isAdmin = Session.user?.role == "admin",
         )
+    }
     }
 }
 
