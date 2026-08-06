@@ -16,8 +16,8 @@ scripts/seed-core-users.mjs y memory/test_credentials.md).
 ```
 MONGO_URL=mongodb://localhost:27017/twyk
 ADMIN_EMAILS=twyk.apk@gmail.com
-NEXT_PUBLIC_BASE_URL=https://native-app-repair.preview.emergentagent.com
-CORS_ORIGINS=https://native-app-repair.preview.emergentagent.com
+NEXT_PUBLIC_BASE_URL=https://ai-visual-creator-27.preview.emergentagent.com
+CORS_ORIGINS=https://ai-visual-creator-27.preview.emergentagent.com
 FIREBASE_PROJECT_ID=
 FIREBASE_CLIENT_EMAIL=
 FIREBASE_PRIVATE_KEY=
@@ -59,7 +59,7 @@ después de que Next.js haga su propio "Reload env: .env" (log de supervisor),
 o preguntar al usuario cuál es la URL que ve en su navegador.
 
 ## Última URL usada (actualizada automáticamente al restaurar)
-NEXT_PUBLIC_BASE_URL=https://native-app-repair.preview.emergentagent.com
+NEXT_PUBLIC_BASE_URL=https://ai-visual-creator-27.preview.emergentagent.com
 
 ## IMPORTANTE: también actualizar la app nativa Android
 Cuando la URL de preview cambia, además de /app/.env también hay que

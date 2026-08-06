@@ -21,7 +21,7 @@ import time
 import sys
 
 # Base URL from .env
-BASE_URL = "https://feed-display-debug.preview.emergentagent.com/api"
+BASE_URL = "https://ai-visual-creator-27.preview.emergentagent.com/api"
 
 def create_dummy_video():
     """Create a minimal dummy video file for testing"""
