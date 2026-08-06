@@ -3074,11 +3074,17 @@ frontend:
     file: "components/AIImageEditor.jsx, components/UploadDialog.jsx"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         -working: "NA"
         -agent: "main"
-        -comment: "NUEVO componente components/AIImageEditor.jsx (modal a pantalla completa, mismo lenguaje visual que UploadDialog): stage 'input' (foto original + textarea de instrucción + 6 chips de sugerencia + botón 'Generate with AI'), stage 'loading' (spinner sobre la foto), stage 'result' (muestra la foto editada por la IA con 3 acciones: 'Use this photo' que reemplaza el archivo y cierra, 'Try another instruction' que vuelve a 'input' SIN perder la foto original -> permite reintentar tantas veces como quiera, 'Cancel'), stage 'error' (mensaje + 'Try again'/'Edit instruction'). Integrado en components/UploadDialog.jsx: el botón '✨ Edit with AI' aparece SOLO cuando el slot tiene una FOTO seleccionada (no vídeo, fileKind==='image'), junto al botón 'Change' existente, en los 3 flujos que suben imágenes (Versus lado A/B vía renderSlot, 1vs1 lado A/B vía renderSlot, Reto/foto única). Al confirmar 'Use this photo', el resultado (data URL) se convierte a un File real (dataUrlToFile) y sustituye el archivo del slot correspondiente (setFile/setFileB) — el resto del flujo de publicación (subida real, XHR a /api/versus|/api/duet|/api/challenges) NO cambió, sigue funcionando exactamente igual con el archivo ya editado. Lint limpio en ambos archivos (solo 2 warnings preexistentes no relacionados en UploadDialog.jsx, documentados en sesiones anteriores). Pendiente: verificación visual/funcional (requiere permiso explícito del usuario para frontend testing)."
+        -comment: "NUEVO componente components/AIImageEditor.jsx (modal a pantalla completa, mismo lenguaje visual que UploadDialog): stage 'input' (foto original + textarea de instrucción + 6 chips de sugerencia + botón 'Generate with AI'), stage 'loading' (spinner sobre la foto), stage 'result' (muestra la foto editada por la IA con 3 acciones: 'Use this photo' que reemplaza el archivo y cierra, 'Try another instruction' que vuelve a 'input' SIN perder la foto original -> permite reintentar tantas veces como quiera, 'Cancel'), stage 'error' (mensaje + 'Try again'/'Edit instruction'). Integrado en components/UploadDialog.jsx: el botón '✨ Edit with AI' aparece SOLO cuando el slot tiene una FOTO seleccionada (no vídeo, fileKind==='image'), junto al botón 'Change' existente, en los 3 flujos que suben imágenes (Versus lado A/B vía renderSlot, 1vs1 lado A/B vía renderSlot, Reto/foto única). Al confirmar 'Use this photo', el resultado (data URL) se convierte a un File real (dataUrlToFile) y sustituye el archivo del slot correspondiente (setFile/setFileB) — el resto del flujo de publicación (subida real, XHR a /api/versus|/api/duet|/api/challenges) NO cambió, sigue funcionando exactamente igual con el archivo ya editado. Lint limpio en ambos archivos (solo 2 warnings preexistentes no relacionados en UploadDialog.jsx, documentados en sesiones anteriores)."
+        -working: "NA"
+        -agent: "user"
+        -comment: "'Sin El testing agent' — el usuario pidió explícitamente NO usar el agente de testing de frontend para esta función."
+        -working: "NA"
+        -agent: "main"
+        -comment: "Se RESPETA de inmediato: no se invoca deep_testing_frontend_nextjs. El backend (POST /api/ai/edit-image) ya está verificado 6/6 por el agente de testing de backend. La UI (AIImageEditor.jsx + botones en UploadDialog.jsx) queda implementada y con lint limpio, pero SIN verificación automatizada de frontend por instrucción explícita del usuario — marcado 'NA' a la espera de que el propio usuario la pruebe en la app real (subir una foto en Versus/1vs1/Reto, tocar '✨ Edit with AI', escribir una instrucción como 'añade un jet privado de fondo', generar, y confirmar 'Use this photo')."
 
 test_plan:
   current_focus:
