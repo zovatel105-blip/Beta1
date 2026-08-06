@@ -6,6 +6,7 @@ import { ChevronRight, Loader2, Film, Swords, Users, Rows2, Columns2, ArrowLeft,
 import Avatar from './Avatar'
 import MusicPicker from './MusicPicker'
 import AIImageEditor from './AIImageEditor'
+import AIVideoEditor from './AIVideoEditor'
 import { addPendingUpload, updateUploadProgress, removePendingUpload, markUploadFailed } from '@/lib/uploadQueue'
 import { captureThumbnail } from '@/lib/mediaThumbnail'
 
@@ -475,7 +476,7 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
                       isImg ? (
                         <img key={label + displayUrl} src={displayUrl} alt="" draggable={false} className="absolute inset-0 w-full h-full object-cover" />
                       ) : (
-                        <video key={label + url} src={url} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" />
+                        <video key={label + displayUrl} src={displayUrl} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" />
                       )
                     ) : (
                       <button onClick={pick} className="absolute inset-0 w-full h-full flex flex-col items-center justify-center gap-2 bg-white/[0.02] active:bg-white/[0.06] transition">
@@ -503,14 +504,12 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
                         className="absolute right-2 z-20 flex items-center gap-1.5"
                         style={{ top: touchesTop ? 'calc(max(env(safe-area-inset-top), 14px) + 54px)' : '0.5rem' }}
                       >
-                        {isImg && (
-                          <button
-                            onClick={() => setAiEditorSlot(idx)}
-                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-white bg-black/55 hover:bg-black/80 active:scale-95 rounded-full px-2.5 py-1 transition"
-                          >
-                            <Sparkles size={12} /> Edit with AI
-                          </button>
-                        )}
+                        <button
+                          onClick={() => setAiEditorSlot(idx)}
+                          className="inline-flex items-center gap-1 text-[11px] font-semibold text-white bg-black/55 hover:bg-black/80 active:scale-95 rounded-full px-2.5 py-1 transition"
+                        >
+                          <Sparkles size={12} /> Edit with AI
+                        </button>
                         <button onClick={pick} className="text-[11px] font-semibold text-white bg-black/55 hover:bg-black/80 active:scale-95 rounded-full px-2.5 py-1 transition">
                           Change
                         </button>
@@ -542,11 +541,15 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
                   ) : (
                     <div className="absolute inset-0">
                       {previewA ? (
-                        fileKind(file) === 'image' ? (
-                          <img key={aiEditorSlot === 0 && aiOverride?.status === 'result' ? aiOverride.url : previewA} src={aiEditorSlot === 0 && aiOverride?.status === 'result' ? aiOverride.url : previewA} alt="" draggable={false} className="w-full h-full object-cover" />
-                        ) : (
-                          <video src={previewA} autoPlay loop muted playsInline className="w-full h-full object-cover" />
-                        )
+                        (() => {
+                          const singleOv = aiEditorSlot === 0 ? aiOverride : null
+                          const singleDisplayUrl = singleOv?.status === 'result' ? singleOv.url : previewA
+                          return fileKind(file) === 'image' ? (
+                            <img key={singleDisplayUrl} src={singleDisplayUrl} alt="" draggable={false} className="w-full h-full object-cover" />
+                          ) : (
+                            <video key={singleDisplayUrl} src={singleDisplayUrl} autoPlay loop muted playsInline className="w-full h-full object-cover" />
+                          )
+                        })()
                       ) : (
                         <button onClick={pickFile} className="w-full h-full flex flex-col items-center justify-center gap-3 bg-white/[0.02] active:bg-white/[0.05] transition">
                           <div className="w-16 h-16 rounded-2xl border border-white/10 bg-white/[0.05] flex items-center justify-center">
@@ -567,14 +570,12 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
                           className="absolute right-2 z-20 flex items-center gap-1.5"
                           style={{ top: 'calc(max(env(safe-area-inset-top), 14px) + 54px)' }}
                         >
-                          {fileKind(file) === 'image' && (
-                            <button
-                              onClick={() => setAiEditorSlot(0)}
-                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-white bg-black/55 hover:bg-black/80 active:scale-95 rounded-full px-2.5 py-1 transition"
-                            >
-                              <Sparkles size={12} /> Edit with AI
-                            </button>
-                          )}
+                          <button
+                            onClick={() => setAiEditorSlot(0)}
+                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-white bg-black/55 hover:bg-black/80 active:scale-95 rounded-full px-2.5 py-1 transition"
+                          >
+                            <Sparkles size={12} /> Edit with AI
+                          </button>
                           <button onClick={pickFile} className="text-[11px] font-semibold text-white bg-black/55 hover:bg-black/80 active:scale-95 rounded-full px-2.5 py-1 transition">
                             Change
                           </button>
@@ -620,24 +621,39 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
 
                   {/* Panel inferior: mismo sitio de siempre — normalmente
                       descripción/música/publicar; mientras se edita una foto
-                      con IA (aiEditorSlot !== null) este MISMO panel muestra
-                      los controles de AIImageEditor en su lugar (usuario:
-                      'tampoco debe ser desde un modal' -> ya no hay overlay
-                      de ningún tipo, es contenido normal de este panel). */}
+                      o vídeo con IA (aiEditorSlot !== null) este MISMO panel
+                      muestra los controles de AIImageEditor/AIVideoEditor en
+                      su lugar (usuario: 'tampoco debe ser desde un modal' ->
+                      ya no hay overlay de ningún tipo, es contenido normal
+                      de este panel). */}
                   <div className="relative z-20 mt-auto px-4 space-y-3"
                        style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 18px)' }}>
                     {aiEditorSlot !== null ? (
-                      <AIImageEditor
-                        imageFile={aiEditorSlot === 0 ? file : fileB}
-                        onStatusChange={(status, url) => setAiOverride(status ? { status, url } : null)}
-                        onClose={() => { setAiEditorSlot(null); setAiOverride(null) }}
-                        onApply={(newFile) => {
-                          if (aiEditorSlot === 0) setFile(newFile)
-                          else if (aiEditorSlot === 1) setFileB(newFile)
-                          setAiEditorSlot(null)
-                          setAiOverride(null)
-                        }}
-                      />
+                      fileKind(aiEditorSlot === 0 ? file : fileB) === 'video' ? (
+                        <AIVideoEditor
+                          videoFile={aiEditorSlot === 0 ? file : fileB}
+                          onStatusChange={(status, url) => setAiOverride(status ? { status, url } : null)}
+                          onClose={() => { setAiEditorSlot(null); setAiOverride(null) }}
+                          onApply={(newFile) => {
+                            if (aiEditorSlot === 0) setFile(newFile)
+                            else if (aiEditorSlot === 1) setFileB(newFile)
+                            setAiEditorSlot(null)
+                            setAiOverride(null)
+                          }}
+                        />
+                      ) : (
+                        <AIImageEditor
+                          imageFile={aiEditorSlot === 0 ? file : fileB}
+                          onStatusChange={(status, url) => setAiOverride(status ? { status, url } : null)}
+                          onClose={() => { setAiEditorSlot(null); setAiOverride(null) }}
+                          onApply={(newFile) => {
+                            if (aiEditorSlot === 0) setFile(newFile)
+                            else if (aiEditorSlot === 1) setFileB(newFile)
+                            setAiEditorSlot(null)
+                            setAiOverride(null)
+                          }}
+                        />
+                      )
                     ) : (
                       <>
                         {/* Versus: puntitos del carrusel — más finos (3px, igual

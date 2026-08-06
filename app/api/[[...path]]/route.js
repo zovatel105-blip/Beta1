@@ -69,6 +69,7 @@ import {
 import { rankFeed, recordVote, recordImpressions, recordWatch, recordEngagement, recordSocialAffinity, recordNotInterested, getNotInterestedIds, computeMetrics } from '@/lib/recommender'
 import { registerDeviceToken, unregisterDeviceToken } from '@/lib/push'
 import { LlmChat, UserMessage, ImageContent } from 'emergentintegrations'
+import { createVideoEditJob, getVideoEditJob, validateVideoForAiEdit, MAX_DURATION_SEC } from '@/lib/aiVideoEditor'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -445,6 +446,11 @@ async function filterBlockedPosts(posts, currentUser) {
 export async function GET(request, { params }) {
   const segs = (params?.path) || []
   const path = '/' + segs.join('/')
+
+  // GET /api/ai/edit-video-status?jobId=... - polling del editor de vídeo con IA.
+  if (path === '/ai/edit-video-status') {
+    return handleAiEditVideoStatus(request)
+  }
 
   if (path === '/admin/reco/metrics') {
     const currentUser = await getCurrentUser(request)
@@ -1079,6 +1085,14 @@ export async function POST(request, { params }) {
   // editor de IA.
   if (path === '/ai/suggest-edits') {
     return handleAiSuggestEdits(request)
+  }
+
+  // POST /api/ai/edit-video - Editor de VÍDEO con IA (ver lib/aiVideoEditor.js
+  // para la explicación completa del enfoque: fotogramas clave editados con
+  // IA + propagación con ebsynth, 100% CPU, sin GPU). Devuelve un jobId de
+  // inmediato; el proceso real corre en segundo plano (tarda minutos).
+  if (path === '/ai/edit-video') {
+    return handleAiEditVideo(request)
   }
 
   // POST /api/share - Registrar un compartido (señal fuerte del TWYK Engine).
@@ -2635,6 +2649,110 @@ async function handleAiSuggestEdits(request) {
     return NextResponse.json({ error: 'ai_suggest_failed', message: 'Could not analyze this photo' }, { status: 500 })
   }
 }
+
+// ────────────────────────────────────────────────────────────────────────────
+// Editor de VÍDEO con IA (ver lib/aiVideoEditor.js para el pipeline completo:
+// fotogramas clave editados con IA + propagación con ebsynth, 100% CPU)
+// ────────────────────────────────────────────────────────────────────────────
+
+const AI_VIDEO_MAX_BYTES = 80 * 1024 * 1024 // mismo límite que vídeos normales
+const AI_VIDEO_ALLOWED_TYPES = new Set(['video/mp4', 'video/quicktime', 'video/webm', 'video/x-m4v'])
+const AI_VIDEO_INCOMING_DIR = nodePath.join(process.cwd(), '.tmp_ai_video', 'incoming')
+
+// POST /api/ai/edit-video
+//   FormData: video (File), prompt (string)
+//   Requiere sesión. Guarda el vídeo en una carpeta temporal (no pública),
+//   valida duración/tamaño/tipo, y arranca el job en segundo plano —
+//   responde AL INSTANTE con { ok:true, jobId } (el proceso real tarda
+//   varios minutos, ver aiVideoEditor.js). El cliente hace polling a
+//   GET /api/ai/edit-video-status?jobId=...
+async function handleAiEditVideo(request) {
+  try {
+    const currentUser = await getCurrentUser(request)
+    if (!currentUser) {
+      return NextResponse.json({ error: 'unauthorized', message: 'You must log in to use the AI editor' }, { status: 401 })
+    }
+
+    const formData = await request.formData()
+    const video = formData.get('video')
+    const prompt = (formData.get('prompt') || '').toString().trim()
+
+    if (!video || typeof video === 'string') {
+      return NextResponse.json({ error: 'missing_video', message: 'Select a video first' }, { status: 400 })
+    }
+    const type = (video.type || '').toLowerCase()
+    if (!AI_VIDEO_ALLOWED_TYPES.has(type)) {
+      return NextResponse.json({ error: 'invalid_video', message: 'Use an MP4, MOV or WEBM video' }, { status: 415 })
+    }
+    if (video.size > AI_VIDEO_MAX_BYTES) {
+      return NextResponse.json({ error: 'file_too_large', message: 'Video must be 80MB or smaller' }, { status: 413 })
+    }
+    if (prompt.length < 3) {
+      return NextResponse.json({ error: 'missing_prompt', message: 'Describe what you want to add or change' }, { status: 400 })
+    }
+    if (prompt.length > 500) {
+      return NextResponse.json({ error: 'prompt_too_long', message: 'Keep the instruction under 500 characters' }, { status: 400 })
+    }
+    if (!process.env.EMERGENT_LLM_KEY) {
+      return NextResponse.json({ error: 'ai_not_configured', message: 'AI editor is not configured' }, { status: 500 })
+    }
+
+    await fs.mkdir(AI_VIDEO_INCOMING_DIR, { recursive: true })
+    const incomingId = crypto.randomBytes(8).toString('hex')
+    const ext = type === 'video/quicktime' ? 'mov' : type === 'video/webm' ? 'webm' : 'mp4'
+    const videoPath = nodePath.join(AI_VIDEO_INCOMING_DIR, `${incomingId}.${ext}`)
+    const bytes = Buffer.from(await video.arrayBuffer())
+    if (!bytes || bytes.length === 0) {
+      return NextResponse.json({ error: 'empty_upload' }, { status: 400 })
+    }
+    await fs.writeFile(videoPath, bytes)
+
+    try {
+      await validateVideoForAiEdit(videoPath)
+    } catch {
+      await fs.rm(videoPath, { force: true }).catch(() => {})
+      return NextResponse.json({ error: 'invalid_video', message: 'Could not read this video' }, { status: 400 })
+    }
+
+    const jobId = await createVideoEditJob({ userId: currentUser.id, videoPath, prompt })
+    return NextResponse.json({ ok: true, jobId, maxDurationSec: MAX_DURATION_SEC })
+  } catch (err) {
+    console.error('ai edit video error', err)
+    return NextResponse.json({ error: 'ai_edit_video_failed', message: 'Could not start the AI video editor' }, { status: 500 })
+  }
+}
+
+// GET /api/ai/edit-video-status?jobId=...
+//   Requiere sesión, y que el job pertenezca al usuario actual.
+async function handleAiEditVideoStatus(request) {
+  try {
+    const currentUser = await getCurrentUser(request)
+    if (!currentUser) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    }
+    const { searchParams } = new URL(request.url)
+    const jobId = searchParams.get('jobId')
+    if (!jobId) {
+      return NextResponse.json({ error: 'missing_jobId' }, { status: 400 })
+    }
+    const job = await getVideoEditJob(jobId)
+    if (!job || job.userId !== currentUser.id) {
+      return NextResponse.json({ error: 'not_found' }, { status: 404 })
+    }
+    return NextResponse.json({
+      ok: true,
+      status: job.status,
+      progress: job.progress || 0,
+      total: job.total || 0,
+      resultUrl: job.resultUrl || null,
+      error: job.error || null,
+    })
+  } catch (err) {
+    console.error('ai edit video status error', err)
+    return NextResponse.json({ error: 'status_failed' }, { status: 500 })
+  }
+}
+
 
 
 
