@@ -618,67 +618,88 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
 
                   {/* Versus: la vista previa es un carrusel; se cambia de vídeo con swipe (ver puntitos abajo) */}
 
-                  {/* Panel inferior: descripción + publicar */}
+                  {/* Panel inferior: mismo sitio de siempre — normalmente
+                      descripción/música/publicar; mientras se edita una foto
+                      con IA (aiEditorSlot !== null) este MISMO panel muestra
+                      los controles de AIImageEditor en su lugar (usuario:
+                      'tampoco debe ser desde un modal' -> ya no hay overlay
+                      de ningún tipo, es contenido normal de este panel). */}
                   <div className="relative z-20 mt-auto px-4 space-y-3"
                        style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 18px)' }}>
-                    {/* Versus: puntitos del carrusel — más finos (3px, igual
-                        que los puntos del feed en CarouselSlide.jsx), antes 6px. */}
-                    {mode === 'versus' && (
-                      <div className="flex items-center justify-center gap-1.5">
-                        {[0, 1].map((i) => (
-                          <button
-                            key={i}
-                            aria-label={`video ${i === 0 ? 'A' : 'B'}`}
-                            onClick={() => setVersusIdx(i)}
-                            className={`rounded-full transition-all duration-200 ${versusIdx === i ? 'w-5 h-[3px] bg-white' : 'w-1.5 h-[3px] bg-white/40'}`}
-                          />
-                        ))}
-                      </div>
-                    )}
-                    {error && <div className="text-xs text-rose-300">{error}</div>}
-                    <div className="rounded-2xl bg-black/45 backdrop-blur-xl border border-white/10 px-4 py-3">
-                      <textarea
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                        placeholder={mode === 'duet' ? 'Who wins? 🥊 #1vs1' : mode === 'challenge' ? 'Challenge 🔥 Do you accept?' : 'Which do you prefer? 🅰️🆚🅱️'}
-                        rows={1}
-                        className="w-full bg-transparent text-[15px] text-zinc-100 placeholder:text-zinc-400 focus:outline-none resize-none"
+                    {aiEditorSlot !== null ? (
+                      <AIImageEditor
+                        imageFile={aiEditorSlot === 0 ? file : fileB}
+                        onStatusChange={(status, url) => setAiOverride(status ? { status, url } : null)}
+                        onClose={() => { setAiEditorSlot(null); setAiOverride(null) }}
+                        onApply={(newFile) => {
+                          if (aiEditorSlot === 0) setFile(newFile)
+                          else if (aiEditorSlot === 1) setFileB(newFile)
+                          setAiEditorSlot(null)
+                          setAiOverride(null)
+                        }}
                       />
-                    </div>
-                    {/* Añadir música (iTunes) */}
-                    {music ? (
-                      <div className="flex items-center gap-3 rounded-2xl bg-black/45 backdrop-blur-xl border border-white/10 px-3 py-2.5">
-                        <div className="w-10 h-10 rounded-lg overflow-hidden bg-zinc-800 shrink-0">
-                          {music.artwork ? <img src={music.artwork} alt="" className="w-full h-full object-cover" /> : <Music size={18} className="text-zinc-400 m-auto mt-2.5" />}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-white text-[13px] font-semibold truncate">{music.title}</p>
-                          <p className="text-zinc-400 text-[11.5px] truncate">{music.artist}</p>
-                        </div>
-                        <button onClick={() => setMusicOpen(true)} className="text-[12px] font-semibold text-white/80 hover:text-white px-2 shrink-0">Change</button>
-                        <button onClick={() => setMusic(null)} aria-label="Remove music" className="text-zinc-400 hover:text-white shrink-0 p-1">
-                          <X size={16} />
-                        </button>
-                      </div>
                     ) : (
-                      <button
-                        onClick={() => setMusicOpen(true)}
-                        className="w-full flex items-center justify-center gap-2 rounded-2xl bg-black/45 backdrop-blur-xl border border-white/10 px-4 py-3 text-[14px] font-semibold text-white hover:bg-black/60 active:scale-[0.99] transition"
-                      >
-                        <Music size={17} strokeWidth={2} /> Add music
-                      </button>
+                      <>
+                        {/* Versus: puntitos del carrusel — más finos (3px, igual
+                            que los puntos del feed en CarouselSlide.jsx), antes 6px. */}
+                        {mode === 'versus' && (
+                          <div className="flex items-center justify-center gap-1.5">
+                            {[0, 1].map((i) => (
+                              <button
+                                key={i}
+                                aria-label={`video ${i === 0 ? 'A' : 'B'}`}
+                                onClick={() => setVersusIdx(i)}
+                                className={`rounded-full transition-all duration-200 ${versusIdx === i ? 'w-5 h-[3px] bg-white' : 'w-1.5 h-[3px] bg-white/40'}`}
+                              />
+                            ))}
+                          </div>
+                        )}
+                        {error && <div className="text-xs text-rose-300">{error}</div>}
+                        <div className="rounded-2xl bg-black/45 backdrop-blur-xl border border-white/10 px-4 py-3">
+                          <textarea
+                            value={description}
+                            onChange={(e) => setDescription(e.target.value)}
+                            placeholder={mode === 'duet' ? 'Who wins? 🥊 #1vs1' : mode === 'challenge' ? 'Challenge 🔥 Do you accept?' : 'Which do you prefer? 🅰️🆚🅱️'}
+                            rows={1}
+                            className="w-full bg-transparent text-[15px] text-zinc-100 placeholder:text-zinc-400 focus:outline-none resize-none"
+                          />
+                        </div>
+                        {/* Añadir música (iTunes) */}
+                        {music ? (
+                          <div className="flex items-center gap-3 rounded-2xl bg-black/45 backdrop-blur-xl border border-white/10 px-3 py-2.5">
+                            <div className="w-10 h-10 rounded-lg overflow-hidden bg-zinc-800 shrink-0">
+                              {music.artwork ? <img src={music.artwork} alt="" className="w-full h-full object-cover" /> : <Music size={18} className="text-zinc-400 m-auto mt-2.5" />}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-white text-[13px] font-semibold truncate">{music.title}</p>
+                              <p className="text-zinc-400 text-[11.5px] truncate">{music.artist}</p>
+                            </div>
+                            <button onClick={() => setMusicOpen(true)} className="text-[12px] font-semibold text-white/80 hover:text-white px-2 shrink-0">Change</button>
+                            <button onClick={() => setMusic(null)} aria-label="Remove music" className="text-zinc-400 hover:text-white shrink-0 p-1">
+                              <X size={16} />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setMusicOpen(true)}
+                            className="w-full flex items-center justify-center gap-2 rounded-2xl bg-black/45 backdrop-blur-xl border border-white/10 px-4 py-3 text-[14px] font-semibold text-white hover:bg-black/60 active:scale-[0.99] transition"
+                          >
+                            <Music size={17} strokeWidth={2} /> Add music
+                          </button>
+                        )}
+                        <button
+                          onClick={() => (mode === 'challenge' ? goToTarget() : doUpload())}
+                          disabled={publishing || (isAB ? (!file || !fileB) : !file)}
+                          className="w-full py-3.5 rounded-full bg-white text-black font-bold text-[16px] disabled:bg-white/20 disabled:text-white/40 active:scale-[0.99] transition flex items-center justify-center gap-2"
+                        >
+                          {publishing && mode !== 'challenge' ? (
+                            <><Loader2 size={17} className="animate-spin" /> Publishing…</>
+                          ) : (
+                            mode === 'duet' ? 'Publish 1vs1' : mode === 'challenge' ? 'Choose who to challenge' : 'Publish versus'
+                          )}
+                        </button>
+                      </>
                     )}
-                    <button
-                      onClick={() => (mode === 'challenge' ? goToTarget() : doUpload())}
-                      disabled={publishing || (isAB ? (!file || !fileB) : !file)}
-                      className="w-full py-3.5 rounded-full bg-white text-black font-bold text-[16px] disabled:bg-white/20 disabled:text-white/40 active:scale-[0.99] transition flex items-center justify-center gap-2"
-                    >
-                      {publishing && mode !== 'challenge' ? (
-                        <><Loader2 size={17} className="animate-spin" /> Publishing…</>
-                      ) : (
-                        mode === 'duet' ? 'Publish 1vs1' : mode === 'challenge' ? 'Choose who to challenge' : 'Publish versus'
-                      )}
-                    </button>
                   </div>
                 </>
               )
@@ -687,18 +708,6 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
         )}
       </div>
       <MusicPicker open={musicOpen} onClose={() => setMusicOpen(false)} onSelect={setMusic} current={music} />
-      <AIImageEditor
-        open={aiEditorSlot !== null}
-        imageFile={aiEditorSlot === 0 ? file : aiEditorSlot === 1 ? fileB : null}
-        onStatusChange={(status, url) => setAiOverride(status ? { status, url } : null)}
-        onClose={() => { setAiEditorSlot(null); setAiOverride(null) }}
-        onApply={(newFile) => {
-          if (aiEditorSlot === 0) setFile(newFile)
-          else if (aiEditorSlot === 1) setFileB(newFile)
-          setAiEditorSlot(null)
-          setAiOverride(null)
-        }}
-      />
     </div>
   )
 }
