@@ -27,7 +27,7 @@ import { Sparkles, Loader2, X, Wand2, RotateCcw, Check } from 'lucide-react'
  *  - onStatusChange: (status: null|'loading'|'result', url?: string) => void
  */
 
-const SUGGESTIONS = [
+const FALLBACK_SUGGESTIONS = [
   'Add a private jet flying in the background',
   'Change the background to a sunset beach',
   'Add fireworks in the sky',
@@ -45,13 +45,44 @@ export default function AIImageEditor({ imageFile, onClose, onApply, onStatusCha
   const [stage, setStage] = useState('input') // input | loading | result | error
   const [resultUrl, setResultUrl] = useState(null)
   const [errorMsg, setErrorMsg] = useState(null)
+  // Sugerencias RELEVANTES a la foto (usuario: 'las sugerencias deben ser de
+  // algo que tenga que ver con la imagen') — se piden a la IA (visión) en
+  // cuanto se entra a editar esta foto; mientras llegan se muestra un
+  // esqueleto, y si fallan se usa una lista genérica de respaldo (nunca
+  // bloquea poder escribir una instrucción manual).
+  const [suggestions, setSuggestions] = useState([])
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false)
 
-  // Reinicia el formulario cada vez que se entra a editar un archivo nuevo.
+  // Reinicia el formulario y pide sugerencias nuevas cada vez que se entra a
+  // editar un archivo distinto.
   useEffect(() => {
     setStage('input')
     setResultUrl(null)
     setErrorMsg(null)
     setPrompt('')
+    setSuggestions([])
+    if (!imageFile) return
+    let cancelled = false
+    setSuggestionsLoading(true)
+    ;(async () => {
+      try {
+        const fd = new FormData()
+        fd.append('image', imageFile)
+        const res = await fetch('/api/ai/suggest-edits', { method: 'POST', body: fd })
+        const data = await res.json().catch(() => null)
+        if (cancelled) return
+        if (res.ok && Array.isArray(data?.suggestions) && data.suggestions.length > 0) {
+          setSuggestions(data.suggestions)
+        } else {
+          setSuggestions(FALLBACK_SUGGESTIONS)
+        }
+      } catch {
+        if (!cancelled) setSuggestions(FALLBACK_SUGGESTIONS)
+      } finally {
+        if (!cancelled) setSuggestionsLoading(false)
+      }
+    })()
+    return () => { cancelled = true }
   }, [imageFile])
 
   const generate = async () => {
@@ -120,18 +151,26 @@ export default function AIImageEditor({ imageFile, onClose, onApply, onStatusCha
               className="w-full bg-transparent text-[15px] text-zinc-100 placeholder:text-zinc-400 focus:outline-none resize-none disabled:opacity-50"
             />
           </div>
-          <div className="flex flex-wrap gap-2">
-            {SUGGESTIONS.map((s) => (
-              <button
-                key={s}
-                type="button"
-                disabled={stage === 'loading'}
-                onClick={() => setPrompt(s)}
-                className="text-[11.5px] font-medium px-3 py-1.5 rounded-full bg-black/45 border border-white/10 text-zinc-300 hover:text-white hover:border-white/30 active:scale-95 transition disabled:opacity-40"
-              >
-                {s}
-              </button>
-            ))}
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar -mx-1 px-1 pb-0.5">
+            {suggestionsLoading ? (
+              <>
+                {[0, 1, 2].map((i) => (
+                  <span key={i} className="shrink-0 h-[26px] w-24 rounded-full bg-white/[0.06] border border-white/10 animate-pulse" />
+                ))}
+              </>
+            ) : (
+              suggestions.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  disabled={stage === 'loading'}
+                  onClick={() => setPrompt(s)}
+                  className="shrink-0 whitespace-nowrap text-[11.5px] font-medium px-3 py-1.5 rounded-full bg-black/45 border border-white/10 text-zinc-300 hover:text-white hover:border-white/30 active:scale-95 transition disabled:opacity-40"
+                >
+                  {s}
+                </button>
+              ))
+            )}
           </div>
           <button
             onClick={generate}

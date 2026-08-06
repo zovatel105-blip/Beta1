@@ -1074,6 +1074,13 @@ export async function POST(request, { params }) {
     return handleAiEditImage(request)
   }
 
+  // POST /api/ai/suggest-edits - Sugerencias de edición RELEVANTES a la foto
+  // (visión, análisis de texto — no genera imagen), para los chips del
+  // editor de IA.
+  if (path === '/ai/suggest-edits') {
+    return handleAiSuggestEdits(request)
+  }
+
   // POST /api/share - Registrar un compartido (señal fuerte del TWYK Engine).
   // Fire-and-forget desde el botón de compartir (web y APK): nunca bloquea la UI.
   if (path === '/share') {
@@ -2551,6 +2558,84 @@ async function handleAiEditImage(request) {
     return NextResponse.json({ error: 'ai_edit_failed', message: 'AI editing failed, please try again' }, { status: 500 })
   }
 }
+
+// POST /api/ai/suggest-edits
+//   FormData: image (File, foto ya seleccionada por el usuario)
+//   Analiza la foto (visión, modelo de texto — NO genera imagen) y devuelve
+//   4-6 ideas de edición CORTAS y RELEVANTES para ESA foto en concreto (ej.
+//   si es un coche de noche: "Add a private jet flying above", si es una
+//   playa: "Add a dramatic sunset sky"...), para mostrarlas como chips
+//   sugeridos en el editor de IA (usuario: 'las sugerencias deben ser de
+//   algo que tenga que ver con la imagen'). Requiere sesión. Fire-and-forget
+//   desde el cliente (si falla, el frontend usa una lista genérica de
+//   respaldo — nunca bloquea poder escribir una instrucción manual).
+async function handleAiSuggestEdits(request) {
+  try {
+    const currentUser = await getCurrentUser(request)
+    if (!currentUser) {
+      return NextResponse.json({ error: 'unauthorized', message: 'You must log in to use the AI editor' }, { status: 401 })
+    }
+
+    const formData = await request.formData()
+    const image = formData.get('image')
+    if (!image || typeof image === 'string') {
+      return NextResponse.json({ error: 'missing_image', message: 'Select a photo first' }, { status: 400 })
+    }
+    const type = (image.type || '').toLowerCase()
+    if (!AI_EDIT_ALLOWED_TYPES.has(type)) {
+      return NextResponse.json({ error: 'invalid_image', message: 'Use a JPG, PNG or WEBP photo' }, { status: 415 })
+    }
+    if (image.size > AI_EDIT_MAX_BYTES) {
+      return NextResponse.json({ error: 'file_too_large', message: 'Photo must be 15MB or smaller' }, { status: 413 })
+    }
+
+    const apiKey = process.env.EMERGENT_LLM_KEY
+    if (!apiKey) {
+      return NextResponse.json({ error: 'ai_not_configured', message: 'AI editor is not configured' }, { status: 500 })
+    }
+
+    const bytes = Buffer.from(await image.arrayBuffer())
+    const base64 = bytes.toString('base64')
+
+    const chat = new LlmChat(
+      apiKey,
+      `img-suggest-${currentUser.id}-${Date.now()}`,
+      'You are a creative photo-editing assistant. Look at the photo and suggest short edit ideas a casual social-media user could ask an AI to apply to THIS specific photo (things to ADD to the background/scene, or a style/mood change) — tailored to what is actually visible in the photo (setting, subjects, time of day, colors). Each idea must be an instruction phrased in imperative form, under 7 words, fun and visually striking. Respond with ONLY a JSON array of 5 short strings, nothing else, no markdown, no code fences.'
+    ).withModel('gemini', 'gemini-2.5-flash')
+
+    const text = await chat.sendMessage(
+      new UserMessage({
+        text: 'Suggest 5 short edit ideas for this exact photo, as a JSON array of strings only.',
+        file_contents: [new ImageContent(base64)],
+      })
+    )
+
+    let suggestions = []
+    try {
+      const cleaned = String(text || '').trim().replace(/^```(json)?/i, '').replace(/```$/, '').trim()
+      const parsed = JSON.parse(cleaned)
+      if (Array.isArray(parsed)) {
+        suggestions = parsed.filter((s) => typeof s === 'string' && s.trim()).map((s) => s.trim()).slice(0, 6)
+      }
+    } catch {
+      // Respaldo: intenta extraer líneas tipo lista si no vino JSON limpio.
+      suggestions = String(text || '')
+        .split('\n')
+        .map((l) => l.replace(/^[-*\d.\s"]+/, '').replace(/["\s]+$/, '').trim())
+        .filter((l) => l.length > 2 && l.length < 60)
+        .slice(0, 6)
+    }
+
+    if (suggestions.length === 0) {
+      return NextResponse.json({ error: 'no_suggestions', message: 'Could not analyze this photo' }, { status: 502 })
+    }
+    return NextResponse.json({ ok: true, suggestions })
+  } catch (err) {
+    console.error('ai suggest edits error', err)
+    return NextResponse.json({ error: 'ai_suggest_failed', message: 'Could not analyze this photo' }, { status: 500 })
+  }
+}
+
 
 
 async function handleSavePost(request) {
