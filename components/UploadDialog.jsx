@@ -52,6 +52,10 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
   // Editor de fotos con IA (ver AIImageEditor.jsx): null = cerrado, 0 = editando
   // el archivo del slot A / foto única, 1 = editando el archivo del slot B.
   const [aiEditorSlot, setAiEditorSlot] = useState(null)
+  // Estado del editor de IA "en el mismo sitio" — { status: 'loading'|'result', url? }
+  // null cuando no hay generación en curso ni resultado pendiente para el
+  // slot activo. Ver AIImageEditor.jsx (onStatusChange).
+  const [aiOverride, setAiOverride] = useState(null)
 
   // URLs de previsualización memorizadas (evita recrearlas en cada render,
   // lo que reiniciaría el vídeo al escribir la descripción).
@@ -71,7 +75,7 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
   const reset = () => {
     setStep('mode'); setMode(null); setLayout('horizontal'); setTarget(null); setUsers([])
     setFile(null); setFileB(null); setDescription(''); setError(null); setPublishing(false)
-    setSelected('versus'); setVersusIdx(0); setMusic(null); setMusicOpen(false); setAiEditorSlot(null)
+    setSelected('versus'); setVersusIdx(0); setMusic(null); setMusicOpen(false); setAiEditorSlot(null); setAiOverride(null)
   }
 
   useEffect(() => {
@@ -444,6 +448,16 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
                 const label = idx === 0 ? 'A' : 'B'
                 const slotFile = idx === 0 ? file : fileB
                 const isImg = fileKind(slotFile) === 'image'
+                // Editor de IA "en el mismo sitio" (usuario: 'no debe abrir
+                // otra pagina debe editarse desde el mismo sitio'): mientras
+                // se está generando o ya hay un resultado para ESTE slot, la
+                // miniatura mostrada aquí mismo cambia (spinner / foto
+                // editada) en vez de navegar a una pantalla nueva — ver
+                // AIImageEditor.jsx (ahora una hoja inferior de controles,
+                // sin su propia vista de foto).
+                const ov = aiEditorSlot === idx ? aiOverride : null
+                const displayUrl = ov?.status === 'result' ? ov.url : url
+                const isGenerating = ov?.status === 'loading'
                 // ¿Este slot toca el borde superior de la pantalla? (versus:
                 // siempre, solo se ve un slot a pantalla completa; 1vs1
                 // vertical -izq/der-: ambos slots tocan arriba; 1vs1
@@ -459,7 +473,7 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
                   <div className={rootClass}>
                     {url ? (
                       isImg ? (
-                        <img key={label + url} src={url} alt="" draggable={false} className="absolute inset-0 w-full h-full object-cover" />
+                        <img key={label + displayUrl} src={displayUrl} alt="" draggable={false} className="absolute inset-0 w-full h-full object-cover" />
                       ) : (
                         <video key={label + url} src={url} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" />
                       )
@@ -471,6 +485,18 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
                         <span className="text-[13px] font-medium text-zinc-200">Upload photo or video</span>
                         <span className="text-[10px] text-zinc-500">Video (max 80MB) · Photo (max 15MB)</span>
                       </button>
+                    )}
+                    {isGenerating && (
+                      <div className="absolute inset-0 bg-black/55 backdrop-blur-[1px] flex flex-col items-center justify-center gap-2 pointer-events-none">
+                        <Loader2 size={26} className="animate-spin text-white" />
+                        <span className="text-[12.5px] font-medium text-zinc-200">Editing with AI…</span>
+                      </div>
+                    )}
+                    {ov?.status === 'result' && (
+                      <span className="absolute left-2 z-20 inline-flex items-center gap-1 text-[10.5px] font-semibold px-2.5 py-1 rounded-full bg-black/60 backdrop-blur border border-white/15"
+                            style={{ top: touchesTop ? 'calc(max(env(safe-area-inset-top), 14px) + 54px)' : '0.5rem' }}>
+                        <Sparkles size={11} /> AI result
+                      </span>
                     )}
                     {url && (
                       <div
@@ -517,7 +543,7 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
                     <div className="absolute inset-0">
                       {previewA ? (
                         fileKind(file) === 'image' ? (
-                          <img src={previewA} alt="" draggable={false} className="w-full h-full object-cover" />
+                          <img key={aiEditorSlot === 0 && aiOverride?.status === 'result' ? aiOverride.url : previewA} src={aiEditorSlot === 0 && aiOverride?.status === 'result' ? aiOverride.url : previewA} alt="" draggable={false} className="w-full h-full object-cover" />
                         ) : (
                           <video src={previewA} autoPlay loop muted playsInline className="w-full h-full object-cover" />
                         )
@@ -529,6 +555,12 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
                           <span className="text-[15px] font-medium text-zinc-200">Tap to upload your photo or video</span>
                           <span className="text-[11px] text-zinc-500">Video (max 80MB) · Photo (max 15MB)</span>
                         </button>
+                      )}
+                      {aiEditorSlot === 0 && aiOverride?.status === 'loading' && (
+                        <div className="absolute inset-0 bg-black/55 backdrop-blur-[1px] flex flex-col items-center justify-center gap-2 pointer-events-none">
+                          <Loader2 size={26} className="animate-spin text-white" />
+                          <span className="text-[12.5px] font-medium text-zinc-200">Editing with AI…</span>
+                        </div>
                       )}
                       {previewA && (
                         <div
@@ -658,11 +690,13 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
       <AIImageEditor
         open={aiEditorSlot !== null}
         imageFile={aiEditorSlot === 0 ? file : aiEditorSlot === 1 ? fileB : null}
-        onClose={() => setAiEditorSlot(null)}
+        onStatusChange={(status, url) => setAiOverride(status ? { status, url } : null)}
+        onClose={() => { setAiEditorSlot(null); setAiOverride(null) }}
         onApply={(newFile) => {
           if (aiEditorSlot === 0) setFile(newFile)
           else if (aiEditorSlot === 1) setFileB(newFile)
           setAiEditorSlot(null)
+          setAiOverride(null)
         }}
       />
     </div>

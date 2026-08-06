@@ -1,20 +1,32 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
-import { Sparkles, Loader2, X, ArrowLeft, Wand2, RotateCcw, Check } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Sparkles, Loader2, X, ArrowLeft, Wand2, RotateCcw, Check, ChevronDown } from 'lucide-react'
 
 /**
- * AIImageEditor — editor de fotos con IA dentro del flujo de creación de
- * contenido (UploadDialog). El usuario escribe una instrucción (ej. "añade
- * un jet privado de fondo") y Gemini 2.5 Flash Image ("Nano Banana", vía
- * POST /api/ai/edit-image con la Universal Key de Emergent) genera la foto
- * editada. Permite reintentar con otra instrucción antes de confirmar.
+ * AIImageEditor — editor de fotos con IA, EN EL MISMO SITIO (bottom sheet).
+ *
+ * BUG UX (usuario: 'cuando hago click en el boton no debe abrir otra pagina
+ * debe editarse desde el mismo sitio'): la versión anterior abría una
+ * pantalla completa nueva (con su propio header/foto/back), lo que se sentía
+ * como navegar a "otra página". AHORA: este componente es solo una hoja
+ * inferior (bottom sheet) con los controles (instrucción, sugerencias,
+ * generar/reintentar/usar) — la FOTO en sí NUNCA se mueve de donde ya
+ * estaba (la vista previa a pantalla completa de UploadDialog, detrás de
+ * esta hoja). Este componente NO renderiza ninguna imagen: en su lugar
+ * informa su estado al padre vía `onStatusChange(status, url)` para que
+ * UploadDialog sustituya la miniatura ahí mismo:
+ *   - onStatusChange(null)                -> mostrar la foto original
+ *   - onStatusChange('loading')           -> mostrar la foto original + spinner
+ *   - onStatusChange('result', dataUrl)   -> mostrar la foto editada, en el mismo lugar
  *
  * Props:
  *  - open: boolean
- *  - imageFile: File — la foto original ya seleccionada en ese slot
- *  - onClose: () => void — cerrar sin aplicar ningún cambio
+ *  - imageFile: File — la foto original ya seleccionada en ese slot (solo se
+ *    usa para enviarla a la IA, nunca se muestra dentro de este componente)
+ *  - onClose: () => void — cerrar sin aplicar ningún cambio (revierte a la original)
  *  - onApply: (newFile: File) => void — usar la foto editada como reemplazo
+ *  - onStatusChange: (status: null|'loading'|'result', url?: string) => void
  */
 
 const SUGGESTIONS = [
@@ -23,7 +35,6 @@ const SUGGESTIONS = [
   'Add fireworks in the sky',
   'Make it look cinematic and dramatic',
   'Add falling snow',
-  'Add a luxury sports car next to me',
 ]
 
 async function dataUrlToFile(dataUrl, filename) {
@@ -32,13 +43,11 @@ async function dataUrlToFile(dataUrl, filename) {
   return new File([blob], filename, { type: blob.type || 'image/png' })
 }
 
-export default function AIImageEditor({ open, imageFile, onClose, onApply }) {
+export default function AIImageEditor({ open, imageFile, onClose, onApply, onStatusChange }) {
   const [prompt, setPrompt] = useState('')
   const [stage, setStage] = useState('input') // input | loading | result | error
   const [resultUrl, setResultUrl] = useState(null)
   const [errorMsg, setErrorMsg] = useState(null)
-  const [originalUrl, setOriginalUrl] = useState(null)
-  const textareaRef = useRef(null)
 
   useEffect(() => {
     if (!open) return
@@ -48,13 +57,6 @@ export default function AIImageEditor({ open, imageFile, onClose, onApply }) {
     setPrompt('')
   }, [open])
 
-  useEffect(() => {
-    if (!imageFile) { setOriginalUrl(null); return }
-    const url = URL.createObjectURL(imageFile)
-    setOriginalUrl(url)
-    return () => URL.revokeObjectURL(url)
-  }, [imageFile])
-
   if (!open) return null
 
   const generate = async () => {
@@ -62,6 +64,7 @@ export default function AIImageEditor({ open, imageFile, onClose, onApply }) {
     if (trimmed.length < 3 || !imageFile) return
     setStage('loading')
     setErrorMsg(null)
+    onStatusChange?.('loading')
     try {
       const fd = new FormData()
       fd.append('image', imageFile)
@@ -73,9 +76,11 @@ export default function AIImageEditor({ open, imageFile, onClose, onApply }) {
       }
       setResultUrl(data.image)
       setStage('result')
+      onStatusChange?.('result', data.image)
     } catch (err) {
       setErrorMsg(err.message || 'Something went wrong, please try again')
       setStage('error')
+      onStatusChange?.(null)
     }
   }
 
@@ -89,72 +94,51 @@ export default function AIImageEditor({ open, imageFile, onClose, onApply }) {
     setStage('input')
     setResultUrl(null)
     setErrorMsg(null)
+    onStatusChange?.(null) // vuelve a mostrar la foto original en el mismo sitio
   }
 
   return (
-    <div className="fixed inset-0 z-[80] bg-[#0a0a0b] flex flex-col text-white">
-      {/* Header */}
-      <div className="relative z-10 flex items-center justify-between px-4 pb-3"
-           style={{ paddingTop: 'max(env(safe-area-inset-top), 14px)' }}>
-        <div className="flex items-center gap-1">
-          {stage === 'result' || stage === 'error' ? (
-            <button onClick={tryAnotherPrompt} aria-label="Back" className="w-9 h-9 -ml-1.5 rounded-full flex items-center justify-center hover:bg-white/5 active:scale-90 transition">
-              <ArrowLeft size={20} strokeWidth={1.75} />
-            </button>
-          ) : (
-            <span className="w-1.5" />
-          )}
-          <h1 className="text-[17px] font-semibold tracking-tight flex items-center gap-1.5">
-            <Sparkles size={16} className="text-white/80" />
-            Edit with AI
-          </h1>
-        </div>
-        <button onClick={onClose} aria-label="Close" className="w-9 h-9 -mr-1.5 rounded-full flex items-center justify-center hover:bg-white/5 active:scale-90 transition text-zinc-400 hover:text-white">
-          <X size={20} strokeWidth={1.75} />
+    <div className="fixed inset-x-0 bottom-0 z-[70] flex justify-center pointer-events-none">
+      <div
+        className="pointer-events-auto w-full sm:max-w-md rounded-t-3xl bg-[#121214] border-t border-x border-white/10 shadow-[0_-8px_40px_rgba(0,0,0,0.55)]"
+        style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 16px)' }}
+      >
+        {/* Asa para cerrar (mismo patrón que MusicPicker) */}
+        <button type="button" onClick={onClose} aria-label="close" className="w-full flex justify-center items-center pt-3 pb-1 active:scale-90 transition">
+          <ChevronDown className="w-5 h-5 text-zinc-500" strokeWidth={2.2} />
         </button>
-      </div>
 
-      {/* Body */}
-      <div className="relative z-10 flex-1 overflow-y-auto px-5 pb-8">
-        <div className="max-w-md mx-auto w-full min-h-full flex flex-col">
-
-          {/* Preview: original (input/loading) o resultado (result/error) */}
-          <div className="relative w-full aspect-[4/5] rounded-3xl overflow-hidden bg-white/[0.03] border border-white/10 mb-5 shrink-0">
-            {stage === 'result' && resultUrl ? (
-              <img src={resultUrl} alt="Edited" className="absolute inset-0 w-full h-full object-cover" />
-            ) : originalUrl ? (
-              <img src={originalUrl} alt="Original" className="absolute inset-0 w-full h-full object-cover" />
-            ) : null}
-
-            {stage === 'loading' && (
-              <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex flex-col items-center justify-center gap-3">
-                <Loader2 size={28} className="animate-spin text-white" />
-                <p className="text-[13px] font-medium text-zinc-200">Editing your photo with AI…</p>
-                <p className="text-[11px] text-zinc-500">This can take a few seconds</p>
-              </div>
-            )}
-
-            {stage === 'result' && (
-              <span className="absolute top-2.5 left-2.5 inline-flex items-center gap-1 text-[10.5px] font-semibold px-2.5 py-1 rounded-full bg-black/60 backdrop-blur border border-white/15">
-                <Sparkles size={11} /> AI result
-              </span>
+        <div className="px-5 pb-1">
+          {/* Header de la hoja */}
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-white text-[16px] font-bold tracking-tight flex items-center gap-2">
+              <Sparkles size={16} className="text-white/80" />
+              Edit with AI
+            </h2>
+            {(stage === 'result' || stage === 'error') ? (
+              <button onClick={tryAnotherPrompt} aria-label="Back" className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/5 active:scale-90 transition text-zinc-400 hover:text-white">
+                <ArrowLeft size={17} strokeWidth={1.9} />
+              </button>
+            ) : (
+              <button onClick={onClose} aria-label="Close" className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/5 active:scale-90 transition text-zinc-400 hover:text-white">
+                <X size={17} strokeWidth={1.9} />
+              </button>
             )}
           </div>
 
           {/* STAGE: input — instrucción + sugerencias */}
           {(stage === 'input' || stage === 'loading') && (
-            <div className="space-y-3">
+            <div className="space-y-3 pb-4">
               <p className="text-zinc-400 text-[13px]">
-                Describe what you want to add or change in the photo.
+                Describe what you want to add or change — you&apos;ll see it update above.
               </p>
               <div className="rounded-2xl bg-white/[0.04] border border-white/10 focus-within:border-white/30 transition px-4 py-3">
                 <textarea
-                  ref={textareaRef}
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
                   disabled={stage === 'loading'}
                   placeholder="Add a private jet flying in the background…"
-                  rows={3}
+                  rows={2}
                   maxLength={500}
                   className="w-full bg-transparent text-[15px] text-zinc-100 placeholder:text-zinc-500 focus:outline-none resize-none disabled:opacity-50"
                 />
@@ -167,7 +151,7 @@ export default function AIImageEditor({ open, imageFile, onClose, onApply }) {
                     type="button"
                     disabled={stage === 'loading'}
                     onClick={() => setPrompt(s)}
-                    className="text-[12px] font-medium px-3 py-1.5 rounded-full bg-white/[0.05] border border-white/10 text-zinc-300 hover:text-white hover:border-white/30 active:scale-95 transition disabled:opacity-40"
+                    className="text-[11.5px] font-medium px-3 py-1.5 rounded-full bg-white/[0.05] border border-white/10 text-zinc-300 hover:text-white hover:border-white/30 active:scale-95 transition disabled:opacity-40"
                   >
                     {s}
                   </button>
@@ -177,10 +161,10 @@ export default function AIImageEditor({ open, imageFile, onClose, onApply }) {
               <button
                 onClick={generate}
                 disabled={prompt.trim().length < 3 || stage === 'loading'}
-                className="mt-2 w-full h-12 rounded-full bg-white text-black font-semibold text-[15px] flex items-center justify-center gap-1.5 hover:bg-zinc-100 active:scale-[0.99] transition disabled:bg-white/20 disabled:text-white/40"
+                className="mt-1 w-full h-12 rounded-full bg-white text-black font-semibold text-[15px] flex items-center justify-center gap-1.5 hover:bg-zinc-100 active:scale-[0.99] transition disabled:bg-white/20 disabled:text-white/40"
               >
                 {stage === 'loading' ? (
-                  <><Loader2 size={17} className="animate-spin" /> Generating…</>
+                  <><Loader2 size={17} className="animate-spin" /> Editing your photo…</>
                 ) : (
                   <><Wand2 size={17} strokeWidth={2} /> Generate with AI</>
                 )}
@@ -190,7 +174,7 @@ export default function AIImageEditor({ open, imageFile, onClose, onApply }) {
 
           {/* STAGE: error */}
           {stage === 'error' && (
-            <div className="space-y-3">
+            <div className="space-y-2.5 pb-4">
               <div className="rounded-2xl bg-rose-500/10 border border-rose-500/25 px-4 py-3">
                 <p className="text-rose-300 text-[13px]">{errorMsg}</p>
               </div>
@@ -202,16 +186,21 @@ export default function AIImageEditor({ open, imageFile, onClose, onApply }) {
               </button>
               <button
                 onClick={tryAnotherPrompt}
-                className="w-full h-12 rounded-full bg-white/[0.06] border border-white/10 text-white font-semibold text-[15px] hover:bg-white/[0.1] active:scale-[0.99] transition"
+                className="w-full h-11 rounded-full bg-white/[0.06] border border-white/10 text-white font-semibold text-[14px] hover:bg-white/[0.1] active:scale-[0.99] transition"
               >
                 Edit instruction
               </button>
             </div>
           )}
 
-          {/* STAGE: result — usar / reintentar / cancelar */}
+          {/* STAGE: result — la foto editada ya se muestra ARRIBA, en el mismo
+              sitio donde estaba la original; aquí solo se confirma o se
+              reintenta. */}
           {stage === 'result' && (
-            <div className="space-y-2.5">
+            <div className="space-y-2.5 pb-4">
+              <div className="flex items-center gap-1.5 text-[12px] text-zinc-400 mb-1">
+                <Sparkles size={12} /> AI result — shown above
+              </div>
               <button
                 onClick={useThisPhoto}
                 className="w-full h-12 rounded-full bg-white text-black font-semibold text-[15px] flex items-center justify-center gap-1.5 hover:bg-zinc-100 active:scale-[0.99] transition"
@@ -220,13 +209,13 @@ export default function AIImageEditor({ open, imageFile, onClose, onApply }) {
               </button>
               <button
                 onClick={tryAnotherPrompt}
-                className="w-full h-12 rounded-full bg-white/[0.06] border border-white/10 text-white font-semibold text-[15px] flex items-center justify-center gap-1.5 hover:bg-white/[0.1] active:scale-[0.99] transition"
+                className="w-full h-11 rounded-full bg-white/[0.06] border border-white/10 text-white font-semibold text-[14px] flex items-center justify-center gap-1.5 hover:bg-white/[0.1] active:scale-[0.99] transition"
               >
-                <RotateCcw size={16} strokeWidth={2} /> Try another instruction
+                <RotateCcw size={15} strokeWidth={2} /> Try another instruction
               </button>
               <button
                 onClick={onClose}
-                className="w-full h-11 rounded-full text-zinc-400 hover:text-white text-[14px] font-medium transition"
+                className="w-full h-10 rounded-full text-zinc-400 hover:text-white text-[13.5px] font-medium transition"
               >
                 Cancel
               </button>
