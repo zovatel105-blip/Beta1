@@ -444,6 +444,17 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
                 const label = idx === 0 ? 'A' : 'B'
                 const slotFile = idx === 0 ? file : fileB
                 const isImg = fileKind(slotFile) === 'image'
+                // ¿Este slot toca el borde superior de la pantalla? (versus:
+                // siempre, solo se ve un slot a pantalla completa; 1vs1
+                // vertical -izq/der-: ambos slots tocan arriba; 1vs1
+                // horizontal -arriba/abajo-: solo el slot A). Solo cuando
+                // toca arriba hace falta bajar el botón para no quedar
+                // debajo del header propio de este paso (position:relative
+                // z-20, ver más abajo) — que de otro modo se roba el click
+                // (BUG reportado: 'el boton editar con ia no funciona' — su
+                // z-10 anterior + top-2 quedaba TAPADO por ese header, que
+                // ocupa todo el ancho con z-20 encima).
+                const touchesTop = mode !== 'duet' || layout === 'vertical' || idx === 0
                 return (
                   <div className={rootClass}>
                     {url ? (
@@ -462,7 +473,10 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
                       </button>
                     )}
                     {url && (
-                      <div className="absolute top-2 right-2 z-10 flex items-center gap-1.5">
+                      <div
+                        className="absolute right-2 z-20 flex items-center gap-1.5"
+                        style={{ top: touchesTop ? 'calc(max(env(safe-area-inset-top), 14px) + 54px)' : '0.5rem' }}
+                      >
                         {isImg && (
                           <button
                             onClick={() => setAiEditorSlot(idx)}
@@ -517,7 +531,10 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
                         </button>
                       )}
                       {previewA && (
-                        <div className="absolute top-2 right-2 z-10 flex items-center gap-1.5">
+                        <div
+                          className="absolute right-2 z-20 flex items-center gap-1.5"
+                          style={{ top: 'calc(max(env(safe-area-inset-top), 14px) + 54px)' }}
+                        >
                           {fileKind(file) === 'image' && (
                             <button
                               onClick={() => setAiEditorSlot(0)}

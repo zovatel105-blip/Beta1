@@ -3072,9 +3072,9 @@ frontend:
     implemented: true
     working: "NA"
     file: "components/AIImageEditor.jsx, components/UploadDialog.jsx"
-    stuck_count: 0
+    stuck_count: 1
     priority: "high"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
         -working: "NA"
         -agent: "main"
@@ -3085,10 +3085,16 @@ frontend:
         -working: "NA"
         -agent: "main"
         -comment: "Se RESPETA de inmediato: no se invoca deep_testing_frontend_nextjs. El backend (POST /api/ai/edit-image) ya está verificado 6/6 por el agente de testing de backend. La UI (AIImageEditor.jsx + botones en UploadDialog.jsx) queda implementada y con lint limpio, pero SIN verificación automatizada de frontend por instrucción explícita del usuario — marcado 'NA' a la espera de que el propio usuario la pruebe en la app real (subir una foto en Versus/1vs1/Reto, tocar '✨ Edit with AI', escribir una instrucción como 'añade un jet privado de fondo', generar, y confirmar 'Use this photo')."
+        -working: false
+        -agent: "user"
+        -comment: "'Cuando hago click en El boton editar con ia no funciona' — el botón '✨ Edit with AI' no responde al tocarlo."
+        -working: "NA"
+        -agent: "main"
+        -comment: "CAUSA RAÍZ ENCONTRADA (análisis CSS detallado, confirmado por inspección de elementsFromPoint en un script de reproducción con Playwright + emulación móvil real -UA de iPhone + viewport 390x844-, login vía fetch con sesión válida confirmada en /api/auth/me): el header propio del paso 'file' (components/UploadDialog.jsx, el `<div className=\"relative z-20 flex items-center justify-between...\">` con los botones Back/Close, línea ~542) es un bloque de ANCHO COMPLETO posicionado en la parte SUPERIOR de la pantalla, con una altura real de aprox. `max(env(safe-area-inset-top),14px) + 46px` (padding + botones de 36px) — es decir, entre ~60px y ~95px de alto según el dispositivo. Mi fila de botones nueva ('Edit with AI' + 'Change'), posicionada con `absolute top-2 right-2 z-10`, caía COMPLETAMENTE dentro de esa franja superior (top:8px a top:~32px), en la MISMA esquina superior derecha. Como el header tiene z-20 (mayor que mi z-10) y ambos son hermanos dentro del mismo contexto de apilamiento, el navegador entrega los clics/toques en esa zona al DIV del header (aunque visualmente no tenga fondo ahí, el hit-testing de CSS no depende del color de fondo, solo del orden de apilamiento) — el 'Edit with AI' (y muy probablemente 'Change' también, mismo problema preexistente) quedaba TAPADO e inalcanzable al tacto. FIX en components/UploadDialog.jsx (2 sitios: `renderSlot` para Versus/1vs1, y el bloque de foto única de Retos): la fila de botones ahora se posiciona con `top: calc(max(env(safe-area-inset-top), 14px) + 54px)` (justo debajo del borde inferior del header, con margen) en vez de `top-2`, y su z-index sube a `z-20` (a la par del header, ya sin solape) — en 1vs1 con layout horizontal (arriba/abajo) el slot B NO toca el borde superior de la pantalla (no comparte espacio con el header), así que se añadió lógica `touchesTop` para NO aplicarle el mismo desplazamiento innecesariamente (evita empujar el botón hacia el centro del slot B sin motivo); en el resto de casos (Versus, 1vs1 vertical, slot A de 1vs1 horizontal, Reto) `touchesTop` es `true` y se aplica el desplazamiento que soluciona el bug real. Lint limpio (0 errores nuevos, solo los 2 warnings preexistentes ya documentados). Verificación manual con Playwright (emulación móvil real, login válido confirmado, pero con inconsistencia intermitente del propio entorno de automatización al re-navegar tras el login -no relacionada con el fix- que impidió completar el click end-to-end de forma 100% determinista desde este agente) confirmó el diagnóstico exacto del solape antes del fix; el fix aplicado elimina matemáticamente el solape (las franjas verticales del header y de mi fila de botones ya NO se cruzan en ningún dispositivo/safe-area). PENDIENTE: verificación end-to-end por el agente de testing de frontend (mandato de plataforma para esta corrección de bug), con credenciales lucia/Test12345 (ver memory/test_credentials.md), usando emulación de teléfono real (user-agent móvil + viewport <768px, la app tiene un gate 'mobile-only' en app/page.js) y confirmando que tras subir una foto, el botón '✨ Edit with AI' SÍ abre el modal AIImageEditor al tocarlo."
 
 test_plan:
   current_focus:
-    - "NUEVO: Editor de fotos con IA en la creación de contenido — POST /api/ai/edit-image (Gemini 2.5 Flash Image 'Nano Banana' vía Universal Key)"
+    - "NUEVO: Botón 'Edit with AI' en el diálogo de creación de contenido (fotos) + modal AIImageEditor (prompt, sugerencias, reintentar, usar resultado)"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
