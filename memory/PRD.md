@@ -23,6 +23,23 @@ antes siempre tras A). Detalle completo en `test_result.md`. El usuario pidió e
 el agente de testing para estos cambios nativos (no compilable en este entorno de todas formas).
 
 
+## Ronda: icono de notificaciones — más grande + color de marca (glow no posible en el icono monocromo)
+Usuario: "aun no es igual al logo debe tener tambien el glow y ser un pelin mas grande". ACLARACIÓN
+TÉCNICA IMPORTANTE (regla del sistema operativo, no una limitación de esta app): el icono PEQUEÑO
+de la barra de estado en Android SIEMPRE se renderiza en un solo color desde Android 5.0 — ninguna
+app (Instagram, WhatsApp, etc.) puede mostrar su logo a color/con degradado ahí, es una restricción
+de diseño de la plataforma sin ningún parámetro de API que la evite. 2 mejoras SÍ aplicadas: (1) el
+margen interno del icono se redujo (la marca ahora ocupa ~86% del lienzo, antes ~74%) — se ve más
+grande dentro de su círculo. (2) `builder.setColor(0xFFA855F7)` (mismo morado de marca usado en
+QuickChallenge.kt y el resto de la app) — Android 8+ usa este color para TEÑIR el círculo de fondo
+del icono en la bandeja expandida, la aproximación más cercana posible al "glow" sin violar la
+regla de icono monocromo. Verificado visualmente con una composición Pillow simulando exactamente
+ese círculo de fondo (morado) + el icono blanco encima — resultado reconocible y con la sensación
+de color/resplandor de marca. 100% Kotlin + assets regenerados, NO COMPILABLE en este contenedor.
+Pendiente: el usuario debe recompilar el APK y confirmar en un dispositivo real (comparando la
+notificación colapsada en la barra de estado vs. la expandida en la bandeja, donde SÍ se verá el
+círculo morado).
+
 ## Ronda: ajuste fino del logo de notificaciones (silueta nítida) + avatar SIEMPRE circular
 Usuario: "la notificacion debe tener el logo y adaptarlo si es un circulo cuadrado etc y la barra
 de notificaciones tambien debe tener el logo". 2 fixes sobre la ronda anterior de notificaciones

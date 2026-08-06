@@ -129,8 +129,22 @@ class TwykFirebaseMessagingService : FirebaseMessagingService() {
             // ícono original para aislar SOLO la silueta sólida de la marca,
             // descartando el halo — mismo logo, reconocible y nítido incluso
             // en tamaño pequeño. Android sigue renderizándolo en un solo
-            // color (blanco), igual que hacen todas las apps.
+            // color (blanco) EN LA BARRA DE ESTADO — regla del sistema desde
+            // Android 5.0, sin excepción (le pasa igual a Instagram/WhatsApp/
+            // cualquier app; no hay forma de mostrar el logo a color ahí).
+            // BUG reportado por el usuario ("aun no es igual al logo, debe
+            // tener el glow y ser un poco más grande"): (1) el margen interno
+            // se redujo (la marca ahora ocupa ~86% del lienzo, antes ~74%) —
+            // se ve más grande dentro del icono. (2) `setColor` con el morado
+            // de marca (0xA855F7, el mismo usado en QuickChallenge.kt/el
+            // resto de la app) tiñe el CÍRCULO DE FONDO del icono en la
+            // bandeja expandida (Android 8+, `NotificationCompat` lo aplica
+            // automáticamente ahí) — es la aproximación más cercana posible
+            // al "glow" de marca sin violar la regla de icono monocromo del
+            // sistema (no hay ningún parámetro de la API de notificaciones
+            // que permita un degradado de color real en el icono pequeño).
             .setSmallIcon(R.drawable.ic_notification_logo)
+            .setColor(0xFFA855F7.toInt())
             .setContentTitle(title)
             .setContentText(body)
             .setAutoCancel(true)
