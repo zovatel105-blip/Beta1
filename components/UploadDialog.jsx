@@ -2,9 +2,10 @@
 /* eslint-disable react-hooks/set-state-in-effect -- setState en efectos de carga/reset async; falso positivo de la regla experimental. */
 
 import { useEffect, useRef, useState } from 'react'
-import { ChevronRight, Loader2, Film, Swords, Users, Rows2, Columns2, ArrowLeft, X, Search, Music } from 'lucide-react'
+import { ChevronRight, Loader2, Film, Swords, Users, Rows2, Columns2, ArrowLeft, X, Search, Music, Sparkles } from 'lucide-react'
 import Avatar from './Avatar'
 import MusicPicker from './MusicPicker'
+import AIImageEditor from './AIImageEditor'
 import { addPendingUpload, updateUploadProgress, removePendingUpload, markUploadFailed } from '@/lib/uploadQueue'
 import { captureThumbnail } from '@/lib/mediaThumbnail'
 
@@ -48,6 +49,9 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
   // (paso previo, ~instantáneo) y se cierra el diálogo; la subida real ya no
   // se espera aquí (continúa en segundo plano, ver doUpload).
   const [publishing, setPublishing] = useState(false)
+  // Editor de fotos con IA (ver AIImageEditor.jsx): null = cerrado, 0 = editando
+  // el archivo del slot A / foto única, 1 = editando el archivo del slot B.
+  const [aiEditorSlot, setAiEditorSlot] = useState(null)
 
   // URLs de previsualización memorizadas (evita recrearlas en cada render,
   // lo que reiniciaría el vídeo al escribir la descripción).
@@ -67,7 +71,7 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
   const reset = () => {
     setStep('mode'); setMode(null); setLayout('horizontal'); setTarget(null); setUsers([])
     setFile(null); setFileB(null); setDescription(''); setError(null); setPublishing(false)
-    setSelected('versus'); setVersusIdx(0); setMusic(null); setMusicOpen(false)
+    setSelected('versus'); setVersusIdx(0); setMusic(null); setMusicOpen(false); setAiEditorSlot(null)
   }
 
   useEffect(() => {
@@ -458,9 +462,19 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
                       </button>
                     )}
                     {url && (
-                      <button onClick={pick} className="absolute top-2 right-2 z-10 text-[11px] font-semibold text-white bg-black/55 hover:bg-black/80 active:scale-95 rounded-full px-2.5 py-1 transition">
-                        Change
-                      </button>
+                      <div className="absolute top-2 right-2 z-10 flex items-center gap-1.5">
+                        {isImg && (
+                          <button
+                            onClick={() => setAiEditorSlot(idx)}
+                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-white bg-black/55 hover:bg-black/80 active:scale-95 rounded-full px-2.5 py-1 transition"
+                          >
+                            <Sparkles size={12} /> Edit with AI
+                          </button>
+                        )}
+                        <button onClick={pick} className="text-[11px] font-semibold text-white bg-black/55 hover:bg-black/80 active:scale-95 rounded-full px-2.5 py-1 transition">
+                          Change
+                        </button>
+                      </div>
                     )}
                   </div>
                 )
@@ -501,6 +515,21 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
                           <span className="text-[15px] font-medium text-zinc-200">Tap to upload your photo or video</span>
                           <span className="text-[11px] text-zinc-500">Video (max 80MB) · Photo (max 15MB)</span>
                         </button>
+                      )}
+                      {previewA && (
+                        <div className="absolute top-2 right-2 z-10 flex items-center gap-1.5">
+                          {fileKind(file) === 'image' && (
+                            <button
+                              onClick={() => setAiEditorSlot(0)}
+                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-white bg-black/55 hover:bg-black/80 active:scale-95 rounded-full px-2.5 py-1 transition"
+                            >
+                              <Sparkles size={12} /> Edit with AI
+                            </button>
+                          )}
+                          <button onClick={pickFile} className="text-[11px] font-semibold text-white bg-black/55 hover:bg-black/80 active:scale-95 rounded-full px-2.5 py-1 transition">
+                            Change
+                          </button>
+                        </div>
                       )}
                     </div>
                   )}
@@ -609,6 +638,16 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
         )}
       </div>
       <MusicPicker open={musicOpen} onClose={() => setMusicOpen(false)} onSelect={setMusic} current={music} />
+      <AIImageEditor
+        open={aiEditorSlot !== null}
+        imageFile={aiEditorSlot === 0 ? file : aiEditorSlot === 1 ? fileB : null}
+        onClose={() => setAiEditorSlot(null)}
+        onApply={(newFile) => {
+          if (aiEditorSlot === 0) setFile(newFile)
+          else if (aiEditorSlot === 1) setFileB(newFile)
+          setAiEditorSlot(null)
+        }}
+      />
     </div>
   )
 }

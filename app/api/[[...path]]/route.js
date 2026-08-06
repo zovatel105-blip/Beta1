@@ -68,6 +68,7 @@ import {
 } from '@/lib/stores'
 import { rankFeed, recordVote, recordImpressions, recordWatch, recordEngagement, recordSocialAffinity, recordNotInterested, getNotInterestedIds, computeMetrics } from '@/lib/recommender'
 import { registerDeviceToken, unregisterDeviceToken } from '@/lib/push'
+import { LlmChat, UserMessage, ImageContent } from 'emergentintegrations'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -1063,6 +1064,14 @@ export async function POST(request, { params }) {
   // POST /api/save - Guardar/quitar de guardados un post
   if (path === '/save') {
     return handleSavePost(request)
+  }
+
+  // POST /api/ai/edit-image - Editor de imágenes con IA (paso de creación de
+  // contenido): recibe una foto ya seleccionada + una instrucción en texto
+  // (ej. "añade un jet privado de fondo") y devuelve la imagen editada por
+  // Gemini 2.5 Flash Image ("Nano Banana"), vía la Universal Key de Emergent.
+  if (path === '/ai/edit-image') {
+    return handleAiEditImage(request)
   }
 
   // POST /api/share - Registrar un compartido (señal fuerte del TWYK Engine).
@@ -2461,6 +2470,85 @@ async function handleNotInterested(request) {
   } catch (err) {
     console.error('not-interested error', err)
     return NextResponse.json({ error: 'not_interested_failed' }, { status: 500 })
+  }
+}
+
+
+// ────────────────────────────────────────────────────────────────────────────
+// Editor de imágenes con IA (creación de contenido)
+// ────────────────────────────────────────────────────────────────────────────
+
+const AI_EDIT_MODEL = 'gemini-2.5-flash-image' // Gemini "Nano Banana" (edición image-to-image)
+const AI_EDIT_MAX_BYTES = 15 * 1024 * 1024 // mismo límite que fotos en UploadDialog.jsx
+const AI_EDIT_ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
+
+// POST /api/ai/edit-image
+//   FormData: image (File, foto ya seleccionada por el usuario), prompt (string)
+//   Requiere sesión (misma regla que publicar). Envía la foto + la instrucción
+//   a Gemini 2.5 Flash Image ("Nano Banana") vía LlmChat.sendMessageMultimodalResponse
+//   (rutea por el proxy de Emergent con EMERGENT_LLM_KEY — NO se envía ninguna
+//   clave directa de Google) y devuelve la imagen resultante como data URL,
+//   lista para convertirse en File en el cliente y reemplazar la foto original.
+async function handleAiEditImage(request) {
+  try {
+    const currentUser = await getCurrentUser(request)
+    if (!currentUser) {
+      return NextResponse.json({ error: 'unauthorized', message: 'You must log in to use the AI editor' }, { status: 401 })
+    }
+
+    const formData = await request.formData()
+    const image = formData.get('image')
+    const prompt = (formData.get('prompt') || '').toString().trim()
+
+    if (!image || typeof image === 'string') {
+      return NextResponse.json({ error: 'missing_image', message: 'Select a photo first' }, { status: 400 })
+    }
+    const type = (image.type || '').toLowerCase()
+    if (!AI_EDIT_ALLOWED_TYPES.has(type)) {
+      return NextResponse.json({ error: 'invalid_image', message: 'Use a JPG, PNG or WEBP photo' }, { status: 415 })
+    }
+    if (image.size > AI_EDIT_MAX_BYTES) {
+      return NextResponse.json({ error: 'file_too_large', message: 'Photo must be 15MB or smaller' }, { status: 413 })
+    }
+    if (prompt.length < 3) {
+      return NextResponse.json({ error: 'missing_prompt', message: 'Describe what you want to add or change' }, { status: 400 })
+    }
+    if (prompt.length > 500) {
+      return NextResponse.json({ error: 'prompt_too_long', message: 'Keep the instruction under 500 characters' }, { status: 400 })
+    }
+
+    const apiKey = process.env.EMERGENT_LLM_KEY
+    if (!apiKey) {
+      console.error('AI edit image: EMERGENT_LLM_KEY missing')
+      return NextResponse.json({ error: 'ai_not_configured', message: 'AI editor is not configured' }, { status: 500 })
+    }
+
+    const bytes = Buffer.from(await image.arrayBuffer())
+    const base64 = bytes.toString('base64')
+
+    const chat = new LlmChat(
+      apiKey,
+      `img-edit-${currentUser.id}-${Date.now()}`,
+      'You are an expert photo editing AI. Apply exactly the requested edit to the provided photo. Preserve the rest of the image (subject, framing, lighting, style) unless the instruction says otherwise, and make the added/changed elements look realistic and well integrated. Always return the edited image.'
+    ).withModel('gemini', AI_EDIT_MODEL)
+
+    const [, images] = await chat.sendMessageMultimodalResponse(
+      new UserMessage({
+        text: prompt,
+        file_contents: [new ImageContent(base64)],
+      })
+    )
+
+    if (!images || images.length === 0) {
+      return NextResponse.json({ error: 'no_image_returned', message: 'The AI could not edit this photo, try a different instruction' }, { status: 502 })
+    }
+
+    const out = images[0]
+    const mimeType = out.mime_type || 'image/png'
+    return NextResponse.json({ ok: true, image: `data:${mimeType};base64,${out.data}`, mimeType })
+  } catch (err) {
+    console.error('ai edit image error', err)
+    return NextResponse.json({ error: 'ai_edit_failed', message: 'AI editing failed, please try again' }, { status: 500 })
   }
 }
 

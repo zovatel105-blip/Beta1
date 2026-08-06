@@ -59,7 +59,14 @@ después de que Next.js haga su propio "Reload env: .env" (log de supervisor),
 o preguntar al usuario cuál es la URL que ve en su navegador.
 
 ## Última URL usada (actualizada automáticamente al restaurar)
-NEXT_PUBLIC_BASE_URL=https://ai-visual-creator-27.preview.emergentagent.com
+NEXT_PUBLIC_BASE_URL=https://a848da9f-e6a1-44b2-a387-21c22b62ba4c.preview.emergentagent.com
+
+## EMERGENT_LLM_KEY (feature IA de edición de imágenes en la creación de contenido)
+También añadida a /app/.env: EMERGENT_LLM_KEY=sk-emergent-1183407D7D1FdD3D62
+(obtenida vía emergent_integrations_manager). Si /app/.env vuelve a
+desaparecer, esta clave también debe restaurarse o el editor de imágenes con
+IA (POST /api/ai/edit-image) dejará de funcionar (no falla la app entera,
+solo esa función).
 
 ## IMPORTANTE: también actualizar la app nativa Android
 Cuando la URL de preview cambia, además de /app/.env también hay que
