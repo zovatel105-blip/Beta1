@@ -4,6 +4,12 @@ import android.app.PendingIntent
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffXfermode
+import android.graphics.Rect
+import android.graphics.RectF
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.google.firebase.messaging.FirebaseMessagingService
@@ -75,6 +81,32 @@ class TwykFirebaseMessagingService : FirebaseMessagingService() {
         connection.getInputStream().use { input -> BitmapFactory.decodeStream(input) }
     }.getOrNull()
 
+    // NUEVA FEATURE (usuario: "el logo... adaptarlo si es un círculo cuadrado
+    // etc"): recorta el avatar SIEMPRE en un círculo perfecto antes de
+    // pasarlo a `setLargeIcon`, en vez de confiar en que cada launcher/
+    // versión de Android lo enmascare igual — algunos OEM no aplican ninguna
+    // máscara y mostraban el avatar recortado a lo bruto en forma
+    // cuadrada/rectangular. Recorta primero al CUADRADO central más grande
+    // posible (por si el avatar de origen no es cuadrado) y luego aplica una
+    // máscara circular con `PorterDuff.Mode.SRC_IN` (mismo principio que
+    // `CircularCrop.jsx`/`TwykAvatar` en el resto de la app, aplicado aquí a
+    // mano porque las notificaciones no tienen acceso a Compose/Coil).
+    private fun cropToCircle(bitmap: Bitmap): Bitmap {
+        val size = minOf(bitmap.width, bitmap.height)
+        val output = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(output)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+        val rectF = RectF(0f, 0f, size.toFloat(), size.toFloat())
+        canvas.drawOval(rectF, paint)
+        paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_IN)
+        val srcLeft = (bitmap.width - size) / 2
+        val srcTop = (bitmap.height - size) / 2
+        val srcRect = Rect(srcLeft, srcTop, srcLeft + size, srcTop + size)
+        val dstRect = Rect(0, 0, size, size)
+        canvas.drawBitmap(bitmap, srcRect, dstRect, paint)
+        return output
+    }
+
     private fun showNotification(title: String, body: String, avatarBitmap: Bitmap?, postBitmap: Bitmap?) {
         val intent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -87,15 +119,18 @@ class TwykFirebaseMessagingService : FirebaseMessagingService() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
-            // Logo REAL de la app (capa "foreground" del ícono adaptativo,
-            // res/mipmap-*/ic_launcher_foreground.png — YA tiene canal alpha
-            // recortando la marca exacta, verificado con Pillow) en vez del
-            // icono genérico de bandeja (antes `ic_inbox`) — Android SIEMPRE
-            // renderiza el icono pequeño de la barra de estado en un solo
-            // color (silueta), igual que hacen todas las apps (Instagram,
-            // WhatsApp, etc.); es el comportamiento normal del sistema, no
-            // una limitación de este cambio.
-            .setSmallIcon(R.mipmap.ic_launcher_foreground)
+            // Logo REAL de la app, pero como silueta MONOCROMA dedicada
+            // (res/drawable-*dpi/ic_notification_logo.png) en vez de la capa
+            // "foreground" completa del ícono adaptativo — esa capa incluye
+            // el resplandor/glow difuso del logo (degradado de transparencia
+            // gradual), que a 24dp en la barra de estado se veía como una
+            // mancha borrosa en vez de la marca nítida. Este recurso nuevo
+            // se generó (con Pillow) umbralizando el canal alpha del mismo
+            // ícono original para aislar SOLO la silueta sólida de la marca,
+            // descartando el halo — mismo logo, reconocible y nítido incluso
+            // en tamaño pequeño. Android sigue renderizándolo en un solo
+            // color (blanco), igual que hacen todas las apps.
+            .setSmallIcon(R.drawable.ic_notification_logo)
             .setContentTitle(title)
             .setContentText(body)
             .setAutoCancel(true)
@@ -104,8 +139,11 @@ class TwykFirebaseMessagingService : FirebaseMessagingService() {
 
         // Avatar de quien interactuó — icono circular pequeño junto al
         // título (mismo lugar donde WhatsApp/Instagram muestran la foto del
-        // remitente), visible tanto colapsada como expandida.
-        if (avatarBitmap != null) builder.setLargeIcon(avatarBitmap)
+        // remitente), visible tanto colapsada como expandida. Recortado a
+        // círculo explícitamente (ver cropToCircle) para que se vea igual
+        // en cualquier dispositivo/launcher, sin depender del enmascarado
+        // automático del sistema.
+        if (avatarBitmap != null) builder.setLargeIcon(runCatching { cropToCircle(avatarBitmap) }.getOrDefault(avatarBitmap))
 
         // Miniatura de la publicación implicada — imagen grande SOLO al
         // expandir la notificación (deslizar hacia abajo o mantener

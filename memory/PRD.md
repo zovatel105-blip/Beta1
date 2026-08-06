@@ -23,6 +23,33 @@ antes siempre tras A). Detalle completo en `test_result.md`. El usuario pidió e
 el agente de testing para estos cambios nativos (no compilable en este entorno de todas formas).
 
 
+## Ronda: ajuste fino del logo de notificaciones (silueta nítida) + avatar SIEMPRE circular
+Usuario: "la notificacion debe tener el logo y adaptarlo si es un circulo cuadrado etc y la barra
+de notificaciones tambien debe tener el logo". 2 fixes sobre la ronda anterior de notificaciones
+enriquecidas:
+
+1. ICONO DE LA BARRA DE ESTADO: usaba `R.mipmap.ic_launcher_foreground` (la capa completa del
+   ícono adaptativo, CON el resplandor/glow difuso del logo) — a 24dp ese degradado de
+   transparencia gradual se percibía como una mancha borrosa en vez de una marca nítida. FIX:
+   generados 5 nuevos PNG monocromos (`res/drawable-mdpi/hdpi/xhdpi/xxhdpi/xxxhdpi/
+   ic_notification_logo.png`, 24/36/48/72/96px) con Pillow — se umbraliza el canal alpha del
+   `ic_launcher_foreground` original (rampa suave 60→200, sin dentado) para aislar SOLO la
+   silueta SÓLIDA de la marca, descartando el halo difuso; recortado al bounding box + margen del
+   15% y centrado. Verificado visualmente (composición sobre fondo negro simulando la barra de
+   estado): silueta blanca nítida y reconocible del logo real de Twyk. `setSmallIcon` y el
+   meta-data `default_notification_icon` del manifest actualizados a este nuevo recurso.
+2. AVATAR SIEMPRE CIRCULAR: antes se pasaba el bitmap del avatar directo a `setLargeIcon` (confiando
+   en que el sistema/launcher lo recortara en círculo automáticamente — no garantizado en todos los
+   OEM). FIX: nueva función `cropToCircle()` (Canvas + `PorterDuff.Mode.SRC_IN`, mismo principio que
+   `CircularCrop.jsx`/`TwykAvatar` del resto de la app, aplicado a mano aquí por no tener acceso a
+   Compose/Coil en un `FirebaseMessagingService`) — recorta primero al cuadrado central más grande
+   posible y luego aplica la máscara circular, ANTES de `setLargeIcon`; si el recorte fallara por
+   cualquier motivo, cae de vuelta al bitmap original sin círculo (nunca rompe la notificación).
+100% Kotlin + assets nuevos, NO COMPILABLE en este contenedor. Verificado por revisión manual +
+balance de llaves/paréntesis (17/17, 81/81) + inspección visual de los PNG generados. Pendiente:
+el usuario debe recompilar el APK y confirmar en un dispositivo real que el icono de la barra de
+estado se ve nítido (no borroso) y que el avatar en la notificación es siempre un círculo perfecto.
+
 ## Ronda: Notificaciones push ENRIQUECIDAS (logo de la app, avatar de quien interactuó, miniatura de la publicación)
 Usuario: "las notificaciones tienen que tener el logo de la apk y mostrar el avatar y la
 publicación en la que se interactuó". CAMBIO DE ARQUITECTURA CLAVE: el payload FCM pasó de

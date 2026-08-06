@@ -27,7 +27,7 @@
             android:value="social" />
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_icon"
-            android:resource="@mipmap/ic_launcher_foreground" />
+            android:resource="@drawable/ic_notification_logo" />
 
         <service
             android:name=".push.TwykFirebaseMessagingService"
