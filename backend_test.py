@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 
 # Base URL from environment
-BASE_URL = os.getenv('NEXT_PUBLIC_BASE_URL', 'https://a848da9f-e6a1-44b2-a387-21c22b62ba4c.preview.emergentagent.com')
+BASE_URL = os.getenv('NEXT_PUBLIC_BASE_URL', 'https://fluid-synthesis.preview.emergentagent.com')
 API_URL = f"{BASE_URL}/api"
 
 # Test credentials

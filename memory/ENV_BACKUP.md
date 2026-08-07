@@ -16,8 +16,8 @@ scripts/seed-core-users.mjs y memory/test_credentials.md).
 ```
 MONGO_URL=mongodb://localhost:27017/twyk
 ADMIN_EMAILS=twyk.apk@gmail.com
-NEXT_PUBLIC_BASE_URL=https://ai-visual-creator-27.preview.emergentagent.com
-CORS_ORIGINS=https://ai-visual-creator-27.preview.emergentagent.com
+NEXT_PUBLIC_BASE_URL=https://fluid-synthesis.preview.emergentagent.com
+CORS_ORIGINS=https://fluid-synthesis.preview.emergentagent.com
 FIREBASE_PROJECT_ID=
 FIREBASE_CLIENT_EMAIL=
 FIREBASE_PRIVATE_KEY=
@@ -59,10 +59,13 @@ después de que Next.js haga su propio "Reload env: .env" (log de supervisor),
 o preguntar al usuario cuál es la URL que ve en su navegador.
 
 ## Última URL usada (actualizada automáticamente al restaurar)
-NEXT_PUBLIC_BASE_URL=https://a848da9f-e6a1-44b2-a387-21c22b62ba4c.preview.emergentagent.com
+NEXT_PUBLIC_BASE_URL=https://ad7d5cd4-186b-4276-9098-88d1ced1e169.preview.emergentagent.com
 
 ## EMERGENT_LLM_KEY (feature IA de edición de imágenes en la creación de contenido)
-También añadida a /app/.env: EMERGENT_LLM_KEY=sk-emergent-1183407D7D1FdD3D62
+También añadida a /app/.env: EMERGENT_LLM_KEY=sk-emergent-43fBb4a6a83A957D72
+(clave RENOVADA en esta sesión — la anterior sk-emergent-1183407D7D1FdD3D62
+agotó su presupuesto; si vuelve a agotarse, usar emergent_integrations_manager
+para obtener la vigente)
 (obtenida vía emergent_integrations_manager). Si /app/.env vuelve a
 desaparecer, esta clave también debe restaurarse o el editor de imágenes con
 IA (POST /api/ai/edit-image) dejará de funcionar (no falla la app entera,

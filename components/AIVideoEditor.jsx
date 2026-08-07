@@ -210,7 +210,7 @@ export default function AIVideoEditor({ videoFile, onClose, onApply, onStatusCha
         <>
           {stage === 'input' && (
             <p className="text-[11.5px] text-zinc-500 -mt-1">
-              Works best on short clips with a fairly steady camera. Takes a few minutes to process.
+              Adding an element usually takes under a minute. Full restyles ("make it anime") take several minutes.
             </p>
           )}
           <div className="rounded-2xl bg-black/45 backdrop-blur-xl border border-white/10 px-4 py-3">

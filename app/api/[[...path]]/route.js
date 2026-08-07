@@ -2651,8 +2651,11 @@ async function handleAiSuggestEdits(request) {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// Editor de VÍDEO con IA (ver lib/aiVideoEditor.js para el pipeline completo:
-// fotogramas clave editados con IA + propagación con ebsynth, 100% CPU)
+// Editor de VÍDEO con IA (ver lib/aiVideoEditor.js). DOS modos automáticos:
+//  • COMPOSICIÓN (añadir un elemento al escenario): ~25-70s, calidad nativa
+//    (sticker consistente + tracking de cámara + oclusión + movimiento propio)
+//  • ESTILO (reestilizado global): claves IA + ebsynth bidireccional, lento
+//    (~minutos) pero honesto — 100% CPU, sin GPU ni APIs de pago
 // ────────────────────────────────────────────────────────────────────────────
 
 const AI_VIDEO_MAX_BYTES = 80 * 1024 * 1024 // mismo límite que vídeos normales
@@ -2663,8 +2666,9 @@ const AI_VIDEO_INCOMING_DIR = nodePath.join(process.cwd(), '.tmp_ai_video', 'inc
 //   FormData: video (File), prompt (string)
 //   Requiere sesión. Guarda el vídeo en una carpeta temporal (no pública),
 //   valida duración/tamaño/tipo, y arranca el job en segundo plano —
-//   responde AL INSTANTE con { ok:true, jobId } (el proceso real tarda
-//   varios minutos, ver aiVideoEditor.js). El cliente hace polling a
+//   responde AL INSTANTE con { ok:true, jobId } (añadir un elemento tarda
+//   menos de ~1 min; un reestilizado global, varios minutos — ver
+//   aiVideoEditor.js). El cliente hace polling a
 //   GET /api/ai/edit-video-status?jobId=...
 async function handleAiEditVideo(request) {
   try {
