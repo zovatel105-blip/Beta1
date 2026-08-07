@@ -504,12 +504,19 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
                         className="absolute right-2 z-20 flex items-center gap-1.5"
                         style={{ top: touchesTop ? 'calc(max(env(safe-area-inset-top), 14px) + 54px)' : '0.5rem' }}
                       >
-                        <button
-                          onClick={() => setAiEditorSlot(idx)}
-                          className="inline-flex items-center gap-1 text-[11px] font-semibold text-white bg-black/55 hover:bg-black/80 active:scale-95 rounded-full px-2.5 py-1 transition"
-                        >
-                          <Sparkles size={12} /> Edit with AI
-                        </button>
+                        {/* Editor IA: OCULTO para vídeos por ahora (petición
+                            del usuario: 'Por ahora oculta el boton de editar
+                            video'). Todo el flujo de vídeo (AIVideoEditor,
+                            endpoints, GPU gratuita) sigue implementado — para
+                            reactivarlo basta quitar la condición isImg. */}
+                        {isImg && (
+                          <button
+                            onClick={() => setAiEditorSlot(idx)}
+                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-white bg-black/55 hover:bg-black/80 active:scale-95 rounded-full px-2.5 py-1 transition"
+                          >
+                            <Sparkles size={12} /> Edit with AI
+                          </button>
+                        )}
                         <button onClick={pick} className="text-[11px] font-semibold text-white bg-black/55 hover:bg-black/80 active:scale-95 rounded-full px-2.5 py-1 transition">
                           Change
                         </button>
@@ -570,12 +577,16 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
                           className="absolute right-2 z-20 flex items-center gap-1.5"
                           style={{ top: 'calc(max(env(safe-area-inset-top), 14px) + 54px)' }}
                         >
-                          <button
-                            onClick={() => setAiEditorSlot(0)}
-                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-white bg-black/55 hover:bg-black/80 active:scale-95 rounded-full px-2.5 py-1 transition"
-                          >
-                            <Sparkles size={12} /> Edit with AI
-                          </button>
+                          {/* Editor IA: OCULTO para vídeos por ahora (ver nota
+                              en renderSlot). Solo se muestra para fotos. */}
+                          {fileKind(file) === 'image' && (
+                            <button
+                              onClick={() => setAiEditorSlot(0)}
+                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-white bg-black/55 hover:bg-black/80 active:scale-95 rounded-full px-2.5 py-1 transition"
+                            >
+                              <Sparkles size={12} /> Edit with AI
+                            </button>
+                          )}
                           <button onClick={pickFile} className="text-[11px] font-semibold text-white bg-black/55 hover:bg-black/80 active:scale-95 rounded-full px-2.5 py-1 transition">
                             Change
                           </button>
