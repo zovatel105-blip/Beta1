@@ -2,7 +2,7 @@
 /* eslint-disable react-hooks/set-state-in-effect -- setState en efectos de carga/reset async; falso positivo de la regla experimental. */
 
 import { useEffect, useRef, useState } from 'react'
-import { ChevronRight, Loader2, Film, Swords, Users, Rows2, Columns2, ArrowLeft, X, Search, Music, Sparkles } from 'lucide-react'
+import { ChevronRight, Loader2, Film, Swords, Users, Rows2, Columns2, ArrowLeft, X, Search, Music, Sparkles, RefreshCw } from 'lucide-react'
 import Avatar from './Avatar'
 import MusicPicker from './MusicPicker'
 import AIImageEditor from './AIImageEditor'
@@ -501,24 +501,30 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
                     )}
                     {url && (
                       <div
-                        className="absolute right-2 z-20 flex items-center gap-1.5"
-                        style={{ top: touchesTop ? 'calc(max(env(safe-area-inset-top), 14px) + 54px)' : '0.5rem' }}
+                        className="absolute right-3 z-20 flex flex-col items-center gap-2"
+                        style={{ top: touchesTop ? 'calc(max(env(safe-area-inset-top), 14px) + 58px)' : '0.5rem' }}
                       >
-                        {/* Editor IA: OCULTO para vídeos por ahora (petición
-                            del usuario: 'Por ahora oculta el boton de editar
-                            video'). Todo el flujo de vídeo (AIVideoEditor,
-                            endpoints, GPU gratuita) sigue implementado — para
-                            reactivarlo basta quitar la condición isImg. */}
+                        {/* Botones CIRCULARES bajo la X (petición del usuario),
+                            mismo estilo w-9 bg-black/35 que la X del header.
+                            Editor IA: OCULTO para vídeos por ahora ('Por ahora
+                            oculta el boton de editar video') — todo el flujo de
+                            vídeo (AIVideoEditor, endpoints, GPU gratuita) sigue
+                            implementado; para reactivarlo, quitar isImg. */}
                         {isImg && (
                           <button
                             onClick={() => setAiEditorSlot(idx)}
-                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-white bg-black/55 hover:bg-black/80 active:scale-95 rounded-full px-2.5 py-1 transition"
+                            aria-label="Edit with AI"
+                            className="w-9 h-9 rounded-full flex items-center justify-center bg-black/35 backdrop-blur hover:bg-black/55 active:scale-90 transition text-white"
                           >
-                            <Sparkles size={12} /> Edit with AI
+                            <Sparkles size={17} strokeWidth={1.9} />
                           </button>
                         )}
-                        <button onClick={pick} className="text-[11px] font-semibold text-white bg-black/55 hover:bg-black/80 active:scale-95 rounded-full px-2.5 py-1 transition">
-                          Change
+                        <button
+                          onClick={pick}
+                          aria-label="Change media"
+                          className="w-9 h-9 rounded-full flex items-center justify-center bg-black/35 backdrop-blur hover:bg-black/55 active:scale-90 transition text-white"
+                        >
+                          <RefreshCw size={17} strokeWidth={1.9} />
                         </button>
                       </div>
                     )}
@@ -574,21 +580,27 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
                       )}
                       {previewA && (
                         <div
-                          className="absolute right-2 z-20 flex items-center gap-1.5"
-                          style={{ top: 'calc(max(env(safe-area-inset-top), 14px) + 54px)' }}
+                          className="absolute right-3 z-20 flex flex-col items-center gap-2"
+                          style={{ top: 'calc(max(env(safe-area-inset-top), 14px) + 58px)' }}
                         >
-                          {/* Editor IA: OCULTO para vídeos por ahora (ver nota
-                              en renderSlot). Solo se muestra para fotos. */}
+                          {/* Botones CIRCULARES bajo la X (mismo estilo que la X
+                              del header). Editor IA: OCULTO para vídeos por
+                              ahora (ver nota en renderSlot) — solo en fotos. */}
                           {fileKind(file) === 'image' && (
                             <button
                               onClick={() => setAiEditorSlot(0)}
-                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-white bg-black/55 hover:bg-black/80 active:scale-95 rounded-full px-2.5 py-1 transition"
+                              aria-label="Edit with AI"
+                              className="w-9 h-9 rounded-full flex items-center justify-center bg-black/35 backdrop-blur hover:bg-black/55 active:scale-90 transition text-white"
                             >
-                              <Sparkles size={12} /> Edit with AI
+                              <Sparkles size={17} strokeWidth={1.9} />
                             </button>
                           )}
-                          <button onClick={pickFile} className="text-[11px] font-semibold text-white bg-black/55 hover:bg-black/80 active:scale-95 rounded-full px-2.5 py-1 transition">
-                            Change
+                          <button
+                            onClick={pickFile}
+                            aria-label="Change media"
+                            className="w-9 h-9 rounded-full flex items-center justify-center bg-black/35 backdrop-blur hover:bg-black/55 active:scale-90 transition text-white"
+                          >
+                            <RefreshCw size={17} strokeWidth={1.9} />
                           </button>
                         </div>
                       )}
