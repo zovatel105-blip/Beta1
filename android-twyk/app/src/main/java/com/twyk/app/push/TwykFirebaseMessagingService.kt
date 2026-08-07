@@ -14,6 +14,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import androidx.core.content.res.ResourcesCompat
 import com.twyk.app.MainActivity
 import com.twyk.app.R
 import com.twyk.app.data.PushTokenManager
@@ -65,11 +66,36 @@ class TwykFirebaseMessagingService : FirebaseMessagingService() {
         // para trabajo asíncrono ya iniciado, suficiente para 2 descargas
         // pequeñas (avatar + miniatura) con timeout corto.
         CoroutineScope(Dispatchers.IO).launch {
-            val avatarBitmap = avatarUrl?.takeIf { it.isNotBlank() }?.let { downloadBitmap(it) }
+            // Avatar con la MISMA lógica que los perfiles de la app (petición
+            // del usuario: "el avatar debe mostrarse como el avatar del perfil
+            // dependiendo si tiene perfil o no"): si el usuario tiene foto
+            // real se muestra esa; si no (URL vacía o avatar "generado"
+            // dicebear/pravatar — mismo criterio que isGeneratedAvatar en
+            // ui/UiKit.kt — o si la descarga falla), se muestra el MISMO
+            // placeholder gris que usa toda la app (ic_avatar_default:
+            // fondo #E5E7EB + silueta #9CA3AF), en vez de no mostrar nada.
+            val isGenerated = avatarUrl.isNullOrBlank() ||
+                avatarUrl.contains("dicebear") || avatarUrl.contains("pravatar")
+            val avatarBitmap = (if (!isGenerated) downloadBitmap(avatarUrl!!) else null)
+                ?: defaultAvatarBitmap()
             val postBitmap = postImageUrl?.takeIf { it.isNotBlank() }?.let { downloadBitmap(it) }
             showNotification(title, body, avatarBitmap, postBitmap)
         }
     }
+
+    // Placeholder de avatar por defecto — renderiza a Bitmap el MISMO vector
+    // `ic_avatar_default.xml` que usan el feed/perfil/barra inferior, para que
+    // la notificación se vea idéntica al resto de la app cuando el usuario no
+    // tiene foto de perfil.
+    private fun defaultAvatarBitmap(): Bitmap? = runCatching {
+        val drawable = ResourcesCompat.getDrawable(resources, R.drawable.ic_avatar_default, theme)!!
+        val size = 128
+        val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bmp)
+        drawable.setBounds(0, 0, size, size)
+        drawable.draw(canvas)
+        bmp
+    }.getOrNull()
 
     // Descarga simple y con timeout corto — si falla (red lenta, URL rota,
     // avatar demo sin imagen real) simplemente se omite ese elemento visual,
@@ -119,32 +145,15 @@ class TwykFirebaseMessagingService : FirebaseMessagingService() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
-            // Logo REAL de la app, pero como silueta MONOCROMA dedicada
-            // (res/drawable-*dpi/ic_notification_logo.png) en vez de la capa
-            // "foreground" completa del ícono adaptativo — esa capa incluye
-            // el resplandor/glow difuso del logo (degradado de transparencia
-            // gradual), que a 24dp en la barra de estado se veía como una
-            // mancha borrosa en vez de la marca nítida. Este recurso nuevo
-            // se generó (con Pillow) umbralizando el canal alpha del mismo
-            // ícono original para aislar SOLO la silueta sólida de la marca,
-            // descartando el halo — mismo logo, reconocible y nítido incluso
-            // en tamaño pequeño. Android sigue renderizándolo en un solo
-            // color (blanco) EN LA BARRA DE ESTADO — regla del sistema desde
-            // Android 5.0, sin excepción (le pasa igual a Instagram/WhatsApp/
-            // cualquier app; no hay forma de mostrar el logo a color ahí).
-            // BUG reportado por el usuario ("aun no es igual al logo, debe
-            // tener el glow y ser un poco más grande"): (1) el margen interno
-            // se redujo (la marca ahora ocupa ~86% del lienzo, antes ~74%) —
-            // se ve más grande dentro del icono. (2) `setColor` con el morado
-            // de marca (0xA855F7, el mismo usado en QuickChallenge.kt/el
-            // resto de la app) tiñe el CÍRCULO DE FONDO del icono en la
-            // bandeja expandida (Android 8+, `NotificationCompat` lo aplica
-            // automáticamente ahí) — es la aproximación más cercana posible
-            // al "glow" de marca sin violar la regla de icono monocromo del
-            // sistema (no hay ningún parámetro de la API de notificaciones
-            // que permita un degradado de color real en el icono pequeño).
+            // Logo REAL de la app como silueta MONOCROMA dedicada
+            // (res/drawable-*dpi/ic_notification_logo.png) — Android renderiza
+            // el icono pequeño en un solo color en la barra de estado (regla
+            // del sistema desde Android 5.0, igual para todas las apps).
+            // SIN GLOW (petición del usuario: "elimina el glow del logo"): se
+            // quitó el `setColor(0xA855F7)` morado que teñía el círculo de
+            // fondo del icono en la bandeja expandida — ahora el sistema usa
+            // su color neutro por defecto, logo limpio y sin halo de color.
             .setSmallIcon(R.drawable.ic_notification_logo)
-            .setColor(0xFFA855F7.toInt())
             .setContentTitle(title)
             .setContentText(body)
             .setAutoCancel(true)
