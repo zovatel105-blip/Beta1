@@ -69,7 +69,7 @@ import {
 import { rankFeed, recordVote, recordImpressions, recordWatch, recordEngagement, recordSocialAffinity, recordNotInterested, getNotInterestedIds, computeMetrics } from '@/lib/recommender'
 import { registerDeviceToken, unregisterDeviceToken } from '@/lib/push'
 import { LlmChat, UserMessage, ImageContent } from 'emergentintegrations'
-import { createVideoEditJob, getVideoEditJob, validateVideoForAiEdit, MAX_DURATION_SEC } from '@/lib/aiVideoEditor'
+import { createVideoEditJob, getVideoEditJob, validateVideoForAiEdit, classifyEditMode, MAX_DURATION_SEC } from '@/lib/aiVideoEditor'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -1093,6 +1093,21 @@ export async function POST(request, { params }) {
   // inmediato; el proceso real corre en segundo plano (tarda minutos).
   if (path === '/ai/edit-video') {
     return handleAiEditVideo(request)
+  }
+
+  // POST /api/ai/classify-edit - Clasifica la instrucción de edición de vídeo
+  // (ADD_MOVING / ADD_STATIC / GLOBAL). El frontend la usa para decidir si la
+  // edición GLOBAL puede ir por el Space GRATUITO de Lucy Edit (llamada desde
+  // el NAVEGADOR del usuario: la cuota gratis de ZeroGPU es por IP del que
+  // llama, así cada usuario tiene la suya sin cuentas ni tokens).
+  if (path === '/ai/classify-edit') {
+    return handleAiClassifyEdit(request)
+  }
+
+  // POST /api/ai/store-edited-video - Guarda el vídeo editado que el NAVEGADOR
+  // obtuvo del Space gratuito (multipart 'video') y devuelve su URL pública.
+  if (path === '/ai/store-edited-video') {
+    return handleAiStoreEditedVideo(request)
   }
 
   // POST /api/share - Registrar un compartido (señal fuerte del TWYK Engine).
@@ -2718,7 +2733,9 @@ async function handleAiEditVideo(request) {
       return NextResponse.json({ error: 'invalid_video', message: 'Could not read this video' }, { status: 400 })
     }
 
-    const jobId = await createVideoEditJob({ userId: currentUser.id, videoPath, prompt })
+    const modeHintRaw = (formData.get('mode') || '').toString().trim().toUpperCase()
+    const modeHint = ['ADD_MOVING', 'ADD_STATIC', 'GLOBAL'].includes(modeHintRaw) ? modeHintRaw : undefined
+    const jobId = await createVideoEditJob({ userId: currentUser.id, videoPath, prompt, modeHint })
     return NextResponse.json({ ok: true, jobId, maxDurationSec: MAX_DURATION_SEC })
   } catch (err) {
     console.error('ai edit video error', err)
@@ -2754,6 +2771,81 @@ async function handleAiEditVideoStatus(request) {
   } catch (err) {
     console.error('ai edit video status error', err)
     return NextResponse.json({ error: 'status_failed' }, { status: 500 })
+  }
+}
+
+// POST /api/ai/classify-edit - { prompt } -> { ok, mode }
+//   Clasifica la instrucción (ADD_MOVING/ADD_STATIC/GLOBAL) con el LLM de
+//   texto. El frontend decide con esto la ruta: ADD_* -> job local rápido;
+//   GLOBAL -> intenta el Space GRATUITO de Lucy Edit desde el NAVEGADOR del
+//   usuario (cuota ZeroGPU por IP del llamante: cada usuario tiene la suya,
+//   sin cuentas ni tokens) y si no hay cuota cae al job local. El usuario
+//   puede REINTENTAR tantas veces como quiera: nunca se bloquea.
+async function handleAiClassifyEdit(request) {
+  try {
+    const currentUser = await getCurrentUser(request)
+    if (!currentUser) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    }
+    const body = await request.json().catch(() => ({}))
+    const prompt = (body?.prompt || '').toString().trim()
+    if (prompt.length < 3) {
+      return NextResponse.json({ error: 'missing_prompt' }, { status: 400 })
+    }
+    if (!process.env.EMERGENT_LLM_KEY) {
+      return NextResponse.json({ error: 'ai_not_configured' }, { status: 500 })
+    }
+    const mode = await classifyEditMode(process.env.EMERGENT_LLM_KEY, crypto.randomUUID(), prompt)
+    return NextResponse.json({ ok: true, mode })
+  } catch (err) {
+    console.error('ai classify edit error', err)
+    // Ante cualquier fallo, modo seguro: el job del backend re-clasifica igual.
+    return NextResponse.json({ ok: true, mode: 'ADD_STATIC' })
+  }
+}
+
+// POST /api/ai/store-edited-video - FormData: video
+//   Guarda el vídeo que el NAVEGADOR obtuvo del Space gratuito de Lucy Edit,
+//   transcodificado a H.264+faststart (compatibilidad web garantizada), y
+//   devuelve su URL pública — mismo formato de salida que los jobs locales.
+async function handleAiStoreEditedVideo(request) {
+  let tmpPath = null
+  try {
+    const currentUser = await getCurrentUser(request)
+    if (!currentUser) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    }
+    const formData = await request.formData()
+    const video = formData.get('video')
+    if (!video || typeof video === 'string') {
+      return NextResponse.json({ error: 'missing_video' }, { status: 400 })
+    }
+    if (video.size > AI_VIDEO_MAX_BYTES) {
+      return NextResponse.json({ error: 'file_too_large' }, { status: 413 })
+    }
+    const bytes = Buffer.from(await video.arrayBuffer())
+    if (!bytes || bytes.length === 0) {
+      return NextResponse.json({ error: 'empty_upload' }, { status: 400 })
+    }
+    await fs.mkdir(AI_VIDEO_INCOMING_DIR, { recursive: true })
+    tmpPath = nodePath.join(AI_VIDEO_INCOMING_DIR, `store_${crypto.randomBytes(8).toString('hex')}.mp4`)
+    await fs.writeFile(tmpPath, bytes)
+    try {
+      await validateVideoForAiEdit(tmpPath) // debe ser un vídeo real y legible
+    } catch {
+      return NextResponse.json({ error: 'invalid_video' }, { status: 400 })
+    }
+    const outName = `ai_video_${crypto.randomBytes(8).toString('hex')}.mp4`
+    const outPath = nodePath.join(UPLOAD_DIR, outName)
+    await fs.mkdir(UPLOAD_DIR, { recursive: true })
+    const ok = await runFfmpeg(['-y', '-i', tmpPath, '-c:v', 'libx264', '-crf', '18', '-preset', 'veryfast', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-c:a', 'aac', outPath])
+    if (!ok) await fs.copyFile(tmpPath, outPath) // si ffmpeg fallara, guarda tal cual
+    return NextResponse.json({ ok: true, url: `/uploads/${outName}` })
+  } catch (err) {
+    console.error('ai store edited video error', err)
+    return NextResponse.json({ error: 'store_failed' }, { status: 500 })
+  } finally {
+    if (tmpPath) fs.rm(tmpPath, { force: true }).catch(() => {})
   }
 }
 

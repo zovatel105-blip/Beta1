@@ -638,3 +638,18 @@ El usuario preguntó: "funcionan con la fluidez que muestra la web el contenido"
 Queda validada en dispositivo real toda la arquitectura de reproducción: prepare() perezoso
 (solo página actual, política C1), FeedPrefetcher + caché 512MB, póster=frame1, LoadControl 300ms,
 liberación de decoders al salir/background, overlays solo-pausa, spinner con gracia 500ms.
+
+## Editor de vídeo IA (estado actual, sesión GPU gratuita)
+- 3 rutas automáticas según el prompt (clasificador gemini-2.5-flash):
+  1) AÑADIR ELEMENTO (jet, castillo...): pipeline local de composición — 25-70s,
+     720p/24fps, sticker consistente + tracking cámara + oclusión. Ilimitado.
+  2) REESTILIZADO GLOBAL: primero Space GRATUITO decart-ai/lucy-edit-dev (ZeroGPU),
+     llamado DESDE EL NAVEGADOR del usuario (cuota gratis ~180s/día POR IP DEL
+     USUARIO — sin cuentas ni tokens, requisito del dueño). ~2-3 min, calidad pro.
+  3) Fallback automático de (2): pipeline local ebsynth bidireccional (lento ~min,
+     ilimitado). El usuario SIEMPRE puede reintentar hasta quedar satisfecho.
+- Endpoints: /api/ai/edit-video (+campo mode opcional), /api/ai/edit-video-status,
+  /api/ai/classify-edit, /api/ai/store-edited-video.
+- ffmpeg/ffprobe vendeados en /app/.bin (predev symlinkea ambos). ebsynth en /app/.bin.
+- EMERGENT_LLM_KEY renovada (ver memory/ENV_BACKUP.md); si se agota: Profile ->
+  Manage plan -> Universal Key -> Add Balance.

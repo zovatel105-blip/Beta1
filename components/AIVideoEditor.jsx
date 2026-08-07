@@ -35,7 +35,19 @@ const STATUS_LABEL = {
   editing_keyframes: 'Editing key moments…',
   synthesizing: 'Applying the edit throughout the video…',
   assembling: 'Putting it all together…',
+  gpu_connect: 'Connecting to a free GPU…',
+  gpu_queue: 'Waiting in the free GPU queue…',
+  gpu_edit: 'Editing your video on a free GPU…',
+  gpu_saving: 'Saving your edited video…',
 }
+
+// Space público de Lucy Edit (modelo abierto de Decart) corriendo en GPU
+// GRATUITA (ZeroGPU). Se llama DESDE EL NAVEGADOR a propósito: la cuota
+// diaria gratis de ZeroGPU es por IP del llamante, así cada usuario de la
+// app tiene la suya propia — sin cuentas, sin tokens, sin configurar nada.
+// Si no hay cuota o el Space está ocupado, se cae automáticamente al editor
+// local del servidor (ilimitado): el usuario SIEMPRE puede seguir editando.
+const LUCY_SPACE = 'decart-ai/lucy-edit-dev'
 
 async function urlToFile(url, filename, mime) {
   const res = await fetch(url)
@@ -84,12 +96,14 @@ export default function AIVideoEditor({ videoFile, onClose, onApply, onStatusCha
   const [errorMsg, setErrorMsg] = useState(null)
   const [suggestions, setSuggestions] = useState([])
   const [suggestionsLoading, setSuggestionsLoading] = useState(false)
+  const [notice, setNotice] = useState(null) // aviso no bloqueante (p.ej. fallback a editor local)
   const pollRef = useRef(null)
 
   useEffect(() => {
     setStage('input')
     setResultUrl(null)
     setErrorMsg(null)
+    setNotice(null)
     setPrompt('')
     setSuggestions([])
     setJobStatus(null)
@@ -156,14 +170,45 @@ export default function AIVideoEditor({ videoFile, onClose, onApply, onStatusCha
     if (trimmed.length < 3 || !videoFile) return
     setStage('loading')
     setErrorMsg(null)
+    setNotice(null)
     setJobStatus('queued')
     setJobProgress(0)
     setJobTotal(0)
     onStatusChange?.('loading')
     try {
+      // 1) Clasificar la instrucción para elegir la mejor ruta.
+      let mode = 'ADD_STATIC'
+      try {
+        const res = await fetch('/api/ai/classify-edit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt: trimmed }),
+        })
+        const data = await res.json().catch(() => null)
+        if (res.ok && data?.mode) mode = data.mode
+      } catch { /* clasificador caído: ruta segura */ }
+
+      // 2) Ediciones GLOBALES (reestilizados): primero la GPU GRATUITA
+      //    (llamada desde este navegador — mejor calidad y más rápido).
+      if (mode === 'GLOBAL') {
+        try {
+          await editOnFreeGpu(trimmed)
+          return
+        } catch (e) {
+          // Sin cuota / Space ocupado / cualquier fallo -> editor local, que es
+          // ILIMITADO: el usuario puede reintentar hasta quedar satisfecho.
+          console.warn('free GPU unavailable, using local editor:', e?.message)
+          setNotice('Free GPU is busy right now — using the built-in editor (slower, unlimited retries).')
+          setJobStatus('queued')
+        }
+      }
+
+      // 3) Ruta local del servidor (rápida para añadir elementos; lenta pero
+      //    ilimitada para reestilizados cuando la GPU gratis no está).
       const fd = new FormData()
       fd.append('video', videoFile)
       fd.append('prompt', trimmed)
+      fd.append('mode', mode)
       const res = await fetch('/api/ai/edit-video', { method: 'POST', body: fd })
       const data = await res.json().catch(() => null)
       if (!res.ok || !data?.jobId) {
@@ -177,6 +222,50 @@ export default function AIVideoEditor({ videoFile, onClose, onApply, onStatusCha
     }
   }
 
+  // Edición en la GPU gratuita (Space público de Lucy Edit) desde el
+  // NAVEGADOR. Lanza excepción si no se puede (el llamador hace fallback).
+  const editOnFreeGpu = async (trimmed) => {
+    setJobStatus('gpu_connect')
+    const { Client, handle_file } = await import('@gradio/client')
+    const client = await Promise.race([
+      Client.connect(LUCY_SPACE),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('gpu_connect_timeout')), 30000)),
+    ])
+    setJobStatus('gpu_queue')
+    // predict() espera al resultado (probado de forma fiable con este Space;
+    // la iteración de submit() puede terminar en silencio ante errores de
+    // cuota). El deadline evita esperas infinitas si la cola se atasca.
+    const result = await Promise.race([
+      client.predict('/process_video', {
+        video_path: { video: handle_file(videoFile), subtitles: null },
+        prompt: trimmed,
+        negative_prompt: '',
+        num_frames: 81,
+        auto_resize: true,
+        manual_height: 480,
+        manual_width: 832,
+        guidance_scale: 5,
+      }),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('gpu_timeout')), 6 * 60 * 1000)),
+    ])
+    const out = result?.data?.[0]
+    const url = out?.video?.url || out?.url
+    if (!url) throw new Error('gpu_no_result')
+    // Descargar el resultado y guardarlo en NUESTRO servidor (transcodificado
+    // a H.264 web-safe) para que el resto del flujo sea idéntico al local.
+    setJobStatus('gpu_saving')
+    const blob = await (await fetch(url)).blob()
+    if (!blob || blob.size < 1000) throw new Error('gpu_empty_result')
+    const fd = new FormData()
+    fd.append('video', new File([blob], 'lucy-edited.mp4', { type: 'video/mp4' }))
+    const res = await fetch('/api/ai/store-edited-video', { method: 'POST', body: fd })
+    const data = await res.json().catch(() => null)
+    if (!res.ok || !data?.url) throw new Error('store_failed')
+    setResultUrl(data.url)
+    setStage('result')
+    onStatusChange?.('result', data.url)
+  }
+
   const useThisVideo = async () => {
     if (!resultUrl) return
     const file = await urlToFile(resultUrl, `ai-edited-${Date.now()}.mp4`, 'video/mp4')
@@ -187,6 +276,7 @@ export default function AIVideoEditor({ videoFile, onClose, onApply, onStatusCha
     setStage('input')
     setResultUrl(null)
     setErrorMsg(null)
+    setNotice(null)
     setJobStatus(null)
     setJobProgress(0)
     setJobTotal(0)
@@ -210,7 +300,7 @@ export default function AIVideoEditor({ videoFile, onClose, onApply, onStatusCha
         <>
           {stage === 'input' && (
             <p className="text-[11.5px] text-zinc-500 -mt-1">
-              Adding an element usually takes under a minute. Full restyles ("make it anime") take several minutes.
+              Adding an element takes under a minute. Full restyles use a free GPU when available. Retry as many times as you like.
             </p>
           )}
           <div className="rounded-2xl bg-black/45 backdrop-blur-xl border border-white/10 px-4 py-3">
@@ -253,6 +343,9 @@ export default function AIVideoEditor({ videoFile, onClose, onApply, onStatusCha
                 <Loader2 size={15} className="animate-spin shrink-0" />
                 {STATUS_LABEL[jobStatus] || 'Processing…'}
               </div>
+              {notice && (
+                <p className="text-[11.5px] text-amber-300/90">{notice}</p>
+              )}
               {jobTotal > 0 && (
                 <div className="h-1.5 w-full rounded-full bg-white/10 overflow-hidden">
                   <div
