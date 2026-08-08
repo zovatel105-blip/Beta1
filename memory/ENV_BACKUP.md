@@ -61,15 +61,22 @@ o preguntar al usuario cuál es la URL que ve en su navegador.
 ## Última URL usada (actualizada automáticamente al restaurar)
 NEXT_PUBLIC_BASE_URL=https://7440705d-6be2-45d6-907a-59ce56bba97a.preview.emergentagent.com
 
-## ⚠️ ESTADO ACTUAL (esta sesión): FIREBASE_CLIENT_EMAIL / FIREBASE_PRIVATE_KEY VACÍOS
-El .env se perdió por completo (pod recreado) y estas 2 variables NUNCA se
-respaldan aquí a propósito (son secretas). FIREBASE_PROJECT_ID sí se restauró
-(twyk-6d691, leído de android-twyk/app/google-services.json, que no es secreto).
-Mientras falten CLIENT_EMAIL/PRIVATE_KEY, sendPush() queda en modo no-op
-silencioso (lib/push.js) — las notificaciones IN-APP (campanita/bandeja) SÍ
-funcionan con normalidad (no dependen de Firebase), pero las notificaciones
-PUSH nativas de Android (bandeja del sistema con la app cerrada) NO llegarán
-hasta que el usuario vuelva a subir el JSON del Admin SDK de Firebase.
+## ⚠️ ESTADO ACTUAL (esta sesión): FIREBASE_CLIENT_EMAIL / FIREBASE_PRIVATE_KEY RESTAURADOS
+El usuario volvió a subir el JSON de la cuenta de servicio de Firebase
+(twyk-6d691-firebase-adminsdk-fbsvc-...json) — FIREBASE_CLIENT_EMAIL y
+FIREBASE_PRIVATE_KEY ya están en /app/.env (extraídos con un script node desde
+el JSON descargado, sin retipear manualmente, para no corromper los saltos de
+línea "\n" literales que exige lib/push.js). VERIFICADO con una llamada real
+a messaging.send() con un token FCM inventado: Google respondió
+'messaging/invalid-argument: The registration token is not a valid FCM
+registration token' (NO un error de autenticación) — confirma que las
+credenciales son válidas y la app puede autenticarse contra Firebase
+correctamente. Las notificaciones push YA deberían llegar a dispositivos
+Android reales con un token FCM real registrado (requiere que el usuario
+tenga la APK instalada con Config.kt apuntando a esta URL). Si /app/.env
+vuelve a perderse, estas 2 variables se pierden con él (son secretas, nunca
+se respaldan en texto plano en este archivo) — pedir al usuario que vuelva a
+subir el mismo JSON si eso ocurre.
 
 ## EMERGENT_LLM_KEY (feature IA de edición de imágenes en la creación de contenido)
 También añadida a /app/.env: EMERGENT_LLM_KEY=sk-emergent-43fBb4a6a83A957D72
