@@ -161,6 +161,15 @@ data class MusicSearchResponse(val results: List<MusicTrack>? = null)
 data class UsersResponse(val users: List<User>? = null)
 data class ChallengeResponse(val ok: Boolean = false, val error: String? = null, val message: String? = null)
 
+// Editor de fotos con IA (paridad con POST /api/ai/suggest-edits y
+// POST /api/ai/edit-image, ver AIImageEditor.jsx web / route.js). Ambos
+// endpoints responden 200 en éxito (parseado aquí) o un código de error
+// (401/400/413/415/500/502) con el mismo shape {error,message} — en ese caso
+// Retrofit lanza HttpException y el body se parsea aparte (ver AiErrorBody
+// en ui/Upload.kt), no aquí.
+data class SuggestEditsResponse(val ok: Boolean = false, val suggestions: List<String>? = null)
+data class EditImageResponse(val ok: Boolean = false, val image: String? = null, val mimeType: String? = null)
+
 // Objetivo de un "Retar rápido" a una publicación concreta del feed (equivalente
 // al `target` que la web construye en CarouselSlide.jsx/DuetSlide.jsx al pulsar
 // el icono de espadas sobre un lado específico).

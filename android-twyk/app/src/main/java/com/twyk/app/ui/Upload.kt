@@ -2,6 +2,7 @@ package com.twyk.app.ui
 
 import android.content.Context
 import android.net.Uri
+import android.util.Base64
 import android.view.LayoutInflater
 import android.provider.OpenableColumns
 import android.webkit.MimeTypeMap
@@ -28,17 +29,22 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.AutoFixHigh
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -83,6 +89,7 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import coil.compose.AsyncImage
+import com.google.gson.Gson
 import com.twyk.app.R
 import com.twyk.app.data.MusicTrack
 import com.twyk.app.data.RetrofitProvider
@@ -93,6 +100,11 @@ import com.twyk.app.data.User
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
+import retrofit2.HttpException
 import java.io.File
 import java.util.UUID
 
@@ -244,6 +256,10 @@ fun UploadScreen(onRequireAuth: () -> Unit, onDone: () -> Unit) {
                 onBack = { step = "mode" },
                 onClose = { onDone() },
                 onPublish = { if (mode == "challenge") { if (uriA != null) step = "target" else error = "Upload your challenge video or photo" } else doUpload(null) },
+                // Editor de fotos con IA (SOLO reto, ver comentario en FileStep):
+                // al confirmar "Use this photo" se reemplaza el archivo A por el
+                // resultado editado (misma foto que se subirá al publicar).
+                onApplyAiEdit = { uriA = it; mediaKindA = "image" },
             )
         } else {
             Column(Modifier.fillMaxSize().statusBarsPadding()) {
@@ -416,10 +432,86 @@ private fun FileStep(
     onBack: () -> Unit,
     onClose: () -> Unit,
     onPublish: () -> Unit,
+    onApplyAiEdit: (Uri) -> Unit,
 ) {
     // Slide activo del carrusel versus (réplica de versusIdx en la web).
     var versusIdx by remember { mutableStateOf(0) }
     var dragDx by remember { mutableStateOf(0f) }
+
+    // ── Editor de fotos con IA (SOLO Retos, réplica de AIImageEditor.jsx web:
+    // "Edit with AI" — botón circular con Sparkles, SOLO cuando el archivo es
+    // una foto, exactamente como el criterio `isImg` de la web) ──
+    // aiOpen: si el panel inferior (descripción/música/publicar) está
+    // sustituido por los controles de IA para el archivo A. aiStage: etapa
+    // dentro de ese panel (input|loading|result|error). aiResultUri: archivo
+    // LOCAL (no subido aún) con el resultado devuelto por la IA, mostrado en
+    // el mismo sitio que la foto original hasta que el usuario confirme
+    // "Use this photo" (onApplyAiEdit) o descarte con "Try another instruction".
+    val context = LocalContext.current
+    val aiScope = rememberCoroutineScope()
+    var aiOpen by remember { mutableStateOf(false) }
+    var aiStage by remember { mutableStateOf("input") } // input|loading|result|error
+    var aiPrompt by remember { mutableStateOf("") }
+    var aiError by remember { mutableStateOf<String?>(null) }
+    var aiResultUri by remember { mutableStateOf<Uri?>(null) }
+    var aiSuggestions by remember { mutableStateOf<List<String>>(emptyList()) }
+    var aiSuggestionsLoading by remember { mutableStateOf(false) }
+
+    // Sugerencias RELEVANTES a la foto (misma idea que la web): se piden en
+    // cuanto se abre el editor para esta foto; si fallan, respaldo genérico.
+    LaunchedEffect(aiOpen) {
+        if (!aiOpen) return@LaunchedEffect
+        aiStage = "input"; aiPrompt = ""; aiError = null; aiResultUri = null
+        aiSuggestions = emptyList()
+        val srcUri = uriA
+        if (srcUri == null) return@LaunchedEffect
+        aiSuggestionsLoading = true
+        val result = withContext(Dispatchers.IO) {
+            runCatching {
+                val (f, temp) = aiSourceFile(context, srcUri)
+                val res = RetrofitProvider.api.suggestEdits(imagePart(f))
+                if (temp) f.delete()
+                res
+            }
+        }
+        aiSuggestionsLoading = false
+        aiSuggestions = result.getOrNull()?.suggestions?.takeIf { it.isNotEmpty() } ?: AI_FALLBACK_SUGGESTIONS
+    }
+
+    fun generateAiEdit() {
+        val trimmed = aiPrompt.trim()
+        val srcUri = uriA
+        if (trimmed.length < 3 || srcUri == null) return
+        aiStage = "loading"; aiError = null
+        aiScope.launch {
+            val outcome = withContext(Dispatchers.IO) {
+                runCatching {
+                    val (f, temp) = aiSourceFile(context, srcUri)
+                    val promptBody = trimmed.toRequestBody("text/plain".toMediaTypeOrNull())
+                    val res = RetrofitProvider.api.editImage(imagePart(f), promptBody)
+                    if (temp) f.delete()
+                    res
+                }
+            }
+            outcome.fold(
+                onSuccess = { res ->
+                    val dataUrl = res.image
+                    val savedUri = if (dataUrl != null) withContext(Dispatchers.IO) { saveAiResultToFile(context, dataUrl) } else null
+                    if (savedUri == null) {
+                        aiError = "The AI could not edit this photo, try a different instruction"
+                        aiStage = "error"
+                    } else {
+                        aiResultUri = savedUri
+                        aiStage = "result"
+                    }
+                },
+                onFailure = { e ->
+                    aiError = aiErrorMessage(e) ?: "Something went wrong, please try again"
+                    aiStage = "error"
+                },
+            )
+        }
+    }
 
     // BUG reportado por el usuario ("en el preview no se respeta la barra de
     // estado del sistema como lo hace el feed"): a diferencia del feed
@@ -485,7 +577,15 @@ private fun FileStep(
                     else MediaSlot(uriB, kindB, onPickB, small = true, modifier = Modifier.fillMaxSize())
                 }
             }
-            else -> MediaSlot(uriA, kindA, onPickA, small = false, modifier = Modifier.fillMaxSize())
+            else -> MediaSlot(
+                uri = if (aiStage == "result") aiResultUri ?: uriA else uriA,
+                kind = kindA,
+                onPick = onPickA,
+                small = false,
+                modifier = Modifier.fillMaxSize(),
+                aiStage = if (aiOpen) aiStage else null,
+                onAiEdit = if (kindA == "image") { { aiOpen = true } } else null,
+            )
         }
 
         // ── Degradados para legibilidad (top h-44 / bottom h-80 de la web) ──
@@ -527,12 +627,32 @@ private fun FileStep(
             ) { Icon(Icons.Filled.Close, "close", tint = Color(0xFFE4E4E7), modifier = Modifier.size(20.dp)) }
         }
 
-        // ── Panel inferior: puntitos (versus) + descripción + música + publicar ──
+        // ── Panel inferior: puntitos (versus) + descripción + música + publicar
+        //    — o, mientras se edita la foto del reto con IA (aiOpen), este MISMO
+        //    panel muestra los controles de AiEditorPanel en su lugar (mismo
+        //    criterio "en el mismo sitio, sin overlay" que AIImageEditor.jsx web).
         Column(
             Modifier.fillMaxWidth().align(Alignment.BottomCenter).imePadding().navigationBarsPadding()
                 .padding(horizontal = 16.dp).padding(bottom = 18.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            if (mode == "challenge" && aiOpen) {
+                AiEditorPanel(
+                    stage = aiStage,
+                    prompt = aiPrompt,
+                    onPromptChange = { aiPrompt = it },
+                    suggestions = aiSuggestions,
+                    suggestionsLoading = aiSuggestionsLoading,
+                    error = aiError,
+                    onClose = { aiOpen = false; aiStage = "input"; aiResultUri = null },
+                    onGenerate = { generateAiEdit() },
+                    onUseThisPhoto = {
+                        aiResultUri?.let { onApplyAiEdit(it) }
+                        aiOpen = false; aiStage = "input"; aiPrompt = ""; aiResultUri = null
+                    },
+                    onTryAnother = { aiStage = "input"; aiError = null },
+                )
+            } else {
             if (mode == "versus") {
                 // Puntitos más finos (3dp, antes 6dp, a petición del usuario) —
                 // réplica del mismo ajuste en UploadDialog.jsx.
@@ -579,6 +699,7 @@ private fun FileStep(
                     color = if (enabled) Color.Black else Color.White.copy(alpha = 0.40f), fontSize = 16.sp, fontWeight = FontWeight.Bold,
                 )
             }
+            }
         }
     }
 }
@@ -608,13 +729,58 @@ private fun LayoutSeg(label: String, icon: ImageVector, active: Boolean, onClick
 // botón, vuelve a tocar el borde real de la pantalla; mantenerlo aquí habría
 // duplicado el hueco de la barra de estado.)
 @Composable
-private fun MediaSlot(uri: Uri?, kind: String?, onPick: () -> Unit, small: Boolean, modifier: Modifier) {
+private fun MediaSlot(
+    uri: Uri?,
+    kind: String?,
+    onPick: () -> Unit,
+    small: Boolean,
+    modifier: Modifier,
+    // Editor de fotos con IA (SOLO cuando small=false, es decir el único uso
+    // de este slot para el modo "challenge"/Retos — versus/duet nunca pasan
+    // estos parámetros, quedan en null por defecto y su comportamiento no
+    // cambia). aiStage: null cuando el editor está cerrado; "loading"/"result"
+    // pintan el mismo overlay que AIImageEditor.jsx sobre la foto.
+    aiStage: String? = null,
+    onAiEdit: (() -> Unit)? = null,
+) {
     Box(modifier.background(Color.Black)) {
         if (uri != null) {
             if (kind == "image") {
                 AsyncImage(model = uri, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
             } else {
                 LocalVideoPreview(uri, Modifier.fillMaxSize())
+            }
+            if (aiStage == "loading") {
+                Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.55f)), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        CircularProgressIndicator(color = Color.White, strokeWidth = 2.5.dp, modifier = Modifier.size(26.dp))
+                        Text("Editing with AI…", color = Color(0xFFE4E4E7), fontSize = 12.5.sp, fontWeight = FontWeight.Medium)
+                    }
+                }
+            }
+            if (aiStage == "result") {
+                Row(
+                    Modifier.align(Alignment.TopStart).padding(start = 12.dp, top = 64.dp)
+                        .clip(RoundedCornerShape(50)).background(Color.Black.copy(alpha = 0.6f))
+                        .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(50)).padding(horizontal = 10.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Icon(Icons.Filled.AutoAwesome, null, tint = Color.White, modifier = Modifier.size(11.dp))
+                    Text("AI result", color = Color.White, fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
+            // Botón circular "Edit with AI" (SOLO fotos, mismo criterio `isImg`
+            // que la web) — posicionado bien por debajo del header propio de
+            // FileStep (que ocupa los primeros ~46dp) para no quedar tapado por
+            // él, igual que el `top: calc(safe-area+58px)` ya usado en la web
+            // para el mismo botón (bug ya corregido ahí: "el botón editar con
+            // ia no funciona" por quedar bajo el header).
+            if (onAiEdit != null) {
+                Box(
+                    Modifier.align(Alignment.TopEnd).padding(top = 64.dp, end = 12.dp)
+                        .size(34.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.35f)).clickable { onAiEdit() },
+                    contentAlignment = Alignment.Center,
+                ) { Icon(Icons.Filled.AutoAwesome, "Edit with AI", tint = Color.White, modifier = Modifier.size(16.dp)) }
             }
             Box(
                 Modifier.align(Alignment.TopEnd)
@@ -639,6 +805,149 @@ private fun MediaSlot(uri: Uri?, kind: String?, onPick: () -> Unit, small: Boole
                 Spacer(Modifier.height(if (small) 4.dp else 6.dp))
                 // BUG FIX (mojibake "·", ver gradle.properties): ASCII.
                 Text("Video (max 80MB) - Photo (max 15MB)", color = Color(0xFF71717A), fontSize = if (small) 10.sp else 11.sp)
+            }
+        }
+    }
+}
+
+// Panel de controles del editor de IA (réplica de AIImageEditor.jsx web,
+// SOLO fotos): sustituye TEMPORALMENTE el panel inferior normal (descripción/
+// música/publicar) mientras se edita — la foto en sí ya se ve arriba, en el
+// mismo MediaSlot (ver aiStage), este panel solo tiene los controles.
+@Composable
+private fun AiEditorPanel(
+    stage: String, // input | loading | result | error
+    prompt: String,
+    onPromptChange: (String) -> Unit,
+    suggestions: List<String>,
+    suggestionsLoading: Boolean,
+    error: String?,
+    onClose: () -> Unit,
+    onGenerate: () -> Unit,
+    onUseThisPhoto: () -> Unit,
+    onTryAnother: () -> Unit,
+) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.weight(1f)) {
+            Icon(Icons.Filled.AutoAwesome, null, tint = Color.White.copy(alpha = 0.8f), modifier = Modifier.size(14.dp))
+            Text("Edit with AI", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+        }
+        Box(Modifier.size(28.dp).clip(CircleShape).clickable { onClose() }, contentAlignment = Alignment.Center) {
+            Icon(Icons.Filled.Close, "Close AI editor", tint = ZincText, modifier = Modifier.size(15.dp))
+        }
+    }
+    Spacer(Modifier.height(4.dp))
+
+    if (stage == "input" || stage == "loading") {
+        Box(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color.Black.copy(alpha = 0.45f))
+                .border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(16.dp)).padding(horizontal = 16.dp, vertical = 12.dp),
+        ) {
+            if (prompt.isEmpty()) {
+                Text("Add a private jet flying in the background…", color = ZincText, fontSize = 15.sp)
+            }
+            BasicTextField(
+                value = prompt, onValueChange = onPromptChange, enabled = stage != "loading",
+                textStyle = TextStyle(color = Color(0xFFF4F4F5), fontSize = 15.sp), cursorBrush = SolidColor(Color.White),
+                maxLines = 2, modifier = Modifier.fillMaxWidth(),
+            )
+        }
+        Spacer(Modifier.height(10.dp))
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (suggestionsLoading) {
+                items(3) {
+                    Box(
+                        Modifier.height(26.dp).width(96.dp).clip(RoundedCornerShape(50))
+                            .background(Color.White.copy(alpha = 0.06f)).border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(50)),
+                    )
+                }
+            } else {
+                items(suggestions) { s ->
+                    Box(
+                        Modifier.clip(RoundedCornerShape(50)).background(Color.Black.copy(alpha = 0.45f))
+                            .border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(50))
+                            .clickable(enabled = stage != "loading") { onPromptChange(s) }
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                    ) { Text(s, color = Color(0xFFD4D4D8), fontSize = 11.5.sp, fontWeight = FontWeight.Medium) }
+                }
+            }
+        }
+        Spacer(Modifier.height(10.dp))
+        val enabled = prompt.trim().length >= 3 && stage != "loading"
+        Box(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(50))
+                .background(if (enabled) Color.White else Color.White.copy(alpha = 0.20f))
+                .clickable(enabled = enabled) { onGenerate() }.padding(vertical = 14.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (stage == "loading") {
+                    CircularProgressIndicator(color = Color.Black, strokeWidth = 2.dp, modifier = Modifier.size(16.dp))
+                    Text("Editing your photo…", color = Color.Black, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                } else {
+                    Icon(Icons.Filled.AutoFixHigh, null, tint = Color.Black, modifier = Modifier.size(17.dp))
+                    Text("Generate with AI", color = Color.Black, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+
+    if (stage == "error") {
+        Box(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color(0xFFF43F5E).copy(alpha = 0.10f))
+                .border(1.dp, Color(0xFFF43F5E).copy(alpha = 0.25f), RoundedCornerShape(16.dp)).padding(horizontal = 16.dp, vertical = 12.dp),
+        ) { Text(error ?: "Something went wrong, please try again", color = Color(0xFFFDA4AF), fontSize = 13.sp) }
+        Spacer(Modifier.height(10.dp))
+        Box(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(50)).background(Color.White)
+                .clickable { onGenerate() }.padding(vertical = 14.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Icon(Icons.Filled.Replay, null, tint = Color.Black, modifier = Modifier.size(17.dp))
+                Text("Try again", color = Color.Black, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        Box(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(50)).background(Color.Black.copy(alpha = 0.45f))
+                .border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(50))
+                .clickable { onTryAnother() }.padding(vertical = 12.dp),
+            contentAlignment = Alignment.Center,
+        ) { Text("Edit instruction", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold) }
+    }
+
+    if (stage == "result") {
+        Row(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color.Black.copy(alpha = 0.45f))
+                .border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(16.dp)).padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(Icons.Filled.AutoAwesome, null, tint = Color.White.copy(alpha = 0.8f), modifier = Modifier.size(14.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("AI result shown above — keep it?", color = Color(0xFFD4D4D8), fontSize = 13.sp)
+        }
+        Spacer(Modifier.height(10.dp))
+        Box(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(50)).background(Color.White)
+                .clickable { onUseThisPhoto() }.padding(vertical = 14.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Icon(Icons.Filled.Check, null, tint = Color.Black, modifier = Modifier.size(18.dp))
+                Text("Use this photo", color = Color.Black, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        Box(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(50)).background(Color.Black.copy(alpha = 0.45f))
+                .border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(50))
+                .clickable { onTryAnother() }.padding(vertical = 12.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Icon(Icons.Filled.Replay, null, tint = Color.White, modifier = Modifier.size(15.dp))
+                Text("Try another instruction", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
             }
         }
     }
@@ -846,4 +1155,81 @@ fun persistPickedFile(context: Context, prefix: String, uri: Uri): File {
     val file = File(dir, "twyk_${prefix}_${System.currentTimeMillis()}_${(0..9999).random()}.$ext")
     file.outputStream().use { out -> input.use { it.copyTo(out) } }
     return file
+}
+
+// ── Editor de fotos con IA (POST /api/ai/suggest-edits, POST /api/ai/edit-image) ──
+
+// Mismo respaldo genérico que FALLBACK_SUGGESTIONS en AIImageEditor.jsx web,
+// usado si /api/ai/suggest-edits falla o no hay sesión — nunca bloquea poder
+// escribir una instrucción manual.
+private val AI_FALLBACK_SUGGESTIONS = listOf(
+    "Add a private jet flying in the background",
+    "Change the background to a sunset beach",
+    "Add fireworks in the sky",
+    "Make it look cinematic and dramatic",
+)
+
+// Origen de la foto para /api/ai/suggest-edits y /api/ai/edit-image: si
+// `uri` YA es un archivo local (uri.scheme=="file" — ocurre cuando se vuelve
+// a editar una foto que ya se había editado antes con IA, ver
+// saveAiResultToFile) se usa DIRECTAMENTE, sin copiarlo ni borrarlo después
+// (es el mismo archivo referenciado por `uriA`, borrarlo rompería la vista
+// previa). Si es un Uri de galería (content://, primera vez), se copia a un
+// archivo TEMPORAL con persistPickedFile (mismo criterio que el resto de la
+// app) que SÍ se borra tras usarlo — el `Boolean` indica justamente eso.
+private fun aiSourceFile(context: Context, uri: Uri): Pair<File, Boolean> =
+    if (uri.scheme == "file" && uri.path != null) File(uri.path!!) to false
+    else persistPickedFile(context, "aisrc", uri) to true
+
+// Parte multipart "image" a partir de un archivo ya persistido localmente
+// (mismo Content-Type real que espera el backend, ver AI_EDIT_ALLOWED_TYPES
+// en route.js: jpeg/png/webp).
+private fun imagePart(file: File): MultipartBody.Part {
+    val ext = file.extension.lowercase()
+    val mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext)?.toMediaTypeOrNull()
+        ?: "image/jpeg".toMediaTypeOrNull()
+    return MultipartBody.Part.createFormData("image", file.name, file.asRequestBody(mime))
+}
+
+// La respuesta de /api/ai/edit-image trae la foto editada como data URL
+// ("data:image/png;base64,AAAA...", ver handleAiEditImage en route.js) — se
+// decodifica y guarda como archivo LOCAL (mismo directorio que las fotos
+// elegidas por el usuario) para poder previsualizarla con AsyncImage y, si
+// se confirma, tratarla como cualquier otro archivo elegido (persistPickedFile
+// vuelve a copiarla al publicar, réplica exacta del flujo normal).
+private fun saveAiResultToFile(context: Context, dataUrl: String): Uri? = try {
+    val commaIdx = dataUrl.indexOf(',')
+    if (commaIdx < 0) {
+        null
+    } else {
+        val meta = dataUrl.substring(5, commaIdx) // "image/png;base64"
+        val mimeType = meta.substringBefore(';')
+        val ext = when {
+            mimeType.contains("png") -> "png"
+            mimeType.contains("webp") -> "webp"
+            else -> "jpg"
+        }
+        val bytes = Base64.decode(dataUrl.substring(commaIdx + 1), Base64.DEFAULT)
+        val dir = File(context.filesDir, "pending_uploads").apply { mkdirs() }
+        val file = File(dir, "twyk_ai_${System.currentTimeMillis()}_${(0..9999).random()}.$ext")
+        file.outputStream().use { it.write(bytes) }
+        Uri.fromFile(file)
+    }
+} catch (e: Exception) {
+    null
+}
+
+// El backend responde con un código de error (401/400/413/415/500/502) y un
+// body JSON {error,message} (ver handleAiEditImage/handleAiSuggestEdits en
+// route.js) — Retrofit lo lanza como HttpException en vez de parsear la
+// respuesta al tipo esperado; se extrae el mensaje aparte, aquí.
+private data class AiErrorBody(val error: String? = null, val message: String? = null)
+private fun aiErrorMessage(e: Throwable): String? {
+    if (e !is HttpException) return null
+    return try {
+        val body = e.response()?.errorBody()?.string()
+        if (body.isNullOrBlank()) null else Gson().fromJson(body, AiErrorBody::class.java)?.message
+    } catch (_: Exception) {
+        null
+    }
 }

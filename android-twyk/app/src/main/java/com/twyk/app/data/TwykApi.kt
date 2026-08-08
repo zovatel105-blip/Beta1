@@ -121,6 +121,22 @@ interface TwykApi {
     @GET("api/music/search")
     suspend fun searchMusic(@Query("q") q: String): MusicSearchResponse
 
+    // Editor de fotos con IA (creación de contenido, réplica de
+    // AIImageEditor.jsx web) — SOLO fotos (mismo criterio que la web, ver
+    // ui/Upload.kt). suggestEdits analiza la foto y devuelve ideas de edición
+    // relevantes; editImage aplica la instrucción y devuelve la foto editada
+    // como data URL base64 (misma respuesta exacta que /api/ai/edit-image).
+    @Multipart
+    @POST("api/ai/suggest-edits")
+    suspend fun suggestEdits(@Part image: MultipartBody.Part): SuggestEditsResponse
+
+    @Multipart
+    @POST("api/ai/edit-image")
+    suspend fun editImage(
+        @Part image: MultipartBody.Part,
+        @Part("prompt") prompt: RequestBody,
+    ): EditImageResponse
+
     @Multipart
     @POST("api/challenges")
     suspend fun createChallenge(
