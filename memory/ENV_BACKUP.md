@@ -16,8 +16,8 @@ scripts/seed-core-users.mjs y memory/test_credentials.md).
 ```
 MONGO_URL=mongodb://localhost:27017/twyk
 ADMIN_EMAILS=twyk.apk@gmail.com
-NEXT_PUBLIC_BASE_URL=https://fluid-synthesis.preview.emergentagent.com
-CORS_ORIGINS=https://fluid-synthesis.preview.emergentagent.com
+NEXT_PUBLIC_BASE_URL=https://notify-engine-5.preview.emergentagent.com
+CORS_ORIGINS=https://notify-engine-5.preview.emergentagent.com
 FIREBASE_PROJECT_ID=
 FIREBASE_CLIENT_EMAIL=
 FIREBASE_PRIVATE_KEY=
@@ -59,7 +59,17 @@ después de que Next.js haga su propio "Reload env: .env" (log de supervisor),
 o preguntar al usuario cuál es la URL que ve en su navegador.
 
 ## Última URL usada (actualizada automáticamente al restaurar)
-NEXT_PUBLIC_BASE_URL=https://ad7d5cd4-186b-4276-9098-88d1ced1e169.preview.emergentagent.com
+NEXT_PUBLIC_BASE_URL=https://7440705d-6be2-45d6-907a-59ce56bba97a.preview.emergentagent.com
+
+## ⚠️ ESTADO ACTUAL (esta sesión): FIREBASE_CLIENT_EMAIL / FIREBASE_PRIVATE_KEY VACÍOS
+El .env se perdió por completo (pod recreado) y estas 2 variables NUNCA se
+respaldan aquí a propósito (son secretas). FIREBASE_PROJECT_ID sí se restauró
+(twyk-6d691, leído de android-twyk/app/google-services.json, que no es secreto).
+Mientras falten CLIENT_EMAIL/PRIVATE_KEY, sendPush() queda en modo no-op
+silencioso (lib/push.js) — las notificaciones IN-APP (campanita/bandeja) SÍ
+funcionan con normalidad (no dependen de Firebase), pero las notificaciones
+PUSH nativas de Android (bandeja del sistema con la app cerrada) NO llegarán
+hasta que el usuario vuelva a subir el JSON del Admin SDK de Firebase.
 
 ## EMERGENT_LLM_KEY (feature IA de edición de imágenes en la creación de contenido)
 También añadida a /app/.env: EMERGENT_LLM_KEY=sk-emergent-43fBb4a6a83A957D72
