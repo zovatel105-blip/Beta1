@@ -3509,5 +3509,11 @@ agent_communication:
         -working: "NA"
         -agent: "main"
         -comment: "Se conserva EXACTAMENTE la misma proporción de píldora alargada del ajuste anterior (padding horizontal 7dp, bastante mayor que el vertical, para que nunca vuelva a degenerar en círculo) — solo se reduce un poco más la altura (padding vertical 1dp->0.5dp) y el icono/texto (11dp->10dp, 10sp->9.5sp) para una reducción adicional moderada ('un poquito'), sin tocar la forma. 100% Kotlin nativo, NO COMPILABLE/TESTEABLE en este contenedor. NO se invocó agente de testing (mismo motivo de siempre). Verificado con balance de llaves/paréntesis (250/250, 863/863). Pendiente: el usuario debe recompilar/reinstalar y confirmar el resultado final."
+        -working: "NA"
+        -agent: "user"
+        -comment: "'Se hizo mas pequeño el icono y el numero no el marco de la pastilla' (repetido dos veces, aclarando que el ajuste anterior tocó el elemento equivocado)."
+        -working: "NA"
+        -agent: "main"
+        -comment: "El ajuste anterior redujo el CONTENIDO (icono 11->10dp, texto 10->9.5sp) en vez del MARCO (el padding/relleno que rodea ese contenido dentro de la píldora) — exactamente lo contrario de lo pedido. FIX: icono y número VUELVEN a su tamaño de antes (11dp/10sp, el mismo que ya se veía bien como píldora en el ajuste #2) — el único cambio ahora es reducir el padding HORIZONTAL de la píldora (7dp->5dp, el 'marco' alrededor del icono/número), manteniendo el padding vertical igual de fino (0.5dp). Así el marco (margen negro) se ve más fino sin encoger el icono ni el número. 100% Kotlin nativo, NO COMPILABLE/TESTEABLE en este contenedor. NO se invocó agente de testing (ajuste cosmético sin backend/web, instrucción permanente del usuario). Verificado con balance de llaves/paréntesis (250/250, 866/866). Pendiente: el usuario debe recompilar/reinstalar y confirmar el resultado final."
 
 

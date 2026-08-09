@@ -1268,22 +1268,24 @@ private fun ProfileGridItem(post: Post, onClick: () -> Unit) {
         Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.20f)))
 
         if (totalVotes > 0) {
-            // AJUSTE FINO #3 (usuario: "manteniendo la forma de pastilla,
-            // hazlo un poquito mas fina"): se conserva la MISMA proporción
-            // ancho/alto de pastilla alargada del ajuste anterior (horizontal
-            // 7dp, bastante mayor que el vertical, para que nunca degenere en
-            // círculo) — solo se reduce un poco más la altura (vertical
-            // 1dp->0.5dp) y el icono/texto (11dp->10dp, 10sp->9.5sp) para que
-            // se vea un poco más fina en general, sin perder la forma de
-            // píldora.
+            // AJUSTE FINO #4 (usuario: "se hizo mas pequeño el icono y el
+            // numero, no el marco de la pastilla"): los ajustes anteriores
+            // redujeron el CONTENIDO (icono/texto) en vez del MARCO (el
+            // relleno/padding que rodea ese contenido dentro de la píldora).
+            // FIX: icono y texto VUELVEN a su tamaño legible de antes (11dp/
+            // 10sp, el mismo que ya se veía bien como píldora, ajuste #2) —
+            // SOLO se reduce el padding horizontal (7dp->5dp) para que el
+            // "marco" (el margen negro alrededor del icono/número) sea más
+            // fino, sin tocar el tamaño del icono ni del número. El padding
+            // vertical se queda igual de fino que antes (0.5dp).
             Row(
                 Modifier.align(Alignment.BottomStart).padding(4.dp).clip(RoundedCornerShape(50))
-                    .background(Color.Black.copy(alpha = 0.55f)).padding(horizontal = 7.dp, vertical = 0.5.dp),
+                    .background(Color.Black.copy(alpha = 0.55f)).padding(horizontal = 5.dp, vertical = 0.5.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(ImageVector.vectorResource(R.drawable.ic_vote), null, tint = Color.White, modifier = Modifier.size(10.dp))
+                Icon(ImageVector.vectorResource(R.drawable.ic_vote), null, tint = Color.White, modifier = Modifier.size(11.dp))
                 Spacer(Modifier.width(3.dp))
-                Text(formatCount(totalVotes), color = Color.White, fontSize = 9.5.sp)
+                Text(formatCount(totalVotes), color = Color.White, fontSize = 10.sp)
             }
         }
     }
