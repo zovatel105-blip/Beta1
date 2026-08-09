@@ -3522,4 +3522,25 @@ agent_communication:
         -agent: "main"
         -comment: "RÉPLICA EXACTA de components/ProfilePage.jsx (GridItem, la píldora de votos del grid en la web): `bottom-1 left-1` (4px, ya coincidía), `gap-1` (4px, antes 2-3dp según la ronda), `bg-black/55` (ya coincidía), `px-1.5 py-[2px]` (6px horizontal / 2px vertical exactos — mismo criterio 1px CSS=1dp ya usado en todo el proyecto), `rounded-full` (ya coincidía), icono `w-3.5 h-3.5` (14dp) y texto `text-[11px]` (11sp) — todos los valores tomados literalmente del JSX, sin redondeos a ojo. Curiosamente estos valores son casi idénticos a los del padding ORIGINAL antes de empezar esta cadena de ajustes (6dp/2dp/14dp/11sp), solo el `gap` difería (3dp vs 4dp real de la web) — las 3 rondas de ajuste a ojo anteriores se descartan a favor de esta réplica literal. 100% Kotlin nativo, NO COMPILABLE/TESTEABLE en este contenedor. NO se invocó agente de testing (ajuste cosmético sin backend/web, instrucción permanente del usuario). Verificado con balance de llaves/paréntesis (250/250, 865/865) y comparación línea a línea contra el JSX. Pendiente: el usuario debe recompilar/reinstalar y confirmar que coincide con la web."
 
+  - task: "APP NATIVA (Android): el glow del icono de notificaciones persistía incluso tras recompilar — investigación de la causa raíz específica del fabricante (Redmi/MIUI) + petición de agrandar el icono de notificaciones"
+    implemented: true
+    working: "NA"
+    file: "android-twyk/app/src/main/res/drawable-*dpi/ic_notification_logo.png, android-twyk/app/src/main/res/mipmap-*dpi/ic_launcher_foreground_round.png, ic_launcher_round.png"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'Si compile y aun aparece el glow en las notificaciones' (con capturas: notificaciones agrupadas mostrando el icono redondo con el glow morado/azul completo). Tras explicar la causa típica de Samsung One UI, el usuario aclaró: 'Pero yo estoy usando un Redmi 10c'."
+        -working: "NA"
+        -agent: "main"
+        -comment: "INVESTIGACIÓN (web_search, 2 intentos de código previos ya agotados -quitar setColor, separar roundIcon-, sin éxito): confirmado que en MIUI/HyperOS (Xiaomi/Redmi) es un comportamiento CONOCIDO Y POR DISEÑO del fabricante mostrar el icono completo a color de la app en notificaciones en vez del pequeño monocromo — NO es un bug de la app, es una decisión de la capa MIUI sobre el pipeline estándar de notificaciones de Android, de forma análoga (pero no idéntica) a 'Mostrar ícono de la app' de Samsung. Se comunicó al usuario la ruta más prometedora en su propio dispositivo: Ajustes -> Notificaciones -> 'Estilo de notificación' (MIUI vs Android) — cambiar a 'Android' suele restaurar el respeto al icono monocromo declarado por la app. Esto NO es corregible desde el código de la app (confirmado con búsqueda, no solo intentos de código) — es una limitación de la capa del fabricante sobre el pipeline estándar de Android, análoga a la de Samsung. Pendiente de que el usuario pruebe ese ajuste en su Redmi 10C."
+        -working: "NA"
+        -agent: "user"
+        -comment: "'El icono de notificacion hazlo mas grande'."
+        -working: "NA"
+        -agent: "main"
+        -comment: "Se agrandó el CONTENIDO (el trazo/glyph) de los 2 iconos relacionados, con margen de seguridad para no recortarse: (1) `ic_notification_logo.png` (small icon, 5 densidades): escalado hasta +15% pero con un TOPE POR DENSIDAD que NUNCA reduce por debajo del tamaño original (a diferencia del intento anterior con el marco de la píldora del grid, aquí sí se verificó explícitamente que ningún density se encoja) — en mdpi el trazo ya tocaba el borde superior/inferior del lienzo (24x24) sin margen seguro, así que se dejó intacto en esa densidad concreta; hdpi/xhdpi/xxhdpi/xxxhdpi crecieron entre +8% y +12% según el margen real disponible en cada una. (2) `ic_launcher_foreground_round.png`/`ic_launcher_round.png` (icono redondo de la notificación, ya sin glow desde una ronda anterior): escala aumentada de 1.20x a 1.35x, regenerada SIEMPRE desde el foreground original pristino (evita doble-remuestreo acumulado) con la misma técnica de aislar el trazo sólido (alpha>=200 + oscuro) y forzarlo a negro puro (0,0,0) — confirmado que sigue siendo un único color en las 5 densidades tras el agrandado. 100% Kotlin/assets nativos, NO COMPILABLE/TESTEABLE en este contenedor. Verificado con Pillow (Image.verify() + bbox antes/después por densidad, sin ningún encogimiento accidental esta vez) e inspección visual directa. NO se invocó agente de testing (ajuste puramente visual de assets, sin backend/web, instrucción permanente del usuario). Pendiente: el usuario debe recompilar/reinstalar y confirmar que ambos iconos se ven más grandes."
+
 
