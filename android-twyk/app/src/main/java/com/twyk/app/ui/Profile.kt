@@ -1268,14 +1268,20 @@ private fun ProfileGridItem(post: Post, onClick: () -> Unit) {
         Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.20f)))
 
         if (totalVotes > 0) {
+            // AJUSTE FINO (usuario: "el marco del contador de grid se ve muy
+            // ancho, hazlo mas fino"): la píldora de votos era demasiado
+            // holgada para un elemento tan pequeño dentro de la miniatura del
+            // grid — icono y relleno reducidos para que se vea más fina/
+            // compacta, sin tocar el mismo icono/insignia en otras pantallas
+            // (StatItem del perfil, etc., que se quedan intactos).
             Row(
                 Modifier.align(Alignment.BottomStart).padding(4.dp).clip(RoundedCornerShape(50))
-                    .background(Color.Black.copy(alpha = 0.55f)).padding(horizontal = 6.dp, vertical = 2.dp),
+                    .background(Color.Black.copy(alpha = 0.55f)).padding(horizontal = 5.dp, vertical = 1.5.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(ImageVector.vectorResource(R.drawable.ic_vote), null, tint = Color.White, modifier = Modifier.size(14.dp))
-                Spacer(Modifier.width(3.dp))
-                Text(formatCount(totalVotes), color = Color.White, fontSize = 11.sp)
+                Icon(ImageVector.vectorResource(R.drawable.ic_vote), null, tint = Color.White, modifier = Modifier.size(11.dp))
+                Spacer(Modifier.width(2.dp))
+                Text(formatCount(totalVotes), color = Color.White, fontSize = 10.sp)
             }
         }
     }
