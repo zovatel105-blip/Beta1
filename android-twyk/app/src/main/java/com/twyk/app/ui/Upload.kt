@@ -44,6 +44,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
@@ -256,10 +257,13 @@ fun UploadScreen(onRequireAuth: () -> Unit, onDone: () -> Unit) {
                 onBack = { step = "mode" },
                 onClose = { onDone() },
                 onPublish = { if (mode == "challenge") { if (uriA != null) step = "target" else error = "Upload your challenge video or photo" } else doUpload(null) },
-                // Editor de fotos con IA (SOLO reto, ver comentario en FileStep):
-                // al confirmar "Use this photo" se reemplaza el archivo A por el
-                // resultado editado (misma foto que se subirá al publicar).
-                onApplyAiEdit = { uriA = it; mediaKindA = "image" },
+                // Editor de fotos con IA (Versus/1vs1/Retos, ver comentario en
+                // FileStep): al confirmar "Use this photo" se reemplaza el
+                // archivo del slot correspondiente (0=A, 1=B) por el resultado
+                // editado (esa es la foto que se subirá al publicar).
+                onApplyAiEdit = { slot, newUri ->
+                    if (slot == 0) { uriA = newUri; mediaKindA = "image" } else { uriB = newUri; mediaKindB = "image" }
+                },
             )
         } else {
             Column(Modifier.fillMaxSize().statusBarsPadding()) {
@@ -432,24 +436,25 @@ private fun FileStep(
     onBack: () -> Unit,
     onClose: () -> Unit,
     onPublish: () -> Unit,
-    onApplyAiEdit: (Uri) -> Unit,
+    onApplyAiEdit: (Int, Uri) -> Unit,
 ) {
     // Slide activo del carrusel versus (réplica de versusIdx en la web).
     var versusIdx by remember { mutableStateOf(0) }
     var dragDx by remember { mutableStateOf(0f) }
 
-    // ── Editor de fotos con IA (SOLO Retos, réplica de AIImageEditor.jsx web:
-    // "Edit with AI" — botón circular con Sparkles, SOLO cuando el archivo es
-    // una foto, exactamente como el criterio `isImg` de la web) ──
-    // aiOpen: si el panel inferior (descripción/música/publicar) está
-    // sustituido por los controles de IA para el archivo A. aiStage: etapa
-    // dentro de ese panel (input|loading|result|error). aiResultUri: archivo
-    // LOCAL (no subido aún) con el resultado devuelto por la IA, mostrado en
-    // el mismo sitio que la foto original hasta que el usuario confirme
-    // "Use this photo" (onApplyAiEdit) o descarte con "Try another instruction".
+    // ── Editor de fotos con IA (réplica de AIImageEditor.jsx web: botón
+    // circular con Sparkles, SOLO cuando el archivo de ESE slot es una foto
+    // — mismo criterio `isImg` de la web). BUG CORREGIDO en esta ronda: el
+    // botón (y el propio editor) NO estaba disponible en los slots de
+    // Versus/1vs1 (`small=true`) — solo en Retos (`small=false`) — cuando la
+    // web SÍ lo ofrece en los 3 modos por igual (misma función `renderSlot`
+    // para Versus/1vs1, con el mismo botón circular; ver UploadDialog.jsx).
+    // `aiEditorSlot`: null = cerrado; 0 = editando el archivo A; 1 = editando
+    // el archivo B (réplica exacta de `aiEditorSlot` en la web, que también
+    // es 0|1|null, no solo un booleano).
     val context = LocalContext.current
     val aiScope = rememberCoroutineScope()
-    var aiOpen by remember { mutableStateOf(false) }
+    var aiEditorSlot by remember { mutableStateOf<Int?>(null) }
     var aiStage by remember { mutableStateOf("input") } // input|loading|result|error
     var aiPrompt by remember { mutableStateOf("") }
     var aiError by remember { mutableStateOf<String?>(null) }
@@ -457,14 +462,17 @@ private fun FileStep(
     var aiSuggestions by remember { mutableStateOf<List<String>>(emptyList()) }
     var aiSuggestionsLoading by remember { mutableStateOf(false) }
 
+    // Uri de origen del slot ACTUALMENTE en edición (0->A, 1->B) — recalculado
+    // en cada recomposición a partir de los uriA/uriB vigentes.
+    val aiSourceUri = when (aiEditorSlot) { 0 -> uriA; 1 -> uriB; else -> null }
+
     // Sugerencias RELEVANTES a la foto (misma idea que la web): se piden en
     // cuanto se abre el editor para esta foto; si fallan, respaldo genérico.
-    LaunchedEffect(aiOpen) {
-        if (!aiOpen) return@LaunchedEffect
+    LaunchedEffect(aiEditorSlot) {
+        if (aiEditorSlot == null) return@LaunchedEffect
         aiStage = "input"; aiPrompt = ""; aiError = null; aiResultUri = null
         aiSuggestions = emptyList()
-        val srcUri = uriA
-        if (srcUri == null) return@LaunchedEffect
+        val srcUri = aiSourceUri ?: return@LaunchedEffect
         aiSuggestionsLoading = true
         val result = withContext(Dispatchers.IO) {
             runCatching {
@@ -480,7 +488,7 @@ private fun FileStep(
 
     fun generateAiEdit() {
         val trimmed = aiPrompt.trim()
-        val srcUri = uriA
+        val srcUri = aiSourceUri
         if (trimmed.length < 3 || srcUri == null) return
         aiStage = "loading"; aiError = null
         aiScope.launch {
@@ -512,6 +520,13 @@ private fun FileStep(
             )
         }
     }
+
+    // Qué Uri mostrar en el slot dado: la foto ORIGINAL, salvo que ESE slot
+    // esté en la etapa "result" del editor de IA (aún sin confirmar) — en
+    // ese caso se enseña el resultado editado en el MISMO sitio (réplica de
+    // `displayUrl` en renderSlot, web).
+    fun displayUriFor(slot: Int, original: Uri?): Uri? =
+        if (aiEditorSlot == slot && aiStage == "result") aiResultUri ?: original else original
 
     // BUG reportado por el usuario ("en el preview no se respeta la barra de
     // estado del sistema como lo hace el feed"): a diferencia del feed
@@ -550,16 +565,38 @@ private fun FileStep(
                         Modifier.fillMaxSize().background(Color.White.copy(alpha = 0.20f)).clipToBounds(),
                         horizontalArrangement = Arrangement.spacedBy(2.dp),
                     ) {
-                        MediaSlot(uriA, kindA, onPickA, small = true, modifier = Modifier.weight(1f).fillMaxSize().clipToBounds())
-                        MediaSlot(uriB, kindB, onPickB, small = true, modifier = Modifier.weight(1f).fillMaxSize().clipToBounds())
+                        // touchesTop (réplica exacta de la web): 1vs1 vertical (izq/der) -> AMBOS slots tocan el borde superior.
+                        MediaSlot(
+                            displayUriFor(0, uriA), kindA, onPickA, small = true, modifier = Modifier.weight(1f).fillMaxSize().clipToBounds(),
+                            aiStage = if (aiEditorSlot == 0) aiStage else null,
+                            onAiEdit = if (kindA == "image") { { aiEditorSlot = 0 } } else null,
+                            touchesTop = true,
+                        )
+                        MediaSlot(
+                            displayUriFor(1, uriB), kindB, onPickB, small = true, modifier = Modifier.weight(1f).fillMaxSize().clipToBounds(),
+                            aiStage = if (aiEditorSlot == 1) aiStage else null,
+                            onAiEdit = if (kindB == "image") { { aiEditorSlot = 1 } } else null,
+                            touchesTop = true,
+                        )
                     }
                 } else {
                     Column(
                         Modifier.fillMaxSize().background(Color.White.copy(alpha = 0.20f)).clipToBounds(),
                         verticalArrangement = Arrangement.spacedBy(2.dp),
                     ) {
-                        MediaSlot(uriA, kindA, onPickA, small = true, modifier = Modifier.weight(1f).fillMaxWidth().clipToBounds())
-                        MediaSlot(uriB, kindB, onPickB, small = true, modifier = Modifier.weight(1f).fillMaxWidth().clipToBounds())
+                        // touchesTop: 1vs1 horizontal (arriba/abajo) -> SOLO el slot A (arriba) toca el borde superior.
+                        MediaSlot(
+                            displayUriFor(0, uriA), kindA, onPickA, small = true, modifier = Modifier.weight(1f).fillMaxWidth().clipToBounds(),
+                            aiStage = if (aiEditorSlot == 0) aiStage else null,
+                            onAiEdit = if (kindA == "image") { { aiEditorSlot = 0 } } else null,
+                            touchesTop = true,
+                        )
+                        MediaSlot(
+                            displayUriFor(1, uriB), kindB, onPickB, small = true, modifier = Modifier.weight(1f).fillMaxWidth().clipToBounds(),
+                            aiStage = if (aiEditorSlot == 1) aiStage else null,
+                            onAiEdit = if (kindB == "image") { { aiEditorSlot = 1 } } else null,
+                            touchesTop = false,
+                        )
                     }
                 }
             }
@@ -573,18 +610,33 @@ private fun FileStep(
                         ) { _, amount -> dragDx += amount }
                     },
                 ) {
-                    if (versusIdx == 0) MediaSlot(uriA, kindA, onPickA, small = true, modifier = Modifier.fillMaxSize())
-                    else MediaSlot(uriB, kindB, onPickB, small = true, modifier = Modifier.fillMaxSize())
+                    // touchesTop: versus SIEMPRE toca el borde superior (solo se ve 1 slot a pantalla completa).
+                    if (versusIdx == 0) {
+                        MediaSlot(
+                            displayUriFor(0, uriA), kindA, onPickA, small = true, modifier = Modifier.fillMaxSize(),
+                            aiStage = if (aiEditorSlot == 0) aiStage else null,
+                            onAiEdit = if (kindA == "image") { { aiEditorSlot = 0 } } else null,
+                            touchesTop = true,
+                        )
+                    } else {
+                        MediaSlot(
+                            displayUriFor(1, uriB), kindB, onPickB, small = true, modifier = Modifier.fillMaxSize(),
+                            aiStage = if (aiEditorSlot == 1) aiStage else null,
+                            onAiEdit = if (kindB == "image") { { aiEditorSlot = 1 } } else null,
+                            touchesTop = true,
+                        )
+                    }
                 }
             }
             else -> MediaSlot(
-                uri = if (aiStage == "result") aiResultUri ?: uriA else uriA,
+                uri = displayUriFor(0, uriA),
                 kind = kindA,
                 onPick = onPickA,
                 small = false,
                 modifier = Modifier.fillMaxSize(),
-                aiStage = if (aiOpen) aiStage else null,
-                onAiEdit = if (kindA == "image") { { aiOpen = true } } else null,
+                aiStage = if (aiEditorSlot == 0) aiStage else null,
+                onAiEdit = if (kindA == "image") { { aiEditorSlot = 0 } } else null,
+                touchesTop = true,
             )
         }
 
@@ -628,15 +680,16 @@ private fun FileStep(
         }
 
         // ── Panel inferior: puntitos (versus) + descripción + música + publicar
-        //    — o, mientras se edita la foto del reto con IA (aiOpen), este MISMO
-        //    panel muestra los controles de AiEditorPanel en su lugar (mismo
-        //    criterio "en el mismo sitio, sin overlay" que AIImageEditor.jsx web).
+        //    — o, mientras se edita CUALQUIER slot con IA (aiEditorSlot != null,
+        //    Versus/1vs1/Retos por igual), este MISMO panel muestra los
+        //    controles de AiEditorPanel en su lugar (mismo criterio "en el
+        //    mismo sitio, sin overlay" que AIImageEditor.jsx web).
         Column(
             Modifier.fillMaxWidth().align(Alignment.BottomCenter).imePadding().navigationBarsPadding()
                 .padding(horizontal = 16.dp).padding(bottom = 18.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            if (mode == "challenge" && aiOpen) {
+            if (aiEditorSlot != null) {
                 AiEditorPanel(
                     stage = aiStage,
                     prompt = aiPrompt,
@@ -644,11 +697,13 @@ private fun FileStep(
                     suggestions = aiSuggestions,
                     suggestionsLoading = aiSuggestionsLoading,
                     error = aiError,
-                    onClose = { aiOpen = false; aiStage = "input"; aiResultUri = null },
+                    onClose = { aiEditorSlot = null; aiStage = "input"; aiResultUri = null },
                     onGenerate = { generateAiEdit() },
                     onUseThisPhoto = {
-                        aiResultUri?.let { onApplyAiEdit(it) }
-                        aiOpen = false; aiStage = "input"; aiPrompt = ""; aiResultUri = null
+                        val slot = aiEditorSlot
+                        val result = aiResultUri
+                        if (slot != null && result != null) onApplyAiEdit(slot, result)
+                        aiEditorSlot = null; aiStage = "input"; aiPrompt = ""; aiResultUri = null
                     },
                     onTryAnother = { aiStage = "input"; aiError = null },
                 )
@@ -735,14 +790,22 @@ private fun MediaSlot(
     onPick: () -> Unit,
     small: Boolean,
     modifier: Modifier,
-    // Editor de fotos con IA (SOLO cuando small=false, es decir el único uso
-    // de este slot para el modo "challenge"/Retos — versus/duet nunca pasan
-    // estos parámetros, quedan en null por defecto y su comportamiento no
-    // cambia). aiStage: null cuando el editor está cerrado; "loading"/"result"
-    // pintan el mismo overlay que AIImageEditor.jsx sobre la foto.
+    // Editor de fotos con IA — réplica de renderSlot (web): disponible en
+    // CUALQUIER slot (Versus/1vs1/Retos) que contenga una foto, no solo en
+    // Retos (bug corregido en esta ronda: antes solo se ofrecía en el slot
+    // único de Retos, cuando la web lo tiene en los 3 modos por igual).
+    // aiStage: null cuando el editor está cerrado para ESTE slot;
+    // "loading"/"result" pintan el mismo overlay que AIImageEditor.jsx.
     aiStage: String? = null,
     onAiEdit: (() -> Unit)? = null,
+    // ¿Este slot toca el borde superior de la pantalla? (réplica exacta de
+    // `touchesTop` en renderSlot, web) — determina si los botones circulares
+    // deben bajar para no quedar tapados por el header propio de FileStep
+    // (~54-58dp) o si pueden ir arriba del todo (8dp, como `0.5rem` web).
+    touchesTop: Boolean = true,
 ) {
+    val buttonsTop = if (touchesTop) 58.dp else 8.dp
+    val badgeTop = if (touchesTop) 54.dp else 8.dp
     Box(modifier.background(Color.Black)) {
         if (uri != null) {
             if (kind == "image") {
@@ -760,7 +823,7 @@ private fun MediaSlot(
             }
             if (aiStage == "result") {
                 Row(
-                    Modifier.align(Alignment.TopStart).padding(start = 12.dp, top = 64.dp)
+                    Modifier.align(Alignment.TopStart).padding(start = 8.dp, top = badgeTop)
                         .clip(RoundedCornerShape(50)).background(Color.Black.copy(alpha = 0.6f))
                         .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(50)).padding(horizontal = 10.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -769,24 +832,23 @@ private fun MediaSlot(
                     Text("AI result", color = Color.White, fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
-            // Botón circular "Edit with AI" (SOLO fotos, mismo criterio `isImg`
-            // que la web) — posicionado bien por debajo del header propio de
-            // FileStep (que ocupa los primeros ~46dp) para no quedar tapado por
-            // él, igual que el `top: calc(safe-area+58px)` ya usado en la web
-            // para el mismo botón (bug ya corregido ahí: "el botón editar con
-            // ia no funciona" por quedar bajo el header).
-            if (onAiEdit != null) {
+            // Botones CIRCULARES apilados (Edit with AI + Change) — MISMO
+            // w-9(36dp) bg-black/35 que la web, en TODOS los slots por igual.
+            Column(
+                Modifier.align(Alignment.TopEnd).padding(top = buttonsTop, end = 12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                if (onAiEdit != null) {
+                    Box(
+                        Modifier.size(36.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.35f)).clickable { onAiEdit() },
+                        contentAlignment = Alignment.Center,
+                    ) { Icon(Icons.Filled.AutoAwesome, "Edit with AI", tint = Color.White, modifier = Modifier.size(17.dp)) }
+                }
                 Box(
-                    Modifier.align(Alignment.TopEnd).padding(top = 64.dp, end = 12.dp)
-                        .size(34.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.35f)).clickable { onAiEdit() },
+                    Modifier.size(36.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.35f)).clickable { onPick() },
                     contentAlignment = Alignment.Center,
-                ) { Icon(Icons.Filled.AutoAwesome, "Edit with AI", tint = Color.White, modifier = Modifier.size(16.dp)) }
+                ) { Icon(Icons.Filled.Refresh, "Change media", tint = Color.White, modifier = Modifier.size(17.dp)) }
             }
-            Box(
-                Modifier.align(Alignment.TopEnd)
-                    .padding(8.dp).clip(RoundedCornerShape(50))
-                    .background(Color.Black.copy(alpha = 0.55f)).clickable { onPick() }.padding(horizontal = 10.dp, vertical = 4.dp),
-            ) { Text("Change", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.SemiBold) }
         } else {
             Column(
                 Modifier.fillMaxSize().background(Color.White.copy(alpha = 0.02f)).clickable { onPick() },
