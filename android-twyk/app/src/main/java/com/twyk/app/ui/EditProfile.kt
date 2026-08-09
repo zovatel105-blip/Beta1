@@ -85,7 +85,12 @@ import kotlin.math.sqrt
 // Pantalla "Edit profile" — réplica del EditProfileModal de ProfilePage.jsx:
 // avatar (con recorte circular ajustable), nombre y bio. Guarda con
 // POST /api/profile (multipart: name, bio, avatar?).
-private const val CROP_DIAMETER_DP = 260
+// CROP_DIAMETER_DP=330 (antes 260): réplica EXACTA de CANVAS_SIZE=330 (px) en
+// components/CircularCrop.jsx — el círculo de recorte nativo se veía
+// notablemente más pequeño que el de la web (260/~380dp de ancho típico de
+// pantalla ≈65% vs 330/390px ≈85% en la web), reportado por el usuario como
+// "el diseño del crop debe ser igual al de la web".
+private const val CROP_DIAMETER_DP = 330
 // `MIN_CROP_SCALE`=1 es un multiplicador RELATIVO sobre `baseCoverScale`
 // (calculado más abajo a partir del tamaño real del bitmap, réplica de
 // `getMinCoverScale` en CircularCrop.jsx) — 1 = "recién cubre el círculo,
@@ -94,7 +99,9 @@ private const val CROP_DIAMETER_DP = 260
 // web.
 private const val MIN_CROP_SCALE = 1f
 private const val MAX_ABSOLUTE_SCALE = 4f
-private const val CROP_OUTPUT_PX = 640
+// 660 = CANVAS_SIZE(330) * resolutionMultiplier(2) en CircularCrop.jsx (misma
+// resolución de exportación exacta que la web).
+private const val CROP_OUTPUT_PX = 660
 
 @Composable
 fun EditProfileScreen(
@@ -361,8 +368,17 @@ private fun CircularCropOverlay(
 
     Box(Modifier.fillMaxSize().background(Color.White)) {
         Column(Modifier.fillMaxSize()) {
-            Box(Modifier.fillMaxWidth().statusBarsPadding().height(72.dp), contentAlignment = Alignment.Center) {
-                Text("Crop", color = Color.Black, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
+            // Cabecera: título "Crop" centrado, SIN botón (el Cancel vive en el
+            // footer) — réplica exacta de CircularCrop.jsx (`py-6` + `text-2xl
+            // font-semibold`). Altura DINÁMICA (ya no fija a 72dp: con una barra
+            // de estado más alta de lo normal el texto podía quedar recortado
+            // dentro de una caja de tamaño fijo, algo que la web nunca sufre al
+            // ser su alto siempre el del propio contenido + padding).
+            Box(
+                Modifier.fillMaxWidth().statusBarsPadding().padding(vertical = 20.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text("Crop", color = Color.Black, fontSize = 24.sp, fontWeight = FontWeight.SemiBold)
             }
 
             Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
@@ -373,7 +389,9 @@ private fun CircularCropOverlay(
                             Modifier
                                 .size(CROP_DIAMETER_DP.dp)
                                 .clip(CircleShape)
-                                .border(3.dp, Color(0xFFE5E7EB), CircleShape)
+                                // rgba(229,231,235,0.8) en CircularCrop.jsx — el borde nativo
+                                // usaba el mismo gris pero SIN la transparencia del 80%.
+                                .border(3.dp, Color(0xFFE5E7EB).copy(alpha = 0.8f), CircleShape)
                                 .pointerInput(imageUri, baseCoverScale) {
                                     // Réplica EXACTA de handleTouchStart/handleTouchMove de la
                                     // web: con 1 puntero SOLO se mueve (pan); con 2+ punteros SOLO
@@ -435,19 +453,28 @@ private fun CircularCropOverlay(
                 }
             }
 
+            // Footer: Cancel (pastilla blanca, borde negro) + Save (pastilla
+            // negra, texto blanco) — réplica EXACTA de CircularCrop.jsx (pedido
+            // explícito del usuario: "el diseño del crop debe ser igual al de
+            // la web"; antes el nativo usaba esquinas redondeadas de 14dp -no
+            // pastilla completa- y colores gris/púrpura en vez de blanco/negro
+            // -misma paridad que ya se corrigió solo en la web en una sesión
+            // anterior, nunca se replicó aquí-).
             Row(
                 Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 24.dp, vertical = 24.dp),
                 horizontalArrangement = Arrangement.Center,
             ) {
                 Box(
-                    Modifier.weight(1f).widthIn(max = 150.dp).height(52.dp).clip(RoundedCornerShape(14.dp))
-                        .background(Color(0xFFE5E7EB)).clickable { onCancel() },
+                    Modifier.weight(1f).widthIn(max = 150.dp).height(52.dp).clip(RoundedCornerShape(50))
+                        .background(Color.White)
+                        .border(2.dp, Color.Black, RoundedCornerShape(50))
+                        .clickable { onCancel() },
                     contentAlignment = Alignment.Center,
-                ) { Text("Cancel", color = Color.Black, fontWeight = FontWeight.Medium, fontSize = 15.sp) }
+                ) { Text("Cancel", color = Color.Black, fontWeight = FontWeight.SemiBold, fontSize = 15.sp) }
                 Spacer(Modifier.width(16.dp))
                 Box(
-                    Modifier.weight(1f).widthIn(max = 150.dp).height(52.dp).clip(RoundedCornerShape(14.dp))
-                        .background(Color(0xFFB061FF))
+                    Modifier.weight(1f).widthIn(max = 150.dp).height(52.dp).clip(RoundedCornerShape(50))
+                        .background(Color.Black)
                         .clickable(enabled = bitmap != null && !saving) {
                             val current = bitmap ?: return@clickable
                             saving = true
@@ -461,8 +488,9 @@ private fun CircularCropOverlay(
                         },
                     contentAlignment = Alignment.Center,
                 ) {
-                    if (saving) CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(16.dp))
-                    else Text("Save", color = Color.White, fontWeight = FontWeight.Medium, fontSize = 15.sp)
+                    // Web muestra el texto "Saving..." (sin spinner) mientras
+                    // guarda — réplica exacta en vez del spinner que había antes.
+                    Text(if (saving) "Saving..." else "Save", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                 }
             }
         }
