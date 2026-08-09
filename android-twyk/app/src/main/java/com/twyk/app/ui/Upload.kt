@@ -1208,12 +1208,37 @@ private const val MAX_IMAGE_BYTES = 15L * 1024 * 1024
 // reutiliza también ui/QuickChallenge.kt (mismo paquete). La extensión se
 // deriva del MIME real (jpg/png/webp/mp4/webm…) para que el backend
 // (mediaKind()) detecte correctamente imagen vs vídeo.
+//
+// BUG REAL ENCONTRADO (usuario: "cuando edito con IA y publico la
+// publicación solo se ve en negro, no muestra el contenido"): para un Uri
+// `file://` (el que genera el editor de IA, ver saveAiResultToFile — NO viene
+// del selector de galería) `context.contentResolver.getType(uri)` puede
+// devolver null en algunos dispositivos/versiones de Android (a diferencia
+// de `content://`, donde SIEMPRE hay un proveedor que responde). Cuando
+// `mime` es null, `mime?.startsWith("image/") == true` se evalúa como
+// `null == true` -> `false` (NO como "no es imagen, pero tampoco es
+// false-seguro") -> el `else` caía SIEMPRE en "mp4", así que una foto
+// editada con IA (PNG real) se re-empaquetaba como si fuera un vídeo
+// -> el backend guardaba `mediaType:'video'` y el feed intentaba
+// reproducirla con ExoPlayer, que falla en silencio con un contenedor que no
+// es un vídeo real -> pantalla negra, sin ningún error visible (exactamente
+// el síntoma reportado). FIX: para Uris `file://` (que SIEMPRE son archivos
+// nuestros, ya con la extensión correcta puesta por quien los creó —
+// saveAiResultToFile, o esta misma función en una pasada anterior) se deriva
+// la extensión DIRECTAMENTE del nombre de archivo real en disco, sin pasar
+// por ContentResolver.getType() en absoluto — 100% fiable, cero
+// adivinanzas. Los Uris `content://` (selector de galería) siguen usando el
+// mismo mecanismo de siempre (MIME real vía ContentResolver).
 fun persistPickedFile(context: Context, prefix: String, uri: Uri): File {
     val dir = File(context.filesDir, "pending_uploads").apply { mkdirs() }
     val input = context.contentResolver.openInputStream(uri) ?: throw IllegalStateException("No se pudo abrir el archivo")
-    val mime = context.contentResolver.getType(uri)
-    val extFromMime = mime?.let { MimeTypeMap.getSingleton().getExtensionFromMimeType(it) }
-    val ext = extFromMime ?: if (mime?.startsWith("image/") == true) "jpg" else "mp4"
+    val ext = if (uri.scheme == "file" && uri.path != null) {
+        File(uri.path!!).extension.takeIf { it.isNotBlank() } ?: "jpg"
+    } else {
+        val mime = context.contentResolver.getType(uri)
+        val extFromMime = mime?.let { MimeTypeMap.getSingleton().getExtensionFromMimeType(it) }
+        extFromMime ?: if (mime?.startsWith("image/") == true) "jpg" else "mp4"
+    }
     val file = File(dir, "twyk_${prefix}_${System.currentTimeMillis()}_${(0..9999).random()}.$ext")
     file.outputStream().use { out -> input.use { it.copyTo(out) } }
     return file
