@@ -3515,5 +3515,11 @@ agent_communication:
         -working: "NA"
         -agent: "main"
         -comment: "El ajuste anterior redujo el CONTENIDO (icono 11->10dp, texto 10->9.5sp) en vez del MARCO (el padding/relleno que rodea ese contenido dentro de la píldora) — exactamente lo contrario de lo pedido. FIX: icono y número VUELVEN a su tamaño de antes (11dp/10sp, el mismo que ya se veía bien como píldora en el ajuste #2) — el único cambio ahora es reducir el padding HORIZONTAL de la píldora (7dp->5dp, el 'marco' alrededor del icono/número), manteniendo el padding vertical igual de fino (0.5dp). Así el marco (margen negro) se ve más fino sin encoger el icono ni el número. 100% Kotlin nativo, NO COMPILABLE/TESTEABLE en este contenedor. NO se invocó agente de testing (ajuste cosmético sin backend/web, instrucción permanente del usuario). Verificado con balance de llaves/paréntesis (250/250, 866/866). Pendiente: el usuario debe recompilar/reinstalar y confirmar el resultado final."
+        -working: "NA"
+        -agent: "user"
+        -comment: "'Aplícalo tal cual está en la web' (tras varias rondas de ajuste a ojo sin dar en el clavo)."
+        -working: "NA"
+        -agent: "main"
+        -comment: "RÉPLICA EXACTA de components/ProfilePage.jsx (GridItem, la píldora de votos del grid en la web): `bottom-1 left-1` (4px, ya coincidía), `gap-1` (4px, antes 2-3dp según la ronda), `bg-black/55` (ya coincidía), `px-1.5 py-[2px]` (6px horizontal / 2px vertical exactos — mismo criterio 1px CSS=1dp ya usado en todo el proyecto), `rounded-full` (ya coincidía), icono `w-3.5 h-3.5` (14dp) y texto `text-[11px]` (11sp) — todos los valores tomados literalmente del JSX, sin redondeos a ojo. Curiosamente estos valores son casi idénticos a los del padding ORIGINAL antes de empezar esta cadena de ajustes (6dp/2dp/14dp/11sp), solo el `gap` difería (3dp vs 4dp real de la web) — las 3 rondas de ajuste a ojo anteriores se descartan a favor de esta réplica literal. 100% Kotlin nativo, NO COMPILABLE/TESTEABLE en este contenedor. NO se invocó agente de testing (ajuste cosmético sin backend/web, instrucción permanente del usuario). Verificado con balance de llaves/paréntesis (250/250, 865/865) y comparación línea a línea contra el JSX. Pendiente: el usuario debe recompilar/reinstalar y confirmar que coincide con la web."
 
 
