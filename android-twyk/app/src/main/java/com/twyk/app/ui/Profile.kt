@@ -1268,19 +1268,23 @@ private fun ProfileGridItem(post: Post, onClick: () -> Unit) {
         Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.20f)))
 
         if (totalVotes > 0) {
-            // AJUSTE FINO (usuario: "el marco del contador de grid se ve muy
-            // ancho, hazlo mas fino"): la píldora de votos era demasiado
-            // holgada para un elemento tan pequeño dentro de la miniatura del
-            // grid — icono y relleno reducidos para que se vea más fina/
-            // compacta, sin tocar el mismo icono/insignia en otras pantallas
-            // (StatItem del perfil, etc., que se quedan intactos).
+            // AJUSTE FINO #2 (usuario: "en vez de mantener forma de pastilla
+            // y mas fina, ahora parece un circulo"): el ajuste anterior redujo
+            // el padding vertical Y horizontal casi por igual, y al ser
+            // `RoundedCornerShape(50)` (esquinas 100% redondeadas), con un
+            // contenido tan compacto el ancho quedó demasiado cerca del alto
+            // -> se veía como un círculo en vez de una píldora alargada. FIX:
+            // se mantiene la altura FINA (padding vertical mínimo, 1dp) pero
+            // se recupera/aumenta el padding HORIZONTAL (7dp) para que el
+            // ancho vuelva a ser claramente mayor que el alto -> píldora
+            // alargada de nuevo, pero más fina (más baja) que la original.
             Row(
                 Modifier.align(Alignment.BottomStart).padding(4.dp).clip(RoundedCornerShape(50))
-                    .background(Color.Black.copy(alpha = 0.55f)).padding(horizontal = 5.dp, vertical = 1.5.dp),
+                    .background(Color.Black.copy(alpha = 0.55f)).padding(horizontal = 7.dp, vertical = 1.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(ImageVector.vectorResource(R.drawable.ic_vote), null, tint = Color.White, modifier = Modifier.size(11.dp))
-                Spacer(Modifier.width(2.dp))
+                Spacer(Modifier.width(3.dp))
                 Text(formatCount(totalVotes), color = Color.White, fontSize = 10.sp)
             }
         }
