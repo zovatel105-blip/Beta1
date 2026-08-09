@@ -1,5 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Icono adaptable REDONDO (Android 8+): usado por el sistema en contextos
+     donde se prefiere/exige un icono circular (p. ej. el badge junto al
+     nombre de la app en la bandeja de notificaciones en muchos launchers/
+     fabricantes, como Samsung One UI) — DISTINTO de ic_launcher.xml (icono
+     "normal", pantalla de inicio en la mayoría de launchers), que SIGUE
+     usando el foreground original CON su resplandor morado/azul (petición
+     explícita y repetida del usuario de mantenerlo ahí). Aquí se usa
+     ic_launcher_foreground_round (marca sólida SIN glow, ~20% más grande),
+     generado a partir del mismo foreground original aislando solo el trazo
+     oscuro y descartando el halo difuminado — petición del usuario:
+     "únicamente quiero que el icono/logo que aparece en la barra de estado
+     del sistema (notificaciones) no tenga glow". -->
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
     <background android:drawable="@color/ic_launcher_background" />
-    <foreground android:drawable="@mipmap/ic_launcher_foreground" />
+    <foreground android:drawable="@mipmap/ic_launcher_foreground_round" />
 </adaptive-icon>
