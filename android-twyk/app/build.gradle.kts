@@ -70,6 +70,16 @@ dependencies {
     // Posters / imagenes.
     implementation("io.coil-kt:coil-compose:2.7.0")
 
+    // Desenfoque de fondo tipo "vidrio esmerilado" (réplica exacta de
+    // `backdrop-blur-sm` de la web, CSS puro, en la píldora de contador de
+    // votos del grid del perfil — ui/Profile.kt, ProfileGridItem). Usa
+    // RenderEffect real en Android 12L+ (API 32+); en versiones más
+    // antiguas (nuestro minSdk 24) cae automáticamente a un "fallback tint"
+    // (el mismo negro semi-transparente de siempre, SIN blur) — degradación
+    // segura y ya visualmente idéntica al comportamiento anterior a este
+    // cambio, cero riesgo en dispositivos viejos.
+    implementation("dev.chrisbanes.haze:haze:1.7.1")
+
     // Cola de subidas en segundo plano (sobrevive a cerrar la pantalla de
     // subir e incluso a que el sistema recree el proceso) — ver
     // data/UploadWorker.kt.

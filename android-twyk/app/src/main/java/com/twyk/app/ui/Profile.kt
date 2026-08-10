@@ -89,6 +89,11 @@ import com.twyk.app.data.UploadQueue
 import com.twyk.app.data.UploadQueueItem
 import com.twyk.app.data.VoteRequest
 import com.twyk.app.feed.FeedPager
+import dev.chrisbanes.haze.HazeStyle
+import dev.chrisbanes.haze.HazeTint
+import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.launch
 import kotlin.math.ceil
 import kotlin.math.roundToInt
@@ -1232,6 +1237,10 @@ private fun ProfileGridItem(post: Post, onClick: () -> Unit) {
     val isDuet = post.type == "duet" && post.sideA?.videoUrl != null && post.sideB?.videoUrl != null
     val isRow = post.layout == "vertical"
     val totalVotes = (post.votes?.a ?: 0) + (post.votes?.b ?: 0)
+    // Estado del desenfoque de fondo de la píldora de votos (ver hazeSource/
+    // hazeEffect más abajo) — réplica de `backdrop-blur-sm` de la web. Uno
+    // por miniatura (cada Box de esta función es una miniatura independiente).
+    val hazeState = rememberHazeState()
 
     Box(
         Modifier.padding(2.dp).fillMaxWidth().aspectRatio(9f / 16f)
@@ -1240,44 +1249,66 @@ private fun ProfileGridItem(post: Post, onClick: () -> Unit) {
             .border(1.dp, Color.White.copy(alpha = 0.05f), RoundedCornerShape(8.dp))
             .clickable { onClick() },
     ) {
-        if (isDuet) {
-            val a = absoluteUrl(post.sideA?.posterUrl)
-            val b = absoluteUrl(post.sideB?.posterUrl)
-            if (isRow) {
-                Row(Modifier.fillMaxSize()) {
-                    GridHalf(a, Modifier.weight(1f).fillMaxHeight())
-                    Spacer(Modifier.width(1.5.dp))
-                    GridHalf(b, Modifier.weight(1f).fillMaxHeight())
+        // Contenido "de fondo" (vídeo/imagen + overlay oscuro), marcado como
+        // FUENTE del desenfoque (`hazeSource`) — la píldora de votos, más
+        // abajo, muestra una versión difuminada de ESTO MISMO detrás de
+        // ella (`hazeEffect`), igual que `backdrop-filter: blur()` en CSS
+        // (que difumina lo que hay DETRÁS del elemento, no el elemento en
+        // sí — Modifier.blur() normal de Compose no sirve para esto, blurea
+        // el propio contenido, no lo de atrás).
+        Box(Modifier.fillMaxSize().hazeSource(state = hazeState)) {
+            if (isDuet) {
+                val a = absoluteUrl(post.sideA?.posterUrl)
+                val b = absoluteUrl(post.sideB?.posterUrl)
+                if (isRow) {
+                    Row(Modifier.fillMaxSize()) {
+                        GridHalf(a, Modifier.weight(1f).fillMaxHeight())
+                        Spacer(Modifier.width(1.5.dp))
+                        GridHalf(b, Modifier.weight(1f).fillMaxHeight())
+                    }
+                } else {
+                    Column(Modifier.fillMaxSize()) {
+                        GridHalf(a, Modifier.weight(1f).fillMaxWidth())
+                        Spacer(Modifier.height(1.5.dp))
+                        GridHalf(b, Modifier.weight(1f).fillMaxWidth())
+                    }
                 }
             } else {
-                Column(Modifier.fillMaxSize()) {
-                    GridHalf(a, Modifier.weight(1f).fillMaxWidth())
-                    Spacer(Modifier.height(1.5.dp))
-                    GridHalf(b, Modifier.weight(1f).fillMaxWidth())
+                val thumb = absoluteUrl(post.posterUrl ?: post.thumbnailUrl ?: post.sideA?.posterUrl ?: post.sideB?.posterUrl)
+                if (thumb != null) {
+                    AsyncImage(model = thumb, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                } else {
+                    Box(Modifier.fillMaxSize().background(Brush.linearGradient(listOf(Color(0xFF374151), Color(0xFF111827)))))
                 }
             }
-        } else {
-            val thumb = absoluteUrl(post.posterUrl ?: post.thumbnailUrl ?: post.sideA?.posterUrl ?: post.sideB?.posterUrl)
-            if (thumb != null) {
-                AsyncImage(model = thumb, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-            } else {
-                Box(Modifier.fillMaxSize().background(Brush.linearGradient(listOf(Color(0xFF374151), Color(0xFF111827)))))
-            }
-        }
 
-        Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.20f)))
+            Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.20f)))
+        }
 
         if (totalVotes > 0) {
             // RÉPLICA EXACTA de la web (usuario: "aplícalo tal cual está en
             // la web", tras varias rondas de ajuste a ojo) — components/
             // ProfilePage.jsx, GridItem: `bottom-1 left-1` (4px), `gap-1`
-            // (4px), `bg-black/55`, `px-1.5 py-[2px]` (6px horizontal, 2px
-            // vertical), `rounded-full`, icono `w-3.5 h-3.5` (14px), texto
-            // `text-[11px]`. 1px CSS = 1dp en las convenciones ya usadas en
-            // todo este proyecto (ver el resto de tamaños calcados de la web).
+            // (4px), `bg-black/55` + `backdrop-blur-sm` (4px, vía hazeEffect
+            // de arriba — antes solo el tinte negro, sin el desenfoque real),
+            // `px-1.5 py-[2px]` (6px horizontal, 2px vertical), `rounded-full`,
+            // icono `w-3.5 h-3.5` (14px), texto `text-[11px]`. 1px CSS = 1dp
+            // en las convenciones ya usadas en todo este proyecto.
             Row(
                 Modifier.align(Alignment.BottomStart).padding(4.dp).clip(RoundedCornerShape(50))
-                    .background(Color.Black.copy(alpha = 0.55f)).padding(horizontal = 6.dp, vertical = 2.dp),
+                    .hazeEffect(
+                        state = hazeState,
+                        style = HazeStyle(
+                            blurRadius = 4.dp, // backdrop-blur-sm (Tailwind) = 4px de desenfoque
+                            tints = listOf(HazeTint(Color.Black.copy(alpha = 0.55f))), // bg-black/55 SOBRE el desenfoque
+                            // API < 32 (nuestro minSdk es 24): sin RenderEffect real disponible,
+                            // Haze cae aquí — MISMO negro/55 plano de siempre, sin blur.
+                            // Degradación 100% segura: es EXACTAMENTE el resultado visual previo
+                            // a este cambio, nunca se ve peor ni distinto en esos dispositivos.
+                            fallbackTint = HazeTint(Color.Black.copy(alpha = 0.55f)),
+                        ),
+                    )
+                    .padding(horizontal = 6.dp, vertical = 2.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 // ic_vote_thin (strokeWidth 150, NO el ic_vote normal de 210) — réplica
