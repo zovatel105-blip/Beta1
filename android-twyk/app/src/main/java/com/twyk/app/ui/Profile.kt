@@ -1301,6 +1301,11 @@ private fun ProfileGridItem(post: Post, onClick: () -> Unit) {
                         style = HazeStyle(
                             blurRadius = 4.dp, // backdrop-blur-sm (Tailwind) = 4px de desenfoque
                             tints = listOf(HazeTint(Color.Black.copy(alpha = 0.55f))), // bg-black/55 SOBRE el desenfoque
+                            // Haze añade por defecto un grano/ruido de 0.15 (look "vidrio
+                            // esmerilado" de iOS) — la web NO tiene esto, `backdrop-filter:
+                            // blur()` de CSS es un blur puro sin grano. Forzado a 0 para
+                            // no introducir una textura que la web no tiene.
+                            noiseFactor = 0f,
                             // API < 32 (nuestro minSdk es 24): sin RenderEffect real disponible,
                             // Haze cae aquí — MISMO negro/55 plano de siempre, sin blur.
                             // Degradación 100% segura: es EXACTAMENTE el resultado visual previo
