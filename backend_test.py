@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 
 # Base URL from environment
-BASE_URL = os.getenv('NEXT_PUBLIC_BASE_URL', 'https://notify-engine-5.preview.emergentagent.com')
+BASE_URL = os.getenv('NEXT_PUBLIC_BASE_URL', 'https://grid-web-sync.preview.emergentagent.com')
 API_URL = f"{BASE_URL}/api"
 
 # Test credentials

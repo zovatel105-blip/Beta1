@@ -1280,7 +1280,12 @@ private fun ProfileGridItem(post: Post, onClick: () -> Unit) {
                     .background(Color.Black.copy(alpha = 0.55f)).padding(horizontal = 6.dp, vertical = 2.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(ImageVector.vectorResource(R.drawable.ic_vote), null, tint = Color.White, modifier = Modifier.size(14.dp))
+                // ic_vote_thin (strokeWidth 150, NO el ic_vote normal de 210) — réplica
+                // exacta de VoteIcon.jsx con strokeWidth={150} usado en este mismo sitio
+                // en la web (ProfilePage.jsx, GridItem); a 14dp el trazo de 210 (pensado
+                // para el botón grande de votar) se veía visiblemente más grueso que en
+                // la web.
+                Icon(ImageVector.vectorResource(R.drawable.ic_vote_thin), null, tint = Color.White, modifier = Modifier.size(14.dp))
                 Spacer(Modifier.width(4.dp))
                 Text(formatCount(totalVotes), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Normal)
             }

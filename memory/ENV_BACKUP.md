@@ -16,8 +16,8 @@ scripts/seed-core-users.mjs y memory/test_credentials.md).
 ```
 MONGO_URL=mongodb://localhost:27017/twyk
 ADMIN_EMAILS=twyk.apk@gmail.com
-NEXT_PUBLIC_BASE_URL=https://notify-engine-5.preview.emergentagent.com
-CORS_ORIGINS=https://notify-engine-5.preview.emergentagent.com
+NEXT_PUBLIC_BASE_URL=https://grid-web-sync.preview.emergentagent.com
+CORS_ORIGINS=https://grid-web-sync.preview.emergentagent.com
 FIREBASE_PROJECT_ID=
 FIREBASE_CLIENT_EMAIL=
 FIREBASE_PRIVATE_KEY=
@@ -59,7 +59,7 @@ después de que Next.js haga su propio "Reload env: .env" (log de supervisor),
 o preguntar al usuario cuál es la URL que ve en su navegador.
 
 ## Última URL usada (actualizada automáticamente al restaurar)
-NEXT_PUBLIC_BASE_URL=https://7440705d-6be2-45d6-907a-59ce56bba97a.preview.emergentagent.com
+NEXT_PUBLIC_BASE_URL=https://grid-web-sync.preview.emergentagent.com
 
 ## ⚠️ ESTADO ACTUAL (esta sesión): FIREBASE_CLIENT_EMAIL / FIREBASE_PRIVATE_KEY RESTAURADOS
 El usuario volvió a subir el JSON de la cuenta de servicio de Firebase

@@ -165,15 +165,17 @@ fun ColumnsIcon(modifier: Modifier = Modifier, color: Color = Color.White, fille
     }
 }
 
+// RÉPLICA EXACTA de components/ProfilePage.jsx (formatNumber, usada TANTO en
+// las stats del perfil como en la píldora del grid): `(n/1000).toFixed(1)+'K'`
+// / `(n/1000000).toFixed(1)+'M'` — SIN quitar el ".0" en números redondos
+// (1000 -> "1.0K", no "1K"). Antes esta función SÍ lo quitaba (trimZero),
+// causando un contador distinto al de la web en cualquier múltiplo exacto de
+// 1000/1000000 (ej. exactamente 1000 votos: web "1.0K" vs nativo, antes,
+// "1K") — token por token, la web NUNCA elimina ese ".0" aquí.
 fun formatCount(n: Int): String = when {
-    n >= 1_000_000 -> trimZero(n / 1_000_000.0) + "M"
-    n >= 1_000 -> trimZero(n / 1_000.0) + "K"
+    n >= 1_000_000 -> String.format("%.1f", n / 1_000_000.0) + "M"
+    n >= 1_000 -> String.format("%.1f", n / 1_000.0) + "K"
     else -> n.toString()
-}
-
-private fun trimZero(v: Double): String {
-    val s = String.format("%.1f", v)
-    return if (s.endsWith(".0")) s.dropLast(2) else s
 }
 
 // Estado "Inicia sesión" premium (centrado, icono en círculo dorado) — estilo web.
