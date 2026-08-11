@@ -62,6 +62,7 @@ import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material3.CircularProgressIndicator
@@ -246,6 +247,11 @@ fun FeedPager(
     // ignora overlayOpen (el resto de señales, foreground/página actual,
     // siguen aplicando). Profile.kt lo pasa a true.
     insideOverlay: Boolean = false,
+    // Réplica de `viewsCount={isOwn ? post?.stats?.views : null}` en
+    // ProfilePage.jsx (PostViewer, web) — SOLO en el visor del PROPIO perfil,
+    // la barra de comentar alterna con una de "reproducciones" (ver
+    // CommentOrViewsBar más abajo). Profile.kt lo pasa a `isOwn`.
+    alternateViews: Boolean = false,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -319,6 +325,9 @@ fun FeedPager(
             val next = page + 1
             if (next < posts.size) scope.launch { pagerState.animateScrollToPage(next) }
         }
+        // Solo se calcula/pasa cuando aplica (alternateViews=true, visor del
+        // propio perfil) — en el resto de casos queda null, sin cambios.
+        val viewsCountForPost = if (alternateViews) (post.stats?.views ?: 0) else null
         if (post.type == "duet") {
             DuetPage(
                 post, active, current, dataSourceFactory,
@@ -330,6 +339,7 @@ fun FeedPager(
                 onChallenge = onChallenge,
                 hideChallenge = hideChallenge,
                 showCommentInput = showCommentInput,
+                viewsCount = viewsCountForPost,
             )
         } else {
             CarouselPage(
@@ -342,6 +352,7 @@ fun FeedPager(
                 onChallenge = onChallenge,
                 hideChallenge = hideChallenge,
                 showCommentInput = showCommentInput,
+                viewsCount = viewsCountForPost,
             )
         }
     }
@@ -470,6 +481,10 @@ private fun CarouselPage(
     onChallenge: (QuickChallengeTarget) -> Unit,
     hideChallenge: Boolean = false,
     showCommentInput: Boolean = false,
+    // Contador de "reproducciones" (ver CommentOrViewsBar más abajo): null =
+    // perfil ajeno (sin cambios, solo QuickCommentInput); un número = perfil
+    // PROPIO -> la barra alterna automáticamente comentar/reproducciones.
+    viewsCount: Int? = null,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -725,12 +740,22 @@ private fun CarouselPage(
         // SOLO al abrir desde el grid del perfil (propio/ajeno), nunca en el
         // feed principal (ver comentario en `FeedPager`).
         if (showCommentInput) {
-            QuickCommentInput(
-                postId = post.id,
-                votedSide = voted,
-                onRequireAuth = onRequireAuth,
-                onPosted = { scope.launch { PostEvents.emitCommentCountChanged(post.id, (post.stats?.comments ?: 0) + 1) } },
-            )
+            if (viewsCount != null) {
+                CommentOrViewsBar(
+                    postId = post.id,
+                    votedSide = voted,
+                    onRequireAuth = onRequireAuth,
+                    onPosted = { scope.launch { PostEvents.emitCommentCountChanged(post.id, (post.stats?.comments ?: 0) + 1) } },
+                    views = viewsCount,
+                )
+            } else {
+                QuickCommentInput(
+                    postId = post.id,
+                    votedSide = voted,
+                    onRequireAuth = onRequireAuth,
+                    onPosted = { scope.launch { PostEvents.emitCommentCountChanged(post.id, (post.stats?.comments ?: 0) + 1) } },
+                )
+            }
         }
     }
 }
@@ -751,6 +776,7 @@ private fun DuetPage(
     onChallenge: (QuickChallengeTarget) -> Unit,
     hideChallenge: Boolean = false,
     showCommentInput: Boolean = false,
+    viewsCount: Int? = null,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -1024,12 +1050,22 @@ private fun DuetPage(
         // SOLO al abrir desde el grid del perfil (propio/ajeno), nunca en el
         // feed principal (ver comentario en `FeedPager`).
         if (showCommentInput) {
-            QuickCommentInput(
-                postId = post.id,
-                votedSide = voted,
-                onRequireAuth = onRequireAuth,
-                onPosted = { scope.launch { PostEvents.emitCommentCountChanged(post.id, (post.stats?.comments ?: 0) + 1) } },
-            )
+            if (viewsCount != null) {
+                CommentOrViewsBar(
+                    postId = post.id,
+                    votedSide = voted,
+                    onRequireAuth = onRequireAuth,
+                    onPosted = { scope.launch { PostEvents.emitCommentCountChanged(post.id, (post.stats?.comments ?: 0) + 1) } },
+                    views = viewsCount,
+                )
+            } else {
+                QuickCommentInput(
+                    postId = post.id,
+                    votedSide = voted,
+                    onRequireAuth = onRequireAuth,
+                    onPosted = { scope.launch { PostEvents.emitCommentCountChanged(post.id, (post.stats?.comments ?: 0) + 1) } },
+                )
+            }
         }
     }
 }
@@ -2019,6 +2055,12 @@ private fun BoxScope.QuickCommentInput(
     votedSide: String?,
     onRequireAuth: () -> Unit,
     onPosted: () -> Unit,
+    // Avisa al padre (CommentOrViewsBar, ver más abajo) si el campo está "en
+    // uso" (enfocado o con texto sin enviar) -> FIJA la barra en modo
+    // comentario mientras se escribe (réplica de `onActivityChange` en
+    // QuickCommentInput.jsx). Cuando no hay padre (perfil ajeno, uso normal
+    // fuera de la barra alternante) queda en su valor por defecto, sin efecto.
+    onActivityChange: (Boolean) -> Unit = {},
 ) {
     val scope = rememberCoroutineScope()
     var text by remember(postId) { mutableStateOf("") }
@@ -2047,6 +2089,7 @@ private fun BoxScope.QuickCommentInput(
             focusManager.clearFocus(force = true)
         }
     }
+    LaunchedEffect(focused, text) { onActivityChange(focused || text.isNotBlank()) }
 
     fun submit() {
         if (Session.token == null) { onRequireAuth(); return }
@@ -2132,6 +2175,81 @@ private fun BoxScope.QuickCommentInput(
         }
     }
 }
+
+// CommentOrViewsBar — SOLO para el visor de publicaciones del PROPIO perfil
+// (ver `viewsCount`/`alternateViews` en FeedPager/CarouselPage/DuetPage).
+// Envuelve QuickCommentInput y una nueva píldora de "reproducciones",
+// alternando automáticamente cada ~3.6s — réplica exacta de
+// components/CommentOrViewsBar.jsx (web). Mientras el usuario esté
+// escribiendo (input enfocado o con texto sin enviar) se queda FIJO en modo
+// comentario -no debe interrumpir la escritura- y retoma la alternancia al
+// dejar de escribir. NOTA: a diferencia de la web (cross-fade con opacity),
+// aquí el cambio es instantáneo -sin animación- para evitar mezclar 2
+// receptores de scope distintos (BoxScope vs AnimatedVisibilityScope) en la
+// misma función; funcionalmente idéntico, solo sin transición suave.
+private const val VIEWS_ROTATE_MS = 3600L
+
+@Composable
+private fun BoxScope.CommentOrViewsBar(
+    postId: String,
+    votedSide: String?,
+    onRequireAuth: () -> Unit,
+    onPosted: () -> Unit,
+    views: Int,
+) {
+    var showViews by remember(postId) { mutableStateOf(false) }
+    var locked by remember(postId) { mutableStateOf(false) }
+
+    LaunchedEffect(postId) {
+        while (true) {
+            delay(VIEWS_ROTATE_MS)
+            if (!locked) showViews = !showViews
+        }
+    }
+
+    if (showViews) {
+        ViewsBarPill(views)
+    } else {
+        QuickCommentInput(
+            postId = postId,
+            votedSide = votedSide,
+            onRequireAuth = onRequireAuth,
+            onPosted = onPosted,
+            onActivityChange = { active ->
+                locked = active
+                if (active) showViews = false
+            },
+        )
+    }
+}
+
+// Píldora de "reproducciones" — MISMA posición/paddings/tamaño exactos que la
+// píldora SIN enfocar de QuickCommentInput (bg-black/45, rounded-full,
+// altura 50dp) para que la alternancia se sienta como una sola barra que
+// "cambia de contenido". Contenido alineado a la IZQUIERDA (Arrangement.Start,
+// el predeterminado de Row) — réplica de la web tras el ajuste pedido por el
+// usuario. Icono de trazo hueco (Outlined.PlayArrow, NO relleno).
+@Composable
+private fun BoxScope.ViewsBarPill(views: Int) {
+    Row(
+        Modifier
+            .align(Alignment.BottomCenter)
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .padding(horizontal = 12.dp, top = 8.dp, bottom = 2.dp)
+            .height(50.dp)
+            .clip(RoundedCornerShape(50))
+            .background(Color.Black.copy(alpha = 0.45f))
+            .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(50))
+            .padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Icons.Outlined.PlayArrow, null, tint = Color.White.copy(alpha = 0.8f), modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(8.dp))
+        Text("${formatCount(views)} views", color = Color.White.copy(alpha = 0.9f), fontSize = 14.sp, fontWeight = FontWeight.Medium)
+    }
+}
+
 
 
 // Tarjeta de "ganador" — réplica de VSWinnerCard.jsx: aparece tras votar,

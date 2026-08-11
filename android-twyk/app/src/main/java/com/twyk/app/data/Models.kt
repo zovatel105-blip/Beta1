@@ -33,6 +33,9 @@ data class Stats(
     val shares: Int = 0,
     val saves: Int = 0,
     val challenges: Int = 0,
+    // Contador visible de "reproducciones" (ver POST /api/post-view) — réplica
+    // exacta de `stats.views` en la web (ProfilePage.jsx GridItem/PostViewer).
+    val views: Int = 0,
 )
 
 data class Post(
@@ -79,6 +82,10 @@ data class VoteRequest(val id: String, val side: String, val previousSide: Strin
 // TWYK Engine: registrar un compartido (señal fuerte del algoritmo del feed).
 data class ShareRequest(val id: String)
 data class ShareResponse(val ok: Boolean? = null)
+
+// Ver TwykApi.postView — contador de "reproducciones" (stats.views).
+data class PostViewRequest(val id: String)
+data class PostViewResponse(val ok: Boolean? = null)
 
 data class VoteResponse(val votes: Votes? = null)
 

@@ -35,6 +35,8 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -78,6 +80,7 @@ import com.twyk.app.absoluteUrl
 import com.twyk.app.data.Author
 import com.twyk.app.data.Post
 import com.twyk.app.data.PostEvents
+import com.twyk.app.data.PostViewRequest
 import com.twyk.app.data.QuickChallengeTarget
 import com.twyk.app.data.ProfileUser
 import com.twyk.app.data.FullScreenOverlays
@@ -151,6 +154,17 @@ fun ProfileScreen(
     var savedPosts by remember(target) { mutableStateOf<List<Post>>(emptyList()) }
     var savedLoading by remember(target) { mutableStateOf(false) }
     var viewerList by remember(target) { mutableStateOf<List<Post>>(emptyList()) }
+    // Dedup de POST /api/post-view (contador de "reproducciones", ver
+    // ProfileGridItem/CommentOrViewsBar): 1 sola llamada por publicación
+    // distinta abierta/pasada dentro de ESTA sesión del visor, tanto en
+    // perfil propio como ajeno — réplica exacta del `viewedIdsRef` (Set) de
+    // PostViewer en ProfilePage.jsx (web).
+    val viewedPostIds = remember(target) { mutableSetOf<String>() }
+    val registerPostView: (String?) -> Unit = { id ->
+        if (id != null && viewedPostIds.add(id)) {
+            scope.launch { runCatching { RetrofitProvider.api.postView(PostViewRequest(id)) } }
+        }
+    }
 
     // BUG REPORTADO (edge swipe back cerraba la app entera): ninguno de los
     // overlays PROPIOS de esta pantalla (visor de publicación del grid,
@@ -668,6 +682,12 @@ fun ProfileScreen(
                         scope.launch { runCatching { RetrofitProvider.api.vote(VoteRequest(id, side, prev)) } }
                     },
                     showCommentInput = true,
+                    // SOLO en el PROPIO perfil, la barra alterna con "reproducciones"
+                    // (ver CommentOrViewsBar en VersusFeed.kt) — perfil ajeno sin cambios.
+                    alternateViews = isOwn,
+                    // Registra 1 vista por publicación distinta abierta/pasada en esta
+                    // sesión del visor (propio Y ajeno, confirmado con el usuario).
+                    onPageChanged = { page -> registerPostView(viewerList.getOrNull(page)?.id) },
                 )
             }
             viewerCommentsPostId?.let { pid ->
@@ -1237,6 +1257,7 @@ private fun ProfileGridItem(post: Post, onClick: () -> Unit) {
     val isDuet = post.type == "duet" && post.sideA?.videoUrl != null && post.sideB?.videoUrl != null
     val isRow = post.layout == "vertical"
     val totalVotes = (post.votes?.a ?: 0) + (post.votes?.b ?: 0)
+    val views = post.stats?.views ?: 0
     // Estado del desenfoque de fondo de la píldora de votos (ver hazeSource/
     // hazeEffect más abajo) — réplica de `backdrop-blur-sm` de la web. Uno
     // por miniatura (cada Box de esta función es una miniatura independiente).
@@ -1285,45 +1306,65 @@ private fun ProfileGridItem(post: Post, onClick: () -> Unit) {
             Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.20f)))
         }
 
-        if (totalVotes > 0) {
+        if (totalVotes > 0 || views > 0) {
             // RÉPLICA EXACTA de la web (usuario: "aplícalo tal cual está en
-            // la web", tras varias rondas de ajuste a ojo) — components/
-            // ProfilePage.jsx, GridItem: `bottom-1 left-1` (4px), `gap-1`
-            // (4px), `bg-black/55` + `backdrop-blur-sm` (4px, vía hazeEffect
-            // de arriba — antes solo el tinte negro, sin el desenfoque real),
-            // `px-1.5 py-[2px]` (6px horizontal, 2px vertical), `rounded-full`,
-            // icono `w-3.5 h-3.5` (14px), texto `text-[11px]`. 1px CSS = 1dp
-            // en las convenciones ya usadas en todo este proyecto.
-            Row(
-                Modifier.align(Alignment.BottomStart).padding(4.dp).clip(RoundedCornerShape(50))
-                    .hazeEffect(
-                        state = hazeState,
-                        style = HazeStyle(
-                            blurRadius = 4.dp, // backdrop-blur-sm (Tailwind) = 4px de desenfoque
-                            tints = listOf(HazeTint(Color.Black.copy(alpha = 0.55f))), // bg-black/55 SOBRE el desenfoque
-                            // Haze añade por defecto un grano/ruido de 0.15 (look "vidrio
-                            // esmerilado" de iOS) — la web NO tiene esto, `backdrop-filter:
-                            // blur()` de CSS es un blur puro sin grano. Forzado a 0 para
-                            // no introducir una textura que la web no tiene.
-                            noiseFactor = 0f,
-                            // API < 32 (nuestro minSdk es 24): sin RenderEffect real disponible,
-                            // Haze cae aquí — MISMO negro/55 plano de siempre, sin blur.
-                            // Degradación 100% segura: es EXACTAMENTE el resultado visual previo
-                            // a este cambio, nunca se ve peor ni distinto en esos dispositivos.
-                            fallbackTint = HazeTint(Color.Black.copy(alpha = 0.55f)),
-                        ),
-                    )
-                    .padding(horizontal = 6.dp, vertical = 2.dp),
-                verticalAlignment = Alignment.CenterVertically,
+            // la web") — components/ProfilePage.jsx, GridItem: contenedor
+            // `bottom-1 left-1 flex-col gap-1` (4dp margen, columna, 4dp
+            // separación entre píldoras); cada píldora `bg-black/55
+            // backdrop-blur-sm px-1.5 py-[2px] rounded-full text-[11px]`
+            // (vía hazeEffect, ver comentario más abajo). Votos ARRIBA,
+            // reproducciones DEBAJO — en perfil propio Y ajeno.
+            Column(
+                Modifier.align(Alignment.BottomStart).padding(4.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                // ic_vote_thin (strokeWidth 150, NO el ic_vote normal de 210) — réplica
-                // exacta de VoteIcon.jsx con strokeWidth={150} usado en este mismo sitio
-                // en la web (ProfilePage.jsx, GridItem); a 14dp el trazo de 210 (pensado
-                // para el botón grande de votar) se veía visiblemente más grueso que en
-                // la web.
-                Icon(ImageVector.vectorResource(R.drawable.ic_vote_thin), null, tint = Color.White, modifier = Modifier.size(14.dp))
-                Spacer(Modifier.width(4.dp))
-                Text(formatCount(totalVotes), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Normal)
+                if (totalVotes > 0) {
+                    Row(
+                        Modifier.clip(RoundedCornerShape(50))
+                            .hazeEffect(
+                                state = hazeState,
+                                style = HazeStyle(
+                                    blurRadius = 4.dp,
+                                    tints = listOf(HazeTint(Color.Black.copy(alpha = 0.55f))),
+                                    noiseFactor = 0f,
+                                    fallbackTint = HazeTint(Color.Black.copy(alpha = 0.55f)),
+                                ),
+                            )
+                            .padding(horizontal = 6.dp, vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        // ic_vote_thin (strokeWidth 150) a 16dp — réplica de
+                        // VoteIcon.jsx w-4 h-4 strokeWidth={380} (web, tras
+                        // igualarlo con el nuevo icono de reproducciones); el
+                        // sistema de trazo de este vector nativo no es 1:1
+                        // comparable al de la web, aproximación visual.
+                        Icon(ImageVector.vectorResource(R.drawable.ic_vote_thin), null, tint = Color.White, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text(formatCount(totalVotes), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Normal)
+                    }
+                }
+                if (views > 0) {
+                    Row(
+                        Modifier.clip(RoundedCornerShape(50))
+                            .hazeEffect(
+                                state = hazeState,
+                                style = HazeStyle(
+                                    blurRadius = 4.dp,
+                                    tints = listOf(HazeTint(Color.Black.copy(alpha = 0.55f))),
+                                    noiseFactor = 0f,
+                                    fallbackTint = HazeTint(Color.Black.copy(alpha = 0.55f)),
+                                ),
+                            )
+                            .padding(horizontal = 6.dp, vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        // Icono de trazo hueco (outline), NO relleno — réplica de
+                        // `<Play fill="none" stroke="white" strokeWidth={2}/>` (web).
+                        Icon(Icons.Outlined.PlayArrow, null, tint = Color.White, modifier = Modifier.size(14.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text(formatCount(views), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Normal)
+                    }
+                }
             }
         }
     }

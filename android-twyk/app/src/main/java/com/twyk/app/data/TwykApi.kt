@@ -52,6 +52,13 @@ interface TwykApi {
     @POST("api/share")
     suspend fun share(@Body body: ShareRequest): ShareResponse
 
+    // Contador visible de "reproducciones" (stats.views) de una publicación —
+    // fire-and-forget, sin auth requerida, réplica exacta de POST /api/post-view
+    // (web: ProfilePage.jsx PostViewer). Ver Profile.kt (única llamada, al abrir/
+    // pasar a cada publicación del visor del grid, propio o ajeno).
+    @POST("api/post-view")
+    suspend fun postView(@Body body: PostViewRequest): PostViewResponse
+
     @POST("api/auth/login")
     suspend fun login(@Body body: LoginRequest): AuthResponse
 
