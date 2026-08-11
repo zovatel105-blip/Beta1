@@ -81,7 +81,7 @@ function ViewsBar({ views }) {
       className="absolute left-0 right-0 z-20 px-3"
       style={{ bottom: 0, paddingTop: 10, paddingBottom: 'max(env(safe-area-inset-bottom), 12px)' }}
     >
-      <div className="flex items-center justify-start gap-2 bg-black/45 backdrop-blur-md border border-white/15 rounded-full pl-4 pr-4 py-1.5 shadow-lg w-full">
+      <div className="flex items-center justify-start gap-2 bg-black/45 backdrop-blur-md border border-white/15 rounded-full pl-4 pr-4 py-1.5 shadow-lg w-full h-[50px]">
         <Play className="w-4 h-4 text-white/80 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} />
         <span className="text-white/90 text-[14px] font-medium truncate">{formatViews(views)} plays</span>
       </div>
