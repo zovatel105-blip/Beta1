@@ -1116,6 +1116,15 @@ export async function POST(request, { params }) {
     return handleShare(request)
   }
 
+  // POST /api/post-view - Registra que ALGUIEN abrió esta publicación desde el
+  // visor de un perfil (propio o ajeno) -> alimenta el contador visible
+  // "reproducciones" (stats.views), usado en la píldora del grid y en la
+  // barra que alterna con "Añadir comentario" del perfil propio. Fire-and-
+  // forget: nunca debe bloquear ni afectar la apertura del visor.
+  if (path === '/post-view') {
+    return handlePostView(request)
+  }
+
   // POST /api/feed/not-interested - MEJORA E: feedback negativo explícito
   // ("No me interesa" del menú de tres puntos). Fire-and-forget: la tarjeta
   // ya se quita del feed en el cliente aunque esta petición tarde/falle.
@@ -2482,6 +2491,28 @@ async function handleShare(request) {
     return NextResponse.json({ ok: true })
   } catch {
     // Fire-and-forget: registrar el share nunca debe romper la UI de compartir.
+    return NextResponse.json({ ok: true })
+  }
+}
+
+// POST /api/post-view - contador visible de "reproducciones/vistas" de una
+// publicación, DELIBERADAMENTE separado del motor de recomendación
+// (reco_item_stats.impressions/plays, ver lib/recommender.js): sumar aquí
+// NO debe contaminar el engagement-rate ni el completion-rate que usa el
+// algoritmo de oleadas/throttle. Usa `incrementPostViews` (lib/db.js), que ya
+// existía sin usar y actúa sobre `stats.views` de la MISMA colección `posts`
+// que gestiona lib/stores.js (COLLECTIONS.POSTS === stores.js POSTS === 'posts').
+// Sin autenticación (métrica pública, igual que los votos/shares); no-op
+// silencioso si el post no existe en Mongo (p.ej. posts demo del feed).
+async function handlePostView(request) {
+  try {
+    const body = await request.json().catch(() => null)
+    const id = body?.id
+    if (!id) return NextResponse.json({ error: 'missing_id' }, { status: 400 })
+    incrementPostViews(id).catch(() => {})
+    return NextResponse.json({ ok: true })
+  } catch {
+    // Fire-and-forget: nunca debe romper el visor del perfil.
     return NextResponse.json({ ok: true })
   }
 }

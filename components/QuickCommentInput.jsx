@@ -35,7 +35,7 @@ function authHeaders() {
  * detrás NO debe moverse/encogerse (eso se corrige aparte en ProfilePage.jsx,
  * sustituyendo la unidad `100dvh` -reactiva al teclado- por `h-full`, fija).
  */
-export default function QuickCommentInput({ postId, votedSide = null, onPosted, onRequireAuth }) {
+export default function QuickCommentInput({ postId, votedSide = null, onPosted, onRequireAuth, onActivityChange }) {
   const { user } = useAuth()
   const [text, setText] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -43,6 +43,15 @@ export default function QuickCommentInput({ postId, votedSide = null, onPosted, 
   const [kbInset, setKbInset] = useState(0) // px que el teclado ocupa desde abajo
   const inputRef = useRef(null)
   const wrapRef = useRef(null)
+
+  // Avisa al padre (CommentOrViewsBar, ver ese archivo) si el campo está "en
+  // uso" (enfocado o con texto sin enviar) -> se usa para FIJAR la barra en
+  // modo comentario y no alternar hacia la de reproducciones mientras se
+  // escribe. Cuando no hay padre (uso normal fuera de la barra alternante,
+  // p.ej. perfil ajeno) `onActivityChange` es undefined y este efecto no hace nada.
+  useEffect(() => {
+    onActivityChange?.(focused || text.trim().length > 0)
+  }, [focused, text, onActivityChange])
 
   // Ancla la barra JUSTO encima del teclado nativo, sin depender de ninguna
   // unidad de viewport reactiva en el CONTENIDO (eso ya se resuelve aparte en

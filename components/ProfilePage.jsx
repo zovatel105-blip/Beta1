@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Menu, Bookmark, Swords, Users, UserPlus, ArrowLeft, LogOut, Camera, Loader2, X, ShieldAlert, LogIn, CircleUserRound, Activity, ChevronRight, AlertCircle } from 'lucide-react'
+import { Menu, Bookmark, Swords, Users, UserPlus, ArrowLeft, LogOut, Camera, Loader2, X, ShieldAlert, LogIn, CircleUserRound, Activity, ChevronRight, AlertCircle, Play } from 'lucide-react'
 import VoteIcon from './icons/VoteIcon'
 import ShareIcon from './icons/ShareIcon'
 import { useAuth } from '@/contexts/AuthContext'
@@ -63,6 +63,7 @@ const GridItem = ({ post, onOpen }) => {
   const video = videoFor(post)
   const [imgFailed, setImgFailed] = useState(false)
   const totalVotes = (post?.votes?.a || 0) + (post?.votes?.b || 0)
+  const views = post?.stats?.views || 0
   const showImg = thumb && !imgFailed
 
   // Solo los 1vs1 (dueto) muestran split. Los Versus (carrusel) se muestran como
@@ -110,11 +111,22 @@ const GridItem = ({ post, onOpen }) => {
       {/* Overlay oscuro */}
       <div className="absolute inset-0 bg-black/20 pointer-events-none z-10" />
 
-      {/* Contador de votos - píldora abajo-izquierda */}
-      {totalVotes > 0 && (
-        <div className="absolute bottom-1 left-1 flex items-center gap-1 bg-black/55 backdrop-blur-sm px-1.5 py-[2px] rounded-full text-white text-[11px] font-normal pointer-events-none z-30">
-          <VoteIcon className="w-3.5 h-3.5" strokeWidth={150} filled={false} />
-          <span>{formatNumber(totalVotes)}</span>
+      {/* Contadores - píldoras abajo-izquierda: votos arriba, reproducciones
+          debajo (petición del usuario). Ambos en perfil propio Y ajeno. */}
+      {(totalVotes > 0 || views > 0) && (
+        <div className="absolute bottom-1 left-1 flex flex-col items-start gap-1 z-30 pointer-events-none">
+          {totalVotes > 0 && (
+            <div className="flex items-center gap-1 bg-black/55 backdrop-blur-sm px-1.5 py-[2px] rounded-full text-white text-[11px] font-normal">
+              <VoteIcon className="w-3.5 h-3.5" strokeWidth={150} filled={false} />
+              <span>{formatNumber(totalVotes)}</span>
+            </div>
+          )}
+          {views > 0 && (
+            <div className="flex items-center gap-1 bg-black/55 backdrop-blur-sm px-1.5 py-[2px] rounded-full text-white text-[11px] font-normal">
+              <Play className="w-3.5 h-3.5" fill="none" stroke="white" strokeWidth={2} />
+              <span>{formatNumber(views)}</span>
+            </div>
+          )}
         </div>
       )}
     </button>
@@ -158,7 +170,7 @@ const PendingGridItem = ({ item }) => {
 
 // Visor de publicaciones: feed vertical deslizable con TODAS las publicaciones
 // del perfil (mismas tarjetas y colores del feed). Arranca en la que se tocó.
-const PostViewer = ({ posts, startId, onClose, onChallenge, onOpenProfile }) => {
+const PostViewer = ({ posts, startId, onClose, onChallenge, onOpenProfile, isOwn = false }) => {
   const containerRef = useRef(null)
   const startIndex = Math.max(0, posts.findIndex((p) => p.id === startId))
   const [activeIndex, setActiveIndex] = useState(startIndex)
@@ -226,6 +238,26 @@ const PostViewer = ({ posts, startId, onClose, onChallenge, onOpenProfile }) => 
     return () => obs.disconnect()
   }, [posts])
 
+  // Contador visible de "reproducciones" (stats.views, ver GridItem/pill del
+  // grid): registra 1 vista la primera vez que CADA publicación se abre/pasa
+  // a ser la activa dentro de ESTA sesión del visor (dedup con un Set, para
+  // no sumar de más por re-renders o pequeños vaivenes del scroll snap).
+  // Fire-and-forget, funciona igual en perfil propio y ajeno.
+  const viewedIdsRef = useRef(new Set())
+  useEffect(() => {
+    const cur = posts[activeIndex]
+    if (!cur?.id || viewedIdsRef.current.has(cur.id)) return
+    viewedIdsRef.current.add(cur.id)
+    try {
+      fetch('/api/post-view', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: cur.id }),
+        keepalive: true,
+      }).catch(() => {})
+    } catch { /* ignore */ }
+  }, [activeIndex, posts])
+
   if (!posts || posts.length === 0) return null
 
   return (
@@ -267,6 +299,7 @@ const PostViewer = ({ posts, startId, onClose, onChallenge, onOpenProfile }) => 
                     playbackEnabled={true}
                     infoBottom
                     showCommentInput
+                    viewsCount={isOwn ? (post?.stats?.views || 0) : null}
                     onRequestNext={() => {}}
                     onChallenge={onChallenge}
                     onOpenProfile={onOpenProfile}
@@ -1025,6 +1058,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
           onClose={() => setOpenPost(null)}
           onChallenge={onChallenge}
           onOpenProfile={onOpenProfile}
+          isOwn={isOwn}
         />
       )}
 

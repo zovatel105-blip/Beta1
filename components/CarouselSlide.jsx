@@ -14,6 +14,7 @@ import OptionsModal from './OptionsModal'
 import AuthModal from './AuthModal'
 import Avatar, { isGeneratedAvatar } from './Avatar'
 import QuickCommentInput from './QuickCommentInput'
+import CommentOrViewsBar from './CommentOrViewsBar'
 import { useAuth } from '@/contexts/AuthContext'
 import { pickQuality, reportStall } from '@/lib/networkQuality'
 import { emitCommentCountChange } from '@/lib/commentCountBus'
@@ -42,7 +43,7 @@ const COMMENT_BAR_RESERVE = '58px + max(env(safe-area-inset-bottom, 0px), 12px)'
  * Se vota tocando directamente el vídeo (toca = vota la opción visible).
  * La UI (cabecera + columna social) es la misma que la de un vídeo normal.
  */
-function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: globalMuted, playbackEnabled = true, onRequestNext, onChallenge, onOpenProfile, onNotInterested, infoBottom = false, hideChallenge = false, showCommentInput = false }) {
+function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: globalMuted, playbackEnabled = true, onRequestNext, onChallenge, onOpenProfile, onNotInterested, infoBottom = false, hideChallenge = false, showCommentInput = false, viewsCount = null }) {
   const { user } = useAuth()
   const overlayRef = useRef(null)
   const videoARef = useRef(null)
@@ -908,14 +909,27 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
       {/* Barra de "Añadir comentario" — solo cuando se abre desde el grid del
           perfil (propio o ajeno), NO en el feed principal (ver showCommentInput).
           Se posiciona JUSTO ENCIMA de BottomNav (que sigue visible, z-50, mismo
-          criterio que el feed principal), no debajo (quedaría oculta). */}
+          criterio que el feed principal), no debajo (quedaría oculta).
+          En el PROPIO perfil (viewsCount != null) esta barra ALTERNA con una de
+          "reproducciones" (ver CommentOrViewsBar.jsx); en perfil ajeno se
+          mantiene exactamente igual que antes (solo comentar, sin alternar). */}
       {showCommentInput && (
-        <QuickCommentInput
-          postId={post.id}
-          votedSide={userVote}
-          onPosted={() => setCommentCount((n) => n + 1)}
-          onRequireAuth={() => setAuthModalOpen(true)}
-        />
+        viewsCount != null ? (
+          <CommentOrViewsBar
+            postId={post.id}
+            votedSide={userVote}
+            onPosted={() => setCommentCount((n) => n + 1)}
+            onRequireAuth={() => setAuthModalOpen(true)}
+            views={viewsCount}
+          />
+        ) : (
+          <QuickCommentInput
+            postId={post.id}
+            votedSide={userVote}
+            onPosted={() => setCommentCount((n) => n + 1)}
+            onRequireAuth={() => setAuthModalOpen(true)}
+          />
+        )
       )}
 
       {/* Winner card — aparece automáticamente tras votar */}
