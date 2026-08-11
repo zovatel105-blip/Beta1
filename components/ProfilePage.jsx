@@ -117,7 +117,7 @@ const GridItem = ({ post, onOpen }) => {
         <div className="absolute bottom-1 left-1 flex flex-col items-start gap-1 z-30 pointer-events-none">
           {totalVotes > 0 && (
             <div className="flex items-center gap-1 bg-black/55 backdrop-blur-sm px-1.5 py-[2px] rounded-full text-white text-[11px] font-normal">
-              <VoteIcon className="w-3.5 h-3.5" strokeWidth={150} filled={false} />
+              <VoteIcon className="w-4 h-4" strokeWidth={380} filled={false} />
               <span>{formatNumber(totalVotes)}</span>
             </div>
           )}
