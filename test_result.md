@@ -3600,6 +3600,28 @@ frontend:
         -comment: "APLICADO: reemplazado el icono `Eye` (lucide-react) por `Play` (relleno, fill=currentColor/white, sin trazo) en components/CommentOrViewsBar.jsx (ViewsBar, texto ahora 'N plays') y en components/ProfilePage.jsx (GridItem, píldora del grid). Lint limpio en ambos archivos. VERIFICADO VISUALMENTE con mcp_screenshot_tool (NO agente de testing, instrucción explícita del usuario en este turno 'No USAR El testing agent' — respetada de inmediato; el backend YA había sido verificado por deep_testing_backend_nextjs ANTES de esa instrucción, 8/8 pasos OK): login real como lucia, perfil propio -> la miniatura del grid muestra la píldora de votos '350' y, apilada debajo, la nueva píldora '▶ 7.2K' (icono de reproducción relleno); al abrir esa publicación desde el grid, la barra inferior arranca en modo 'Add a comment...' y tras ~4s cambia automáticamente (cross-fade) a '▶ 7.2K plays' — alternancia funcionando correctamente con el nuevo icono en ambos sitios (grid y barra del visor)."
         -working: true
         -agent: "user"
+        -comment: "Serie de ajustes finos posteriores en la misma sesión: (1) icono debe ser de TRAZO, no relleno; (2) la píldora de reproducciones del visor debe ser ALARGADA (ancho completo) igual que la de comentar; (3) el texto/números deben quedar a la IZQUIERDA, no centrados; (4) la píldora debe medir EXACTAMENTE lo mismo que la de comentar (alto y ancho); (5) el texto debe decir 'views' en vez de 'plays'."
+        -working: true
+        -agent: "main"
+        -comment: "TODOS APLICADOS en components/CommentOrViewsBar.jsx: icono `fill='none' stroke='currentColor'`; píldora `w-full` + `justify-start` (antes centrada) + `h-[50px]` explícito (medido con getBoundingClientRect en la app real: la píldora de comentar mide 366×50px por el botón de enviar de 36px+padding; la de reproducciones ahora mide EXACTAMENTE 366×50px también); texto final '{n} views'. Además (petición aparte, mismo hilo): el icono de VOTOS de esta misma píldora del grid (VoteIcon, ProfilePage.jsx) usa un sistema de viewBox/transform propio no comparable 1:1 con lucide — ajustado iterativamente (grosor 150->500->420->380 tras comparación visual aislada con Play a igual tamaño de render, y tamaño 14px->16px) para igualar el grosor de trazo percibido y hacerlo 'un pelín más grande', según pidió el usuario paso a paso. Todo verificado con mediciones DOM reales y capturas de pantalla, sin agente de testing (instrucción vigente)."
+
+frontend:
+  - task: "Renombrar la cuenta admin de 'twykadmin' a 'Twyk' (usuario Y nombre visible)"
+    implemented: true
+    working: true
+    file: "MongoDB (colección users/posts), scripts/seed-core-users.mjs, scripts/seed-demo-battles.mjs, memory/test_credentials.md"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'Ahora El usuario twykadmin debe ser solo Twyk'. Aclarado: (a) nombre visible -> 'Twyk', (b) @usuario/handle -> 'twyk' (ambos, confirmado explícitamente 'A y b')."
+        -working: true
+        -agent: "main"
+        -comment: "Verificado el alcance real en Mongo antes de tocar nada (username/author.username/sideA/sideB/followingUsername en TODAS las colecciones): solo `users` (1 doc) y `posts` (1 doc, con snapshot denormalizado author+sideA.author) referenciaban 'twykadmin'; sin follows ni comments afectados; sin checks hardcodeados de 'twykadmin' en el código (grep en route.js/lib/components). Actualizado con un script node directo a Mongo (NO se tocó .env, NO se usó Mongo ObjectId en la lógica de negocio): `users.username` 'twykadmin'->'twyk', `users.name` 'twykadmin'->'Twyk'; `posts.author.username/name` y `posts.sideA.author.username/name` actualizados igual (sideB no aplicaba, era 'lucia'). Scripts de seed actualizados para que futuros reseeds (tras la pérdida recurrente de BD ya documentada) creen la cuenta correcta: scripts/seed-core-users.mjs (username:'twyk', name:'Twyk' explícito, antes usaba username como name por defecto) y scripts/seed-demo-battles.mjs (filtro de usernames). memory/test_credentials.md actualizado (twyk/Admin12345). VERIFICADO con fetch real (sin curl, sin agente de testing por instrucción vigente del usuario): POST /api/auth/login {username:'twyk',...} -> 200 role=admin name='Twyk'; POST /api/auth/login {username:'twykadmin',...} -> 401 invalid_credentials (correctamente ya no existe); GET /api/users/twyk -> 200 con su publicación correctamente atribuida (postsCount:1, author.name='Twyk')."
+        -working: true
+        -agent: "user"
         -comment: "'El icono de reproduccion no debe estar lleno por El interior y la barra de reproduccionen que cambia con la de comentarios debe ser una pastilla alargada igual que la de comentar' — 2 ajustes: (1) icono `Play` debe ser de TRAZO (outline), no relleno; (2) la píldora de reproducciones del visor debe ser ALARGADA (ancho completo), igual que la barra de comentar, no una píldora ajustada a su contenido."
         -working: true
         -agent: "user"

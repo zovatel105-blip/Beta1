@@ -40,7 +40,7 @@ try {
 
   // Usuarios sembrados (autores reales de la BD).
   const users = await db.collection('users')
-    .find({ username: { $in: ['lucia', 'marcos', 'laura', 'twykadmin'] } }).toArray()
+    .find({ username: { $in: ['lucia', 'marcos', 'laura', 'twyk'] } }).toArray()
   if (users.length === 0) {
     console.error('No hay usuarios. Ejecuta primero scripts/seed-core-users.mjs')
     process.exit(1)

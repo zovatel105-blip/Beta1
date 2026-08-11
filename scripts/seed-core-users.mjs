@@ -18,7 +18,7 @@ const id = () => crypto.randomUUID()
 const hash = (p) => bcrypt.hash(p, 12)
 
 const CORE_USERS = [
-  { username: 'twykadmin', email: 'twyk.apk@gmail.com', password: 'Admin12345', role: 'admin' },
+  { username: 'twyk', name: 'Twyk', email: 'twyk.apk@gmail.com', password: 'Admin12345', role: 'admin' },
   { username: 'lucia', email: 'lucia@test.com', password: 'Test12345', role: 'user' },
   { username: 'marcos', email: 'marcos@test.com', password: 'Test12345', role: 'user' },
   { username: 'laura', email: 'laura@test.com', password: 'Test12345', role: 'user' },
@@ -42,7 +42,7 @@ async function main() {
         birthDate: null,
         password: await hash(u.password),
         avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${u.username}`,
-        name: u.username,
+        name: u.name || u.username,
         bio: '',
         verified: false,
         role: u.role,
