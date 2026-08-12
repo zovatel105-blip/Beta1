@@ -80,7 +80,6 @@ import com.twyk.app.absoluteUrl
 import com.twyk.app.data.Author
 import com.twyk.app.data.Post
 import com.twyk.app.data.PostEvents
-import com.twyk.app.data.PostViewRequest
 import com.twyk.app.data.QuickChallengeTarget
 import com.twyk.app.data.ProfileUser
 import com.twyk.app.data.FullScreenOverlays
@@ -154,17 +153,10 @@ fun ProfileScreen(
     var savedPosts by remember(target) { mutableStateOf<List<Post>>(emptyList()) }
     var savedLoading by remember(target) { mutableStateOf(false) }
     var viewerList by remember(target) { mutableStateOf<List<Post>>(emptyList()) }
-    // Dedup de POST /api/post-view (contador de "reproducciones", ver
-    // ProfileGridItem/CommentOrViewsBar): 1 sola llamada por publicación
-    // distinta abierta/pasada dentro de ESTA sesión del visor, tanto en
-    // perfil propio como ajeno — réplica exacta del `viewedIdsRef` (Set) de
-    // PostViewer en ProfilePage.jsx (web).
-    val viewedPostIds = remember(target) { mutableSetOf<String>() }
-    val registerPostView: (String?) -> Unit = { id ->
-        if (id != null && viewedPostIds.add(id)) {
-            scope.launch { runCatching { RetrofitProvider.api.postView(PostViewRequest(id)) } }
-        }
-    }
+    // NOTA sobre el contador de "reproducciones": YA NO se registra aquí —
+    // se centralizó dentro de CarouselPage/DuetPage (VersusFeed.kt, dispara
+    // con solo isActive=true), así que también cubre el feed principal y
+    // Batallas>Completados, no solo el grid del perfil.
 
     // BUG REPORTADO (edge swipe back cerraba la app entera): ninguno de los
     // overlays PROPIOS de esta pantalla (visor de publicación del grid,
@@ -685,9 +677,6 @@ fun ProfileScreen(
                     // SOLO en el PROPIO perfil, la barra alterna con "reproducciones"
                     // (ver CommentOrViewsBar en VersusFeed.kt) — perfil ajeno sin cambios.
                     alternateViews = isOwn,
-                    // Registra 1 vista por publicación distinta abierta/pasada en esta
-                    // sesión del visor (propio Y ajeno, confirmado con el usuario).
-                    onPageChanged = { page -> registerPostView(viewerList.getOrNull(page)?.id) },
                 )
             }
             viewerCommentsPostId?.let { pid ->

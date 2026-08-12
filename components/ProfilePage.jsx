@@ -238,25 +238,11 @@ const PostViewer = ({ posts, startId, onClose, onChallenge, onOpenProfile, isOwn
     return () => obs.disconnect()
   }, [posts])
 
-  // Contador visible de "reproducciones" (stats.views, ver GridItem/pill del
-  // grid): registra 1 vista la primera vez que CADA publicación se abre/pasa
-  // a ser la activa dentro de ESTA sesión del visor (dedup con un Set, para
-  // no sumar de más por re-renders o pequeños vaivenes del scroll snap).
-  // Fire-and-forget, funciona igual en perfil propio y ajeno.
-  const viewedIdsRef = useRef(new Set())
-  useEffect(() => {
-    const cur = posts[activeIndex]
-    if (!cur?.id || viewedIdsRef.current.has(cur.id)) return
-    viewedIdsRef.current.add(cur.id)
-    try {
-      fetch('/api/post-view', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: cur.id }),
-        keepalive: true,
-      }).catch(() => {})
-    } catch { /* ignore */ }
-  }, [activeIndex, posts])
+  // NOTA sobre el contador de "reproducciones": YA NO se registra aquí — se
+  // centralizó dentro de CarouselSlide.jsx/DuetSlide.jsx (dispara con solo
+  // `isActive=true`, sin necesitar este visor concreto), así que TAMBIÉN
+  // cubre el feed principal y Batallas>Completados, no solo el grid del
+  // perfil. Ver el comentario completo en CarouselSlide.jsx.
 
   if (!posts || posts.length === 0) return null
 

@@ -97,6 +97,20 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
     emitCommentCountChange(post.id, commentCount)
   }, [commentCount, post.id])
 
+  // Contador de "reproducciones" — ver comentario equivalente y completo en
+  // CarouselSlide.jsx (misma lógica exacta, dedup por post.id vía ref).
+  const viewedIdRef = useRef(null)
+  useEffect(() => {
+    if (!isActive || viewedIdRef.current === post.id) return
+    viewedIdRef.current = post.id
+    fetch('/api/post-view', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: post.id }),
+      keepalive: true,
+    }).catch(() => {})
+  }, [isActive, post.id])
+
   // BUG FIX ("el contador de comentarios"): ver comentario equivalente en
   // CarouselSlide.jsx — ya NO se fusiona commentCount con localStorage (el
   // backend recalcula el conteo REAL en cada carga; fusionar con el máximo

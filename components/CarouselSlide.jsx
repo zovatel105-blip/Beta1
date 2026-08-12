@@ -107,6 +107,24 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
     emitCommentCountChange(post.id, commentCount)
   }, [commentCount, post.id])
 
+  // Contador de "reproducciones" (stats.views): se registra en el backend
+  // SOLO con VER la publicación (isActive=true), en CUALQUIER contexto donde
+  // se renderice esta tarjeta (feed principal, Batallas>Completados, visor
+  // del perfil propio/ajeno) — sin requerir ninguna acción del usuario.
+  // Dedup por post.id con un ref (evita contar de más si isActive parpadea
+  // true/false/true sin cambiar de publicación, p.ej. al abrir un overlay).
+  const viewedIdRef = useRef(null)
+  useEffect(() => {
+    if (!isActive || viewedIdRef.current === post.id) return
+    viewedIdRef.current = post.id
+    fetch('/api/post-view', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: post.id }),
+      keepalive: true,
+    }).catch(() => {})
+  }, [isActive, post.id])
+
   // Al montar: fusiona los contadores persistidos del usuario y escucha el
   // evento global 'twyk:challenged' para incrementar "Retar" en la tarjeta cuyo
   // postId coincida (el reto se crea en un diálogo global del Feed).

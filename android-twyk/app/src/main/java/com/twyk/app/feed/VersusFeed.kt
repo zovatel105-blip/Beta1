@@ -134,6 +134,7 @@ import com.twyk.app.data.FeedOverlays
 import com.twyk.app.data.MoreOptionsRequest
 import com.twyk.app.data.Post
 import com.twyk.app.data.PostEvents
+import com.twyk.app.data.PostViewRequest
 import com.twyk.app.data.QuickChallengeTarget
 import com.twyk.app.data.RetrofitProvider
 import com.twyk.app.data.SaveRequest
@@ -499,6 +500,20 @@ private fun CarouselPage(
             FeedOverlays.closeWinnerFor(post.id)
         }
     }
+    // Contador de "reproducciones" (stats.views): se registra en el backend
+    // SOLO con VER la publicación (isActive=true), en CUALQUIER contexto
+    // donde se use este composable (feed principal, Batallas>Completados,
+    // visor del perfil propio/ajeno) — sin requerir ninguna acción del
+    // usuario. Dedup por post.id con un estado recordado (evita contar de
+    // más si isActive parpadea true/false/true sin cambiar de publicación).
+    val viewedIdState = remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(isActive, post.id) {
+        if (isActive && viewedIdState.value != post.id) {
+            viewedIdState.value = post.id
+            runCatching { RetrofitProvider.api.postView(PostViewRequest(post.id)) }
+        }
+    }
+
     // Ciclo de vida de DECODIFICADORES (política C1 del blueprint, feed
     // dual): SOLO la página activa prepara sus 2 players (leen de la caché
     // de disco ya rellenada por FeedPrefetcher → arranque en ~100-300ms,
@@ -789,6 +804,16 @@ private fun DuetPage(
             FeedOverlays.closeContentCardFor(post.id)
         }
     }
+    // Contador de "reproducciones" — ver comentario equivalente y completo
+    // en CarouselPage (misma lógica exacta, dedup por post.id).
+    val viewedIdState = remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(isActive, post.id) {
+        if (isActive && viewedIdState.value != post.id) {
+            viewedIdState.value = post.id
+            runCatching { RetrofitProvider.api.postView(PostViewRequest(post.id)) }
+        }
+    }
+
     // Ciclo de vida de DECODIFICADORES — misma política C1 que CarouselPage
     // (ver comentario allí y en buildPlayer): actual = prepara sus 2 players;
     // fuera del viewport o app en background = stop() (libera MediaCodec +
