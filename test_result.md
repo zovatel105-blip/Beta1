@@ -3929,3 +3929,15 @@ agent_communication:
         -working: true
         -agent: "main"
         -comment: "Ajuste fino final entre los 2 extremos ya probados (0% flat = demasiado azul; 55% flat = demasiado morado): stops en 0% morado, 25% morado (plano corto), 100% azul (rampa larga y continua del 25% al 100%, sin banda plana de azul). VERIFICADO con captura real ampliada 7x del icono ya votado: balance de área ya se percibe equilibrado -brazo izquierdo sólido morado, brazo derecho con una transición diagonal larga y suave de morado a azul-, sin línea/corte visible en ningún punto. Lint limpio. Pendiente confirmación visual del usuario en su propio dispositivo (calibración de un detalle 100% visual/subjetivo, dependiente del renderizado exacto en su pantalla)."
+        -working: true
+        -agent: "user"
+        -comment: "'Mejor mezcla los colores no mitad y mitad' -> aclara que prefiere una mezcla/degradado continuo (sin ninguna banda plana en absoluto, ni siquiera corta) en vez de 2 mitades de color sólido."
+        -working: true
+        -agent: "main"
+        -comment: "Vuelto a 2 stops puros sin ninguna banda plana (0% morado, 100% azul) -misma fórmula que `BRAND_GRADIENT`-, garantizando una mezcla 100% continua en toda la superficie del icono."
+        -working: true
+        -agent: "user"
+        -comment: "'50 purple y 50 blue' -> combinando ambos pedidos: quiere la mezcla continua (sin bandas planas) PERO con el balance de área ya calibrado (mitad/mitad), no sesgado hacia el azul como en el intento anterior de mezcla pura."
+        -working: true
+        -agent: "main"
+        -comment: "Técnica para lograr AMBOS a la vez sin ninguna banda plana: en vez de 2 stops (0% morado, 100% azul, que sesga visualmente hacia el azul por la asimetría del propio trazo del icono -brazo derecho mucho más largo que el izquierdo-), se añade un 3er stop con el color de MEZCLA EXACTA 50/50 (#726CF7, el promedio RGB real de morado #A855F7 y azul #3B82F7) pero posicionado en 65% en vez de 50% -compensando el sesgo de área hacia el azul, igual que en los intentos anteriores, pero esta vez SIN ningún tramo de color repetido/plano entre stops- -> sigue siendo una interpolación 100% continua (mezcla real, cada stop tiene un color distinto al siguiente) pero el punto donde aparece la mezcla 50/50 exacta se desplaza para que el ÁREA VISIBLE de cada color quede equilibrada. VERIFICADO con captura real ampliada 7x del icono ya votado: transición continua y suave de morado a azul (pasando por un índigo intermedio), con un balance de área ya equilibrado entre ambos colores, sin ninguna banda plana ni línea/corte visible. Lint limpio. Pendiente confirmación visual del usuario."
