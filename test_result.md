@@ -3941,3 +3941,29 @@ agent_communication:
         -working: true
         -agent: "main"
         -comment: "Técnica para lograr AMBOS a la vez sin ninguna banda plana: en vez de 2 stops (0% morado, 100% azul, que sesga visualmente hacia el azul por la asimetría del propio trazo del icono -brazo derecho mucho más largo que el izquierdo-), se añade un 3er stop con el color de MEZCLA EXACTA 50/50 (#726CF7, el promedio RGB real de morado #A855F7 y azul #3B82F7) pero posicionado en 65% en vez de 50% -compensando el sesgo de área hacia el azul, igual que en los intentos anteriores, pero esta vez SIN ningún tramo de color repetido/plano entre stops- -> sigue siendo una interpolación 100% continua (mezcla real, cada stop tiene un color distinto al siguiente) pero el punto donde aparece la mezcla 50/50 exacta se desplaza para que el ÁREA VISIBLE de cada color quede equilibrada. VERIFICADO con captura real ampliada 7x del icono ya votado: transición continua y suave de morado a azul (pasando por un índigo intermedio), con un balance de área ya equilibrado entre ambos colores, sin ninguna banda plana ni línea/corte visible. Lint limpio. Pendiente confirmación visual del usuario."
+
+  - task: "AuthModal (login/registro) debe quedar en monocromo: sin morado ni azul"
+    implemented: true
+    working: "NA"
+    file: "components/AuthModal.jsx, components/DateWheelPicker.jsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'Ahora en El auth modal quitar los colores azul y lila y usar solo negro Blanco y gris'."
+        -working: "NA"
+        -agent: "main"
+        -comment: "Reemplazados TODOS los usos de morado (#A855F7/purple-500/purple-300/purple-50/#8B5CF6/rgba(139,92,246,*)) y azul (#3B82F6) en AuthModal.jsx y DateWheelPicker.jsx (usado por el paso de fecha de nacimiento del registro) por negro/blanco/gris: `BRAND_GRADIENT` (antes degradado morado->azul) pasa a ser un negro sólido (#18181b), usado igual en los botones principales (splash, Continue/Create account, Log in, Next), la píldora de intereses seleccionada y los puntos de progreso activos; el glow superior del sheet pasa de un tinte morado (rgba(168,85,247,.10)) a un tinte negro muy sutil (rgba(0,0,0,.06)); la sombra del botón principal pasa de rgba(168,85,247,*) a rgba(0,0,0,*); el anillo de foco de los inputs pasa de `ring-purple-200` a `ring-zinc-300`; el icono Cake y el texto de edad ('You're X years old') pasan de `text-purple-500` a `text-zinc-700`/`text-zinc-500` (el aviso de menor de 13 años sigue en rojo, sin cambios, ya que no es parte de morado/azul); la píldora de interés seleccionada pasa de `bg-purple-50 ring-purple-300` a `bg-zinc-100 ring-zinc-400`; los enlaces 'Log in'/'Sign up' del pie dejan de usar texto con degradado (bg-clip-text) y pasan a texto negro subrayado. DateWheelPicker.jsx: el valor seleccionado de la rueda pasa de morado (#8B5CF6) a negro puro (#000000), y las 2 líneas finas de la banda de selección pasan de morado (rgba(139,92,246,.35)) a gris oscuro (rgba(24,24,27,.35)). NOTA: el LOGO de Twyk (`/branding/twyk-logo.png`, imagen estática) conserva su resplandor morado/azul original de fábrica -es un asset de imagen, no un color CSS controlable desde este archivo, y es el mismo logo usado en otras pantallas de marca-; si también se quiere en monocromo, requeriría editar la imagen o pedir una versión alternativa. Lint limpio en ambos archivos. VERIFICADO visualmente con capturas reales (Playwright, splash de registro y paso de fecha de nacimiento): botones y acentos ya en negro/blanco/gris, sin morado/azul salvo el logo."
+
+test_plan:
+  current_focus:
+    - "AuthModal (login/registro) debe quedar en monocromo: sin morado ni azul"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    -agent: "main"
+    -message: "AuthModal.jsx + DateWheelPicker.jsx: quitados todos los acentos morado/azul (botones, glow, anillo de foco, icono de tarta, texto de edad, píldora de intereses, líneas de la rueda de fecha) y sustituidos por negro/blanco/gris. Único resto de color: el logo de Twyk (imagen estática con su resplandor morado/azul de fábrica), que no es un color CSS controlable desde estos archivos -aviso al usuario en caso de que también lo quiera monocromo-. Verificado visualmente con capturas reales del splash y del paso de fecha de nacimiento. Lint limpio. No se invocó agente de testing (cambio puramente visual/CSS, sin lógica de negocio ni backend afectado)."

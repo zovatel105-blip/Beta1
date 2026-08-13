@@ -81,7 +81,7 @@ function WheelColumn({ items, selectedIndex, onChange, width }) {
               style={{
                 fontSize: isSel ? 20 : 17,
                 fontWeight: isSel ? 800 : 500,
-                color: isSel ? '#8B5CF6' : `rgba(24,24,27,${Math.max(0.22, 0.55 - dist * 0.15)})`,
+                color: isSel ? '#000000' : `rgba(24,24,27,${Math.max(0.22, 0.55 - dist * 0.15)})`,
                 transform: isSel ? 'scale(1.04)' : 'scale(1)',
               }}
             >
@@ -141,14 +141,14 @@ export default function DateWheelPicker({ value, onChange }) {
   return (
     <div className="relative w-full rounded-2xl bg-white px-2 py-1 overflow-hidden">
       {/* Banda de selección central: minimalista, solo una línea superior e
-          inferior sutil en color de marca (sin relleno ni sombra). */}
+          inferior sutil en gris/negro (sin morado/azul), sin relleno ni sombra. */}
       <div
         className="pointer-events-none absolute left-2 right-2"
         style={{
           top: PAD,
           height: ITEM_H,
-          borderTop: '1px solid rgba(139,92,246,0.35)',
-          borderBottom: '1px solid rgba(139,92,246,0.35)',
+          borderTop: '1px solid rgba(24,24,27,0.35)',
+          borderBottom: '1px solid rgba(24,24,27,0.35)',
         }}
       />
       {/* Degradados superior/inferior para el efecto "rueda" */}

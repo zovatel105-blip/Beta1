@@ -6,8 +6,10 @@ import { ChevronDown, ArrowLeft, Cake, Eye, EyeOff, Check } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import DateWheelPicker from './DateWheelPicker'
 
-// Gradiente de marca Twyk (morado -> azul), el mismo del botón "+" de la barra.
-const BRAND_GRADIENT = 'linear-gradient(90deg, #A855F7 0%, #3B82F6 100%)'
+// Acento monocromo del modal de login/registro (negro/blanco/gris — sin
+// morado/azul, a petición explícita del usuario). Se mantiene el nombre para
+// minimizar el diff, pero ya no es un degradado sino un negro sólido.
+const BRAND_GRADIENT = '#18181b'
 
 // Pasos del registro, en orden (estilo TikTok: uno por pantalla).
 const REG_STEPS = [
@@ -229,10 +231,10 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
   // login): caja rellena que se funde con el fondo blanco (gris muy claro,
   // sin línea ni borde visible), en vez de la línea inferior anterior.
   const minimalStepInput =
-    'w-full bg-zinc-50 text-zinc-800 placeholder:text-zinc-400 placeholder:font-light text-center text-[17px] font-medium tracking-tight py-2.5 px-4 rounded-xl outline-none border border-transparent focus:bg-zinc-100 focus:ring-2 focus:ring-purple-200 transition-all duration-200'
+    'w-full bg-zinc-50 text-zinc-800 placeholder:text-zinc-400 placeholder:font-light text-center text-[17px] font-medium tracking-tight py-2.5 px-4 rounded-xl outline-none border border-transparent focus:bg-zinc-100 focus:ring-2 focus:ring-zinc-300 transition-all duration-200'
 
   const gradientBtn =
-    'w-full h-[52px] rounded-full font-bold text-[16px] flex items-center justify-center gap-2 active:scale-[0.98] transition-all duration-200 disabled:opacity-60 text-white shadow-[0_12px_28px_-10px_rgba(168,85,247,0.5)] hover:shadow-[0_14px_32px_-8px_rgba(168,85,247,0.62)]'
+    'w-full h-[52px] rounded-full font-bold text-[16px] flex items-center justify-center gap-2 active:scale-[0.98] transition-all duration-200 disabled:opacity-60 text-white shadow-[0_12px_28px_-10px_rgba(0,0,0,0.35)] hover:shadow-[0_14px_32px_-8px_rgba(0,0,0,0.45)]'
 
   // Chip de error compartido (registro y login): reemplaza el texto rojo plano
   // por una tarjeta suave, más acorde al resto del rediseño "premium".
@@ -251,9 +253,9 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
 
       {/* Hoja inferior alta con esquinas superiores redondeadas */}
       <div className="relative w-full max-w-[520px] mx-auto bg-white text-zinc-900 rounded-t-3xl border-t border-zinc-200 shadow-2xl h-[96dvh] flex flex-col overflow-hidden">
-        {/* Glow superior de marca */}
+        {/* Glow superior — monocromo (negro/gris muy sutil), sin morado/azul. */}
         <div className="pointer-events-none absolute inset-x-0 top-0 h-40 z-0"
-             style={{ background: 'radial-gradient(70% 100% at 50% 0%, rgba(168,85,247,0.10), transparent 70%)' }} />
+             style={{ background: 'radial-gradient(70% 100% at 50% 0%, rgba(0,0,0,0.06), transparent 70%)' }} />
 
         {/* Header: flecha abajo (cerrar) en el splash; flecha atrás en los pasos */}
         <div className="relative z-10 flex items-center h-12 px-3 shrink-0"
@@ -323,14 +325,14 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
               {isRegister ? (
                 <p className="text-zinc-500 text-[14px]">
                   Already have an account?{' '}
-                  <button onClick={() => switchMode('login')} className="font-bold bg-clip-text text-transparent" style={{ backgroundImage: BRAND_GRADIENT }}>
+                  <button onClick={() => switchMode('login')} className="font-bold text-zinc-900 underline underline-offset-2">
                     Log in
                   </button>
                 </p>
               ) : (
                 <p className="text-zinc-500 text-[14px]">
                   Don&apos;t have an account?{' '}
-                  <button onClick={() => switchMode('register')} className="font-bold bg-clip-text text-transparent" style={{ backgroundImage: BRAND_GRADIENT }}>
+                  <button onClick={() => switchMode('register')} className="font-bold text-zinc-900 underline underline-offset-2">
                     Sign up
                   </button>
                 </p>
@@ -360,7 +362,7 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
                         parte del diseño -> título -> subtítulo -> vista previa tipográfica
                         (líneas finas, sin tarjeta rellena) -> rueda, sin espacio muerto. */}
                     <div className="flex flex-col items-center text-center">
-                      <Cake className="w-11 h-11 text-purple-500 mb-3" strokeWidth={1.4} />
+                      <Cake className="w-11 h-11 text-zinc-700 mb-3" strokeWidth={1.4} />
                       <h1 className="text-[24px] font-extrabold tracking-tight leading-tight max-w-[300px]">{regStepCfg.title}</h1>
                       <p className="text-zinc-500 text-[14px] mt-2 max-w-[280px] leading-snug">{regStepCfg.subtitle}</p>
 
@@ -372,7 +374,7 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
                           <div className="w-full mt-7 mb-6 py-4 border-t border-b border-zinc-100 text-center">
                             <p className="text-[20px] font-extrabold text-zinc-900 tracking-tight">{formatted || 'Select your date'}</p>
                             <p
-                              className={`text-[12.5px] mt-1.5 font-semibold uppercase tracking-wide ${underAge ? 'text-red-500' : 'text-purple-500'}`}
+                              className={`text-[12.5px] mt-1.5 font-semibold uppercase tracking-wide ${underAge ? 'text-red-500' : 'text-zinc-500'}`}
                             >
                               {underAge
                                 ? 'You must be 13 or older to join Twyk'
@@ -481,7 +483,7 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
                           onClick={() => toggleInterest(cat)}
                           aria-pressed={sel}
                           className={`w-full flex items-center justify-between rounded-full px-6 py-[15px] text-left text-[16px] font-medium active:scale-[0.99] transition-all duration-150 ${
-                            sel ? 'bg-purple-50 ring-1 ring-purple-300 text-zinc-900' : 'bg-zinc-50 text-zinc-800'
+                            sel ? 'bg-zinc-100 ring-1 ring-zinc-400 text-zinc-900' : 'bg-zinc-50 text-zinc-800'
                           }`}
                         >
                           <span>{cat}</span>
@@ -591,7 +593,7 @@ export default function AuthModal({ open, onClose, defaultTab = 'register' }) {
               </button>
               <p className="text-zinc-500 text-[14px] text-center mt-4">
                 Don&apos;t have an account?{' '}
-                <button type="button" onClick={() => switchMode('register')} className="font-bold bg-clip-text text-transparent" style={{ backgroundImage: BRAND_GRADIENT }}>
+                <button type="button" onClick={() => switchMode('register')} className="font-bold text-zinc-900 underline underline-offset-2">
                   Sign up
                 </button>
               </p>
