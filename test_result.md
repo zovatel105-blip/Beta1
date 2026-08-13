@@ -3870,6 +3870,12 @@ frontend:
         -comment: "'no me convience el voto de las publicaciones solo' -> aclarado con opciones: era el COLOR; eligió el degradado morado->azul de marca (opción B, mismo del botón '+' de crear)."
         -working: "NA"
         -agent: "main"
+        -working: "NA"
+        -agent: "user"
+        -comment: "'El degradado debe ser mitad morado mitad azul' (el degradado suave anterior, 0%->100%, mezclaba los colores en el centro en vez de verse como 2 mitades limpias)."
+        -working: "NA"
+        -agent: "main"
+        -comment: "Ajustado el <linearGradient id=\"voteGradientOpen\"> con 2 stops duplicados al 50% (0% morado, 50% morado, 50% azul, 100% azul) en vez de una interpolación 0%->100% -> ahora es un corte NÍTIDO mitad morado/mitad azul (misma diagonal 135deg que el resto de la marca), sin mezcla en el centro. Lint limpio. El usuario sigue probando por su cuenta -> sin agente de testing en esta ronda."
         -comment: "Cambiado el morado plano (#A855F7, el mismo color del 'lado A' de un versus, que no aplicaba bien a una publicación sin lados) por el degradado de marca morado->azul. Al ser un SVG (VoteIcon con fill/stroke='currentColor'), un degradado CSS normal no es aplicable directamente -> se añadió un <linearGradient id=\"voteGradientOpen\"> oculto (0x0) dentro de OpenChallengeSlide.jsx y se referencia como fill/stroke='url(#voteGradientOpen)' tanto en el icono de la columna social (cuando userVoted=true) como en el burst del doble-toque. VoteBurstEffect.jsx (compartido, usado también por CarouselSlide/DuetSlide) ahora acepta 2 props opcionales nuevas `fillColor`/`strokeColor` que se pasan directo a VoteIcon (si no se informan, comportamiento IDÉNTICO al de antes vía `color`+currentColor -> sin impacto en el resto de publicaciones). Lint limpio. El usuario indicó explícitamente 'Yo realizo las pruebas' -> NO se invocó ningún agente de testing en esta ronda, a la espera de que el propio usuario verifique visualmente."
 
 test_plan:
