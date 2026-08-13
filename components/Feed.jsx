@@ -483,16 +483,6 @@ export default function Feed() {
     if (el) el.scrollTo({ top: 0, behavior: 'auto' })
   }, [handleUploaded])
 
-  // Respuesta enviada desde un RETO ABIERTO (OpenChallengeSlide, tarjeta
-  // dentro del feed principal): a diferencia de handleChallengeAccepted, NO
-  // saltamos al inicio -el usuario sigue viendo la misma tarjeta del reto,
-  // ahora con su confirmación de envío-, solo insertamos el nuevo versus en
-  // el feed (aparecerá al hacer scroll) y refrescamos el badge de Batallas.
-  const handleOpenChallengeResponded = useCallback((newPost) => {
-    if (newPost) handleUploaded(newPost)
-    setBattlesRefresh((k) => k + 1)
-  }, [handleUploaded])
-
   // Reset de scroll compartido por los 2 handlers de Home de abajo — misma
   // fórmula que handleChallengeAccepted, extraída para no repetirla.
   const resetScrollTop = useCallback(() => {
@@ -638,7 +628,7 @@ export default function Feed() {
                       muted={muted}
                       playbackEnabled={effectivePlayback}
                       onOpenProfile={openAuthorProfile}
-                      onResponded={handleOpenChallengeResponded}
+                      onChallenge={openChallenge}
                       onNotInterested={handleNotInterested}
                     />
                   ) : post.type === 'duet' ? (

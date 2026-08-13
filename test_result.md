@@ -3726,3 +3726,47 @@ agent_communication:
     -agent: "main"
     -message: "BUG FIX: reescrito components/OpenChallengeSlide.jsx (tarjeta del reto abierto en el feed) para que tenga EXACTAMENTE la misma composición visual que el resto de publicaciones (CarouselSlide/DuetSlide): header abajo-izquierda con Seguir, columna social derecha completa (Comentar/Compartir/Guardar/Más + disco), y 'Responder' ocupando el hueco donde iría 'Votar'. Backend (getOpenChallengeFeedItems) actualizado para anotar isFollowing y el conteo real de comentarios. Necesito permiso para invocar deep_testing_frontend_nextjs y verificar visualmente (con capturas) que: (a) el header ahora aparece abajo igual que las demás publicaciones, (b) el botón Seguir aparece y funciona, (c) la columna social completa (Responder/Comentar/Compartir/Guardar) aparece y es funcional, comparado lado a lado con una publicación Versus normal del mismo feed."
 
+
+backend:
+  - task: "BUG CRÍTICO: el botón 'Challenge' del reto abierto publicaba un versus AUTOMÁTICAMENTE (sin pasar por Retos Activos) en vez de abrir el mismo diálogo/flujo de aceptación que el resto de publicaciones"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js, components/OpenChallengeSlide.jsx, components/Feed.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'Cuando hago click en El boton challenge no abre elmodal que seabre en las demas publicaciones y elreto no aparece en activos SE publica automaticamente sin que yo alla aceptado'."
+        -working: "NA"
+        -agent: "main"
+        -comment: "CAUSA RAÍZ: el diseño original de 'Retos Abiertos' implementaba una respuesta INSTANTÁNEA (POST /api/challenges/:id/respond) que creaba el versus de inmediato al subir un archivo, sin pasar por la bandeja de Retos Activos del creador — contradecía el ADN de Twyk (todo reto se acepta o rechaza) y el propio diseño del resto de la app. REDISEÑO: el botón 'Challenge' de OpenChallengeSlide.jsx ahora llama al MISMO `onChallenge` que ya usan CarouselSlide.jsx/DuetSlide.jsx para su botón de reto por publicación -> abre el mismo `ChallengeDialog` (Feed.jsx ya lo tenía todo cableado: `openChallenge()` + `sendChallengeInBackground()`), con el vídeo/foto del reto abierto como 'target'. Al enviarlo, se crea un reto NORMAL Y DIRIGIDO (POST /api/challenges, SIN el flag `openChallenge`, con `targetAuthor`=creador del reto abierto y la media de ese reto abierto YA como `targetVideoUrl/targetImageUrl` — por eso el creador NO necesita subir nada al aceptar, el vídeo objetivo ya está fijado) — aparece en la bandeja de Retos Activos del creador (GET /api/challenges?role=to) como cualquier otro reto, y SOLO tras que el creador pulse Aceptar (POST /api/challenges/:id/accept, sin cambios) se publica el versus real. El reto abierto ORIGINAL nunca se toca/cierra -> otras personas pueden repetir el mismo proceso de forma independiente (cumple igual el requisito de 'múltiples respuestas independientes', solo que ahora cada una pasa por aceptación explícita, como el resto de retos). LIMPIEZA: eliminado por completo el endpoint `POST /api/challenges/:id/respond` y su handler `handleRespondOpenChallenge` (ya sin uso), eliminado el campo `sourceChallengeId`/`isOpenChallengeResponse` (ya sin uso), eliminado `responsesCount` de `getOpenChallengeFeedItems` (dejaba de tener sentido sin el contador de respuestas instantáneas). El guard de `handleAcceptChallenge` que rechazaba aceptar directamente el reto ABIERTO original (`c.open===true`) se mantiene (nadie tiene un 'to' legítimo sobre él) pero con mensaje actualizado (`open_challenge_not_acceptable`: 'Challenge the creator instead of accepting this one directly'). Lint limpio (0 errores nuevos) en los 3 archivos. Pendiente de probar (backend, ya que el bug reportado es sobre el CONTRATO de la API que el botón dispara, reproducible sin UI): 1) POST /api/challenges/:id/respond sobre CUALQUIER id -> 404/ruta no encontrada (ya no existe). 2) Crear un reto abierto normal (marcos, openChallenge=1) -> 200, open:true. 3) Simular EXACTAMENTE lo que hace el botón Challenge ahora: como lucia, POST /api/challenges con targetAuthor=marcos (su user real) + targetVideoUrl/targetImageUrl/targetMediaType = la media del reto abierto de marcos + targetPosterUrl, SIN openChallenge -> 200, challenge.open falsy, challenge.to.username='marcos'. 4) GET /api/challenges?role=to como marcos -> debe listar ESE reto nuevo (pendiente, NO auto-aceptado) -> confirma que 'aparece en activos' y que NO se publicó nada aún. 5) GET /api/feed como cualquiera -> NO debe haber ningún versus nuevo todavía (nada se publicó automáticamente). 6) Como marcos, POST /api/challenges/<ese id>/accept (SIN necesidad de subir archivo, porque targetVideoUrl ya venía informado) -> 200, crea el versus (sideA=lucia, sideB=marcos), y GET /api/challenges?role=to como marcos ya NO lo lista (se cerró, comportamiento normal de reto dirigido). 7) El reto ABIERTO original de marcos sigue existiendo sin cambios (POST /api/challenges/<id_abierto>/accept sigue devolviendo 400 open_challenge_not_acceptable). 8) Regresión general de auth/feed/vote sin cambios."
+
+test_plan:
+  current_focus: []
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    -agent: "main"
+    -message: "El usuario pidió explícitamente 'No usar el testing agent' (repetido en este turno) -> respetado de inmediato, la verificación de este bug se hizo con un script Node temporal (fetch nativo, SIN curl, contra http://localhost:3000, borrado tras verificar): 8/9 checks OK — login, /respond ya eliminado (el único 'fallo' es que ahora cae al catch-all genérico 200 {ok:true} en vez de un 404 explícito, PERO sin ningún efecto secundario: no crea nada, así que el bug real -auto-publicado- queda confirmado resuelto), reto abierto creado por marcos, ESE reto YA aparece en su grid de perfil (GET /api/users/marcos), lucia pulsando 'Challenge' crea un reto DIRIGIDO normal (NO se publica nada), aparece PENDIENTE en Activos de marcos, marcos acepta -> AHORA SÍ se publica el versus, deja de estar en Activos, y el reto abierto original sigue protegido (400 open_challenge_not_acceptable). Datos de prueba limpiados de Mongo. Además, en este mismo turno el usuario reportó que las publicaciones únicas (retos abiertos) no aparecían en el grid de su propio perfil -> corregido en GET /api/users/:username (route.js): ahora fusiona los retos abiertos del usuario (vía getOpenChallengeFeedItems) con sus publicaciones normales, ordenados por fecha; ProfilePage.jsx ahora abre OpenChallengeSlide (en vez de CarouselSlide) al tocar una de estas tarjetas en el visor del grid. Verificado en el MISMO script (paso C). Sobre el otro punto del usuario ('las publicaciones únicas deben crearse solo desde la página de creación de contenido'): confirmado que ya es así — la ÚNICA vía de creación es el botón 'Open to everyone' del flujo de subida (UploadDialog.jsx), no existe ninguna otra ruta de creación."
+
+
+frontend:
+  - task: "BUG: las publicaciones únicas (retos abiertos) no aparecían en el grid de perfil de su creador"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js, components/ProfilePage.jsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'las publicaciones solo deben crearse desde la pagina de creacion de contenido y porque las publicaciones solo no aparecen en El grid de perfil'."
+        -working: true
+        -agent: "main"
+        -comment: "GET /api/users/:username (route.js) ahora fusiona los retos abiertos del usuario (vía getOpenChallengeFeedItems, filtrados por author.username===username) con sus publicaciones normales del grid, ordenados por fecha (createdAtMs/uploadedAt) — antes solo vivían en la colección `challenges` y jamás aparecían en `posts`, así que nunca llegaban al grid. ProfilePage.jsx: el visor de publicaciones del grid (PostViewer) ahora reconoce `type==='challenge_open'` y renderiza `OpenChallengeSlide` (antes caía en `CarouselSlide`, que mostraba el mismo vídeo duplicado como si fueran 2 lados A/B votables, incorrecto para una publicación única). GridItem no necesitó cambios: ya renderiza el thumbnail genérico (`posterUrl`/`videoUrl`) correctamente sin votos (al no tener `post.votes`, la píldora de votos simplemente no se muestra, comportamiento correcto). Verificado con el mismo script Node temporal de la ronda anterior (paso C: el reto abierto de marcos aparece en GET /api/users/marcos con type='challenge_open'). Sobre el otro punto del usuario, confirmado (sin cambios necesarios): la ÚNICA vía de creación de una publicación única es el botón 'Open to everyone' de UploadDialog.jsx (flujo de creación de contenido) — no existe ninguna otra ruta."
+

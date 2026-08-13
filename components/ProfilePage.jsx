@@ -8,6 +8,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import Avatar from './Avatar'
 import DuetSlide from './DuetSlide'
 import CarouselSlide from './CarouselSlide'
+import OpenChallengeSlide from './OpenChallengeSlide'
 import { getUploadQueue, subscribeUploadQueue } from '@/lib/uploadQueue'
 import { subscribeCommentCountChange, patchCommentCountInList } from '@/lib/commentCountBus'
 import CircularCrop from './CircularCrop'
@@ -266,7 +267,7 @@ const PostViewer = ({ posts, startId, onClose, onChallenge, onOpenProfile, isOwn
         >
           {posts.map((post, i) => {
             const inWindow = Math.abs(i - activeIndex) <= 1
-            const Slide = post?.type === 'duet' ? DuetSlide : CarouselSlide
+            const Slide = post?.type === 'challenge_open' ? OpenChallengeSlide : (post?.type === 'duet' ? DuetSlide : CarouselSlide)
             const poster = post?.thumbnailUrl || post?.posterUrl || post?.sideA?.posterUrl || ''
             return (
               <section

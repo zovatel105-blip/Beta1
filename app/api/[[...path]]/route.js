@@ -255,13 +255,16 @@ async function readChallenges() {
   return getAllChallenges()
 }
 
-// RETOS ABIERTOS ("responder este reto"): construye los ítems sintéticos que
-// se inyectan en el feed principal (GET /api/feed) para que CUALQUIERA pueda
-// descubrirlos, no solo la persona retada. Un reto abierto (challenge.open ===
-// true, challenge.to === null) vive en la colección `challenges` como
-// cualquier otro, pero NUNCA se borra al recibir una respuesta (ver
-// handleRespondOpenChallenge) — así puede acumular varias respuestas
-// independientes, cada una publicada como su propio versus.
+// RETOS ABIERTOS ("challenge a cualquiera"): construye los ítems sintéticos
+// que se inyectan en el feed principal (GET /api/feed) para que CUALQUIERA
+// pueda descubrirlos, no solo un destinatario concreto. Un reto abierto
+// (challenge.open === true, challenge.to === null) vive en la colección
+// `challenges` como cualquier otro y NUNCA se cierra por sí mismo: el botón
+// "Challenge" de esta tarjeta (ver OpenChallengeSlide.jsx) NO publica nada
+// directamente — abre el mismo diálogo de reto que cualquier otra
+// publicación, que crea un reto NUEVO y normal dirigido al creador (con la
+// media de este reto abierto como objetivo), pendiente en su bandeja de
+// Retos Activos hasta que él la acepte o la rechace, igual que siempre.
 async function getOpenChallengeFeedItems(currentUser, followingSet) {
   try {
     const list = await readChallenges()
@@ -274,12 +277,6 @@ async function getOpenChallengeFeedItems(currentUser, followingSet) {
       } catch { /* ignore */ }
     }
     if (!opens.length) return []
-    // Nº de respuestas ya publicadas por cada reto abierto (prueba social).
-    const meta = await readUploadMeta()
-    const countByChallenge = {}
-    for (const p of meta) {
-      if (p.sourceChallengeId) countByChallenge[p.sourceChallengeId] = (countByChallenge[p.sourceChallengeId] || 0) + 1
-    }
     // Avatar/nombre ACTUALES del creador del reto (el reto guarda un snapshot).
     const unames = opens.map((c) => c.from?.username).filter(Boolean)
     const fresh = await getCurrentUsersByUsernames(unames)
@@ -306,7 +303,6 @@ async function getOpenChallengeFeedItems(currentUser, followingSet) {
         description: c.message || '',
         music: c.musicTitle ? `${c.musicTitle} · ${c.musicArtist}` : 'Open challenge',
         stats: { likes: 0, comments: commentCounts[id] || 0, shares: 0, saves: 0 },
-        responsesCount: countByChallenge[c.id] || 0,
         createdAtMs: c.createdAt ? new Date(c.createdAt).getTime() : Date.now(),
       }
     })
@@ -1007,15 +1003,29 @@ export async function GET(request, { params }) {
       info.isFollowing = false
     }
 
-    // 2) Publicaciones del usuario: SOLO sus uploads reales (se eliminaron los
-    // posts demo/mock que antes se inyectaban en el perfil).
+    // 2) Publicaciones del usuario: sus uploads reales (se eliminaron los
+    // posts demo/mock que antes se inyectaban en el perfil) + sus RETOS
+    // ABIERTOS pendientes (publicaciones de un solo vídeo/foto, ver
+    // getOpenChallengeFeedItems) — deben verse en el grid exactamente igual
+    // que cualquier otra publicación (petición explícita del usuario), no
+    // solo cuando se descubren de forma aleatoria en el feed principal.
     const uploads = await readUploadMeta()
     const posts = uploads.filter((p) => {
       const a = p.author || p.sideA?.author
       return a && a.username === username
     })
+    let openItems = []
+    try {
+      const viewerForOpen = await getCurrentUser(request)
+      openItems = (await getOpenChallengeFeedItems(viewerForOpen)).filter((it) => it.author?.username === username)
+    } catch { /* ignore */ }
+    const merged = [...posts, ...openItems].sort((a, b) => {
+      const ta = a.createdAtMs || (a.uploadedAt ? new Date(a.uploadedAt).getTime() : 0)
+      const tb = b.createdAtMs || (b.uploadedAt ? new Date(b.uploadedAt).getTime() : 0)
+      return tb - ta
+    })
 
-    return NextResponse.json({ user: info, posts: await refreshPostCommentCounts(await refreshPostAvatars(posts)) })
+    return NextResponse.json({ user: info, posts: await refreshPostCommentCounts(await refreshPostAvatars(merged)) })
   }
 
   // GET /api/comments?postId=xxx - Obtener comentarios de un post
@@ -1264,11 +1274,6 @@ export async function POST(request, { params }) {
   // Rechazar / cancelar un reto.
   if (segs[0] === 'challenges' && segs[2] === 'reject') {
     return handleRejectChallenge(segs[1])
-  }
-  // Responder a un reto ABIERTO (a cualquiera) -> publica un versus SIN
-  // cerrar el reto original (puede recibir más respuestas de otras personas).
-  if (segs[0] === 'challenges' && segs[2] === 'respond') {
-    return handleRespondOpenChallenge(segs[1], request)
   }
 
   // Seguir / dejar de seguir a un usuario (persistente). POST /api/users/:username/follow
@@ -1943,11 +1948,12 @@ async function handleCreateChallenge(request) {
     const targetDescription = (formData.get('targetDescription') || '').toString()
     const targetMusic = (formData.get('targetMusic') || '').toString()
     const message = (formData.get('message') || '').toString()
-    // Reto ABIERTO ("responder este reto"): sin destinatario concreto, visible
-    // para cualquiera en el feed (ver getOpenChallengeFeedItems). Cualquier
-    // usuario autenticado (menos el propio creador) podrá responderlo con SU
-    // propio vídeo/foto vía POST /api/challenges/:id/respond, sin que el reto
-    // se cierre — puede acumular varias respuestas independientes.
+    // Reto ABIERTO ("challenge a cualquiera"): sin destinatario concreto,
+    // visible para cualquiera en el feed (ver getOpenChallengeFeedItems).
+    // Cualquiera puede pulsar "Challenge" sobre él (ver OpenChallengeSlide.jsx)
+    // -> eso crea un reto NUEVO y normal dirigido a este creador, que sigue el
+    // flujo de aceptar/rechazar de siempre. Este reto original NUNCA se cierra
+    // por sí solo -> puede recibir varias solicitudes independientes.
     const openChallenge = (formData.get('openChallenge') || '').toString() === '1'
 
     if (!file || typeof file === 'string') {
@@ -2049,11 +2055,15 @@ async function handleAcceptChallenge(cid, request) {
     if (idx === -1) return NextResponse.json({ error: 'not_found' }, { status: 404 })
     const c = list[idx]
 
-    // Los retos ABIERTOS (a cualquiera) nunca se cierran con un solo "accept":
-    // deben responderse vía POST /api/challenges/:id/respond (ver más abajo),
-    // que NO borra el reto -> puede acumular varias respuestas independientes.
+    // El documento del reto ABIERTO original (creado como "Open to everyone")
+    // no se acepta NUNCA directamente: no tiene un destinatario fijo (to:
+    // null), así que "aceptarlo" no tiene un dueño legítimo que lo haga. La
+    // forma correcta de interactuar con él es pulsar "Challenge" (ver
+    // OpenChallengeSlide.jsx) -> eso crea un reto NUEVO y normal (con
+    // destinatario = el creador del reto abierto), que SÍ pasa por este mismo
+    // endpoint cuando el creador lo acepta desde su bandeja de Retos Activos.
     if (c.open) {
-      return NextResponse.json({ error: 'open_challenge_use_respond', message: 'Use /respond for open challenges' }, { status: 400 })
+      return NextResponse.json({ error: 'open_challenge_not_acceptable', message: 'Challenge the creator instead of accepting this one directly' }, { status: 400 })
     }
 
     // Quien ACEPTA el reto es el usuario autenticado (el retado, c.to). Se
@@ -2159,109 +2169,6 @@ async function handleRejectChallenge(cid) {
     return NextResponse.json({ ok: true })
   } catch (err) {
     return NextResponse.json({ error: 'reject_failed', detail: String(err?.message || err) }, { status: 500 })
-  }
-}
-
-// POST /api/challenges/{id}/respond -> SOLO para retos ABIERTOS (open: true).
-// Cualquier usuario autenticado (menos el propio creador) sube SU vídeo/foto
-// como respuesta; se publica un versus (A=creador del reto, B=quien responde)
-// igual que un reto 1-a-1 aceptado, PERO el reto original NUNCA se borra —
-// sigue disponible para que otras personas también respondan (a diferencia de
-// /accept, que cierra el reto dirigido). Un mismo usuario solo puede responder
-// una vez al mismo reto abierto.
-async function handleRespondOpenChallenge(cid, request) {
-  try {
-    const currentUser = await getCurrentUser(request)
-    if (!currentUser) {
-      return NextResponse.json({ error: 'unauthorized', message: 'You must log in to respond' }, { status: 401 })
-    }
-    const list = await readChallenges()
-    const c = list.find((x) => x.id === cid)
-    if (!c) return NextResponse.json({ error: 'not_found' }, { status: 404 })
-    if (!c.open) {
-      return NextResponse.json({ error: 'not_open', message: 'This challenge is not open to everyone' }, { status: 400 })
-    }
-    if (c.from?.id && c.from.id === currentUser.id) {
-      return NextResponse.json({ error: 'cannot_respond_own_challenge', message: 'You cannot respond to your own open challenge' }, { status: 400 })
-    }
-
-    // Un usuario solo puede responder UNA VEZ al mismo reto abierto (evita
-    // duplicados accidentales por doble-toque; sí puede haber muchos usuarios
-    // DISTINTOS respondiendo, cada uno con su propio versus).
-    const meta = await readUploadMeta()
-    const already = meta.some((p) => p.sourceChallengeId === cid && p.sideB?.author?.id === currentUser.id)
-    if (already) {
-      return NextResponse.json({ error: 'already_responded', message: 'You already responded to this challenge' }, { status: 400 })
-    }
-
-    const formData = await request.formData()
-    const file = formData.get('file')
-    if (!file || typeof file === 'string') {
-      return NextResponse.json({ error: 'no_file' }, { status: 400 })
-    }
-
-    // La respuesta debe ser del MISMO tipo de media que el reto original
-    // (vídeo<->vídeo, foto<->foto) — mismo criterio que los retos 1-a-1.
-    const requiredMediaType = c.challengerMediaType || (c.challengerImageUrl ? 'image' : 'video')
-    const m = await saveUploadedMedia(file)
-    if (m.mediaType !== requiredMediaType) {
-      return NextResponse.json({ error: 'media_type_mismatch', detail: `This challenge requires a ${requiredMediaType}` }, { status: 400 })
-    }
-
-    const aMediaType = c.challengerMediaType || (c.challengerImageUrl ? 'image' : 'video')
-    const aVideoUrl = aMediaType === 'video' ? (c.challengerVideoUrl || null) : null
-    const aImageUrl = aMediaType === 'image' ? (c.challengerImageUrl || null) : null
-    const aPosterUrl = c.challengerPosterUrl || (aVideoUrl ? posterFor(aVideoUrl) : aImageUrl)
-
-    const realAuthor = {
-      id: currentUser.id,
-      username: currentUser.username,
-      name: currentUser.name || currentUser.username,
-      avatarUrl: currentUser.avatarUrl,
-      verified: currentUser.verified || false,
-    }
-
-    const id = crypto.randomBytes(8).toString('hex')
-    const post = {
-      id: `versus_ch_${id}`,
-      type: 'versus',
-      layout: 'carousel',
-      mediaType: aMediaType,
-      sideA: { mediaType: aMediaType, videoUrl: aVideoUrl || '', imageUrl: aImageUrl || '', posterUrl: aPosterUrl, author: c.from, description: c.message || '', music: 'Open challenge' },
-      sideB: { mediaType: m.mediaType, videoUrl: m.mediaType === 'video' ? m.url : '', imageUrl: m.mediaType === 'image' ? m.url : '', posterUrl: m.posterUrl, author: realAuthor, description: '', music: 'Response' },
-      author: c.from,
-      description: c.message || '',
-      music: c.musicTitle ? `${c.musicTitle} · ${c.musicArtist}` : 'Open challenge accepted',
-      ...(c.musicPreviewUrl ? { musicTitle: c.musicTitle, musicArtist: c.musicArtist, musicArtwork: c.musicArtwork, musicPreviewUrl: c.musicPreviewUrl, musicTrackId: c.musicTrackId } : {}),
-      videoUrl: aVideoUrl || '',
-      posterUrl: aPosterUrl,
-      thumbnailUrl: aPosterUrl,
-      stats: { likes: 0, comments: 0, shares: 0, saves: 0 },
-      votes: { a: 0, b: 0 },
-      duration: 0,
-      uploadedAt: new Date().toISOString(),
-      isChallenge: true,
-      sourceChallengeId: cid,
-      isOpenChallengeResponse: true,
-    }
-    await insertPost(post)
-    // A PROPÓSITO: no se llama a deleteChallenge — el reto abierto sigue vivo
-    // para que otras personas también puedan responderlo.
-
-    recordSocialAffinity(`u:${currentUser.id}`, c.from?.username, 'challenge').catch(() => {})
-
-    try {
-      if (c.from?.id && c.from.id !== 'anonymous' && c.from.id !== currentUser.id) {
-        await createNotification({ userId: c.from.id, type: 'accepted', fromUserId: currentUser.id, postId: post.id })
-      }
-    } catch (notifErr) {
-      console.error('open challenge response notification error', notifErr)
-    }
-
-    return NextResponse.json({ ok: true, post })
-  } catch (err) {
-    console.error('respond open challenge error', err)
-    return NextResponse.json({ error: 'respond_failed', detail: String(err?.message || err) }, { status: 500 })
   }
 }
 
