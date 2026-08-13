@@ -3855,3 +3855,30 @@ agent_communication:
     -agent: "main"
     -message: "BUG FIX: las publicaciones únicas ahora son un 4º modo propio y visible ('Single') en el selector principal de creación de contenido (el mismo '+' de siempre), en vez de estar escondidas dentro de 'Challenges'. Sin cambios de backend (misma API ya probada). Tengo 3 verificaciones VISUALES pendientes acumuladas de esta sesión que requieren el agente de FRONTEND (permiso pendiente del usuario en turnos anteriores, aún no concedido): (1) este nuevo modo 'Single' en el creador de contenido, (2) la barra inferior de comentar/reproducciones en el visor del grid de perfil para publicaciones únicas, (3) el gesto de doble-toque + animación de voto en publicaciones únicas. Voy a pedir permiso consolidado para las 3 de una vez."
 
+
+frontend:
+  - task: "El color del voto (icono + burst) en publicaciones únicas no convencía al usuario"
+    implemented: true
+    working: "NA"
+    file: "components/OpenChallengeSlide.jsx, components/VoteBurstEffect.jsx"
+    stuck_count: 0
+    priority: "low"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'no me convience el voto de las publicaciones solo' -> aclarado con opciones: era el COLOR; eligió el degradado morado->azul de marca (opción B, mismo del botón '+' de crear)."
+        -working: "NA"
+        -agent: "main"
+        -comment: "Cambiado el morado plano (#A855F7, el mismo color del 'lado A' de un versus, que no aplicaba bien a una publicación sin lados) por el degradado de marca morado->azul. Al ser un SVG (VoteIcon con fill/stroke='currentColor'), un degradado CSS normal no es aplicable directamente -> se añadió un <linearGradient id=\"voteGradientOpen\"> oculto (0x0) dentro de OpenChallengeSlide.jsx y se referencia como fill/stroke='url(#voteGradientOpen)' tanto en el icono de la columna social (cuando userVoted=true) como en el burst del doble-toque. VoteBurstEffect.jsx (compartido, usado también por CarouselSlide/DuetSlide) ahora acepta 2 props opcionales nuevas `fillColor`/`strokeColor` que se pasan directo a VoteIcon (si no se informan, comportamiento IDÉNTICO al de antes vía `color`+currentColor -> sin impacto en el resto de publicaciones). Lint limpio. El usuario indicó explícitamente 'Yo realizo las pruebas' -> NO se invocó ningún agente de testing en esta ronda, a la espera de que el propio usuario verifique visualmente."
+
+test_plan:
+  current_focus: []
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    -agent: "main"
+    -message: "Color del voto de publicaciones únicas cambiado de morado plano a degradado de marca morado->azul (icono + burst del doble-toque), vía un <linearGradient> SVG referenciado con url(#voteGradientOpen). El usuario dijo que probará esto él mismo, así que NO se invocó el agente de testing en esta ronda."
+

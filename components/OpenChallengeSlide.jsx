@@ -230,6 +230,19 @@ export default function OpenChallengeSlide({
 
   return (
     <div ref={overlayRef} className="relative w-full h-full bg-black overflow-hidden select-none">
+      {/* Definición del degradado de marca (morado -> azul, el mismo del botón
+          "+" de crear y otros acentos de Twyk) reutilizado por el icono de
+          voto y su burst — un SVG 0x0 solo para poder referenciarlo con
+          url(#voteGradientOpen) desde fill/stroke. */}
+      <svg width="0" height="0" className="absolute" aria-hidden="true">
+        <defs>
+          <linearGradient id="voteGradientOpen" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#A855F7" />
+            <stop offset="100%" stopColor="#3B82F6" />
+          </linearGradient>
+        </defs>
+      </svg>
+
       {/* Media a pantalla completa */}
       <div className="absolute inset-0" onPointerUp={onMediaPointerUp}>
         {(post.posterUrl || (isImage && mediaUrl)) && (
@@ -262,15 +275,17 @@ export default function OpenChallengeSlide({
         </div>
       )}
 
-      {/* Burst del icono de voto — aparece justo donde se hizo el doble-toque */}
+      {/* Burst del icono de voto — aparece justo donde se hizo el doble-toque.
+          Degradado de marca (morado -> azul) en vez de un morado plano, para
+          que se sienta identidad Twyk y no "el mismo lila del lado A". */}
       {voteBursts.map((vb) => (
         vb.x != null && vb.y != null ? (
           <div key={vb.id} className="absolute z-30 pointer-events-none" style={{ left: vb.x, top: vb.y, transform: 'translate(-50%, -60px)' }}>
-            <VoteBurstEffect color="#A855F7" />
+            <VoteBurstEffect fillColor="url(#voteGradientOpen)" strokeColor="url(#voteGradientOpen)" />
           </div>
         ) : (
           <div key={vb.id} className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none">
-            <VoteBurstEffect color="#A855F7" />
+            <VoteBurstEffect fillColor="url(#voteGradientOpen)" strokeColor="url(#voteGradientOpen)" />
           </div>
         )
       ))}
@@ -312,9 +327,13 @@ export default function OpenChallengeSlide({
           publicación — NO publica nada por sí solo. */}
       <div className="absolute z-20 right-1 flex flex-col items-center gap-4 pointer-events-auto" style={showCommentInput ? { bottom: `calc(${COMMENT_BAR_RESERVE} + 6px)` } : { bottom: 72 }}>
         <button aria-label="vote" onClick={(e) => e.stopPropagation()} className="flex flex-col items-center gap-1 w-14 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
-          <span style={{ color: userVoted ? '#A855F7' : '#fff', display: 'inline-flex', transition: 'color 200ms' }}>
-            <VoteIcon className="w-[40px] h-[40px]" strokeWidth={210} filled={userVoted} />
-          </span>
+          <VoteIcon
+            className="w-[40px] h-[40px]"
+            strokeWidth={210}
+            filled={userVoted}
+            fillColor={userVoted ? 'url(#voteGradientOpen)' : '#fff'}
+            strokeColor={userVoted ? 'url(#voteGradientOpen)' : '#fff'}
+          />
           <span className="text-[9px] font-semibold text-white leading-none text-center whitespace-nowrap">{countLabel(votes, 'Vote')}</span>
         </button>
         {!isOwnChallenge && (
