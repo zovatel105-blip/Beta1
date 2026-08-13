@@ -2,7 +2,7 @@
 /* eslint-disable react-hooks/set-state-in-effect -- setState en efectos de carga/reset async; falso positivo de la regla experimental. */
 
 import { useEffect, useRef, useState } from 'react'
-import { ChevronRight, Loader2, Film, Swords, Users, Rows2, Columns2, ArrowLeft, X, Search, Music, Sparkles, RefreshCw } from 'lucide-react'
+import { ChevronRight, Loader2, Film, Swords, Users, Rows2, Columns2, ArrowLeft, X, Search, Music, Sparkles, RefreshCw, Globe } from 'lucide-react'
 import Avatar from './Avatar'
 import MusicPicker from './MusicPicker'
 import AIImageEditor from './AIImageEditor'
@@ -211,7 +211,11 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
       } else if (mode === 'challenge') {
         xhr.open('POST', '/api/challenges')
         fd.append('file', file)
-        fd.append('targetAuthor', JSON.stringify(tgt))
+        if (tgt?.open) {
+          fd.append('openChallenge', '1')
+        } else {
+          fd.append('targetAuthor', JSON.stringify(tgt))
+        }
         fd.append('message', description || '')
       } else {
         xhr.open('POST', '/api/versus')
@@ -326,7 +330,7 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
               <p className="text-zinc-400 text-[15px] max-w-[19rem] leading-relaxed">
                 {selected === 'versus' && 'Upload 2 videos (A and B) and let people vote by swiping between them.'}
                 {selected === 'duet' && 'Upload 2 videos (A and B) in the format you choose and let people vote who wins.'}
-                {selected === 'challenge' && 'Upload your video or photo and challenge a creator. It will appear in their active challenges to accept.'}
+                {selected === 'challenge' && 'Upload your video or photo and challenge a creator — or make it open so anyone can accept and respond.'}
               </p>
 
               {/* Mini ilustración del formato */}
@@ -370,7 +374,36 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
             : users
           return (
           <div className="max-w-md mx-auto">
-            <p className="text-[13px] text-zinc-500 mb-4">Choose who to challenge. It will appear in their active challenges to accept.</p>
+            <p className="text-[13px] text-zinc-500 mb-4">Choose who to challenge, or make it public so anyone can respond.</p>
+
+            {/* Reto ABIERTO: cualquiera puede aceptarlo y responder con su
+                propio vídeo/foto (a diferencia de un reto dirigido a una sola
+                persona). Se publica de inmediato como reto pendiente y
+                aparece en el feed principal con un botón "Respond". */}
+            <button
+              onClick={() => { setTarget({ open: true }); doUpload({ open: true }) }}
+              disabled={publishing}
+              className="w-full flex items-center gap-3 p-3 mb-4 rounded-2xl bg-white/[0.04] border border-white/15 hover:border-white/40 active:scale-[0.99] transition text-left disabled:opacity-50"
+            >
+              <div className="w-11 h-11 rounded-full flex items-center justify-center shrink-0 bg-white/[0.06] border border-white/10">
+                <Globe className="w-5 h-5 text-white" strokeWidth={1.75} />
+              </div>
+              <div className="min-w-0">
+                <div className="text-[14px] font-semibold text-white">Open to everyone</div>
+                <div className="text-[12px] text-zinc-500 truncate">Anyone can accept and respond with their own video</div>
+              </div>
+              {publishing ? (
+                <Loader2 className="ml-auto animate-spin text-zinc-400 shrink-0" size={18} />
+              ) : (
+                <ChevronRight className="ml-auto text-zinc-500 shrink-0" size={18} />
+              )}
+            </button>
+
+            <div className="flex items-center gap-2 mb-4">
+              <div className="h-px flex-1 bg-white/10" />
+              <span className="text-[11px] text-zinc-500 font-medium">OR CHALLENGE SOMEONE</span>
+              <div className="h-px flex-1 bg-white/10" />
+            </div>
 
             {/* Buscador de usuarios */}
             <div className="flex items-center gap-2.5 h-11 px-4 rounded-full bg-white/[0.04] border border-white/10 focus-within:border-white/30 transition mb-4">

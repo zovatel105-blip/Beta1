@@ -59,7 +59,9 @@ después de que Next.js haga su propio "Reload env: .env" (log de supervisor),
 o preguntar al usuario cuál es la URL que ve en su navegador.
 
 ## Última URL usada (actualizada automáticamente al restaurar)
-NEXT_PUBLIC_BASE_URL=https://single-post-concept.preview.emergentagent.com
+NEXT_PUBLIC_BASE_URL=https://c9c5c74f-c581-4192-acd5-fdb79d983331.preview.emergentagent.com
+(.env recreado en esta sesión — FIREBASE_* vacíos otra vez, EMERGENT_LLM_KEY
+renovada vía emergent_integrations_manager: sk-emergent-897DeCcD38c546fAeE)
 
 ## ⚠️ ESTADO ACTUAL (esta sesión): FIREBASE_CLIENT_EMAIL / FIREBASE_PRIVATE_KEY RESTAURADOS
 El usuario volvió a subir el JSON de la cuenta de servicio de Firebase

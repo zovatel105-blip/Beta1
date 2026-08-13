@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Check, X, Search, Users } from 'lucide-react'
 import DuetSlide from './DuetSlide'
 import CarouselSlide from './CarouselSlide'
+import OpenChallengeSlide from './OpenChallengeSlide'
 import BottomNav from './BottomNav'
 import UploadDialog from './UploadDialog'
 import ChallengeDialog from './ChallengeDialog'
@@ -482,6 +483,16 @@ export default function Feed() {
     if (el) el.scrollTo({ top: 0, behavior: 'auto' })
   }, [handleUploaded])
 
+  // Respuesta enviada desde un RETO ABIERTO (OpenChallengeSlide, tarjeta
+  // dentro del feed principal): a diferencia de handleChallengeAccepted, NO
+  // saltamos al inicio -el usuario sigue viendo la misma tarjeta del reto,
+  // ahora con su confirmación de envío-, solo insertamos el nuevo versus en
+  // el feed (aparecerá al hacer scroll) y refrescamos el badge de Batallas.
+  const handleOpenChallengeResponded = useCallback((newPost) => {
+    if (newPost) handleUploaded(newPost)
+    setBattlesRefresh((k) => k + 1)
+  }, [handleUploaded])
+
   // Reset de scroll compartido por los 2 handlers de Home de abajo — misma
   // fórmula que handleChallengeAccepted, extraída para no repetirla.
   const resetScrollTop = useCallback(() => {
@@ -619,7 +630,19 @@ export default function Feed() {
                 className="h-[100dvh] w-full snap-start snap-always relative"
               >
                 {inWindow ? (
-                  post.type === 'duet' ? (
+                  post.type === 'challenge_open' ? (
+                    <OpenChallengeSlide
+                      post={post}
+                      isActive={isActive}
+                      warm={warm}
+                      muted={muted}
+                      playbackEnabled={effectivePlayback}
+                      onOpenProfile={openAuthorProfile}
+                      onRequireAuth={() => { setAuthTab('register'); setAuthOpen(true) }}
+                      onResponded={handleOpenChallengeResponded}
+                      currentUsername={user?.username || null}
+                    />
+                  ) : post.type === 'duet' ? (
                     <DuetSlide
                       post={post}
                       isActive={isActive}
