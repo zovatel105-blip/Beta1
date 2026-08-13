@@ -238,8 +238,8 @@ export default function OpenChallengeSlide({
         <defs>
           <linearGradient id="voteGradientOpen" x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stopColor="#A855F7" />
-            <stop offset="50%" stopColor="#A855F7" />
-            <stop offset="50%" stopColor="#3B82F6" />
+            <stop offset="45%" stopColor="#A855F7" />
+            <stop offset="55%" stopColor="#3B82F6" />
             <stop offset="100%" stopColor="#3B82F6" />
           </linearGradient>
         </defs>

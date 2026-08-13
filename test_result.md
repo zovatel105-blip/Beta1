@@ -3888,3 +3888,9 @@ agent_communication:
     -agent: "main"
     -message: "Color del voto de publicaciones únicas cambiado de morado plano a degradado de marca morado->azul (icono + burst del doble-toque), vía un <linearGradient> SVG referenciado con url(#voteGradientOpen). El usuario dijo que probará esto él mismo, así que NO se invocó el agente de testing en esta ronda."
 
+        -working: "NA"
+        -agent: "user"
+        -comment: "'Pero degradado' — el corte 50/50 anterior era demasiado abrupto (0 mezcla), quería que siguiera SIENDO un degradado (transición suave) aunque balanceado mitad/mitad."
+        -working: "NA"
+        -agent: "main"
+        -comment: "Ajustados los stops a 0% morado, 45% morado, 55% azul, 100% azul (antes 0/50/50/100, sin banda de mezcla) -> ahora hay una transición suave real dentro del 10% central, con cada mitad predominantemente sólida — es un degradado (con mezcla visible) pero sigue siendo mitad/mitad en balance de color. Lint limpio."
