@@ -3899,3 +3899,15 @@ agent_communication:
         -working: true
         -agent: "main"
         -comment: "NUEVA SESIÓN (pod recreado): /app/.env y MongoDB habían vuelto a perderse (causa raíz recurrente ya documentada en memory/ENV_BACKUP.md) — restaurados con la URL de preview actual, EMERGENT_LLM_KEY renovada, nextjs reiniciado y usuarios base re-sembrados (scripts/seed-core-users.mjs, memory/test_credentials.md creado). El usuario repitió la misma petición ('el icono de votos de las publicaciones single debe estar degradado al realizar un voto') — comparado el código actual contra el HEAD de git: `components/OpenChallengeSlide.jsx` ya tenía exactamente esta implementación (sin diff pendiente), así que no hacía falta ningún cambio de código. VERIFICADO EN VIVO end-to-end con Playwright (emulando iPhone: viewport 390x844 + navigator.userAgent de iOS, requerido porque page.js solo muestra el <Feed/> en móvil): login real (lucia/Test12345) -> Crear -> modo 'Single' -> subida de un vídeo de prueba -> publicado -> abierto desde el grid del propio perfil -> capturas ANTES (icono 'Vote' en blanco, contorno) y DESPUÉS de un doble-toque real sobre el vídeo (icono 'Vote' relleno con el degradado morado->azul de marca, contador '1') — confirmado visualmente que el degradado se aplica correctamente al emitir el voto. Sin cambios de código necesarios en esta ronda; feature ya funcional."
+        -working: true
+        -agent: "user"
+        -comment: "'Degradado no SE tiene que ver la linea divisora' -> la versión 45%/55% (banda de transición muy estrecha, ~10% del icono) todavía se percibía como una línea/corte visible en vez de un degradado suave."
+        -working: true
+        -agent: "main"
+        -comment: "Quitados los 2 stops intermedios duplicados (45%/55%) del <linearGradient id=\"voteGradientOpen\">, dejando solo 2 stops (0% morado, 100% azul) -> interpolación lineal continua en todo el icono, sin ninguna banda/corte -> elimina cualquier línea divisoria visible. Lint limpio."
+        -working: true
+        -agent: "user"
+        -comment: "'Tiene que ser mitad purpura y mitad azul' -> el degradado 100% suave (2 stops, 0%->100%) diluía demasiado el balance de color (ya no se percibía claramente la mitad/mitad, solo una mezcla continua)."
+        -working: true
+        -agent: "main"
+        -comment: "Punto medio entre ambos pedidos: stops en 0% morado, 40% morado, 60% azul, 100% azul (banda de transición del 20%, el doble de ancha que la versión anterior de 10% que aún se veía como línea, pero mucho más contenida que un 0%->100% completo) -> cada mitad conserva un 40% de color sólido (mitad claramente morado, mitad claramente azul) con solo un 20% central de transición diagonal suave, sin corte/línea duro. VERIFICADO visualmente con una captura recortada y ampliada 6x del icono ya votado (real, en vivo): se ve un checkmark con el lado izquierdo morado sólido, el lado derecho azul sólido, y una transición diagonal suave y natural en el centro — sin línea visible y con balance mitad/mitad reconocible. Lint limpio."
