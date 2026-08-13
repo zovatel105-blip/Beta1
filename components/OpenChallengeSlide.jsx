@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Swords, Globe, Loader2, X, Check, Play, MessageCircle, Bookmark, MoreVertical, Music } from 'lucide-react'
+import { Swords, Loader2, X, Check, Play, MessageCircle, Bookmark, MoreVertical, Music } from 'lucide-react'
 import ShareIcon from './icons/ShareIcon'
 import Avatar from './Avatar'
 import CaptionText from './CaptionText'
@@ -225,19 +225,17 @@ export default function OpenChallengeSlide({
       )}
 
       {/* Header — MISMA posición/estilo que el resto de publicaciones
-          (abajo-izquierda, con Seguir), solo con la insignia extra "Open
-          challenge" junto al nombre. */}
+          (abajo-izquierda, con avatar+nombre+Seguir), SIN ninguna insignia
+          extra — a petición del usuario, debe verse igual que cualquier
+          otra publicación. */}
       {!showBottomPanel && (
         <div className="absolute z-20 px-4 left-0 right-16 bottom-20 pt-10 pointer-events-none">
           <div className="flex items-center gap-2.5 w-fit max-w-[calc(100%-4rem)] pointer-events-auto">
             <button onClick={(e) => { e.stopPropagation(); onOpenProfile?.(headAuthor.username) }} className="w-[30px] h-[30px] rounded-full overflow-hidden block shrink-0">
               <Avatar src={headAuthor.avatarUrl} alt={headAuthor.username} className="w-full h-full" />
             </button>
-            <span onClick={(e) => { e.stopPropagation(); onOpenProfile?.(headAuthor.username) }} className="text-white font-semibold text-[13px] leading-tight drop-shadow-md truncate max-w-[120px] cursor-pointer">
+            <span onClick={(e) => { e.stopPropagation(); onOpenProfile?.(headAuthor.username) }} className="text-white font-semibold text-[13px] leading-tight drop-shadow-md truncate max-w-[160px] cursor-pointer">
               {headAuthor.username || headAuthor.name}
-            </span>
-            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded-full bg-white/15 backdrop-blur text-white border border-white/20 shrink-0 whitespace-nowrap">
-              <Globe size={10} strokeWidth={2.2} /> Open challenge
             </span>
             {!isOwnChallenge && (
               <button
