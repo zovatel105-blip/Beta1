@@ -9,6 +9,8 @@ import CommentsModal from './CommentsModal'
 import ShareModal from './ShareModal'
 import OptionsModal from './OptionsModal'
 import AuthModal from './AuthModal'
+import QuickCommentInput from './QuickCommentInput'
+import CommentOrViewsBar from './CommentOrViewsBar'
 import { useAuth } from '@/contexts/AuthContext'
 
 function formatCount(n) {
@@ -19,6 +21,12 @@ function formatCount(n) {
 function countLabel(n, placeholder) {
   return (Number(n) || 0) === 0 ? placeholder : formatCount(n)
 }
+
+// Reserva de espacio para la barra de "Añadir comentario" (QuickCommentInput)
+// cuando esta tarjeta se abre desde el visor del grid del perfil (propio o
+// ajeno) — MISMA constante que usan CarouselSlide.jsx/DuetSlide.jsx, para
+// que el header y la columna social reserven exactamente el mismo hueco.
+const COMMENT_BAR_RESERVE = '58px + max(env(safe-area-inset-bottom, 0px), 12px)'
 
 /**
  * OpenChallengeSlide — tarjeta de un RETO ABIERTO ("a todos") dentro del feed
@@ -46,6 +54,8 @@ export default function OpenChallengeSlide({
   onOpenProfile,
   onChallenge,
   onNotInterested,
+  showCommentInput = false,
+  viewsCount = null,
 }) {
   const { user } = useAuth()
   const videoRef = useRef(null)
@@ -177,8 +187,12 @@ export default function OpenChallengeSlide({
 
       {/* Header — MISMA posición/estilo que el resto de publicaciones
           (abajo-izquierda): avatar + nombre + Seguir, sin ningún distintivo
-          adicional. */}
-      <div className="absolute z-20 px-4 left-0 right-16 bottom-20 pt-10 pointer-events-none">
+          adicional. Si se abre desde el visor del grid del perfil
+          (showCommentInput), se sube para dejar sitio a la barra de abajo. */}
+      <div
+        className={`absolute z-20 px-4 left-0 right-16 ${showCommentInput ? '' : 'bottom-20'} pt-10 pointer-events-none`}
+        style={showCommentInput ? { bottom: `calc(${COMMENT_BAR_RESERVE} + 10px)` } : undefined}
+      >
         <div className="flex items-center gap-2.5 w-fit max-w-[calc(100%-4rem)] pointer-events-auto">
           <button onClick={(e) => { e.stopPropagation(); onOpenProfile?.(headAuthor.username) }} className="w-[30px] h-[30px] rounded-full overflow-hidden block shrink-0">
             <Avatar src={headAuthor.avatarUrl} alt={headAuthor.username} className="w-full h-full" />
@@ -206,7 +220,7 @@ export default function OpenChallengeSlide({
           normalmente ocupa "Votar" (aquí no hay 2 lados que comparar
           todavía). Abre el MISMO diálogo de reto que cualquier otra
           publicación — NO publica nada por sí solo. */}
-      <div className="absolute z-20 right-1 flex flex-col items-center gap-4 pointer-events-auto" style={{ bottom: 72 }}>
+      <div className="absolute z-20 right-1 flex flex-col items-center gap-4 pointer-events-auto" style={showCommentInput ? { bottom: `calc(${COMMENT_BAR_RESERVE} + 6px)` } : { bottom: 72 }}>
         {!isOwnChallenge && (
           <button
             aria-label="challenge"
@@ -247,6 +261,31 @@ export default function OpenChallengeSlide({
           </div>
         </div>
       </div>
+
+      {/* Barra de "Añadir comentario" — SOLO cuando esta tarjeta se abre desde
+          el grid del perfil (propio o ajeno), NO en el feed principal (ver
+          showCommentInput). Mismo componente/comportamiento que
+          CarouselSlide.jsx/DuetSlide.jsx: en el PROPIO perfil alterna con una
+          barra de "reproducciones" (viewsCount != null); en perfil ajeno solo
+          comentar. */}
+      {showCommentInput && (
+        viewsCount != null ? (
+          <CommentOrViewsBar
+            postId={post.id}
+            votedSide={null}
+            onPosted={() => setCommentCount((n) => n + 1)}
+            onRequireAuth={() => setAuthModalOpen(true)}
+            views={viewsCount}
+          />
+        ) : (
+          <QuickCommentInput
+            postId={post.id}
+            votedSide={null}
+            onPosted={() => setCommentCount((n) => n + 1)}
+            onRequireAuth={() => setAuthModalOpen(true)}
+          />
+        )
+      )}
 
       <CommentsModal
         open={commentsOpen}

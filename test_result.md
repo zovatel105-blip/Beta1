@@ -3770,3 +3770,31 @@ frontend:
         -agent: "main"
         -comment: "GET /api/users/:username (route.js) ahora fusiona los retos abiertos del usuario (vía getOpenChallengeFeedItems, filtrados por author.username===username) con sus publicaciones normales del grid, ordenados por fecha (createdAtMs/uploadedAt) — antes solo vivían en la colección `challenges` y jamás aparecían en `posts`, así que nunca llegaban al grid. ProfilePage.jsx: el visor de publicaciones del grid (PostViewer) ahora reconoce `type==='challenge_open'` y renderiza `OpenChallengeSlide` (antes caía en `CarouselSlide`, que mostraba el mismo vídeo duplicado como si fueran 2 lados A/B votables, incorrecto para una publicación única). GridItem no necesitó cambios: ya renderiza el thumbnail genérico (`posterUrl`/`videoUrl`) correctamente sin votos (al no tener `post.votes`, la píldora de votos simplemente no se muestra, comportamiento correcto). Verificado con el mismo script Node temporal de la ronda anterior (paso C: el reto abierto de marcos aparece en GET /api/users/marcos con type='challenge_open'). Sobre el otro punto del usuario, confirmado (sin cambios necesarios): la ÚNICA vía de creación de una publicación única es el botón 'Open to everyone' de UploadDialog.jsx (flujo de creación de contenido) — no existe ninguna otra ruta."
 
+
+frontend:
+  - task: "BUG: en el visor del grid de perfil (propio Y ajeno), las publicaciones únicas (retos abiertos) no mostraban la barra inferior de 'Añadir comentario'/reproducciones que sí muestran el resto de publicaciones"
+    implemented: true
+    working: "NA"
+    file: "components/OpenChallengeSlide.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'Porque no aparece la barra de abajo en las publicaciones solo perfil ajeno y propio' (con captura: reto abierto de 'twyk' abierto desde un perfil, se ve el header abajo + columna social, pero SIN la barra de comentar/reproducciones que ancla el resto de publicaciones al fondo)."
+        -working: "NA"
+        -agent: "main"
+        -comment: "CAUSA RAÍZ: ProfilePage.jsx (PostViewer) pasa las props `showCommentInput` y `viewsCount` a CUALQUIER slide que renderiza (CarouselSlide/DuetSlide/OpenChallengeSlide) para mostrar la barra 'Añadir comentario' (perfil ajeno) o que alterna con 'reproducciones' (perfil propio) SOLO cuando se ve una publicación desde el grid. OpenChallengeSlide.jsx NUNCA declaraba estas props ni el componente `QuickCommentInput`/`CommentOrViewsBar` que las renderiza -> las recibía pero las ignoraba por completo, sin mostrar nada abajo. FIX: añadidas las props `showCommentInput`/`viewsCount` (mismos nombres/defaults que CarouselSlide.jsx), importados `QuickCommentInput`/`CommentOrViewsBar`, y añadida la MISMA constante `COMMENT_BAR_RESERVE` para que el header (abajo-izquierda) y la columna social (derecha) SUBAN y dejen hueco para esta barra exactamente igual que en el resto de publicaciones (antes su `bottom-20`/`bottom:72` fijos se solapaban con el sitio de la barra). Renderizado condicional idéntico al de CarouselSlide.jsx: `viewsCount != null` (perfil propio) -> `<CommentOrViewsBar>`; si no -> `<QuickCommentInput>`, ambos con `onPosted` incrementando `commentCount` y `onRequireAuth` abriendo el AuthModal local. Lint limpio (0 errores nuevos). Pendiente de verificación visual: abrir una publicación única del grid en perfil PROPIO (debe alternar comentar<->reproducciones) y en perfil AJENO (debe mostrar solo 'Add a comment...'), comparado con una publicación Versus normal del mismo grid para confirmar que la posición/tamaño de la barra es idéntica."
+
+test_plan:
+  current_focus:
+    - "BUG: en el visor del grid de perfil (propio Y ajeno), las publicaciones únicas (retos abiertos) no mostraban la barra inferior de 'Añadir comentario'/reproducciones que sí muestran el resto de publicaciones"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    -agent: "main"
+    -message: "BUG FIX: la barra inferior 'Añadir comentario'/reproducciones (QuickCommentInput/CommentOrViewsBar) no aparecía en publicaciones únicas (retos abiertos) al abrirlas desde el grid del perfil, porque OpenChallengeSlide.jsx nunca implementó las props showCommentInput/viewsCount que ProfilePage.jsx ya le pasaba. Corregido replicando exactamente el mismo patrón que CarouselSlide.jsx. Necesito permiso para invocar deep_testing_frontend_nextjs (agente de FRONTEND, con capturas) para verificar visualmente: abrir un reto abierto desde el grid de un perfil propio y de un perfil ajeno, y confirmar que la barra inferior aparece en la misma posición/tamaño que en una publicación normal del mismo grid."
+
