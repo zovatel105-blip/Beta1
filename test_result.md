@@ -3798,3 +3798,30 @@ agent_communication:
     -agent: "main"
     -message: "BUG FIX: la barra inferior 'Añadir comentario'/reproducciones (QuickCommentInput/CommentOrViewsBar) no aparecía en publicaciones únicas (retos abiertos) al abrirlas desde el grid del perfil, porque OpenChallengeSlide.jsx nunca implementó las props showCommentInput/viewsCount que ProfilePage.jsx ya le pasaba. Corregido replicando exactamente el mismo patrón que CarouselSlide.jsx. Necesito permiso para invocar deep_testing_frontend_nextjs (agente de FRONTEND, con capturas) para verificar visualmente: abrir un reto abierto desde el grid de un perfil propio y de un perfil ajeno, y confirmar que la barra inferior aparece en la misma posición/tamaño que en una publicación normal del mismo grid."
 
+
+backend:
+  - task: "NUEVA FUNCIÓN: voto ÚNICO (doble-toque) en publicaciones únicas (retos abiertos) — completa el ADN comparar/votar/retar que les faltaba"
+    implemented: true
+    working: true
+    file: "lib/db.js, app/api/[[...path]]/route.js, components/OpenChallengeSlide.jsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'En las publicaciones idea tendrias para El voto' -> se propusieron 3 ideas (reacción binaria doble-toque / botón de voto separado del challenge / Hot-or-Not con Elo invisible); el usuario eligió la (a) aclarando 'voto único' (no A/B, un solo tipo de voto tipo like)."
+        -working: "NA"
+        -agent: "main"
+        -comment: "BACKEND: nueva colección `singleVotes` (lib/db.js, mismo patrón exacto que `toggleSave`): `toggleSingleVote(postId,userId)` (par postId+userId único, insertar/borrar, devuelve {voted,count}), `getSingleVoteCountsByPostIds`, `getSingleVotedPostIdsByUser` (para hidratar el estado sin esperar a la 1ª interacción). Nuevo POST /api/single-vote (body {postId}, requiere sesión igual que Guardar) -> handleSingleVote. `getOpenChallengeFeedItems` (route.js) ahora también anota `voteCount`/`hasVoted` en cada tarjeta de reto abierto (se usa tanto en el feed principal como en el grid de perfil, que reutiliza la misma función). FRONTEND (OpenChallengeSlide.jsx): añadido el mismo gesto de doble-toque que el resto de publicaciones (toque simple = play/pausa, doble-toque = votar, ventana de 300ms idéntica a CarouselSlide.jsx) + el mismo `VoteBurstEffect` (color morado #A855F7, sin lado B) que se dispara SOLO al votar (no al quitar el voto); nuevo botón de Voto en la columna social como PRIMER ítem (antes de 'Challenge', mismo orden/posición que las demás publicaciones), con el mismo `VoteIcon` coloreado cuando ya votaste — es solo indicador (no clicable), igual que en el resto de la app (se vota con doble-toque, no tocando el icono). A diferencia del voto A/B, aquí es un TOGGLE simple (votado<->no votado, como un like), sin 'cambiar de lado'. Verificado con un script Node temporal (sin curl, sin agente de testing — instrucción reiterada del usuario en toda esta sesión, respetada de nuevo aunque no se repitió en este turno exacto por ser una feature nueva y no un bug): 6/6 checks OK — 401 sin sesión, votar (voted:true,count:1), el conteo/estado aparecen hidratados correctamente en GET /api/feed para quien votó Y en GET /api/users/:username (grid de perfil) para el creador (que NO votó, hasVoted:false pero ve el count real), y quitar el voto (toggle) vuelve a 0. Datos de prueba limpiados de Mongo."
+
+test_plan:
+  current_focus: []
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    -agent: "main"
+    -message: "NUEVA FUNCIÓN: voto único (doble-toque) en publicaciones únicas, completando el ADN comparar/votar/retar. Backend + frontend verificados manualmente (6/6, script temporal borrado). Falta verificación VISUAL del gesto/animación (doble-toque, burst morado, icono de voto coloreado) — pendiente de permiso del usuario para el agente de frontend."
+

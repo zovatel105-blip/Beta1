@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Swords, Play, MessageCircle, Bookmark, MoreVertical, Music } from 'lucide-react'
 import ShareIcon from './icons/ShareIcon'
+import VoteIcon from './icons/VoteIcon'
+import VoteBurstEffect from './VoteBurstEffect'
 import Avatar from './Avatar'
 import CaptionText from './CaptionText'
 import CommentsModal from './CommentsModal'
@@ -59,16 +61,24 @@ export default function OpenChallengeSlide({
 }) {
   const { user } = useAuth()
   const videoRef = useRef(null)
+  const overlayRef = useRef(null)
+  const lastTapRef = useRef(0)
   const [paused, setPaused] = useState(false)
   const [following, setFollowing] = useState(!!post.author?.isFollowing)
   const [commentCount, setCommentCount] = useState(post.stats?.comments || 0)
   const [shareCount, setShareCount] = useState(post.stats?.shares || 0)
   const [saveCount, setSaveCount] = useState(post.stats?.saves || 0)
   const [saved, setSaved] = useState(false)
+  const [votes, setVotes] = useState(post.voteCount || 0)
+  const [userVoted, setUserVoted] = useState(!!post.hasVoted)
+  const [voting, setVoting] = useState(false)
+  const [voteBursts, setVoteBursts] = useState([])
   const [commentsOpen, setCommentsOpen] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [authModalOpen, setAuthModalOpen] = useState(false)
+
+  useEffect(() => { setVotes(post.voteCount || 0); setUserVoted(!!post.hasVoted) }, [post.id, post.voteCount, post.hasVoted])
 
   const lsNum = (k) => { try { return parseInt(localStorage.getItem(k) || '0', 10) || 0 } catch { return 0 } }
   const lsSet = (k, v) => { try { localStorage.setItem(k, String(v)) } catch { /* ignore */ } }
@@ -116,6 +126,66 @@ export default function OpenChallengeSlide({
     if (el.paused) el.play().catch(() => {}); else el.pause()
   }, [isImage])
 
+  // Burst del icono de voto (mismo componente/estilo que el resto de
+  // publicaciones): aparece justo donde se hizo el doble-toque.
+  const spawnVoteBurst = useCallback((pt) => {
+    const burstId = Math.random().toString(36).slice(2)
+    setVoteBursts((b) => [...b, { id: burstId, x: pt?.x, y: pt?.y }])
+    setTimeout(() => setVoteBursts((b) => b.filter((x) => x.id !== burstId)), 900)
+  }, [])
+
+  // Voto ÚNICO (toggle, sin lado A/B): doble-toque en el vídeo vota/quita el
+  // voto. A diferencia del voto A/B, aquí no hay "cambiar de opción" — solo
+  // votado <-> no votado, como un like. El burst SOLO se dispara al votar
+  // (no al quitar el voto).
+  const submitVote = useCallback(async (pt) => {
+    if (!user) { setAuthModalOpen(true); return }
+    if (voting) return
+    setVoting(true)
+    const nextVoted = !userVoted
+    setUserVoted(nextVoted)
+    setVotes((v) => Math.max(0, v + (nextVoted ? 1 : -1)))
+    if (nextVoted) spawnVoteBurst(pt)
+    try {
+      const res = await fetch('/api/single-vote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ postId: post.id }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        if (typeof data.count === 'number') setVotes(data.count)
+        if (typeof data.voted === 'boolean') setUserVoted(data.voted)
+      } else {
+        setUserVoted(!nextVoted)
+        setVotes((v) => Math.max(0, v + (nextVoted ? -1 : 1)))
+      }
+    } catch {
+      setUserVoted(!nextVoted)
+      setVotes((v) => Math.max(0, v + (nextVoted ? -1 : 1)))
+    } finally {
+      setVoting(false)
+    }
+  }, [user, voting, userVoted, post.id, spawnVoteBurst])
+
+  // Gestos sobre el vídeo: toque simple = play/pausa, doble-toque = votar.
+  // Mismo patrón/ventana (300ms) que CarouselSlide.jsx.
+  const onMediaPointerUp = useCallback((e) => {
+    const now = Date.now()
+    const isDouble = now - lastTapRef.current < 300
+    lastTapRef.current = now
+    if (isDouble) {
+      const rect = overlayRef.current?.getBoundingClientRect()
+      const pt = rect ? { x: e.clientX - rect.left, y: e.clientY - rect.top } : null
+      submitVote(pt)
+      return
+    }
+    setTimeout(() => {
+      if (Date.now() - lastTapRef.current < 280) return
+      togglePlay()
+    }, 280)
+  }, [submitVote, togglePlay])
+
   const handleChallengeClick = useCallback((e) => {
     e.stopPropagation()
     if (isOwnChallenge) return
@@ -159,9 +229,9 @@ export default function OpenChallengeSlide({
   }, [post.id, saved, user])
 
   return (
-    <div className="relative w-full h-full bg-black overflow-hidden select-none">
+    <div ref={overlayRef} className="relative w-full h-full bg-black overflow-hidden select-none">
       {/* Media a pantalla completa */}
-      <div className="absolute inset-0" onClick={togglePlay}>
+      <div className="absolute inset-0" onPointerUp={onMediaPointerUp}>
         {(post.posterUrl || (isImage && mediaUrl)) && (
           <img src={post.posterUrl || mediaUrl} alt="" aria-hidden draggable={false} className="absolute inset-0 w-full h-full object-cover" />
         )}
@@ -184,6 +254,26 @@ export default function OpenChallengeSlide({
           <Play size={72} className="text-white drop-shadow-lg" fill="white" />
         </div>
       )}
+
+      {/* Pista para votar (mismo criterio que el resto de publicaciones) */}
+      {!userVoted && (
+        <div className="absolute top-12 left-1/2 -translate-x-1/2 z-20 pointer-events-none bg-black/45 backdrop-blur text-white text-[10px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap">
+          Double-tap to vote
+        </div>
+      )}
+
+      {/* Burst del icono de voto — aparece justo donde se hizo el doble-toque */}
+      {voteBursts.map((vb) => (
+        vb.x != null && vb.y != null ? (
+          <div key={vb.id} className="absolute z-30 pointer-events-none" style={{ left: vb.x, top: vb.y, transform: 'translate(-50%, -60px)' }}>
+            <VoteBurstEffect color="#A855F7" />
+          </div>
+        ) : (
+          <div key={vb.id} className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none">
+            <VoteBurstEffect color="#A855F7" />
+          </div>
+        )
+      ))}
 
       {/* Header — MISMA posición/estilo que el resto de publicaciones
           (abajo-izquierda): avatar + nombre + Seguir, sin ningún distintivo
@@ -221,6 +311,12 @@ export default function OpenChallengeSlide({
           todavía). Abre el MISMO diálogo de reto que cualquier otra
           publicación — NO publica nada por sí solo. */}
       <div className="absolute z-20 right-1 flex flex-col items-center gap-4 pointer-events-auto" style={showCommentInput ? { bottom: `calc(${COMMENT_BAR_RESERVE} + 6px)` } : { bottom: 72 }}>
+        <button aria-label="vote" onClick={(e) => e.stopPropagation()} className="flex flex-col items-center gap-1 w-14 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
+          <span style={{ color: userVoted ? '#A855F7' : '#fff', display: 'inline-flex', transition: 'color 200ms' }}>
+            <VoteIcon className="w-[40px] h-[40px]" strokeWidth={210} filled={userVoted} />
+          </span>
+          <span className="text-[9px] font-semibold text-white leading-none text-center whitespace-nowrap">{countLabel(votes, 'Vote')}</span>
+        </button>
         {!isOwnChallenge && (
           <button
             aria-label="challenge"

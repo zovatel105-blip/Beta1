@@ -53,6 +53,9 @@ import {
   REPORT_REASONS,
   acceptTerms,
   getCommentsCountByPostIds,
+  toggleSingleVote,
+  getSingleVoteCountsByPostIds,
+  getSingleVotedPostIdsByUser,
 } from '@/lib/db'
 import {
   getAllPosts,
@@ -285,6 +288,11 @@ async function getOpenChallengeFeedItems(currentUser, followingSet) {
     // en 0 aunque ya hubiera comentarios en esta tarjeta.
     const ids = opens.map((c) => `open_${c.id}`)
     const commentCounts = await getCommentsCountByPostIds(ids).catch(() => ({}))
+    // Voto ÚNICO (doble-toque, ver OpenChallengeSlide.jsx): conteo real +
+    // si ESTE viewer ya votó, para pintar el icono e hidratar el estado sin
+    // esperar a la primera interacción.
+    const voteCounts = await getSingleVoteCountsByPostIds(ids).catch(() => ({}))
+    const votedByMe = currentUser ? await getSingleVotedPostIdsByUser(currentUser.id, ids).catch(() => new Set()) : new Set()
     return opens.map((c) => {
       const f = c.from?.username ? fresh[c.from.username] : null
       let author = f ? { ...c.from, avatarUrl: f.avatarUrl || c.from.avatarUrl, name: f.name || c.from.name, verified: f.verified } : c.from
@@ -303,6 +311,8 @@ async function getOpenChallengeFeedItems(currentUser, followingSet) {
         description: c.message || '',
         music: c.musicTitle ? `${c.musicTitle} · ${c.musicArtist}` : 'Open challenge',
         stats: { likes: 0, comments: commentCounts[id] || 0, shares: 0, saves: 0 },
+        voteCount: voteCounts[id] || 0,
+        hasVoted: votedByMe.has(id),
         createdAtMs: c.createdAt ? new Date(c.createdAt).getTime() : Date.now(),
       }
     })
@@ -1159,6 +1169,13 @@ export async function POST(request, { params }) {
   // POST /api/save - Guardar/quitar de guardados un post
   if (path === '/save') {
     return handleSavePost(request)
+  }
+
+  // POST /api/single-vote - Voto ÚNICO (toggle, sin lado A/B) de una
+  // publicación de UN SOLO vídeo/foto (reto abierto). Ver OpenChallengeSlide.jsx
+  // (doble-toque) y getOpenChallengeFeedItems (hidratación de voteCount/hasVoted).
+  if (path === '/single-vote') {
+    return handleSingleVote(request)
   }
 
   // POST /api/ai/edit-image - Editor de imágenes con IA (paso de creación de
@@ -3023,6 +3040,29 @@ async function handleSavePost(request) {
   } catch (err) {
     console.error('save post error', err)
     return NextResponse.json({ error: 'save_failed' }, { status: 500 })
+  }
+}
+
+// POST /api/single-vote  body: { postId }
+// Voto ÚNICO (toggle) de una publicación de un solo vídeo/foto — requiere
+// sesión (igual que Guardar). Sin lado A/B: cada llamada alterna
+// votado/no-votado para ESTE usuario y devuelve el conteo total actualizado.
+async function handleSingleVote(request) {
+  try {
+    const currentUser = await getCurrentUser(request)
+    if (!currentUser) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    }
+    const body = await request.json().catch(() => ({}))
+    const { postId } = body || {}
+    if (!postId) {
+      return NextResponse.json({ error: 'missing_postId' }, { status: 400 })
+    }
+    const result = await toggleSingleVote(postId, currentUser.id)
+    return NextResponse.json({ ok: true, ...result })
+  } catch (err) {
+    console.error('single vote error', err)
+    return NextResponse.json({ error: 'vote_failed' }, { status: 500 })
   }
 }
 
