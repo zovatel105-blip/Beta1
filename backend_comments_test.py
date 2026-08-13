@@ -10,7 +10,7 @@ import os
 import sys
 
 # Backend URL from environment
-BASE_URL = os.getenv('NEXT_PUBLIC_BASE_URL', 'https://single-post-concept.preview.emergentagent.com')
+BASE_URL = os.getenv('NEXT_PUBLIC_BASE_URL', 'https://vote-opacity-toggle.preview.emergentagent.com')
 API_BASE = f"{BASE_URL}/api"
 
 def print_section(title):
