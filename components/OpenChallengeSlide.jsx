@@ -267,7 +267,7 @@ export default function OpenChallengeSlide({
           >
             <Swords className="w-[30px] h-[30px] text-white" strokeWidth={1.5} />
             <span className={`${respCount > 0 ? 'text-[9px] font-semibold' : 'text-[8px] font-bold'} max-w-[30px] overflow-hidden text-white leading-none text-center whitespace-nowrap`}>
-              {isOwnChallenge ? 'Yours' : countLabel(respCount, 'Respond')}
+              {isOwnChallenge ? 'Yours' : countLabel(respCount, 'Challenge')}
             </span>
           </button>
           <button aria-label="comments" onClick={(e) => { e.stopPropagation(); if (!user) { setAuthModalOpen(true); return }; setCommentsOpen(true) }} className="flex flex-col items-center gap-1 w-14 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>

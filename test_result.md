@@ -3708,6 +3708,12 @@ frontend:
         -working: "NA"
         -agent: "main"
         -comment: "Quitada la insignia 'Open challenge' del header (antes un pill con icono Globe junto al nombre) — ahora el header de OpenChallengeSlide.jsx es 100% idéntico al de cualquier otra publicación: avatar + nombre + botón Seguir, sin ningún distintivo adicional. Import Globe (lucide-react) eliminado (ya sin uso). Lint limpio."
+        -working: "NA"
+        -agent: "user"
+        -comment: "'En El boton social deberia aparecer challenge en ingles no responder'."
+        -working: "NA"
+        -agent: "main"
+        -comment: "Cambiada la etiqueta del botón social de la columna derecha (el que sustituye a 'Votar' en publicaciones únicas): antes mostraba 'Respond' como placeholder (0 respuestas) o el número de respuestas; ahora muestra 'Challenge' como placeholder, manteniendo el número cuando ya hay respuestas — mismo criterio/estilo que el resto de botones de la columna (Add 1st/Share/Save)."
 
 test_plan:
   current_focus:
