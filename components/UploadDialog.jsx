@@ -208,14 +208,20 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
         fd.append('fileB', fileB)
         fd.append('layout', layout)
         fd.append('description', description || '')
+      } else if (mode === 'solo') {
+        // Publicación ÚNICA (un solo vídeo/foto, sin destinatario concreto):
+        // internamente reutiliza el mismo endpoint de retos con
+        // openChallenge=1 -> aparece en el feed principal con un botón
+        // "Challenge" y en el grid de perfil de su creador (ver
+        // getOpenChallengeFeedItems, route.js).
+        xhr.open('POST', '/api/challenges')
+        fd.append('file', file)
+        fd.append('openChallenge', '1')
+        fd.append('message', description || '')
       } else if (mode === 'challenge') {
         xhr.open('POST', '/api/challenges')
         fd.append('file', file)
-        if (tgt?.open) {
-          fd.append('openChallenge', '1')
-        } else {
-          fd.append('targetAuthor', JSON.stringify(tgt))
-        }
+        fd.append('targetAuthor', JSON.stringify(tgt))
         fd.append('message', description || '')
       } else {
         xhr.open('POST', '/api/versus')
@@ -240,7 +246,7 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
       xhr.send(fd)
       const data = await promise
       if (showsInProfileGrid) removePendingUpload(uploadId)
-      if (mode === 'challenge') {
+      if (mode === 'challenge' || mode === 'solo') {
         if (onChallengeCreated) onChallengeCreated()
       } else if (onUploaded && data?.post) {
         onUploaded(data.post)
@@ -279,7 +285,7 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
             {step === 'mode' && 'Create content'}
             {step === 'layout' && 'Choose the format'}
             {step === 'target' && 'Choose who to challenge'}
-            {step === 'file' && (mode === 'versus' ? 'Your 2 videos' : mode === 'challenge' ? 'Your challenge' : 'Your 1vs1')}
+            {step === 'file' && (mode === 'versus' ? 'Your 2 videos' : mode === 'challenge' ? 'Your challenge' : mode === 'solo' ? 'Your post' : 'Your 1vs1')}
           </h1>
         </div>
         <button onClick={onClose} aria-label="Close" className="w-9 h-9 -mr-1.5 rounded-full flex items-center justify-center hover:bg-white/5 active:scale-90 transition text-zinc-400 hover:text-white">
@@ -313,6 +319,12 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
                 >
                   Challenges
                 </button>
+                <button
+                  onClick={() => setSelected('solo')}
+                  className={`px-3.5 py-2 rounded-full text-[13px] font-semibold transition ${selected === 'solo' ? 'bg-white text-black' : 'text-zinc-300 hover:text-white'}`}
+                >
+                  Single
+                </button>
               </div>
             </div>
 
@@ -325,12 +337,14 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
                 {selected === 'versus' && <Film className="w-11 h-11" strokeWidth={1.25} style={{ color: GOLD }} />}
                 {selected === 'duet' && <Users className="w-11 h-11" strokeWidth={1.25} style={{ color: GOLD }} />}
                 {selected === 'challenge' && <Swords className="w-11 h-11" strokeWidth={1.25} style={{ color: GOLD }} />}
+                {selected === 'solo' && <Globe className="w-11 h-11" strokeWidth={1.25} style={{ color: GOLD }} />}
               </div>
 
               <p className="text-zinc-400 text-[15px] max-w-[19rem] leading-relaxed">
                 {selected === 'versus' && 'Upload 2 videos (A and B) and let people vote by swiping between them.'}
                 {selected === 'duet' && 'Upload 2 videos (A and B) in the format you choose and let people vote who wins.'}
-                {selected === 'challenge' && 'Upload your video or photo and challenge a creator — or make it open so anyone can accept and respond.'}
+                {selected === 'challenge' && 'Upload your video or photo and challenge a creator. It will appear in their active challenges to accept.'}
+                {selected === 'solo' && 'Upload just ONE video or photo — no need for a second one. Anyone can challenge you on it, and you can vote on it too.'}
               </p>
 
               {/* Mini ilustración del formato */}
@@ -339,6 +353,13 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
                   <div className="w-20 h-28 rounded-2xl border border-white/[0.08] bg-white/[0.06] flex items-center justify-center text-white/80 text-[12px] font-bold">YOU</div>
                   <span className="text-white/60 font-black text-base">VS</span>
                   <div className="w-20 h-28 rounded-2xl border border-white/[0.08] bg-white/[0.02] flex items-center justify-center text-white/40 text-[12px] font-bold">RIVAL</div>
+                </div>
+              ) : selected === 'solo' ? (
+                <div className="mt-10 relative">
+                  <div className="w-24 h-32 rounded-2xl border border-white/[0.08] bg-white/[0.06] flex items-center justify-center text-white/80 text-[13px] font-bold">YOU</div>
+                  <span className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-white/10 border border-white/20 flex items-center justify-center">
+                    <Globe className="w-4 h-4 text-white" strokeWidth={1.75} />
+                  </span>
                 </div>
               ) : (
                 <div className="mt-10 w-48 h-32 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-2.5 flex gap-2.5">
@@ -353,6 +374,7 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
               onClick={() => {
                 if (selected === 'versus') { setMode('versus'); setStep('file') }
                 else if (selected === 'duet') { setMode('duet'); setStep('file') }
+                else if (selected === 'solo') { setMode('solo'); setStep('file') }
                 else { setMode('challenge'); setStep('file') }
               }}
               className="mt-4 mb-2 w-full h-12 rounded-full bg-white text-black font-semibold text-[15px] flex items-center justify-center gap-1.5 hover:bg-zinc-100 active:scale-[0.99] transition"
@@ -374,36 +396,7 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
             : users
           return (
           <div className="max-w-md mx-auto">
-            <p className="text-[13px] text-zinc-500 mb-4">Choose who to challenge, or make it public so anyone can respond.</p>
-
-            {/* Reto ABIERTO: cualquiera puede aceptarlo y responder con su
-                propio vídeo/foto (a diferencia de un reto dirigido a una sola
-                persona). Se publica de inmediato como reto pendiente y
-                aparece en el feed principal con un botón "Respond". */}
-            <button
-              onClick={() => { setTarget({ open: true }); doUpload({ open: true }) }}
-              disabled={publishing}
-              className="w-full flex items-center gap-3 p-3 mb-4 rounded-2xl bg-white/[0.04] border border-white/15 hover:border-white/40 active:scale-[0.99] transition text-left disabled:opacity-50"
-            >
-              <div className="w-11 h-11 rounded-full flex items-center justify-center shrink-0 bg-white/[0.06] border border-white/10">
-                <Globe className="w-5 h-5 text-white" strokeWidth={1.75} />
-              </div>
-              <div className="min-w-0">
-                <div className="text-[14px] font-semibold text-white">Open to everyone</div>
-                <div className="text-[12px] text-zinc-500 truncate">Anyone can accept and respond with their own video</div>
-              </div>
-              {publishing ? (
-                <Loader2 className="ml-auto animate-spin text-zinc-400 shrink-0" size={18} />
-              ) : (
-                <ChevronRight className="ml-auto text-zinc-500 shrink-0" size={18} />
-              )}
-            </button>
-
-            <div className="flex items-center gap-2 mb-4">
-              <div className="h-px flex-1 bg-white/10" />
-              <span className="text-[11px] text-zinc-500 font-medium">OR CHALLENGE SOMEONE</span>
-              <div className="h-px flex-1 bg-white/10" />
-            </div>
+            <p className="text-[13px] text-zinc-500 mb-4">Choose who to challenge. It will appear in their active challenges to accept.</p>
 
             {/* Buscador de usuarios */}
             <div className="flex items-center gap-2.5 h-11 px-4 rounded-full bg-white/[0.04] border border-white/10 focus-within:border-white/30 transition mb-4">
@@ -731,7 +724,7 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
                           <textarea
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
-                            placeholder={mode === 'duet' ? 'Who wins? 🥊 #1vs1' : mode === 'challenge' ? 'Challenge 🔥 Do you accept?' : 'Which do you prefer? 🅰️🆚🅱️'}
+                            placeholder={mode === 'duet' ? 'Who wins? 🥊 #1vs1' : mode === 'challenge' ? 'Challenge 🔥 Do you accept?' : mode === 'solo' ? 'Share something…' : 'Which do you prefer? 🅰️🆚🅱️'}
                             rows={1}
                             className="w-full bg-transparent text-[15px] text-zinc-100 placeholder:text-zinc-400 focus:outline-none resize-none"
                           />
@@ -767,7 +760,7 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
                           {publishing && mode !== 'challenge' ? (
                             <><Loader2 size={17} className="animate-spin" /> Publishing…</>
                           ) : (
-                            mode === 'duet' ? 'Publish 1vs1' : mode === 'challenge' ? 'Choose who to challenge' : 'Publish versus'
+                            mode === 'duet' ? 'Publish 1vs1' : mode === 'challenge' ? 'Choose who to challenge' : mode === 'solo' ? 'Publish' : 'Publish versus'
                           )}
                         </button>
                       </>

@@ -3825,3 +3825,33 @@ agent_communication:
     -agent: "main"
     -message: "NUEVA FUNCIÓN: voto único (doble-toque) en publicaciones únicas, completando el ADN comparar/votar/retar. Backend + frontend verificados manualmente (6/6, script temporal borrado). Falta verificación VISUAL del gesto/animación (doble-toque, burst morado, icono de voto coloreado) — pendiente de permiso del usuario para el agente de frontend."
 
+
+frontend:
+  - task: "BUG: las publicaciones únicas solo se podían crear desde el botón '+' de Retos/Batallas, enterradas dentro del flujo de 'Challenges' (1-a-1) en la página de creación de contenido — pedían ser un modo propio y visible ahí"
+    implemented: true
+    working: "NA"
+    file: "components/UploadDialog.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'Las publicaciones solo unicamente SE crean desde El boton + de retos cuando deberia estar en la pagina de creacion de contenido'."
+        -working: "NA"
+        -agent: "main"
+        -comment: "CAUSA: aunque técnicamente ya era posible crear una publicación única desde el botón '+' PRINCIPAL (BottomNav, la verdadera 'página de creación de contenido'), había que entrar al modo 'Challenges' (pensado para retos 1-a-1 dirigidos) y, 2 pasos después, encontrar un botón secundario 'Open to everyone' escondido dentro del selector de destinatario — nada indicaba que ahí vivía una 'publicación única' independiente. FIX: nuevo 4º modo de nivel superior en el selector principal (junto a Versus/1vs1/Challenges): 'Single' (icono Globe), con su propia descripción ('Upload just ONE video or photo — no need for a second one...') e ilustración (una sola tarjeta 'YOU' con una insignia de globo, sin 'VS'/rival). Al elegirlo y pulsar Continue se sube UN solo archivo y se publica directamente (sin pasos intermedios) -> internamente sigue reusando el mismo POST /api/challenges con openChallenge=1 (mismo contrato de API ya verificado en rondas anteriores, sin cambios de backend en este fix). Para mantener 'Challenges' limpio y sin ambigüedad, se REVIRTIÓ el botón 'Open to everyone' + el texto añadido del paso de destinatario (target) -> 'Challenges' vuelve a ser EXCLUSIVAMENTE retos dirigidos a una persona concreta, como antes de la ronda de Retos Abiertos. El acceso rápido desde la página de Batallas (botón '+' de 'Active Challenges', que salta directo a `initialMode='challenge'`) no se tocó -> sigue siendo un atajo al reto DIRIGIDO, ahora claramente distinto del modo 'Single' de la página principal de creación. Lint limpio (0 errores nuevos). SIN CAMBIOS DE BACKEND (la API /api/challenges con openChallenge=1 ya estaba probada end-to-end en rondas anteriores) — pendiente SOLO de verificación visual/de navegación: abrir el '+' principal, confirmar que se ven 4 pestañas (Versus/1 vs 1/Challenges/Single), seleccionar 'Single', subir 1 archivo, publicar, y confirmar que aparece en el feed principal con el botón 'Be 1st' y en el propio grid de perfil."
+
+test_plan:
+  current_focus:
+    - "BUG: las publicaciones únicas solo se podían crear desde el botón '+' de Retos/Batallas, enterradas dentro del flujo de 'Challenges' (1-a-1) en la página de creación de contenido — pedían ser un modo propio y visible ahí"
+    - "BUG: en el visor del grid de perfil (propio Y ajeno), las publicaciones únicas (retos abiertos) no mostraban la barra inferior de 'Añadir comentario'/reproducciones que sí muestran el resto de publicaciones"
+    - "NUEVA FUNCIÓN: voto ÚNICO (doble-toque) en publicaciones únicas (retos abiertos) — completa el ADN comparar/votar/retar que les faltaba"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    -agent: "main"
+    -message: "BUG FIX: las publicaciones únicas ahora son un 4º modo propio y visible ('Single') en el selector principal de creación de contenido (el mismo '+' de siempre), en vez de estar escondidas dentro de 'Challenges'. Sin cambios de backend (misma API ya probada). Tengo 3 verificaciones VISUALES pendientes acumuladas de esta sesión que requieren el agente de FRONTEND (permiso pendiente del usuario en turnos anteriores, aún no concedido): (1) este nuevo modo 'Single' en el creador de contenido, (2) la barra inferior de comentar/reproducciones en el visor del grid de perfil para publicaciones únicas, (3) el gesto de doble-toque + animación de voto en publicaciones únicas. Voy a pedir permiso consolidado para las 3 de una vez."
+
