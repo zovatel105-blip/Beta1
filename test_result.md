@@ -3686,3 +3686,31 @@ test_plan:
 agent_communication:
     -agent: "main"
     -message: "NUEVA FUNCIÓN (idea del usuario para 'publicación de un solo vídeo' dentro del ADN de Twyk): Retos ABIERTOS. El usuario pidió explícitamente 'No usar el testing agent' -> se respetó de inmediato. VERIFICADO en su lugar con un script Node temporal (fetch nativo, SIN curl, contra http://localhost:3000, borrado tras la verificación) que ejecutó los 11 escenarios completos descritos en el task de backend: login (marcos/lucia/laura), creación de reto abierto (openChallenge=1, open:true, to:null), visibilidad en GET /api/feed para OTRO usuario (type:'challenge_open', challengeId correcto, responsesCount:0), respuesta de lucia (crea versus con isChallenge:true+sourceChallengeId), bloqueo de doble respuesta (already_responded), respuesta independiente de laura (2º versus), bloqueo de auto-respuesta del creador (cannot_respond_own_challenge), bloqueo del endpoint viejo /accept sobre un reto abierto (open_challenge_use_respond), visibilidad en /api/challenges/completed para los 3 participantes, regresión general (feed sin auth, login incorrecto, /me sin sesión), y el flujo DIRIGIDO 1-a-1 (accept + borrado del reto) sin cambios de comportamiento. RESULTADO: 17/17 verificaciones OK. Datos de prueba (posts + reto) limpiados de Mongo al final del script. Backend marcado working:true. Pendiente: preguntar al usuario si quiere probar también el frontend (UploadDialog 'Open to everyone' + OpenChallengeSlide en el feed) — NO se invocará ningún agente de testing salvo que el usuario lo autorice explícitamente."
+
+frontend:
+  - task: "BUG: las publicaciones de RETO ABIERTO (OpenChallengeSlide) no se veían igual que el resto — faltaba la barra de botones sociales (comentar/compartir/guardar), el botón de Seguir, y el avatar/nombre aparecían arriba en vez de abajo como en el resto de publicaciones"
+    implemented: true
+    working: "NA"
+    file: "components/OpenChallengeSlide.jsx, components/Feed.jsx, app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'Las publicaciones unicas deben verse igual que las demas publicaciones porque no aparece la barra de botones sociales no El boton de seguir y aparece El avatar arriba'."
+        -working: "NA"
+        -agent: "main"
+        -comment: "Reescrito components/OpenChallengeSlide.jsx para replicar EXACTAMENTE la composición visual de CarouselSlide.jsx/DuetSlide.jsx (modo infoBottom, el que usa Feed.jsx): (1) Header movido de arriba a ABAJO-IZQUIERDA (`left-0 right-16 bottom-20 pt-10`, antes estaba con `top-0`), con avatar 30px + nombre + insignia 'Open challenge' + NUEVO botón Seguir/Following (mismo estilo/lógica que el resto: estado `following` inicializado desde `post.author.isFollowing`, toggle vía POST /api/users/:username/follow, pide login si no hay sesión). (2) NUEVA columna social derecha idéntica a la del resto de publicaciones (mismos tamaños/iconos/drop-shadow): Comentar (MessageCircle + CommentsModal), Compartir (ShareIcon + ShareModal), Guardar (Bookmark + POST /api/save), Más opciones (MoreVertical + OptionsModal, solo visible en retos ajenos) y el disco de música (estático, sin pista de audio propia todavía). El hueco que en el resto de publicaciones ocupa 'Votar' aquí lo ocupa 'Responder' (Swords, mismo tamaño/posición que el botón Challenge que ya existía en el resto — coherente con la idea acordada de que el botón de reto/respuesta viva SOLO en publicaciones únicas). BACKEND (route.js, `getOpenChallengeFeedItems`): ahora recibe también `followingSet` (ya calculado en el handler de /api/feed) y anota `author.isFollowing`, y añade `stats:{comments: <conteo real>, shares:0, saves:0}` (antes no existía, así que la barra social arrancaba siempre en 0/sin contador real de comentarios) usando `getCommentsCountByPostIds` (misma mecánica que el resto del feed). Verificado que comentar/compartir/guardar funcionan sobre un id sintético (`open_<challengeId>`) sin necesitar que exista un documento en la colección `posts` (los 3 handlers ya eran genéricos por postId). Lint limpio (0 errores nuevos) en los 3 archivos. Pendiente: verificación visual con el agente de testing de frontend (petición explícita del usuario en el turno anterior de NO usar el testing agent fue solo para el backend de Retos Abiertos; para este bug de UI se sigue el protocolo estándar y se pide permiso antes de invocar el agente de frontend)."
+
+test_plan:
+  current_focus:
+    - "BUG: las publicaciones de RETO ABIERTO (OpenChallengeSlide) no se veían igual que el resto — faltaba la barra de botones sociales (comentar/compartir/guardar), el botón de Seguir, y el avatar/nombre aparecían arriba en vez de abajo como en el resto de publicaciones"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    -agent: "main"
+    -message: "BUG FIX: reescrito components/OpenChallengeSlide.jsx (tarjeta del reto abierto en el feed) para que tenga EXACTAMENTE la misma composición visual que el resto de publicaciones (CarouselSlide/DuetSlide): header abajo-izquierda con Seguir, columna social derecha completa (Comentar/Compartir/Guardar/Más + disco), y 'Responder' ocupando el hueco donde iría 'Votar'. Backend (getOpenChallengeFeedItems) actualizado para anotar isFollowing y el conteo real de comentarios. Necesito permiso para invocar deep_testing_frontend_nextjs y verificar visualmente (con capturas) que: (a) el header ahora aparece abajo igual que las demás publicaciones, (b) el botón Seguir aparece y funciona, (c) la columna social completa (Responder/Comentar/Compartir/Guardar) aparece y es funcional, comparado lado a lado con una publicación Versus normal del mismo feed."
+

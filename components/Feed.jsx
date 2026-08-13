@@ -638,9 +638,8 @@ export default function Feed() {
                       muted={muted}
                       playbackEnabled={effectivePlayback}
                       onOpenProfile={openAuthorProfile}
-                      onRequireAuth={() => { setAuthTab('register'); setAuthOpen(true) }}
                       onResponded={handleOpenChallengeResponded}
-                      currentUsername={user?.username || null}
+                      onNotInterested={handleNotInterested}
                     />
                   ) : post.type === 'duet' ? (
                     <DuetSlide

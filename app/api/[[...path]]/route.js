@@ -262,7 +262,7 @@ async function readChallenges() {
 // cualquier otro, pero NUNCA se borra al recibir una respuesta (ver
 // handleRespondOpenChallenge) — así puede acumular varias respuestas
 // independientes, cada una publicada como su propio versus.
-async function getOpenChallengeFeedItems(currentUser) {
+async function getOpenChallengeFeedItems(currentUser, followingSet) {
   try {
     const list = await readChallenges()
     let opens = list.filter((c) => c.open === true)
@@ -283,12 +283,19 @@ async function getOpenChallengeFeedItems(currentUser) {
     // Avatar/nombre ACTUALES del creador del reto (el reto guarda un snapshot).
     const unames = opens.map((c) => c.from?.username).filter(Boolean)
     const fresh = await getCurrentUsersByUsernames(unames)
+    // Conteo REAL de comentarios (misma mecánica que refreshPostCommentCounts
+    // para el resto del feed) — sin esto la barra social arrancaría siempre
+    // en 0 aunque ya hubiera comentarios en esta tarjeta.
+    const ids = opens.map((c) => `open_${c.id}`)
+    const commentCounts = await getCommentsCountByPostIds(ids).catch(() => ({}))
     return opens.map((c) => {
       const f = c.from?.username ? fresh[c.from.username] : null
-      const author = f ? { ...c.from, avatarUrl: f.avatarUrl || c.from.avatarUrl, name: f.name || c.from.name, verified: f.verified } : c.from
+      let author = f ? { ...c.from, avatarUrl: f.avatarUrl || c.from.avatarUrl, name: f.name || c.from.name, verified: f.verified } : c.from
+      if (author?.username && followingSet) author = { ...author, isFollowing: followingSet.has(author.username) }
       const mediaType = c.challengerMediaType || (c.challengerImageUrl ? 'image' : 'video')
+      const id = `open_${c.id}`
       return {
-        id: `open_${c.id}`,
+        id,
         type: 'challenge_open',
         challengeId: c.id,
         mediaType,
@@ -298,6 +305,7 @@ async function getOpenChallengeFeedItems(currentUser) {
         author,
         description: c.message || '',
         music: c.musicTitle ? `${c.musicTitle} · ${c.musicArtist}` : 'Open challenge',
+        stats: { likes: 0, comments: commentCounts[id] || 0, shares: 0, saves: 0 },
         responsesCount: countByChallenge[c.id] || 0,
         createdAtMs: c.createdAt ? new Date(c.createdAt).getTime() : Date.now(),
       }
@@ -723,7 +731,7 @@ export async function GET(request, { params }) {
     // el dedupe por id en useFeed.js evita que se repita la MISMA tarjeta si
     // el ciclo vuelve a caer sobre ella en una página posterior.
     try {
-      const openItems = await getOpenChallengeFeedItems(currentUser)
+      const openItems = await getOpenChallengeFeedItems(currentUser, followingSet)
       if (openItems.length) {
         const pageIdx = Math.floor(cursor / (limit || 8))
         const chosen = openItems[pageIdx % openItems.length]

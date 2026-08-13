@@ -1,18 +1,35 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Swords, Globe, Loader2, X, Check, Play, Image as ImageIcon, Film } from 'lucide-react'
+import { Swords, Globe, Loader2, X, Check, Play, MessageCircle, Bookmark, MoreVertical, Music } from 'lucide-react'
+import ShareIcon from './icons/ShareIcon'
 import Avatar from './Avatar'
 import CaptionText from './CaptionText'
+import CommentsModal from './CommentsModal'
+import ShareModal from './ShareModal'
+import OptionsModal from './OptionsModal'
+import AuthModal from './AuthModal'
+import { useAuth } from '@/contexts/AuthContext'
+
+function formatCount(n) {
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M'
+  if (n >= 1_000) return (n / 1_000).toFixed(1).replace(/\.0$/, '') + 'K'
+  return String(n)
+}
+function countLabel(n, placeholder) {
+  return (Number(n) || 0) === 0 ? placeholder : formatCount(n)
+}
 
 /**
  * OpenChallengeSlide — tarjeta de un RETO ABIERTO ("a todos") dentro del feed
- * principal. A diferencia de un Versus/1vs1, aquí solo hay UN vídeo/foto (el
- * del creador del reto) y NO se vota: la acción principal es "Responder este
- * reto" — cualquiera que la pulse sube su propio vídeo/foto y, al enviarlo,
- * esta publicación se convierte en un versus real (creador vs quien
- * respondió) que aparecerá en el feed y en Batallas > Completados para ambos.
- * El reto original NUNCA se cierra: puede recibir respuestas de más personas.
+ * principal. Es una publicación de UN SOLO vídeo/foto (no hay "otro lado" con
+ * el que comparar), pero visualmente debe sentirse IGUAL que cualquier otra
+ * publicación (mismo header abajo-izquierda con avatar+seguir, misma columna
+ * social derecha con comentar/compartir/guardar/más, mismo disco de música) —
+ * la ÚNICA diferencia real de esta tarjeta es que el hueco donde normalmente
+ * iría "Votar" se sustituye por "Responder" (Swords), que es la acción que le
+ * da sentido a una publicación única dentro del ADN de Twyk (comparar/votar/
+ * retar): al responder, esta publicación se convierte en un versus real.
  */
 export default function OpenChallengeSlide({
   post,
@@ -21,10 +38,10 @@ export default function OpenChallengeSlide({
   muted: globalMuted,
   playbackEnabled = true,
   onOpenProfile,
-  onRequireAuth,
   onResponded,
-  currentUsername = null,
+  onNotInterested,
 }) {
+  const { user } = useAuth()
   const videoRef = useRef(null)
   const fileRef = useRef(null)
   const [paused, setPaused] = useState(false)
@@ -34,11 +51,29 @@ export default function OpenChallengeSlide({
   const [error, setError] = useState(null)
   const [done, setDone] = useState(false)
   const [respCount, setRespCount] = useState(post.responsesCount || 0)
+  const [following, setFollowing] = useState(!!post.author?.isFollowing)
+  const [commentCount, setCommentCount] = useState(post.stats?.comments || 0)
+  const [shareCount, setShareCount] = useState(post.stats?.shares || 0)
+  const [saveCount, setSaveCount] = useState(post.stats?.saves || 0)
+  const [saved, setSaved] = useState(false)
+  const [commentsOpen, setCommentsOpen] = useState(false)
+  const [shareOpen, setShareOpen] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [authModalOpen, setAuthModalOpen] = useState(false)
+
+  const lsNum = (k) => { try { return parseInt(localStorage.getItem(k) || '0', 10) || 0 } catch { return 0 } }
+  const lsSet = (k, v) => { try { localStorage.setItem(k, String(v)) } catch { /* ignore */ } }
+  useEffect(() => {
+    setShareCount((c) => Math.max(c, lsNum(`shrN_${post.id}`)))
+    setSaveCount((c) => Math.max(c, lsNum(`savN_${post.id}`)))
+  }, [post.id])
+  useEffect(() => { setFollowing(!!post.author?.isFollowing) }, [post.author?.username, post.author?.isFollowing])
 
   const isImage = post.mediaType === 'image'
   const mediaUrl = isImage ? post.imageUrl : post.videoUrl
   const acceptType = isImage ? 'image/*' : 'video/*'
-  const isOwnChallenge = !!currentUsername && currentUsername === post.author?.username
+  const headAuthor = post.author || {}
+  const isOwnChallenge = !!user?.username && user.username === headAuthor?.username
 
   useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl) }, [previewUrl])
 
@@ -67,10 +102,6 @@ export default function OpenChallengeSlide({
         try { el.load() } catch { /* ignore */ }
       }
     }
-    return () => {
-      if (!isActive) return
-      try { el?.pause() } catch { /* ignore */ }
-    }
   }, [isActive, warm, playbackEnabled, globalMuted, isImage, mediaUrl])
 
   const togglePlay = useCallback(() => {
@@ -81,7 +112,7 @@ export default function OpenChallengeSlide({
 
   const openPicker = () => {
     if (isOwnChallenge) return
-    if (!currentUsername) { onRequireAuth?.(); return }
+    if (!user) { setAuthModalOpen(true); return }
     fileRef.current?.click()
   }
 
@@ -100,11 +131,7 @@ export default function OpenChallengeSlide({
     setPreviewUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(f) })
   }
 
-  const cancelResponse = () => {
-    setPickedFile(null)
-    setPreviewUrl(null)
-    setError(null)
-  }
+  const cancelResponse = () => { setPickedFile(null); setPreviewUrl(null); setError(null) }
 
   const sendResponse = async () => {
     if (!pickedFile || sending) return
@@ -134,6 +161,34 @@ export default function OpenChallengeSlide({
     }
   }
 
+  const toggleFollow = useCallback((e) => {
+    e.stopPropagation()
+    if (!user) { setAuthModalOpen(true); return }
+    const target = headAuthor?.username
+    if (!target || target === user?.username) return
+    setFollowing((f) => !f)
+    fetch(`/api/users/${encodeURIComponent(target)}/follow`, { method: 'POST' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d && typeof d.following === 'boolean') setFollowing(d.following) })
+      .catch(() => setFollowing((f) => !f))
+  }, [headAuthor?.username, user])
+
+  const handleSaveToggle = useCallback(async (e) => {
+    e.stopPropagation()
+    if (!user) { setAuthModalOpen(true); return }
+    const newSaved = !saved
+    setSaved(newSaved)
+    setSaveCount((n) => { const next = Math.max(0, n + (newSaved ? 1 : -1)); lsSet(`savN_${post.id}`, next); return next })
+    try {
+      await fetch('/api/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ postId: post.id }) })
+    } catch {
+      setSaved(!newSaved)
+      setSaveCount((n) => Math.max(0, n + (newSaved ? -1 : 1)))
+    }
+  }, [post.id, saved, user])
+
+  const showBottomPanel = pickedFile || done
+
   return (
     <div className="relative w-full h-full bg-black overflow-hidden select-none">
       <input ref={fileRef} type="file" accept={acceptType} className="hidden" onChange={onFileChange} />
@@ -156,7 +211,6 @@ export default function OpenChallengeSlide({
           />
         )}
       </div>
-      <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-black/40 pointer-events-none" />
 
       {paused && !isImage && (
         <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
@@ -164,52 +218,88 @@ export default function OpenChallengeSlide({
         </div>
       )}
 
-      {/* Header — avatar + "Open challenge" */}
-      <div className="absolute top-0 left-0 right-16 z-20 px-4 pb-10 pt-10 pointer-events-none bg-gradient-to-b from-black/60 to-transparent"
-           style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}>
-        <div className="flex items-center gap-2.5 w-fit pointer-events-auto">
-          <button onClick={(e) => { e.stopPropagation(); onOpenProfile?.(post.author?.username) }} className="w-[30px] h-[30px] rounded-full overflow-hidden block shrink-0">
-            <Avatar src={post.author?.avatarUrl} alt={post.author?.username} className="w-full h-full" />
-          </button>
-          <span onClick={(e) => { e.stopPropagation(); onOpenProfile?.(post.author?.username) }} className="text-white font-semibold text-[13px] leading-tight drop-shadow-md truncate max-w-[140px] cursor-pointer">
-            {post.author?.username || post.author?.name}
-          </span>
-          <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold px-2.5 py-1 rounded-full bg-white/15 backdrop-blur text-white border border-white/20 shrink-0">
-            <Globe size={11} strokeWidth={2.2} /> Open challenge
-          </span>
+      {!isOwnChallenge && !showBottomPanel && (
+        <div className="absolute top-12 left-1/2 -translate-x-1/2 z-20 pointer-events-none bg-black/45 backdrop-blur text-white text-[10px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap">
+          Tap the swords to respond with your own {isImage ? 'photo' : 'video'}
         </div>
-        {post.description ? (
-          <div className="mt-1.5 pointer-events-auto">
+      )}
+
+      {/* Header — MISMA posición/estilo que el resto de publicaciones
+          (abajo-izquierda, con Seguir), solo con la insignia extra "Open
+          challenge" junto al nombre. */}
+      {!showBottomPanel && (
+        <div className="absolute z-20 px-4 left-0 right-16 bottom-20 pt-10 pointer-events-none">
+          <div className="flex items-center gap-2.5 w-fit max-w-[calc(100%-4rem)] pointer-events-auto">
+            <button onClick={(e) => { e.stopPropagation(); onOpenProfile?.(headAuthor.username) }} className="w-[30px] h-[30px] rounded-full overflow-hidden block shrink-0">
+              <Avatar src={headAuthor.avatarUrl} alt={headAuthor.username} className="w-full h-full" />
+            </button>
+            <span onClick={(e) => { e.stopPropagation(); onOpenProfile?.(headAuthor.username) }} className="text-white font-semibold text-[13px] leading-tight drop-shadow-md truncate max-w-[120px] cursor-pointer">
+              {headAuthor.username || headAuthor.name}
+            </span>
+            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded-full bg-white/15 backdrop-blur text-white border border-white/20 shrink-0 whitespace-nowrap">
+              <Globe size={10} strokeWidth={2.2} /> Open challenge
+            </span>
+            {!isOwnChallenge && (
+              <button
+                onClick={toggleFollow}
+                aria-label="follow"
+                className="shrink-0 px-3 py-1 rounded-full border border-white/90 text-white text-[13px] font-medium transition-all duration-200 active:scale-95"
+              >
+                {following ? 'Following' : 'Follow'}
+              </button>
+            )}
+          </div>
+          <div className="mt-1 pointer-events-auto">
             <CaptionText text={post.description} className="text-white text-sm leading-tight" />
           </div>
-        ) : null}
-      </div>
+        </div>
+      )}
 
-      {/* Columna social derecha — SOLO la acción de responder (sin voto: aquí
-          todavía no hay "otro lado" con el que comparar). */}
-      <div className="absolute z-20 right-1 bottom-24 flex flex-col items-center gap-1.5 pointer-events-auto">
-        <button
-          aria-label="Respond to this challenge"
-          onClick={(e) => { e.stopPropagation(); openPicker() }}
-          disabled={isOwnChallenge}
-          className="w-14 h-14 rounded-full bg-white flex items-center justify-center active:scale-90 transition disabled:opacity-40"
-          style={{ boxShadow: '0 4px 18px rgba(0,0,0,0.45)' }}
-        >
-          <Swords className="w-6 h-6 text-black" strokeWidth={2} />
-        </button>
-        <span className="text-[11px] font-bold text-white drop-shadow-md whitespace-nowrap">
-          {isOwnChallenge ? 'Your challenge' : 'Respond'}
-        </span>
-        {respCount > 0 && (
-          <span className="text-[10px] font-semibold text-white/80 drop-shadow-md whitespace-nowrap">
-            {respCount} responded
-          </span>
-        )}
-      </div>
-
-      {!isOwnChallenge && !pickedFile && !done && (
-        <div className="absolute top-[86px] left-1/2 -translate-x-1/2 z-20 pointer-events-none bg-black/45 backdrop-blur text-white text-[10px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap">
-          Tap the swords to respond with your own {isImage ? 'photo' : 'video'}
+      {/* Columna social derecha — MISMA columna que el resto de publicaciones
+          (comentar/compartir/guardar/más), con "Responder" en el hueco que
+          normalmente ocupa "Votar" (aquí no hay 2 lados que comparar todavía). */}
+      {!showBottomPanel && (
+        <div className="absolute z-20 right-1 flex flex-col items-center gap-4 pointer-events-auto" style={{ bottom: 72 }}>
+          <button
+            aria-label="Respond to this challenge"
+            onClick={(e) => { e.stopPropagation(); openPicker() }}
+            disabled={isOwnChallenge}
+            className="flex flex-col items-center gap-1 w-14 hover:scale-110 transition-all duration-200 disabled:opacity-50"
+            style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}
+          >
+            <Swords className="w-[30px] h-[30px] text-white" strokeWidth={1.5} />
+            <span className={`${respCount > 0 ? 'text-[9px] font-semibold' : 'text-[8px] font-bold'} max-w-[30px] overflow-hidden text-white leading-none text-center whitespace-nowrap`}>
+              {isOwnChallenge ? 'Yours' : countLabel(respCount, 'Respond')}
+            </span>
+          </button>
+          <button aria-label="comments" onClick={(e) => { e.stopPropagation(); if (!user) { setAuthModalOpen(true); return }; setCommentsOpen(true) }} className="flex flex-col items-center gap-1 w-14 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
+            <MessageCircle className="w-[30px] h-[30px] text-white" strokeWidth={1.25} />
+            <span className={`${commentCount > 0 ? 'text-[9px] font-semibold' : 'text-[8px] font-bold'} max-w-[30px] overflow-hidden text-white leading-none text-center whitespace-nowrap`}>{countLabel(commentCount, 'Add 1st')}</span>
+          </button>
+          <button aria-label="share" onClick={(e) => { e.stopPropagation(); setShareOpen(true) }} className="flex flex-col items-center gap-1 w-14 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
+            <ShareIcon className="w-[30px] h-[30px] text-white" strokeWidth={1.4} />
+            <span className="text-[9px] font-semibold text-white leading-none text-center whitespace-nowrap">{countLabel(shareCount, 'Share')}</span>
+          </button>
+          <button aria-label="bookmark" onClick={handleSaveToggle} className="flex flex-col items-center gap-1 w-14 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
+            <Bookmark className={`w-[30px] h-[30px] transition-all duration-200 ${saved ? 'fill-current text-yellow-400' : 'text-white'}`} strokeWidth={1.25} />
+            <span className="text-[9px] font-semibold text-white leading-none text-center whitespace-nowrap">{countLabel(saveCount, 'Save')}</span>
+          </button>
+          {!isOwnChallenge && (
+            <button aria-label="mas-opciones" onClick={(e) => { e.stopPropagation(); setMenuOpen(true) }} className="flex flex-col items-center hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
+              <MoreVertical className="w-[18px] h-[18px] text-white" strokeWidth={1.25} fill="currentColor" />
+            </button>
+          )}
+          {/* Disco (estático — este tipo de publicación aún no lleva pista de audio propia) */}
+          <div className="relative mt-1 w-10 h-10 shrink-0">
+            <div className="relative w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-zinc-700 to-black flex items-center justify-center">
+              {post.posterUrl ? (
+                <img src={post.posterUrl} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <Music size={16} className="text-white" />
+              )}
+              <div className="absolute inset-0 rounded-full pointer-events-none" style={{ boxShadow: 'inset 0 0 5px 1px rgba(0,0,0,0.55)' }} />
+            </div>
+          </div>
         </div>
       )}
 
@@ -260,6 +350,33 @@ export default function OpenChallengeSlide({
           <p className="text-rose-400 text-[12px] font-medium text-center bg-black/50 rounded-full py-1.5 px-3">{error}</p>
         </div>
       )}
+
+      <CommentsModal
+        open={commentsOpen}
+        postId={post.id}
+        votedSide={null}
+        onCountChange={setCommentCount}
+        onClose={() => setCommentsOpen(false)}
+      />
+      <ShareModal
+        open={shareOpen}
+        postId={post.id}
+        onShared={() => setShareCount((n) => { const next = n + 1; lsSet(`shrN_${post.id}`, next); return next })}
+        onClose={() => setShareOpen(false)}
+      />
+      <OptionsModal
+        open={menuOpen}
+        postId={post.id}
+        author={headAuthor}
+        isOwner={false}
+        onClose={() => setMenuOpen(false)}
+        onNotInterested={onNotInterested}
+      />
+      <AuthModal
+        open={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        defaultTab="register"
+      />
     </div>
   )
 }
