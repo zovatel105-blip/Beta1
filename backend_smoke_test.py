@@ -13,7 +13,7 @@ import requests
 import sys
 
 # Base URL from .env
-BASE_URL = "https://user-stats-display.preview.emergentagent.com/api"
+BASE_URL = "https://single-post-concept.preview.emergentagent.com/api"
 
 def test_login():
     """Test 1: POST /api/auth/login with lucia/Test12345"""

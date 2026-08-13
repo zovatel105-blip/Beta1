@@ -10,7 +10,7 @@ import sys
 import time
 
 # Base URL from environment
-BASE_URL = os.getenv('NEXT_PUBLIC_BASE_URL', 'https://a441188c-3875-4f04-bb0c-96a80d551112.preview.emergentagent.com')
+BASE_URL = os.getenv('NEXT_PUBLIC_BASE_URL', 'https://single-post-concept.preview.emergentagent.com')
 API_URL = f"{BASE_URL}/api"
 
 # Test credentials
