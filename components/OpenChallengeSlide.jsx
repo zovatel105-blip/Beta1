@@ -325,7 +325,7 @@ export default function OpenChallengeSlide({
             style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}
           >
             <Swords className="w-[30px] h-[30px] text-white" strokeWidth={1.25} />
-            <span className="text-[8px] font-bold max-w-[30px] overflow-hidden text-white leading-none text-center whitespace-nowrap">Challenge</span>
+            <span className="text-[8px] font-bold max-w-[30px] overflow-hidden text-white leading-none text-center whitespace-nowrap">Be 1st</span>
           </button>
         )}
         <button aria-label="comments" onClick={(e) => { e.stopPropagation(); if (!user) { setAuthModalOpen(true); return }; setCommentsOpen(true) }} className="flex flex-col items-center gap-1 w-14 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
