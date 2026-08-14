@@ -4117,6 +4117,34 @@ agent_communication:
     -agent: "main"
     -message: "MEJORA implementada en GET /api/feed (route.js): cuando la página actual YA es la última (hasMore:false), se reparten hasta 6 retos abiertos disponibles en vez de solo 1 -antes, con pocos candidatos reales, el usuario nunca llegaba a ver más de 1 de sus publicaciones 'Single', al no haber 'página 2' donde rotar-. Cuando SÍ hay más páginas reales por delante, sigue siendo 1 por página (sin regresión). Verificado con un script Node temporal (fetch real, sin curl, SIN agente de testing a petición explícita y reiterada del usuario en esta sesión): confirmado 1 item con hasMore:true y 6 items con hasMore:false, usando datos reales de Mongo. Datos de prueba limpiados."
 
+backend:
+  - task: "APP NATIVA (Android/Compose): 'Hay 2 Splash Screen, eliminar el primero y dejar el segundo'"
+    implemented: true
+    working: "NA"
+    file: "android-twyk/app/build.gradle.kts, android-twyk/app/src/main/AndroidManifest.xml, android-twyk/app/src/main/res/values/themes.xml, android-twyk/app/src/main/java/com/twyk/app/MainActivity.kt"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'Hay 2 Splash Screen eliminat El primero y dejar El segundo'."
+        -working: "NA"
+        -agent: "main"
+        -comment: "100% Kotlin/recursos nativos, NO COMPILABLE en este contenedor (sin Android SDK). CAUSA: MainActivity.kt ya tenía un splash PROPIO (`SplashScreen()`: logo grande sobre fondo blanco, 1.1s + fade, pedido y ajustado por el usuario en rondas anteriores, ver memory/PRD.md) — PERO Android 12+ (API 31+) SIEMPRE pinta ADEMÁS su PROPIO splash del SISTEMA al arrancar en frío (icono de la app sobre el color de fondo del tema activo, `Theme.Twyk` -> fondo NEGRO), un comportamiento del sistema operativo que la app no controlaba en absoluto -de ahí 'el primero' que el usuario veía: un salto negro (splash del sistema) -> blanco con el logo grande (splash propio de la app)-, 2 pantallas de marca visualmente descoordinadas en fila. FIX (única forma soportada de tomar control del splash del sistema): añadida la librería de compatibilidad `androidx.core:core-splashscreen:1.0.1` (build.gradle.kts); nuevo tema `Theme.Twyk.Starting` (themes.xml, extiende `Theme.SplashScreen`) con fondo BLANCO (en vez del negro de `Theme.Twyk`, para que se funda sin corte con el splash propio de la app, que también es blanco) y `postSplashScreenTheme=Theme.Twyk` (restaura el tema normal justo después); `AndroidManifest.xml`: el tema de `<activity>` (MainActivity) pasa de `Theme.Twyk` a `Theme.Twyk.Starting` (leído por la librería al arrancar); `MainActivity.kt`: `installSplashScreen()` llamado ANTES de `super.onCreate()` (exigido por la librería), SIN ningún `setKeepOnScreenCondition` -> el splash del sistema se retira en el instante en que Compose pinta su primer frame (casi inmediato, ya que `setContent` es lo primero que hace `onCreate`), así que en la práctica deja de percibirse como una pantalla de marca propia ('el primero', eliminado); el splash grande YA EXISTENTE de la app (`SplashScreen()`, 'el segundo') se dejó COMPLETAMENTE INTACTO -sin tocar tamaño/posición del logo, duración ni fade, tal como pidió el usuario ('dejar el segundo')-. Verificado por revisión manual + validación de que AndroidManifest.xml y themes.xml siguen siendo XML bien formado (`xml.etree.ElementTree.parse`, ambos OK) + balance de paréntesis/llaves de MainActivity.kt antes/después vía git diff (374/374->383/383 paréntesis, 141/141->142/142 llaves: mis 9 líneas añadidas están perfectamente balanceadas). NO se invocó ningún agente de testing (100% nativo Android, fuera del alcance de los agentes disponibles en este entorno sin Android SDK, y a petición explícita y vigente del usuario en esta sesión de no usarlos). Pendiente: el usuario debe compilar el APK (requiere sincronizar Gradle por la nueva dependencia) y confirmar que al abrir la app en frío ya NO se ve el salto negro->blanco previo al logo grande, solo el splash con el logo (fondo blanco) durante ~1.1s antes de pasar al feed."
+
+test_plan:
+  current_focus:
+    - "APP NATIVA (Android/Compose): 'Hay 2 Splash Screen, eliminar el primero y dejar el segundo'"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    -agent: "main"
+    -message: "FIX NATIVO: eliminado (en la práctica, retirado casi instantáneamente) el splash del SISTEMA que Android 12+ pinta automáticamente al arrancar (antes se veía un salto negro->blanco antes del splash propio de la app), usando la librería androidx core-splashscreen (nueva dependencia en build.gradle.kts) + Theme.Twyk.Starting (themes.xml, fondo blanco para fundirse sin corte) + installSplashScreen() en MainActivity.kt. El splash PROPIO de la app (logo grande, 1.1s) se dejó completamente intacto, tal como pidió el usuario. 100% nativo, no compilable/testeable en este entorno (sin Android SDK); sin agente de testing (a petición explícita del usuario). El usuario debe recompilar el APK (nueva dependencia Gradle) y confirmar visualmente."
+
+
 
 
 

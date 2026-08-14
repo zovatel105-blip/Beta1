@@ -14,6 +14,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.core.splashscreen.installSplashScreen
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Image
@@ -95,6 +96,22 @@ class MainActivity : ComponentActivity() {
     ) { /* concedido o denegado: sin acción adicional por ahora */ }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // BUG reportado por el usuario ("hay 2 splash screen, eliminar el
+        // primero y dejar el segundo"): DEBE llamarse ANTES de
+        // super.onCreate() (así lo exige la librería) — toma control del
+        // splash que Android 12+ pinta automáticamente por su cuenta (el
+        // tema de arranque, Theme.Twyk.Starting, ya está declarado en
+        // AndroidManifest.xml). Al NO fijar aquí ningún
+        // `setKeepOnScreenCondition` (splash.setKeepOnScreenCondition {...}),
+        // este splash del sistema se retira en el instante en que Compose
+        // pinta su primer frame -prácticamente inmediato, ya que
+        // `setContent` se llama nada más empezar este mismo método- así que
+        // el usuario ya no lo percibe como una pantalla de marca propia
+        // ("el primero", eliminado en la práctica): solo queda visible el
+        // splash grande YA EXISTENTE de la app (SplashScreen() más abajo,
+        // logo sobre fondo blanco durante 1.1s — "el segundo", el que se
+        // pidió conservar tal cual, sin ningún cambio).
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 

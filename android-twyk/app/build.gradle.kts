@@ -91,4 +91,20 @@ dependencies {
     // automáticamente (no fijar su versión por separado).
     implementation(platform("com.google.firebase:firebase-bom:33.10.0"))
     implementation("com.google.firebase:firebase-messaging")
+
+    // BUG reportado por el usuario ("hay 2 splash screen, eliminar el
+    // primero y dejar el segundo"): Android 12+ (API 31+) SIEMPRE pinta su
+    // PROPIA pantalla de splash del sistema al arrancar en frío (icono de la
+    // app sobre el color de fondo del tema) — es un comportamiento del
+    // SISTEMA OPERATIVO, no algo que la app decida por sí sola, y ANTES esta
+    // app no tenía ningún control sobre ella: se veía brevemente ese splash
+    // del sistema y, justo después, el splash PROPIO de la app
+    // (SplashScreen() en MainActivity.kt: logo grande sobre fondo blanco,
+    // 1.1s) — 2 pantallas de marca distintas y visualmente descoordinadas
+    // en fila. La librería de compatibilidad `core-splashscreen` es la única
+    // forma soportada de tomar control de ESE splash del sistema (funciona
+    // igual en versiones antiguas de Android, donde el sistema no lo pinta
+    // por sí solo) — ver Theme.Twyk.Starting (themes.xml) +
+    // installSplashScreen() en MainActivity.kt.
+    implementation("androidx.core:core-splashscreen:1.0.1")
 }
