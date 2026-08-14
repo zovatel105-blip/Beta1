@@ -728,21 +728,54 @@ export async function GET(request, { params }) {
     // para NDCG). Fire-and-forget.
     recordImpressions(posts.map((p) => p.id), viewerKey, cursor).catch(() => {})
 
-    // RETOS ABIERTOS: se inyecta 1 tarjeta "Responder este reto" por página
-    // (si hay alguno disponible), en la 3ª posición de la página — visible
-    // para CUALQUIERA que descubra el feed, no solo la persona retada (a
-    // diferencia de los retos dirigidos, que solo viven en la bandeja de
-    // Retos Activos de un usuario concreto). Se elige rotando por página
-    // (cursor/limit) para no repetir siempre el mismo si hay varios abiertos;
-    // el dedupe por id en useFeed.js evita que se repita la MISMA tarjeta si
-    // el ciclo vuelve a caer sobre ella en una página posterior.
+    // RETOS ABIERTOS: se inyectan en el feed (visibles para CUALQUIERA que
+    // lo descubra, no solo la persona retada, a diferencia de los retos
+    // dirigidos que solo viven en la bandeja de Retos Activos de un usuario
+    // concreto). Por defecto (SÍ hay más páginas reales por delante, el caso
+    // normal a gran escala) se inyecta solo 1 por página, rotando según
+    // cursor/limit, para no saturar el feed de tarjetas de este tipo.
+    //
+    // BUG reportado por el usuario ("tengo 3 publicaciones single pero no
+    // las veo todas"): con pocos candidatos reales (p.ej. una cuenta nueva o
+    // de pruebas, donde esta MISMA página ya es la última — `hasMore` va a
+    // salir `false` más abajo), NUNCA habrá una "página 2" a la que rotar
+    // -el viewer se queda mirando siempre la MISMA página- así que solo se
+    // llegaba a ver 1 de los varios retos abiertos disponibles, dejando el
+    // resto invisibles para siempre. FIX: si esta YA es la última página
+    // (calculado con la MISMA fórmula que `hasMore`, antes de inyectar), se
+    // reparten TODOS los retos abiertos disponibles (hasta un máximo
+    // razonable) a lo largo de esta misma página en vez de solo 1 — el
+    // dedupe por id en useFeed.js sigue evitando duplicados si el ciclo
+    // vuelve a caer sobre la misma tarjeta en una recarga posterior.
     try {
       const openItems = await getOpenChallengeFeedItems(currentUser, followingSet)
       if (openItems.length) {
-        const pageIdx = Math.floor(cursor / (limit || 8))
-        const chosen = openItems[pageIdx % openItems.length]
-        const insertAt = Math.min(2, posts.length)
-        posts = [...posts.slice(0, insertAt), chosen, ...posts.slice(insertAt)]
+        const isLastPage = cursor + limit >= totalCandidates
+        if (isLastPage) {
+          // Última página real: sin página siguiente donde rotar -> se
+          // reparten hasta MAX_OPEN_LAST_PAGE retos abiertos, separados por
+          // ~3 publicaciones reales entre cada uno (empezando en la misma
+          // 3ª posición que usa el caso normal de abajo), para no
+          // amontonarlos todos al principio.
+          const MAX_OPEN_LAST_PAGE = 6
+          const toInsert = openItems.slice(0, MAX_OPEN_LAST_PAGE)
+          const REAL_POSTS_BETWEEN = 3
+          let result = posts.slice()
+          let at = Math.min(2, result.length)
+          for (const item of toInsert) {
+            at = Math.min(at, result.length)
+            result = [...result.slice(0, at), item, ...result.slice(at)]
+            at += REAL_POSTS_BETWEEN + 1
+          }
+          posts = result
+        } else {
+          // Comportamiento original (sin cambios): 1 por página, rotando
+          // entre los disponibles según cursor/limit.
+          const pageIdx = Math.floor(cursor / (limit || 8))
+          const chosen = openItems[pageIdx % openItems.length]
+          const insertAt = Math.min(2, posts.length)
+          posts = [...posts.slice(0, insertAt), chosen, ...posts.slice(insertAt)]
+        }
       }
     } catch { /* ignore: el feed nunca debe romperse por esto */ }
 

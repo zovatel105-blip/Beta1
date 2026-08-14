@@ -4091,5 +4091,32 @@ agent_communication:
     -agent: "main"
     -message: "BUG FIX (SIN agente de testing, a petición explícita del usuario en este turno): components/OpenChallengeSlide.jsx no distinguía un TOQUE de un ARRASTRE/scroll sobre el vídeo (le faltaba el guard de distancia que CarouselSlide.jsx/DuetSlide.jsx SÍ tienen) — cada gesto de scroll sobre una publicación 'Single' se trataba como toque/doble-toque, pudiendo abrir el modal de login (bloqueando visualmente el scroll) o programar un play/pausa indebido. Añadido el mismo guard `onPointerDown` + distancia >12px que ya usa el resto del feed. Verificado por revisión de código + lint (0 errores nuevos), SIN testing agent. Pendiente: confirmación del usuario en el feed real."
 
+backend:
+  - task: "MEJORA: en la última página real del feed (sin más páginas por delante), repartir TODOS los retos abiertos disponibles en vez de solo 1 por página"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'cuando el backend detecta que esta es la ÚLTIMA página que la app va a pedir (no habrá una página 2 donde rotar), inserta TODOS los retos abiertos disponibles (hasta un máximo razonable) repartidos en esa misma página, en vez de solo 1. Si sí hay más páginas reales por delante (el caso normal a gran escala), se mantiene el comportamiento original de 1 por página para no saturar el feed.' (explica la causa real del bug anterior: 'tengo 3 publicaciones single pero no las veo todas' — con pocos candidatos reales, la ÚNICA página siempre mostraba el mismo reto abierto rotado, sin 'página 2' donde llegaran a aparecer los otros 2)."
+        -working: true
+        -agent: "main"
+        -comment: "GET /api/feed (route.js): antes se inyectaba SIEMPRE exactamente 1 tarjeta de reto abierto por página, rotando por `pageIdx % openItems.length` — si esta página YA es la última (`cursor + limit >= totalCandidates`, la MISMA fórmula que ya usa `hasMore` más abajo, calculada ANTES de inyectar para poder decidir), nunca habrá una página siguiente a la que rotar, así que el viewer solo llegaba a ver 1 de los varios retos abiertos disponibles para siempre. FIX: nueva rama `isLastPage` — si es la última página, se reparten hasta `MAX_OPEN_LAST_PAGE=6` retos abiertos a lo largo de la página (empezando en la 3ª posición, con ~3 publicaciones reales de separación entre cada inserción sucesiva, para no amontonarlos); si NO es la última página (caso normal a gran escala), se mantiene el comportamiento original íntegro (1 por página, rotando). VERIFICADO con un script Node temporal (fetch nativo, SIN curl, SIN agente de testing — a petición explícita y reiterada del usuario en esta sesión): creados 3 retos abiertos de prueba (marcos) además de los 3 reales ya existentes del propio usuario (twyk) -> GET /api/feed?limit=2 (hasMore:true, hay más candidatos reales) -> 1 solo reto abierto mostrado (comportamiento normal, sin regresión); GET /api/feed?limit=200 (hasMore:false, última página real) -> 6 retos abiertos mostrados (tope MAX_OPEN_LAST_PAGE), todos los ids reales presentes. Los 3 retos abiertos de prueba se eliminaron de Mongo tras verificar; los 3 reales del usuario (twyk) se dejaron intactos. Lint limpio (0 errores nuevos). Sin cambios en /api/users/{username} (el grid de perfil ya fusiona TODOS los retos abiertos del autor, sin paginación por rotación, no le aplica este concepto)."
+
+test_plan:
+  current_focus: []
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    -agent: "main"
+    -message: "MEJORA implementada en GET /api/feed (route.js): cuando la página actual YA es la última (hasMore:false), se reparten hasta 6 retos abiertos disponibles en vez de solo 1 -antes, con pocos candidatos reales, el usuario nunca llegaba a ver más de 1 de sus publicaciones 'Single', al no haber 'página 2' donde rotar-. Cuando SÍ hay más páginas reales por delante, sigue siendo 1 por página (sin regresión). Verificado con un script Node temporal (fetch real, sin curl, SIN agente de testing a petición explícita y reiterada del usuario en esta sesión): confirmado 1 item con hasMore:true y 6 items con hasMore:false, usando datos reales de Mongo. Datos de prueba limpiados."
+
+
 
 
