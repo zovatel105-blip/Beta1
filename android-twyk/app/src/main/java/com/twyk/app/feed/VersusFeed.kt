@@ -329,7 +329,26 @@ fun FeedPager(
         // Solo se calcula/pasa cuando aplica (alternateViews=true, visor del
         // propio perfil) — en el resto de casos queda null, sin cambios.
         val viewsCountForPost = if (alternateViews) (post.stats?.views ?: 0) else null
-        if (post.type == "duet") {
+        if (post.type == "challenge_open") {
+            // Publicación ÚNICA ("Single") — inyectada por el backend en el
+            // feed principal (getOpenChallengeFeedItems) y fusionada en el
+            // grid del perfil de su creador (GET /api/users/{username}); este
+            // visor (Profile.kt) reutiliza el MISMO FeedPager, así que llega
+            // aquí también al abrirla desde ahí.
+            OpenChallengePage(
+                post = post,
+                isActive = active,
+                isCurrent = current,
+                dataSourceFactory = dataSourceFactory,
+                onOpenComments = onOpenComments,
+                onRequireAuth = onRequireAuth,
+                onOpenProfile = onOpenProfile,
+                onChallenge = onChallenge,
+                hideChallenge = hideChallenge,
+                showCommentInput = showCommentInput,
+                viewsCount = viewsCountForPost,
+            )
+        } else if (post.type == "duet") {
             DuetPage(
                 post, active, current, dataSourceFactory,
                 onVote = { side, previousSide -> onVote(post.id, side, previousSide) },
@@ -767,6 +786,162 @@ private fun CarouselPage(
                 QuickCommentInput(
                     postId = post.id,
                     votedSide = voted,
+                    onRequireAuth = onRequireAuth,
+                    onPosted = { scope.launch { PostEvents.emitCommentCountChanged(post.id, (post.stats?.comments ?: 0) + 1) } },
+                )
+            }
+        }
+    }
+}
+
+// ── Publicación ÚNICA ("Single"/reto abierto, post.type=="challenge_open") ──
+// Un solo vídeo/foto, sin lado A/B que comparar — réplica de
+// OpenChallengeSlide.jsx (web), EXCEPTO el voto único tipo "me gusta"
+// (doble-toque): a petición EXPLÍCITA del usuario, esa parte de la web NO se
+// replica en esta versión nativa (el doble-toque aquí no hace nada: sin
+// burst, sin contador, sin "Vote" en la columna social — ver `hideVote` en
+// SocialRait). El resto SÍ se replica tal cual: cabecera abajo-izquierda con
+// avatar+Seguir (reutiliza HeaderOverlay, que YA es genérico: sideA es null
+// aquí, así que usa post.author/post.description directamente), columna
+// social completa (reutiliza SocialRail: Comentar/Compartir/Guardar/Más +
+// disco), el botón "Challenge" (hueco donde normalmente iría "Votar") abre
+// el MISMO QuickChallengeSheet que el resto de publicaciones — crea un reto
+// NORMAL dirigido al creador, NO publica nada por sí solo — y la barra de
+// "Añadir comentario"/reproducciones al abrir desde el grid del perfil.
+@Composable
+private fun OpenChallengePage(
+    post: Post,
+    isActive: Boolean,
+    isCurrent: Boolean,
+    dataSourceFactory: CacheDataSource.Factory,
+    onOpenComments: (String, String?) -> Unit,
+    onRequireAuth: () -> Unit,
+    onOpenProfile: (String) -> Unit,
+    onChallenge: (QuickChallengeTarget) -> Unit,
+    hideChallenge: Boolean = false,
+    showCommentInput: Boolean = false,
+    viewsCount: Int? = null,
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val isImage = post.mediaType == "image"
+    // Side "sintético" solo para reutilizar VideoSurface tal cual (misma
+    // superficie de render que Carousel/Duet) — esta publicación no tiene
+    // lados reales, así que se construye a partir de los campos planos que
+    // el backend anota en el post (ver getOpenChallengeFeedItems, route.js).
+    val side = remember(post.id) {
+        Side(
+            videoUrl = post.videoUrl,
+            imageUrl = post.imageUrl,
+            mediaType = post.mediaType,
+            posterUrl = post.posterUrl,
+            author = post.author,
+            description = post.description,
+            music = post.music,
+        )
+    }
+    val player = remember(post.id) { buildPlayer(context, dataSourceFactory, post.videoUrl, muted = false) }
+    DisposableEffect(post.id) {
+        onDispose { player.release() }
+    }
+
+    // Contador de "reproducciones" — mismo mecanismo exacto que
+    // CarouselPage/DuetPage (dedupe por post.id, se registra con solo ver la
+    // publicación activa, sin requerir ninguna acción del usuario).
+    val viewedIdState = remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(isActive, post.id) {
+        if (isActive && viewedIdState.value != post.id) {
+            viewedIdState.value = post.id
+            runCatching { RetrofitProvider.api.postView(PostViewRequest(post.id)) }
+        }
+    }
+
+    // Ciclo de vida de decodificadores (política C1, mismo criterio que
+    // CarouselPage/DuetPage): solo prepara mientras sea la página ACTUAL del
+    // pager; libera (stop) en cuanto deja de serlo.
+    LaunchedEffect(isCurrent) {
+        if (isCurrent) {
+            if (player.playbackState == Player.STATE_IDLE) player.prepare()
+        } else {
+            player.stop()
+        }
+    }
+
+    // Pausa manual (toque simple) — sin lado A/B, no hace falta ningún
+    // HorizontalPager interno, solo el estado de pausa de este único vídeo.
+    var paused by remember(post.id) { mutableStateOf(false) }
+    LaunchedEffect(isActive, paused) {
+        if (isActive && !paused) {
+            player.volume = 1f
+            player.play()
+        } else {
+            player.pause()
+        }
+    }
+
+    Box(Modifier.fillMaxSize().background(Color.Black)) {
+        VideoSurface(
+            player = player,
+            modifier = Modifier.fillMaxSize(),
+            side = side,
+            onSingleTap = { if (!isImage) paused = !paused },
+            // Voto único (doble-toque) NO implementado a propósito en esta
+            // versión nativa (ver comentario de la función) — al devolver
+            // SIEMPRE false, VideoSurface nunca dispara el burst del icono.
+            onVoteA = { false },
+        )
+
+        if (paused && !isImage) {
+            Icon(
+                Icons.Filled.PlayArrow,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.align(Alignment.Center).size(72.dp),
+            )
+        }
+
+        HeaderOverlay(post, onOpenProfile, onRequireAuth, commentBarActive = showCommentInput)
+        SocialRail(
+            post = post,
+            votes = Votes(),
+            voted = null,
+            onComments = { onOpenComments(post.id, null) },
+            onRequireAuth = onRequireAuth,
+            hideChallenge = hideChallenge,
+            hideVote = true,
+            audioActive = isActive && !paused,
+            coverUrl = post.posterUrl ?: post.imageUrl,
+            hasMusic = false,
+            musicArtwork = null,
+            headAuthorUsername = post.author?.username,
+            commentBarActive = showCommentInput,
+            onChallengeClick = {
+                onChallenge(
+                    QuickChallengeTarget(
+                        postId = post.id,
+                        author = post.author,
+                        videoUrl = post.videoUrl,
+                        posterUrl = post.posterUrl,
+                        description = post.description,
+                        music = post.music,
+                    ),
+                )
+            },
+        )
+
+        if (showCommentInput) {
+            if (viewsCount != null) {
+                CommentOrViewsBar(
+                    postId = post.id,
+                    votedSide = null,
+                    onRequireAuth = onRequireAuth,
+                    onPosted = { scope.launch { PostEvents.emitCommentCountChanged(post.id, (post.stats?.comments ?: 0) + 1) } },
+                    views = viewsCount,
+                )
+            } else {
+                QuickCommentInput(
+                    postId = post.id,
+                    votedSide = null,
                     onRequireAuth = onRequireAuth,
                     onPosted = { scope.launch { PostEvents.emitCommentCountChanged(post.id, (post.stats?.comments ?: 0) + 1) } },
                 )
@@ -1441,6 +1616,15 @@ private fun BoxScope.SocialRail(
     onComments: () -> Unit,
     onRequireAuth: () -> Unit,
     hideChallenge: Boolean = false,
+    // Oculta el primer ítem (Votar) de la columna — SOLO lo usa
+    // OpenChallengePage (publicación ÚNICA/"Single"): a petición explícita
+    // del usuario, el voto único (doble-toque tipo "me gusta") de
+    // OpenChallengeSlide.jsx (web) NO se replica en esta versión nativa —
+    // sin este flag, el resto de esta columna (ya genérica y reutilizada tal
+    // cual) mostraría un botón "Vote" que no hace nada. El resto de
+    // publicaciones (Carousel/Duet) no pasan este parámetro (default false,
+    // sin cambios de comportamiento).
+    hideVote: Boolean = false,
     audioActive: Boolean = false,
     // Portada del lado VISIBLE ahora mismo (o del post si no hay lados) y
     // metadatos de música — misma prioridad EXACTA de contenido que usa el
@@ -1561,7 +1745,9 @@ private fun BoxScope.SocialRail(
             else -> Color.White
         }
         // Votar — al votar pasa a icono SÓLIDO (relleno por dentro), como la web.
-        RailItem(ImageVector.vectorResource(if (voted != null) R.drawable.ic_vote_filled else R.drawable.ic_vote), label(total, "Vote"), voteTint, size = 40) { }
+        if (!hideVote) {
+            RailItem(ImageVector.vectorResource(if (voted != null) R.drawable.ic_vote_filled else R.drawable.ic_vote), label(total, "Vote"), voteTint, size = 40) { }
+        }
         // Challenge (crossed swords) — hidden on "Battles > Completed"
         // (hideChallenge) AND on your OWN posts (headAuthorUsername matches
         // the logged-in user), exact same double condition as

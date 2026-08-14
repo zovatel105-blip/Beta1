@@ -161,6 +161,28 @@ interface TwykApi {
         @Part("musicTrackId") musicTrackId: RequestBody?,
     ): ChallengeResponse
 
+    // Publicación ÚNICA ("Single", modo `solo` en ui/Upload.kt) — mismo
+    // endpoint POST /api/challenges que createChallenge, pero con
+    // openChallenge=1 en vez de targetAuthor: el backend (handleChallenges en
+    // route.js) omite TODA la validación/campos de destinatario cuando este
+    // flag viene a "1" (open:true, to:null) — réplica exacta del modo `solo`
+    // de UploadDialog.jsx (web), que reutiliza el mismo endpoint así. Aparece
+    // con un botón "Challenge" en el feed principal (cualquiera puede retar a
+    // su creador, ver getOpenChallengeFeedItems) y en el grid de su propio
+    // perfil (GET /api/users/{username} ya la fusiona con sus posts).
+    @Multipart
+    @POST("api/challenges")
+    suspend fun createOpenChallenge(
+        @Part file: MultipartBody.Part,
+        @Part("openChallenge") openChallenge: RequestBody,
+        @Part("message") message: RequestBody,
+        @Part("musicTitle") musicTitle: RequestBody?,
+        @Part("musicArtist") musicArtist: RequestBody?,
+        @Part("musicArtwork") musicArtwork: RequestBody?,
+        @Part("musicPreviewUrl") musicPreviewUrl: RequestBody?,
+        @Part("musicTrackId") musicTrackId: RequestBody?,
+    ): ChallengeResponse
+
     @GET("api/notifications")
     suspend fun notifications(): NotificationsResponse
 

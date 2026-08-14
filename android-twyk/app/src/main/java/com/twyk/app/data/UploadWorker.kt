@@ -98,6 +98,21 @@ class UploadWorker(appContext: Context, params: WorkerParameters) : CoroutineWor
                     )
                     null
                 }
+                // "Single" (publicación única, sin destinatario) — mismo
+                // endpoint de retos que arriba, pero con openChallenge=1 y
+                // sin ningún campo de destinatario (ver createOpenChallenge
+                // en TwykApi.kt). Solo necesita el archivo A + descripción.
+                "solo" -> {
+                    val a = fileA ?: return Result.failure()
+                    val part = progressPart("file", a) { progressA = it; report() }
+                    RetrofitProvider.api.createOpenChallenge(
+                        part,
+                        "1".toRequestBody(textType),
+                        description.toRequestBody(textType),
+                        musicTitle, musicArtist, musicArtwork, musicPreviewUrl, musicTrackId,
+                    )
+                    null
+                }
                 "duet" -> {
                     val a = fileA ?: return Result.failure()
                     val b = fileB ?: return Result.failure()

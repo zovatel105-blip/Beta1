@@ -52,6 +52,16 @@ data class Post(
     val mediaType: String? = null, // "video" | "image" (a nivel de post, misma info que sideA/sideB)
     val posterUrl: String? = null,
     val thumbnailUrl: String? = null,
+    // ── Publicación ÚNICA ("Single"/reto abierto, type=="challenge_open") ──
+    // Estos 3 campos SOLO los rellena el backend para esas tarjetas
+    // sintéticas (ver getOpenChallengeFeedItems en route.js): a diferencia
+    // del resto de publicaciones (que usan sideA/sideB), una publicación
+    // única no tiene 2 lados — su vídeo/foto va DIRECTO en el post, y
+    // challengeId identifica el reto abierto original (colección
+    // `challenges`) al que pertenece esta tarjeta (id sintético "open_<id>").
+    val videoUrl: String? = null,
+    val imageUrl: String? = null,
+    val challengeId: String? = null,
     val stats: Stats? = null,
     // Música adjunta REAL (preview de iTunes de 30s), devuelta por el backend
     // vía readMusicFields() en route.js. Antes se descartaba (solo se leía el

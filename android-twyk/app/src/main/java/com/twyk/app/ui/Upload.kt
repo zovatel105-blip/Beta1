@@ -44,6 +44,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.Search
@@ -200,6 +201,11 @@ fun UploadScreen(onRequireAuth: () -> Unit, onDone: () -> Unit) {
                             dataBuilder.putString(UploadWorker.KEY_TARGET_NAME, tgt.name ?: tgt.username ?: "")
                             dataBuilder.putString(UploadWorker.KEY_TARGET_AVATAR, tgt.avatarUrl ?: "")
                         }
+                        // "Single" (publicación única, sin destinatario): solo hace
+                        // falta el archivo A + descripción (ya añadidos arriba),
+                        // igual que el modo `solo` de UploadDialog.jsx (web) — ver
+                        // el caso "solo" en UploadWorker.kt.
+                        "solo" -> { /* sin campos adicionales */ }
                         else -> {
                             val b = uriB ?: throw IllegalStateException("Missing video B")
                             dataBuilder.putString(UploadWorker.KEY_FILE_B, persistPickedFile(context, "b", b).absolutePath)
@@ -227,7 +233,7 @@ fun UploadScreen(onRequireAuth: () -> Unit, onDone: () -> Unit) {
     val title = when (step) {
         "mode" -> "Create content"
         "target" -> "Choose who to challenge"
-        "file" -> if (mode == "versus") "Your 2 videos" else if (mode == "challenge") "Your challenge" else "Your 1vs1"
+        "file" -> if (mode == "versus") "Your 2 videos" else if (mode == "challenge") "Your challenge" else if (mode == "solo") "Your post" else "Your 1vs1"
         else -> if (mode == "challenge") "Sending challenge" else "Uploading"
     }
 
@@ -317,6 +323,11 @@ private fun ModeStep(selected: String, onSelect: (String) -> Unit, onContinue: (
             ModeSeg("Versus", selected == "versus") { onSelect("versus") }
             ModeSeg("1 vs 1", selected == "duet") { onSelect("duet") }
             ModeSeg("Challenges", selected == "challenge") { onSelect("challenge") }
+            // "Single" — réplica del 4º modo `solo` añadido en UploadDialog.jsx
+            // (web): un solo vídeo/foto, sin necesidad de un segundo lado ni de
+            // elegir a quién retar. Internamente reutiliza el mismo endpoint de
+            // retos con openChallenge=1 (ver doUpload/UploadWorker.kt más abajo).
+            ModeSeg("Single", selected == "solo") { onSelect("solo") }
         }
 
         Column(Modifier.weight(1f).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
@@ -351,6 +362,7 @@ private fun ModeStep(selected: String, onSelect: (String) -> Unit, onContinue: (
                 ) {
                     val icon: ImageVector = when (selected) {
                         "duet" -> Icons.Filled.People
+                        "solo" -> Icons.Filled.Public
                         else -> Icons.Filled.Movie
                     }
                     if (selected == "challenge") {
@@ -365,6 +377,7 @@ private fun ModeStep(selected: String, onSelect: (String) -> Unit, onContinue: (
                 when (selected) {
                     "versus" -> "Upload 2 videos (A and B) and let people vote by swiping between them."
                     "duet" -> "Upload 2 videos (A and B) in the format you choose and let people vote who wins."
+                    "solo" -> "Upload just ONE video or photo - no need for a second one. Anyone can challenge you on it."
                     else -> "Upload your video or photo and challenge a creator. It will appear in their active challenges to accept."
                 },
                 color = ZincText, fontSize = 15.sp, lineHeight = 24.sp, textAlign = TextAlign.Center,
@@ -376,6 +389,18 @@ private fun ModeStep(selected: String, onSelect: (String) -> Unit, onContinue: (
                     MiniTile("YOU", strong = true)
                     Text("VS", color = Color.White.copy(alpha = 0.6f), fontSize = 16.sp, fontWeight = FontWeight.Black)
                     MiniTile("RIVAL", strong = false)
+                }
+            } else if (selected == "solo") {
+                // Réplica de la mini-ilustración "YOU" + insignia de globo de
+                // UploadDialog.jsx (web) para el modo `solo`.
+                Box {
+                    MiniTile("YOU", strong = true)
+                    Box(
+                        Modifier.align(Alignment.BottomEnd).size(28.dp).clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.10f))
+                            .border(1.dp, Color.White.copy(alpha = 0.20f), CircleShape),
+                        contentAlignment = Alignment.Center,
+                    ) { Icon(Icons.Filled.Public, null, tint = Color.White, modifier = Modifier.size(14.dp)) }
                 }
             } else {
                 Row(
@@ -731,7 +756,7 @@ private fun FileStep(
                 if (description.isEmpty()) {
                     // BUG FIX (mojibake con emoji, ver gradle.properties): texto ASCII.
                     Text(
-                        when (mode) { "duet" -> "Who wins? #1vs1"; "challenge" -> "Challenge! Do you accept?"; else -> "Which do you prefer? A vs B" },
+                        when (mode) { "duet" -> "Who wins? #1vs1"; "challenge" -> "Challenge! Do you accept?"; "solo" -> "Share something..."; else -> "Which do you prefer? A vs B" },
                         color = ZincText, fontSize = 15.sp,
                     )
                 }
@@ -742,7 +767,7 @@ private fun FileStep(
                 )
             }
             MusicRow(music = music, onPick = onPickMusic, onRemove = onRemoveMusic)
-            val enabled = if (mode == "challenge") uriA != null else (uriA != null && uriB != null)
+            val enabled = if (mode == "challenge" || mode == "solo") uriA != null else (uriA != null && uriB != null)
             Box(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(50))
                     .background(if (enabled) Color.White else Color.White.copy(alpha = 0.20f))
@@ -750,7 +775,7 @@ private fun FileStep(
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    when (mode) { "duet" -> "Publish 1vs1"; "challenge" -> "Choose who to challenge"; else -> "Publish versus" },
+                    when (mode) { "duet" -> "Publish 1vs1"; "challenge" -> "Choose who to challenge"; "solo" -> "Publish"; else -> "Publish versus" },
                     color = if (enabled) Color.Black else Color.White.copy(alpha = 0.40f), fontSize = 16.sp, fontWeight = FontWeight.Bold,
                 )
             }
@@ -1168,7 +1193,7 @@ private fun UploadingStep(mode: String) {
         Spacer(Modifier.height(20.dp))
         Text(
             // BUG FIX (mojibake "…" -> "â€¦", ver gradle.properties): ASCII.
-            when (mode) { "challenge" -> "Sending your challenge..."; "duet" -> "Creating your 1vs1..."; else -> "Uploading your versus..." },
+            when (mode) { "challenge" -> "Sending your challenge..."; "duet" -> "Creating your 1vs1..."; "solo" -> "Uploading your post..."; else -> "Uploading your versus..." },
             color = ZincText, fontSize = 14.sp,
         )
     }
