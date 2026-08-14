@@ -4006,3 +4006,31 @@ test_plan:
 agent_communication:
     -agent: "main"
     -message: "NUEVA FUNCIÓN NATIVA: puerto de 'Retos Abiertos'/publicaciones únicas (Single) de la web a la app Android, EXCEPTO el voto único (a petición explícita del usuario). Backend NO tocado (route.js ya lo tenía todo implementado y probado en sesiones anteriores); cambios 100% Kotlin: Models.kt (+3 campos en Post), TwykApi.kt (+createOpenChallenge), UploadWorker.kt (+caso 'solo'), ui/Upload.kt (+4º modo 'Single' en Crear contenido), feed/VersusFeed.kt (+OpenChallengePage, +hideVote en SocialRail, +rama en FeedPager). No compilable/testeable en este entorno (sin Android SDK) — verificado por revisión manual + balance de paréntesis/llaves vía git diff. El usuario debe compilar el APK en Android Studio para probarlo. Además, al inicio de esta sesión se restauró infra: /app/.env y la BD se habían perdido de nuevo (causa recurrente documentada), restaurados con la URL de preview actual + usuarios re-sembrados + Config.kt (Android) actualizado a la misma URL."
+
+frontend:
+  - task: "APP NATIVA (Android/Compose): el AuthSheet (login/registro) y su DateWheelPicker (fecha de nacimiento) seguían en morado/azul — la web ya se había pasado a monocromo (negro/blanco/gris) en una ronda anterior de este archivo, pero el equivalente Kotlin nunca se actualizó"
+    implemented: true
+    working: "NA"
+    file: "android-twyk/app/src/main/java/com/twyk/app/ui/Sheets.kt"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'El auth modal cambio de color en la web pero en la apk no'."
+        -working: "NA"
+        -agent: "main"
+        -comment: "100% Kotlin nativo (ui/Sheets.kt, único archivo con AuthSheet/DateWheelPicker), NO COMPILABLE en este contenedor (sin Android SDK). Réplica EXACTA de los colores ya aplicados en components/AuthModal.jsx + components/DateWheelPicker.jsx (web, ronda anterior de este mismo archivo): `AuthPurple`/`AuthBlue` (antes #A855F7/#3B82F6) pasan AMBOS a #18181B (mismo BRAND_GRADIENT sólido de la web) y `AuthGradient` deja de ser un degradado real (Brush.horizontalGradient -> SolidColor), afectando automáticamente TODOS los sitios que ya lo reutilizaban (botones principales del splash/Continue/Create account/Log in/Next, puntos de progreso activos, círculo de check de la píldora de interés seleccionada — ninguno de esos call sites necesitó tocarse). Además, 6 puntos NO cubiertos por esas 2 variables se corrigieron uno a uno comparando con el código real de la web: (1) glow superior del sheet: rgba(168,85,247,.10) -> rgba(0,0,0,.06). (2) sombra del botón principal (AuthGradientButton): rgba(168,85,247,.5) -> rgba(0,0,0,.35) (color Y alpha cambiaron juntos en la web). (3) icono de tarta (paso fecha de nacimiento): AuthPurple -> zinc-700 (#3F3F46). (4) texto 'You're X years old': antes usaba `WheelAccent` (mismo morado que el valor seleccionado de la rueda) -> ahora usa directamente zinc-500 (#71717A), la web usa un gris DISTINTO al de la rueda para este texto (underAge sigue en rojo, sin cambios). (5) píldora de interés seleccionada: fondo bg-purple-50(#FAF5FF)->bg-zinc-100(#F4F4F5), borde ring-purple-300(#D8B4FE)->ring-zinc-400(#A1A1AA). (6) enlaces 'Log in'/'Sign up' del pie (2 sitios: splash y login): antes solo cambiaban de color (AuthPurple, ahora ya negro por el cambio de arriba) SIN subrayado; la web los tiene con `underline underline-offset-2` -> añadido `textDecoration = TextDecoration.Underline` en ambos. `WheelAccent` (rueda de fecha) también se corrigió por separado: la web usa 3 colores DISTINTOS donde el nativo solo tenía 1 -> valor seleccionado de la rueda ahora #000000 puro (antes violeta #8B5CF6), y se añadió una nueva constante `WheelBandLine`=#18181B (gris oscuro, antes reutilizaba el mismo violeta) para las 2 líneas finas de la banda de selección central (rgba(24,24,27,.35), réplica exacta de `border-top/bottom` en DateWheelPicker.jsx) — el texto de edad ya no depende de esta variable en absoluto (punto 4 arriba). Verificado por revisión manual comparando línea a línea contra components/AuthModal.jsx y components/DateWheelPicker.jsx (grep de hex/rgba reales) + balance de paréntesis/llaves de TODO el archivo antes/después vía git diff (1294/1294 -> 1317/1317 paréntesis, 360/360 llaves sin cambios: mis ediciones están perfectamente balanceadas). Confirmado que NINGÚN otro color morado/azul de la app (vote A/B en SocialRail/CommentsSheet, el borde del botón '+' de subir en BottomNav, TwykPurple/TwykBlue en UiKit.kt, el logo estático con su resplandor de fábrica) se tocó — la web tampoco los cambió, son intencionalmente ajenos a este modal. NO se invocó ningún agente de testing (100% Kotlin nativo, fuera del alcance de los agentes disponibles en este entorno sin Android SDK). Pendiente: el usuario debe compilar el APK y confirmar visualmente que el modal de login/registro y el paso de fecha de nacimiento ya no muestran ningún morado/azul (salvo el logo), comparado con la web ya monocroma."
+
+test_plan:
+  current_focus:
+    - "APP NATIVA (Android/Compose): el AuthSheet (login/registro) y su DateWheelPicker (fecha de nacimiento) seguían en morado/azul — la web ya se había pasado a monocromo (negro/blanco/gris) en una ronda anterior de este archivo, pero el equivalente Kotlin nunca se actualizó"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    -agent: "main"
+    -message: "PARIDAD NATIVA: AuthSheet/DateWheelPicker (ui/Sheets.kt) pasado a monocromo, réplica EXACTA de la ronda anterior de la web (AuthModal.jsx/DateWheelPicker.jsx). 100% Kotlin, no compilable/testeable en este entorno (sin Android SDK) — verificado por comparación línea a línea de colores hex/rgba contra el código web real + balance de paréntesis/llaves vía git diff. El usuario debe compilar el APK y confirmar visualmente. Ningún otro color de la app (votos A/B, botón '+' subir, logo) se tocó, igual que en la web."
+

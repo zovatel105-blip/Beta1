@@ -723,9 +723,15 @@ private fun relativeTime(ts: String): String {
 // "métodos" y registro PASO A PASO estilo TikTok (fecha de nacimiento -> email
 // -> contraseña -> usuario, cada uno en su propia pantalla con indicador de
 // progreso), en vez de un único formulario con pestañas Login/Registro. ─────
-private val AuthPurple = Color(0xFFA855F7)
-private val AuthBlue = Color(0xFF3B82F6)
-private val AuthGradient = Brush.horizontalGradient(listOf(AuthPurple, AuthBlue))
+// MONOCROMO (petición del usuario: "quitar los colores azul y lila y usar
+// solo negro blanco y gris" — réplica EXACTA de components/AuthModal.jsx +
+// components/DateWheelPicker.jsx en la web, que ya hicieron este mismo
+// cambio: BRAND_GRADIENT pasó de degradado morado->azul a negro sólido
+// '#18181b'). Se conservan los mismos NOMBRES de variable (para no tocar
+// cada punto donde se usan) pero sus VALORES ya no son morado/azul.
+private val AuthPurple = Color(0xFF18181B)
+private val AuthBlue = Color(0xFF18181B)
+private val AuthGradient: Brush = SolidColor(AuthPurple)
 
 // ── Selector de fecha de nacimiento tipo TikTok (3 columnas Día/Mes/Año) —
 // réplica EXACTA de DateWheelPicker.jsx. BUG reportado por el usuario ("el
@@ -735,12 +741,18 @@ private val AuthGradient = Brush.horizontalGradient(listOf(AuthPurple, AuthBlue)
 // un calendario del sistema), una interacción y un aspecto totalmente
 // distintos a la rueda de 3 columnas con scroll/snap embebida en el propio
 // paso que usa la web. FIX: réplica 1:1 de esa rueda (mismas 40dp de alto por
-// fila, 5 filas visibles, banda central con líneas superior/inferior en
-// rgba(139,92,246,0.35) — nótese que es un morado LIGERAMENTE distinto
-// (violet-500 #8B5CF6) al AuthPurple (#A855F7) del resto del modal, exactamente
-// como en la web —, degradados blancos arriba/abajo, y el mismo interpolado
-// de tamaño/peso/opacidad de fuente según la distancia al centro).
-private val WheelAccent = Color(0xFF8B5CF6)
+// fila, 5 filas visibles, banda central con líneas superior/inferior,
+// degradados blancos arriba/abajo, y el mismo interpolado de tamaño/peso/
+// opacidad de fuente según la distancia al centro).
+// MONOCROMO (misma petición que arriba): el valor SELECCIONADO de la rueda
+// pasa de violeta (#8B5CF6) a negro puro (#000000) — réplica exacta de
+// `color: isSel ? '#000000' : ...` en DateWheelPicker.jsx. Las 2 líneas finas
+// de la banda de selección central usan su PROPIO color (WheelBandLine, ver
+// abajo), distinto del texto seleccionado: pasan de rgba(139,92,246,.35)
+// (violeta) a rgba(24,24,27,.35) (gris oscuro), réplica exacta de
+// `border-top/bottom: 1px solid rgba(24,24,27,0.35)`.
+private val WheelAccent = Color(0xFF000000)
+private val WheelBandLine = Color(0xFF18181B)
 private const val WHEEL_ITEM_H_DP = 40
 private const val WHEEL_VISIBLE = 5
 
@@ -844,17 +856,17 @@ private fun DateWheelPicker(birthDate: String?, onBirthDate: (String) -> Unit) {
             .padding(horizontal = 8.dp, vertical = 4.dp),
     ) {
         // Banda de selección central: solo líneas finas arriba y abajo (borderTop/
-        // borderBottom en la web, NO un rectángulo completo) en el acento violeta
-        // de la rueda (sin relleno ni sombra), igual que la web.
+        // borderBottom en la web, NO un rectángulo completo) en gris oscuro
+        // (sin relleno ni sombra), igual que la web.
         Box(
             Modifier.align(Alignment.TopCenter).fillMaxWidth().padding(horizontal = 8.dp)
                 .padding(top = (WHEEL_ITEM_H_DP * (WHEEL_VISIBLE / 2)).dp)
-                .height(1.dp).background(WheelAccent.copy(alpha = 0.35f)),
+                .height(1.dp).background(WheelBandLine.copy(alpha = 0.35f)),
         )
         Box(
             Modifier.align(Alignment.TopCenter).fillMaxWidth().padding(horizontal = 8.dp)
                 .padding(top = (WHEEL_ITEM_H_DP * (WHEEL_VISIBLE / 2) + WHEEL_ITEM_H_DP).dp)
-                .height(1.dp).background(WheelAccent.copy(alpha = 0.35f)),
+                .height(1.dp).background(WheelBandLine.copy(alpha = 0.35f)),
         )
         Row(Modifier.align(Alignment.Center).fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
             WheelColumn(items = dayItems, selectedIndex = minOf(day, dim) - 1, onSelectedChange = { day = it + 1 }, width = 64.dp)
@@ -1028,12 +1040,12 @@ fun AuthSheet(onClose: () -> Unit, onAuthed: () -> Unit) {
                 .clipToBounds(),
         ) {
             // Glow superior de marca — réplica EXACTA de AuthModal.jsx
-            // (`radial-gradient(70% 100% at 50% 0%, rgba(168,85,247,0.10),
-            // transparent 70%)`, altura h-40=160dp) — faltaba por completo en
-            // el nativo.
+            // (MONOCROMO: `radial-gradient(70% 100% at 50% 0%,
+            // rgba(0,0,0,0.06), transparent 70%)`, antes rgba(168,85,247,.10);
+            // altura h-40=160dp).
             Box(
                 Modifier.fillMaxWidth().height(160.dp).align(Alignment.TopCenter)
-                    .background(Brush.radialGradient(0f to Color(0xFFA855F7).copy(alpha = 0.10f), 0.7f to Color.Transparent)),
+                    .background(Brush.radialGradient(0f to Color(0xFF000000).copy(alpha = 0.06f), 0.7f to Color.Transparent)),
             )
 
             Column(
@@ -1152,7 +1164,12 @@ private fun AuthMethodsScreen(isRegister: Boolean, onUseForm: () -> Unit, onSwit
             Text(if (isRegister) "Already have an account? " else "Don't have an account? ", color = Color(0xFF71717A), fontSize = 14.sp)
             Text(
                 if (isRegister) "Log in" else "Sign up",
+                // MONOCROMO: pasa de texto con degradado (morado->azul) a
+                // texto negro subrayado (zinc-900 + underline), réplica
+                // exacta de `font-bold text-zinc-900 underline
+                // underline-offset-2` en AuthModal.jsx.
                 color = AuthPurple, fontWeight = FontWeight.Bold, fontSize = 14.sp,
+                textDecoration = TextDecoration.Underline,
                 modifier = Modifier.clickable { onSwitch() },
             )
         }
@@ -1195,7 +1212,10 @@ private fun AuthRegisterStepScreen(
             }
 
             if (stepCfg.key == "birthdate") {
-                Icon(Icons.Outlined.Cake, null, tint = AuthPurple, modifier = Modifier.size(44.dp))
+                // MONOCROMO: el icono de tarta pasa de morado (AuthPurple) a
+                // gris zinc-700 (#3F3F46), réplica exacta de `text-zinc-700`
+                // en AuthModal.jsx.
+                Icon(Icons.Outlined.Cake, null, tint = Color(0xFF3F3F46), modifier = Modifier.size(44.dp))
                 Spacer(Modifier.height(12.dp))
                 Text(stepCfg.title, color = Color(0xFF18181B), fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center, letterSpacing = (-0.3).sp, modifier = Modifier.widthIn(max = 300.dp))
                 Spacer(Modifier.height(8.dp))
@@ -1223,7 +1243,11 @@ private fun AuthRegisterStepScreen(
                             birthDate != null && age >= 0 -> "You're $age years old"
                             else -> "Scroll to pick day, month and year"
                         }.uppercase(),
-                        color = if (underAge) Color(0xFFEF4444) else WheelAccent, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.4.sp,
+                        // MONOCROMO: este texto pasa de morado (WheelAccent) a
+                        // gris zinc-500 (#71717A), réplica exacta de
+                        // `text-zinc-500` en AuthModal.jsx (underAge sigue en
+                        // rojo, sin cambios).
+                        color = if (underAge) Color(0xFFEF4444) else Color(0xFF71717A), fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.4.sp,
                     )
                 }
                 Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0xFFF4F4F5)))
@@ -1244,8 +1268,12 @@ private fun AuthRegisterStepScreen(
                         val sel = interests.contains(cat)
                         Row(
                             Modifier.fillMaxWidth().clip(RoundedCornerShape(50))
-                                .background(if (sel) Color(0xFFFAF5FF) else Color(0xFFFAFAFA))
-                                .then(if (sel) Modifier.border(1.dp, Color(0xFFD8B4FE), RoundedCornerShape(50)) else Modifier)
+                                // MONOCROMO: fondo/borde de la píldora seleccionada
+                                // pasan de morado (bg-purple-50/ring-purple-300) a
+                                // gris (bg-zinc-100/ring-zinc-400), réplica exacta
+                                // de AuthModal.jsx.
+                                .background(if (sel) Color(0xFFF4F4F5) else Color(0xFFFAFAFA))
+                                .then(if (sel) Modifier.border(1.dp, Color(0xFFA1A1AA), RoundedCornerShape(50)) else Modifier)
                                 .clickable { onToggleInterest(cat) }
                                 .padding(horizontal = 24.dp, vertical = 15.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -1397,7 +1425,13 @@ private fun AuthLoginScreen(
             Spacer(Modifier.height(16.dp))
             Row {
                 Text("Don't have an account? ", color = Color(0xFF71717A), fontSize = 14.sp)
-                Text("Sign up", color = AuthPurple, fontWeight = FontWeight.Bold, fontSize = 14.sp, modifier = Modifier.clickable { onSwitch() })
+                Text(
+                    "Sign up",
+                    // MONOCROMO (ver comentario igual en AuthMethodsScreen).
+                    color = AuthPurple, fontWeight = FontWeight.Bold, fontSize = 14.sp,
+                    textDecoration = TextDecoration.Underline,
+                    modifier = Modifier.clickable { onSwitch() },
+                )
             }
         }
     }
@@ -1430,9 +1464,10 @@ private fun AgeBlockedScreen(onGotIt: () -> Unit) {
 private fun AuthGradientButton(label: String, busy: Boolean, height: androidx.compose.ui.unit.Dp = 52.dp, onClick: () -> Unit) {
     Box(
         Modifier.fillMaxWidth().height(height)
-            // Réplica de `shadow-[0_12px_28px_-10px_rgba(168,85,247,0.5)]` de
-            // la web — faltaba por completo en el nativo.
-            .shadow(12.dp, RoundedCornerShape(50), spotColor = Color(0xFFA855F7).copy(alpha = 0.5f))
+            // MONOCROMO: réplica de `shadow-[0_12px_28px_-10px_rgba(0,0,0,0.35)]`
+            // de la web (antes rgba(168,85,247,0.5), color Y alpha cambiaron
+            // juntos en el mismo cambio de la web).
+            .shadow(12.dp, RoundedCornerShape(50), spotColor = Color(0xFF000000).copy(alpha = 0.35f))
             .clip(RoundedCornerShape(50))
             .background(if (busy) SolidColor(Color(0xFFD4D4D8)) else AuthGradient)
             .clickable(enabled = !busy) { onClick() },
