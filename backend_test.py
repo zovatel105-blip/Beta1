@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 
 # Base URL from environment
-BASE_URL = os.getenv('NEXT_PUBLIC_BASE_URL', 'https://vote-opacity-toggle.preview.emergentagent.com')
+BASE_URL = os.getenv('NEXT_PUBLIC_BASE_URL', 'https://feature-gap-bridge.preview.emergentagent.com')
 API_URL = f"{BASE_URL}/api"
 
 # Test credentials
