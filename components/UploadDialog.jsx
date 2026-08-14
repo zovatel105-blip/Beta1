@@ -168,10 +168,18 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
       ? crypto.randomUUID()
       : `up_${Date.now()}_${Math.random().toString(36).slice(2)}`
 
-    // Solo versus/1vs1 crean una publicación INMEDIATA visible en el grid de
-    // perfil (un reto no crea publicación hasta que el retado lo acepta) ->
-    // solo esos dos modos muestran el placeholder de "subiendo…".
-    const showsInProfileGrid = mode === 'versus' || mode === 'duet'
+    // Bug reportado por el usuario ("las publicaciones single no aparecen
+    // publicandose en segundo plano"): a diferencia de versus/1vs1 (que
+    // publican una publicación INMEDIATA, visible en el propio grid en
+    // cuanto se sube), un reto DIRIGIDO (`challenge`) no crea nada hasta que
+    // el retado lo acepta -> no tiene sentido mostrarle un placeholder en SU
+    // grid. PERO un reto ABIERTO/"Single" (`solo`) SÍ es una publicación
+    // inmediata y visible para cualquiera (incluido su propio creador) en
+    // cuanto se sube -mismo criterio que versus/1vs1-, así que también debe
+    // mostrar el placeholder de "subiendo…" -antes se quedaba fuera junto a
+    // `challenge` por error, dejando al usuario sin NINGÚN indicio visual de
+    // que la subida seguía en curso en segundo plano.
+    const showsInProfileGrid = mode === 'versus' || mode === 'duet' || mode === 'solo'
     if (showsInProfileGrid) {
       // Mejor esfuerzo: miniatura local (lado A) para el placeholder. Se
       // limita a ~2.5s (ver mediaThumbnail.js) para no retrasar el cierre.
@@ -246,7 +254,41 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
       xhr.send(fd)
       const data = await promise
       if (showsInProfileGrid) removePendingUpload(uploadId)
-      if (mode === 'challenge' || mode === 'solo') {
+      if (mode === 'solo') {
+        // Réplica del criterio de versus/1vs1 (onUploaded inserta la
+        // publicación real al instante en el grid del propio perfil, sin
+        // esperar a un refetch, vía el evento global 'twyk:postCreated' -
+        // ver ProfilePage.jsx) construyendo un objeto con la MISMA forma
+        // exacta que ya arma el backend para esta tarjeta en el feed
+        // (getOpenChallengeFeedItems, route.js) a partir de `data.challenge`
+        // (todo lo que esa función necesita ya viene en la respuesta de
+        // POST /api/challenges: from/challengerMediaType/challengerVideoUrl
+        // etc.). Antes solo se llamaba a onChallengeCreated() (pensado para
+        // refrescar la bandeja de Retos Activos, que no aplica aquí), así
+        // que ni el placeholder desaparecía correctamente ni la publicación
+        // real llegaba a verse hasta recargar el perfil manualmente.
+        if (onUploaded) {
+          const c = data?.challenge
+          if (c) {
+            const mt = c.challengerMediaType || (c.challengerImageUrl ? 'image' : 'video')
+            onUploaded({
+              id: `open_${c.id}`,
+              type: 'challenge_open',
+              challengeId: c.id,
+              mediaType: mt,
+              videoUrl: mt === 'video' ? (c.challengerVideoUrl || '') : '',
+              imageUrl: mt === 'image' ? (c.challengerImageUrl || '') : '',
+              posterUrl: c.challengerPosterUrl || '',
+              author: c.from,
+              description: c.message || '',
+              music: c.musicTitle ? `${c.musicTitle} · ${c.musicArtist}` : 'Open challenge',
+              stats: { likes: 0, comments: 0, shares: 0, saves: 0 },
+              createdAtMs: c.createdAt ? new Date(c.createdAt).getTime() : Date.now(),
+            })
+          }
+        }
+        if (onChallengeCreated) onChallengeCreated()
+      } else if (mode === 'challenge') {
         if (onChallengeCreated) onChallengeCreated()
       } else if (onUploaded && data?.post) {
         onUploaded(data.post)

@@ -63,6 +63,22 @@ export default function OpenChallengeSlide({
   const videoRef = useRef(null)
   const overlayRef = useRef(null)
   const lastTapRef = useRef(0)
+  // BUG reportado por el usuario ("en el feed tengo 3 publicaciones single
+  // pero no puedo hacer scrolling"): a diferencia de CarouselSlide.jsx/
+  // DuetSlide.jsx (que registran onPointerDown/onPointerMove y comparan la
+  // distancia recorrida antes de decidir si un onPointerUp fue un TOQUE real
+  // o el final de un ARRASTRE/SWIPE de scroll, ver su guard `Math.abs(dx) >
+  // 12 || Math.abs(dy) > 12`), esta tarjeta solo escuchaba `onPointerUp` -
+  // que el navegador dispara SIEMPRE al soltar el dedo, incluso al final de
+  // un gesto de scroll vertical normal sobre el feed, sin importar cuánto se
+  // haya desplazado el dedo. Resultado: cada vez que el usuario deslizaba
+  // (scrolleaba) sobre una publicación única, esta tarjeta lo interpretaba
+  // como un toque -pausando/reanudando el vídeo 280ms después, o si el
+  // gesto coincidía con la ventana de doble-toque, intentando VOTAR (y
+  // abriendo el modal de login si no había sesión, un overlay a pantalla
+  // completa que sí bloquea cualquier scroll posterior)- interfiriendo con
+  // el gesto de scroll del usuario justo en las tarjetas de este tipo.
+  const downRef = useRef({ x: 0, y: 0 })
   const [paused, setPaused] = useState(false)
   const [following, setFollowing] = useState(!!post.author?.isFollowing)
   const [commentCount, setCommentCount] = useState(post.stats?.comments || 0)
@@ -169,8 +185,25 @@ export default function OpenChallengeSlide({
   }, [user, voting, userVoted, post.id, spawnVoteBurst])
 
   // Gestos sobre el vídeo: toque simple = play/pausa, doble-toque = votar.
-  // Mismo patrón/ventana (300ms) que CarouselSlide.jsx.
+  // Mismo patrón/ventana (300ms) que CarouselSlide.jsx — AHORA con el mismo
+  // guard de distancia (dx/dy > 12px = fue un ARRASTRE/scroll, no un toque)
+  // que ya usan CarouselSlide.jsx/DuetSlide.jsx, que faltaba por completo
+  // aquí (ver comentario largo en la declaración de `downRef` más arriba).
+  const onMediaPointerDown = useCallback((e) => {
+    downRef.current = { x: e.clientX, y: e.clientY }
+  }, [])
+
   const onMediaPointerUp = useCallback((e) => {
+    const d = downRef.current
+    const dx = e.clientX - d.x
+    const dy = e.clientY - d.y
+    downRef.current = { x: 0, y: 0 }
+    // Hubo arrastre (scroll vertical del feed, o cualquier swipe) -> no es
+    // un toque real: ni pausamos/reanudamos ni intentamos votar. Antes,
+    // CUALQUIER gesto de scroll sobre esta tarjeta disparaba de todos modos
+    // la lógica de toque/doble-toque de abajo (bug reportado: el scroll se
+    // sentía "atascado" al pasar por una publicación única).
+    if (Math.abs(dx) > 12 || Math.abs(dy) > 12) return
     const now = Date.now()
     const isDouble = now - lastTapRef.current < 300
     lastTapRef.current = now
@@ -245,7 +278,7 @@ export default function OpenChallengeSlide({
       </svg>
 
       {/* Media a pantalla completa */}
-      <div className="absolute inset-0" onPointerUp={onMediaPointerUp}>
+      <div className="absolute inset-0" onPointerDown={onMediaPointerDown} onPointerUp={onMediaPointerUp}>
         {(post.posterUrl || (isImage && mediaUrl)) && (
           <img src={post.posterUrl || mediaUrl} alt="" aria-hidden draggable={false} className="absolute inset-0 w-full h-full object-cover" />
         )}

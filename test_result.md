@@ -4034,3 +4034,62 @@ agent_communication:
     -agent: "main"
     -message: "PARIDAD NATIVA: AuthSheet/DateWheelPicker (ui/Sheets.kt) pasado a monocromo, réplica EXACTA de la ronda anterior de la web (AuthModal.jsx/DateWheelPicker.jsx). 100% Kotlin, no compilable/testeable en este entorno (sin Android SDK) — verificado por comparación línea a línea de colores hex/rgba contra el código web real + balance de paréntesis/llaves vía git diff. El usuario debe compilar el APK y confirmar visualmente. Ningún otro color de la app (votos A/B, botón '+' subir, logo) se tocó, igual que en la web."
 
+frontend:
+  - task: "BUG: las publicaciones 'Single' (reto abierto) no mostraban NINGÚN indicio de que se estaban publicando en segundo plano (placeholder con progreso en el grid del propio perfil), a diferencia de Versus/1vs1"
+    implemented: true
+    working: "NA"
+    file: "components/UploadDialog.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'Las publicaciones single no aparecen publicandose en Segundo plano'."
+        -working: "NA"
+        -agent: "main"
+        -comment: "CAUSA RAÍZ: en `doUpload()` (UploadDialog.jsx), `showsInProfileGrid = mode === 'versus' || mode === 'duet'` controlaba TANTO el placeholder con progreso en el grid del propio perfil (addPendingUpload/updateUploadProgress/removePendingUpload/markUploadFailed, ver lib/uploadQueue.js) COMO la inserción de la publicación real al terminar — el modo `solo` ('Single') quedaba agrupado (por error) junto a `challenge` (que sí es correcto que NO muestre placeholder: un reto dirigido no publica nada hasta que el retado lo acepta), aunque una publicación 'Single' SÍ es inmediata y visible para cualquiera -incluido su propio creador- en cuanto se sube, exactamente igual que versus/1vs1. Resultado: al pulsar 'Publish' en modo Single, el diálogo se cerraba y NO aparecía absolutamente ningún indicio (ni placeholder, ni spinner, ni % de progreso, ni aviso de error si fallaba) de que la subida seguía en curso. FIX: (1) `showsInProfileGrid` ahora incluye `mode === 'solo'` -> el placeholder (PendingGridItem, ya 100% genérico, no necesitó cambios) aparece igual que en versus/1vs1. (2) Al terminar con éxito, antes solo se llamaba a `onChallengeCreated()` (pensado para refrescar la bandeja de Retos Activos, sin relación con el grid del perfil) -> ahora, para `mode==='solo'`, se construye un objeto con la MISMA forma exacta que ya arma el backend para esta tarjeta en el feed (`getOpenChallengeFeedItems`, route.js) a partir de `data.challenge` (la respuesta de POST /api/challenges ya trae todo lo necesario: from/challengerMediaType/challengerVideoUrl/challengerImageUrl/challengerPosterUrl/message) y se pasa a `onUploaded(...)` -mismo callback que ya usan versus/1vs1, que dispara el evento global 'twyk:postCreated' (ver Feed.jsx/ProfilePage.jsx)- para que la publicación real reemplace el placeholder AL INSTANTE, sin esperar a recargar el perfil manualmente. `onChallengeCreated()` se sigue llamando igual (sin cambios de comportamiento para retos dirigidos). Lint limpio (0 errores nuevos introducidos por este cambio; los 2 avisos preexistentes de UploadDialog.jsx son de líneas no tocadas). Backend (route.js) NO se tocó: POST /api/challenges con openChallenge=1 ya devolvía todos los campos necesarios. Pendiente de verificar (frontend, con capturas): 1) Publicar en modo 'Single' (un solo vídeo o foto) y confirmar que aparece un placeholder con spinner+progreso al principio del grid del propio perfil justo después de cerrarse el diálogo. 2) Confirmar que el placeholder se reemplaza por la publicación real (miniatura correcta) en cuanto termina la subida, sin necesidad de recargar. 3) Confirmar que versus/1vs1 siguen funcionando exactamente igual que antes (regresión). 4) Confirmar que un reto DIRIGIDO (modo 'Challenges', eligiendo a un usuario) sigue SIN mostrar ningún placeholder (comportamiento correcto, sin cambios)."
+        -working: "NA"
+        -agent: "testing"
+        -comment: "BLOQUEADO: el agente de testing de frontend no pudo ejecutar NINGUNA verificación funcional porque la app muestra una pantalla 'mobile-only' ('twyk is a mobile-only experience for now') al detectar un viewport de escritorio (1920x1080), cubriendo toda la UI antes de poder navegar a Crear contenido/Perfil. Revisión de código confirmada correcta (showsInProfileGrid incluye 'solo', onUploaded construye el post sintético correcto, PendingGridItem es genérico), pero SIN verificación en vivo. Requiere viewport móvil real (p.ej. 375x812) o dispositivo/emulador para completar la prueba."
+
+test_plan:
+  current_focus:
+    - "BUG: las publicaciones 'Single' (reto abierto) no mostraban NINGÚN indicio de que se estaban publicando en segundo plano (placeholder con progreso en el grid del propio perfil), a diferencia de Versus/1vs1"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    -agent: "main"
+    -message: "BUG FIX: components/UploadDialog.jsx — las publicaciones 'Single' ahora muestran el mismo placeholder con progreso (y se reemplaza por la publicación real al instante) que ya tenían Versus/1vs1 en el grid del propio perfil; antes no mostraban ningún indicio de estar subiéndose en segundo plano. Backend no tocado. Necesito que el agente de testing de frontend verifique: crear una publicación 'Single' (Crear contenido > Single > subir 1 vídeo/foto > Publish) y confirmar que aparece el placeholder con progreso en el grid del perfil propio y que se reemplaza por la publicación real al terminar; además confirmar que Versus/1vs1 y Challenges (reto dirigido, sin placeholder) no sufrieron ninguna regresión. Credenciales en memory/test_credentials.md (lucia/marcos/laura, Test12345)."
+
+frontend:
+  - task: "BUG: en el feed, al llegar a una publicación 'Single' (reto abierto) el scroll se quedaba atascado/no respondía bien"
+    implemented: true
+    working: "NA"
+    file: "components/OpenChallengeSlide.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'En el feed Tengo 3 publicaciones single pero no puedo hacer scrolling' (además: 'No volver a usar el testing agent', instrucción explícita para este turno)."
+        -working: "NA"
+        -agent: "main"
+        -comment: "CAUSA RAÍZ: comparado línea a línea contra CarouselSlide.jsx/DuetSlide.jsx (que sí funcionan bien dentro del mismo feed con scroll-snap), se encontró que OpenChallengeSlide.jsx era la ÚNICA tarjeta del feed que solo escuchaba `onPointerUp` sobre el vídeo/foto a pantalla completa, SIN `onPointerDown`/sin registrar la posición inicial del toque — CarouselSlide.jsx/DuetSlide.jsx SÍ registran `onPointerDown` (posición) y en `onPointerUp` comparan la distancia recorrida (`Math.abs(dx) > 12 || Math.abs(dy) > 12`) para descartar como 'toque' cualquier gesto que en realidad fue un ARRASTRE/swipe (el propio gesto de scroll vertical del feed, que el navegador maneja de forma nativa vía scroll-snap pero que TAMBIÉN dispara un evento `pointerup` normal al soltar el dedo, sin importar cuánto se haya movido). Sin ese guard, CADA vez que el usuario deslizaba (scrolleaba) sobre una publicación única, la tarjeta lo trataba como un toque real: si el gesto caía dentro de la ventana de 300ms de doble-toque, intentaba VOTAR -y si no había sesión iniciada, abría el modal de login (AuthModal), un overlay A PANTALLA COMPLETA que sí bloquea físicamente cualquier scroll posterior hasta cerrarlo-, o si no, programaba un play/pausa 280ms después. Con 3 publicaciones únicas en el feed (como reportó el usuario), la probabilidad de que el scroll se sintiera 'atascado' justo en esas tarjetas era alta. FIX: añadido `onMediaPointerDown` (guarda `{x,y}` del toque) + el MISMO guard de distancia de CarouselSlide/DuetSlide en `onMediaPointerUp` (return inmediato, sin pausar/votar, si `dx`/`dy` > 12px) — réplica exacta del patrón ya probado en el resto del feed. Verificado con lint (0 errores/avisos nuevos) y revisión manual línea a línea comparando el código real de OpenChallengeSlide.jsx antes/después contra CarouselSlide.jsx. NO SE INVOCÓ NINGÚN AGENTE DE TESTING en este turno -instrucción explícita y repetida del usuario ('No volver a usar el testing agent')-, verificado únicamente por análisis de código + lint. Pendiente: el usuario debe confirmar en el feed real (idealmente en móvil, donde el intento anterior del agente de testing quedó bloqueado por la pantalla 'mobile-only' de escritorio) que el scroll ya no se atasca al pasar sobre publicaciones 'Single', tanto deslizando lento como rápido, y que tocar (toque simple) sigue pausando/reanudando el vídeo con normalidad."
+
+test_plan:
+  current_focus:
+    - "BUG: en el feed, al llegar a una publicación 'Single' (reto abierto) el scroll se quedaba atascado/no respondía bien"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    -agent: "main"
+    -message: "BUG FIX (SIN agente de testing, a petición explícita del usuario en este turno): components/OpenChallengeSlide.jsx no distinguía un TOQUE de un ARRASTRE/scroll sobre el vídeo (le faltaba el guard de distancia que CarouselSlide.jsx/DuetSlide.jsx SÍ tienen) — cada gesto de scroll sobre una publicación 'Single' se trataba como toque/doble-toque, pudiendo abrir el modal de login (bloqueando visualmente el scroll) o programar un play/pausa indebido. Añadido el mismo guard `onPointerDown` + distancia >12px que ya usa el resto del feed. Verificado por revisión de código + lint (0 errores nuevos), SIN testing agent. Pendiente: confirmación del usuario en el feed real."
+
+
+
