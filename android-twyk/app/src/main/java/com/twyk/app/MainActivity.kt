@@ -15,8 +15,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.installSplashScreen
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -58,7 +56,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.vectorResource
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -147,29 +144,28 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            // PANTALLA DE SPLASH al abrir la app (petición del usuario:
-            // "añade el logo al splash screen") — antes NO existía ninguna
-            // (setContent montaba TwykApp() directamente, con un posible
-            // instante de pantalla negra/vacía mientras Compose compone el
-            // primer frame). Ahora se muestra el logo de marca (mismo asset
-            // ya usado en el splash de login/registro, res/drawable-nodpi/
-            // auth_logo.png) sobre fondo blanco durante un instante breve y
-            // fijo; TwykApp() se monta DEBAJO desde el primer frame (no se
-            // retrasa su carga real: el feed ya empieza a pedir datos de
-            // fondo mientras el splash sigue visible encima), y se desvanece
-            // con un fade-out corto en vez de desaparecer de golpe.
-            var showSplash by remember { mutableStateOf(true) }
-            LaunchedEffect(Unit) {
-                delay(1100)
-                showSplash = false
-            }
+            // BUG reportado por el usuario ("sigue apareciendo 2 splash
+            // screen, debe aparecer solo 1, el del icono pequeño, eliminar
+            // el otro"): el intento anterior (instalar/controlar el splash
+            // del SISTEMA vía installSplashScreen(), ver arriba) mantuvo
+            // intacto el splash PROPIO de la app (logo grande sobre fondo
+            // blanco, 1.1s + fade) pensando que era "el que había que
+            // conservar" — el usuario aclaró justo lo contrario: quiere
+            // conservar SOLO el splash del sistema (el del icono PEQUEÑO,
+            // ya controlado arriba con installSplashScreen(), sin ninguna
+            // condición que lo prolongue -se retira en el instante en que
+            // este mismo bloque pinta su primer frame-) y ELIMINAR por
+            // completo el splash propio (el del logo grande) que se
+            // mostraba aquí ENCIMA de TwykApp(). FIX: se quita
+            // por completo ese splash propio (antes: `showSplash`/
+            // `LaunchedEffect(delay 1100)`/`AnimatedVisibility`/
+            // `SplashScreen()`, ver el composable privado eliminado más
+            // abajo) — `TwykApp()` se monta directamente, sin ningún overlay
+            // por encima; el ÚNICO splash que el usuario llega a ver ahora
+            // es el del sistema (icono pequeño de la app), que se retira
+            // casi de inmediato.
             MaterialTheme(colorScheme = darkColorScheme()) {
-                Box(Modifier.fillMaxSize()) {
-                    TwykApp()
-                    AnimatedVisibility(visible = showSplash, exit = fadeOut(androidx.compose.animation.core.tween(350))) {
-                        SplashScreen()
-                    }
-                }
+                TwykApp()
             }
         }
     }
@@ -230,32 +226,6 @@ class MainActivity : ComponentActivity() {
 
 private enum class Tab {
     Home, Battles, Upload, Inbox, Profile,
-}
-
-// Pantalla de splash (logo de marca sobre fondo blanco) mostrada brevemente
-// al abrir la app — mismo asset ya usado en el splash de login/registro
-// (res/drawable-nodpi/auth_logo.png), reutilizado aquí para consistencia
-// visual entre ambas pantallas de marca. Fondo BLANCO (no el negro/TwykBg
-// del resto de la app) porque el propio logo fue diseñado sobre blanco (así
-// se ve también en el ícono de la app); ponerlo sobre negro dejaría el
-// símbolo -que es negro- invisible, dejando solo el resplandor morado/azul
-// sin la forma nítida.
-@Composable
-private fun SplashScreen() {
-    Box(
-        Modifier.fillMaxSize().background(Color.White),
-        contentAlignment = Alignment.Center,
-    ) {
-        // AJUSTE ("un poco más" arriba, tras el -24dp anterior): subido a
-        // -36dp — sigue centrado horizontalmente (Box contentAlignment=
-        // Center), solo se incrementa el desplazamiento vertical hacia
-        // arriba. Tamaño sin cambios: 205dp.
-        Image(
-            painter = painterResource(R.drawable.auth_logo),
-            contentDescription = null,
-            modifier = Modifier.offset(y = (-36).dp).size(205.dp),
-        )
-    }
 }
 
 @Composable

@@ -4144,6 +4144,49 @@ agent_communication:
     -agent: "main"
     -message: "FIX NATIVO: eliminado (en la práctica, retirado casi instantáneamente) el splash del SISTEMA que Android 12+ pinta automáticamente al arrancar (antes se veía un salto negro->blanco antes del splash propio de la app), usando la librería androidx core-splashscreen (nueva dependencia en build.gradle.kts) + Theme.Twyk.Starting (themes.xml, fondo blanco para fundirse sin corte) + installSplashScreen() en MainActivity.kt. El splash PROPIO de la app (logo grande, 1.1s) se dejó completamente intacto, tal como pidió el usuario. 100% nativo, no compilable/testeable en este entorno (sin Android SDK); sin agente de testing (a petición explícita del usuario). El usuario debe recompilar el APK (nueva dependencia Gradle) y confirmar visualmente."
 
+backend:
+  - task: "CORRECCIÓN del fix anterior de splash (nativo): el usuario aclaró que quería conservar el splash del SISTEMA (icono pequeño) y eliminar el splash PROPIO de la app (logo grande) — al revés de lo que se interpretó la vuelta anterior"
+    implemented: true
+    working: "NA"
+    file: "android-twyk/app/src/main/java/com/twyk/app/MainActivity.kt"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'En la apk nativa Sigue apareciendo 2 splash screen debe aparecer solo 1 El del icono pequeño y eliminar El otro'."
+        -working: "NA"
+        -agent: "main"
+        -comment: "100% Kotlin nativo, NO COMPILABLE en este contenedor. La vuelta anterior interpretó 'el segundo' (a conservar) como el splash PROPIO de la app (logo grande, 1.1s) y 'el primero' (a eliminar) como el del sistema — el usuario aclaró que es AL REVÉS: quiere conservar SOLO el splash del sistema (el del icono PEQUEÑO, ya tomado bajo control con installSplashScreen() en la vuelta anterior, sin ninguna condición que lo prolongue) y eliminar por completo el splash propio del logo grande. FIX: en MainActivity.kt, quitado por completo de `setContent` el bloque `showSplash`/`LaunchedEffect(delay 1100)`/`AnimatedVisibility`/`SplashScreen()` — `TwykApp()` se monta directamente, sin ningún overlay encima; también eliminado el composable privado `SplashScreen()` (ya sin ningún uso) y los 3 imports que se quedaron sin uso (`AnimatedVisibility`, `fadeOut`, `painterResource`) para no dejar código muerto. `installSplashScreen()` (Theme.Twyk.Starting, fondo blanco que ya coincide con el fondo del icono adaptativo de la app en colors.xml `ic_launcher_background=#FFFFFF`, sin cambios) queda como el ÚNICO splash visible, retirándose casi de inmediato. Verificado por revisión manual + balance de paréntesis/llaves de MainActivity.kt vía git diff (366/366 y 136/136 tras el cambio, ambos balanceados) + `xml.etree.ElementTree.parse` sigue OK en AndroidManifest.xml/themes.xml (sin cambios en esta vuelta). NO se invocó agente de testing (100% nativo, sin SDK disponible, y a petición explícita del usuario). Pendiente: el usuario debe recompilar el APK y confirmar que ya solo aparece 1 splash (el icono pequeño del sistema, retirado casi al instante) antes de entrar directo a la app."
+
+  - task: "CORRECCIÓN del fix anterior de 'retos abiertos por página': ahora se muestran TODOS los retos abiertos disponibles (hasta un tope) en la PRIMERA página siempre, en vez de esperar a la última página real"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'también deben aparecer todas las publicaciones single en El feed' (en el mismo mensaje que la corrección del splash)."
+        -working: true
+        -agent: "main"
+        -comment: "El fix de la vuelta anterior (repartir TODOS los retos abiertos solo en la ÚLTIMA página real, `cursor+limit >= totalCandidates`) dependía de que el viewer llegara a agotar todas las páginas reales — si hay bastantes candidatos reales de por medio, esa última página puede tardar varias páginas en llegar, dejando la mayoría de los retos abiertos sin verse durante ese tramo. FIX DEFINITIVO (GET /api/feed, route.js): si hay `<= MAX_OPEN_PER_LOAD` (6) retos abiertos disponibles (el caso típico), se muestran TODOS, siempre, en la PRIMERA página (cursor===0) — máxima visibilidad garantizada desde el primer fetch, sin depender de cuántas páginas reales existan; las páginas siguientes no repiten nada (ya se vieron todos). Si hay MÁS de 6 (saturaría el feed mostrarlos todos de golpe), se reparten en BLOQUES de 6, rotando el BLOQUE completo por página (antes rotaba de 1 en 1, mucho más lento en cubrir el conjunto completo). VERIFICADO con un script Node temporal (fetch real, SIN curl, SIN agente de testing — a petición explícita y reiterada del usuario en esta sesión) contra datos reales: login como 'twyk' (el usuario con las publicaciones 'Single' reales) -> GET /api/feed?cursor=0&limit=8 -> los 4 retos abiertos reales de esa cuenta aparecen TODOS en la primera página; GET /api/feed?cursor=8&limit=8 -> 0 (ya se vieron todos, sin repetir). Lint limpio. Sin cambios en GET /api/users/{username} (el grid de perfil ya fusiona TODOS los retos abiertos del autor sin paginación por rotación)."
+
+test_plan:
+  current_focus:
+    - "CORRECCIÓN del fix anterior de splash (nativo): el usuario aclaró que quería conservar el splash del SISTEMA (icono pequeño) y eliminar el splash PROPIO de la app (logo grande) — al revés de lo que se interpretó la vuelta anterior"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    -agent: "main"
+    -message: "2 CORRECCIONES en este turno: (1) NATIVO (MainActivity.kt) — eliminado por completo el splash propio del logo grande (composable + código muerto), dejando SOLO el splash del sistema (icono pequeño, casi instantáneo) — al revés de lo que se hizo la vuelta anterior, corregido según la aclaración del usuario. 100% nativo, sin agente de testing, el usuario debe recompilar el APK. (2) BACKEND (route.js) — ahora se muestran TODOS los retos abiertos disponibles (hasta 6) siempre en la primera página del feed, en vez de esperar a la última página real (que podía tardar en llegar). Verificado con script Node real (sin curl, sin testing agent): los 4 retos abiertos reales de la cuenta 'twyk' aparecen todos de inmediato en cursor=0. Este cambio de backend ya aplica automáticamente también a la app nativa (misma API), sin necesitar recompilar el APK para esta parte."
+
+
 
 
 

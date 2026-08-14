@@ -731,35 +731,54 @@ export async function GET(request, { params }) {
     // RETOS ABIERTOS: se inyectan en el feed (visibles para CUALQUIERA que
     // lo descubra, no solo la persona retada, a diferencia de los retos
     // dirigidos que solo viven en la bandeja de Retos Activos de un usuario
-    // concreto). Por defecto (SÍ hay más páginas reales por delante, el caso
-    // normal a gran escala) se inyecta solo 1 por página, rotando según
-    // cursor/limit, para no saturar el feed de tarjetas de este tipo.
+    // concreto).
     //
     // BUG reportado por el usuario ("tengo 3 publicaciones single pero no
-    // las veo todas"): con pocos candidatos reales (p.ej. una cuenta nueva o
-    // de pruebas, donde esta MISMA página ya es la última — `hasMore` va a
-    // salir `false` más abajo), NUNCA habrá una "página 2" a la que rotar
-    // -el viewer se queda mirando siempre la MISMA página- así que solo se
-    // llegaba a ver 1 de los varios retos abiertos disponibles, dejando el
-    // resto invisibles para siempre. FIX: si esta YA es la última página
-    // (calculado con la MISMA fórmula que `hasMore`, antes de inyectar), se
-    // reparten TODOS los retos abiertos disponibles (hasta un máximo
-    // razonable) a lo largo de esta misma página en vez de solo 1 — el
-    // dedupe por id en useFeed.js sigue evitando duplicados si el ciclo
-    // vuelve a caer sobre la misma tarjeta en una recarga posterior.
+    // las veo todas" / "deben aparecer todas las publicaciones single en el
+    // feed"): el diseño original solo inyectaba 1 por página, rotando según
+    // cursor/limit — con pocos candidatos reales (`hasMore` sale `false`
+    // pronto), o si el viewer simplemente no llega a scrollear lo bastante
+    // para agotar todas las páginas reales, la mayoría de los retos
+    // abiertos quedaban invisibles indefinidamente. Un primer intento
+    // (repartir TODOS solo en la ÚLTIMA página real) seguía sin garantizar
+    // verlos pronto si hay muchos candidatos reales de por medio. FIX
+    // DEFINITIVO: si hay pocos retos abiertos disponibles (<= MAX_OPEN_
+    // PER_LOAD, el caso típico), se muestran TODOS de una vez, siempre, en
+    // la PRIMERA página (cursor===0) — máxima visibilidad garantizada desde
+    // el primer fetch, sin depender de cuántas páginas reales existan ni de
+    // hasta dónde scrollee el viewer (el dedupe por id en useFeed.js evita
+    // que se dupliquen si el ciclo vuelve a caer sobre ellos en una recarga
+    // posterior). Si hay MÁS retos abiertos que ese máximo (mostrarlos
+    // todos de golpe saturaría el feed), se reparten en BLOQUES de ese
+    // mismo tamaño, rotando el bloque completo según la página (en vez de
+    // rotar de 1 en 1 como antes) — así, en pocas páginas, se termina
+    // viendo el conjunto completo igualmente, solo que repartido.
     try {
       const openItems = await getOpenChallengeFeedItems(currentUser, followingSet)
       if (openItems.length) {
-        const isLastPage = cursor + limit >= totalCandidates
-        if (isLastPage) {
-          // Última página real: sin página siguiente donde rotar -> se
-          // reparten hasta MAX_OPEN_LAST_PAGE retos abiertos, separados por
-          // ~3 publicaciones reales entre cada uno (empezando en la misma
-          // 3ª posición que usa el caso normal de abajo), para no
-          // amontonarlos todos al principio.
-          const MAX_OPEN_LAST_PAGE = 6
-          const toInsert = openItems.slice(0, MAX_OPEN_LAST_PAGE)
-          const REAL_POSTS_BETWEEN = 3
+        const MAX_OPEN_PER_LOAD = 6
+        const REAL_POSTS_BETWEEN = 3
+        let toInsert = []
+        if (openItems.length <= MAX_OPEN_PER_LOAD) {
+          // Pocos retos abiertos (caso típico hoy): TODOS, siempre, en la
+          // primera página — el resto de páginas no repite nada (ya se
+          // vieron todos desde el primer fetch).
+          toInsert = cursor === 0 ? openItems : []
+        } else {
+          // Muchos retos abiertos: se reparten en bloques de
+          // MAX_OPEN_PER_LOAD, rotando el bloque COMPLETO por página (no 1
+          // suelto) — en `Math.ceil(openItems.length / MAX_OPEN_PER_LOAD)`
+          // páginas se ha mostrado el conjunto entero, luego se repite el
+          // ciclo.
+          const totalBlocks = Math.ceil(openItems.length / MAX_OPEN_PER_LOAD)
+          const blockIdx = Math.floor(cursor / (limit || 8)) % totalBlocks
+          const start = blockIdx * MAX_OPEN_PER_LOAD
+          toInsert = openItems.slice(start, start + MAX_OPEN_PER_LOAD)
+        }
+        if (toInsert.length) {
+          // Repartidos a lo largo de la página (no amontonados al
+          // principio): empiezan en la 3ª posición, con ~3 publicaciones
+          // reales de separación entre cada inserción sucesiva.
           let result = posts.slice()
           let at = Math.min(2, result.length)
           for (const item of toInsert) {
@@ -768,13 +787,6 @@ export async function GET(request, { params }) {
             at += REAL_POSTS_BETWEEN + 1
           }
           posts = result
-        } else {
-          // Comportamiento original (sin cambios): 1 por página, rotando
-          // entre los disponibles según cursor/limit.
-          const pageIdx = Math.floor(cursor / (limit || 8))
-          const chosen = openItems[pageIdx % openItems.length]
-          const insertAt = Math.min(2, posts.length)
-          posts = [...posts.slice(0, insertAt), chosen, ...posts.slice(insertAt)]
         }
       }
     } catch { /* ignore: el feed nunca debe romperse por esto */ }
