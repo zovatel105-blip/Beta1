@@ -4186,6 +4186,79 @@ agent_communication:
     -agent: "main"
     -message: "2 CORRECCIONES en este turno: (1) NATIVO (MainActivity.kt) — eliminado por completo el splash propio del logo grande (composable + código muerto), dejando SOLO el splash del sistema (icono pequeño, casi instantáneo) — al revés de lo que se hizo la vuelta anterior, corregido según la aclaración del usuario. 100% nativo, sin agente de testing, el usuario debe recompilar el APK. (2) BACKEND (route.js) — ahora se muestran TODOS los retos abiertos disponibles (hasta 6) siempre en la primera página del feed, en vez de esperar a la última página real (que podía tardar en llegar). Verificado con script Node real (sin curl, sin testing agent): los 4 retos abiertos reales de la cuenta 'twyk' aparecen todos de inmediato en cursor=0. Este cambio de backend ya aplica automáticamente también a la app nativa (misma API), sin necesitar recompilar el APK para esta parte."
 
+backend:
+  - task: "BUG: el botón 'Challenge' de las publicaciones 'Single' no respondía al pulsarlo"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'También deben aparecer en la aplicacion nativa y El boton reto de las publicaciones single tambien debe funcionar porque hago click y no responde no hace nada'."
+        -working: true
+        -agent: "main"
+        -comment: "CAUSA RAÍZ ENCONTRADA (con datos reales, no solo lectura de código): `getOpenChallengeFeedItems()` NUNCA excluía los PROPIOS retos abiertos del viewer -> un creador (p.ej. 'twyk', que tiene 3 publicaciones 'Single' reales) veía SUS PROPIAS publicaciones inyectadas en SU PROPIO feed principal ('Para Ti'), donde el botón 'Challenge' correctamente NO se muestra (ni en la web -isOwnChallenge en OpenChallengeSlide.jsx- ni en el nativo -headAuthorUsername==Session.user?.username en SocialRail-, porque no puedes retarte a ti mismo) — al no existir el botón ahí, cualquier toque en esa zona de la tarjeta no hacía nada, dando la sensación de 'está roto', cuando en realidad el diseño era correcto pero el feed le estaba mostrando SUS PROPIAS publicaciones (un fallo de diseño del feed algorítmico: nunca debería auto-recomendarte tus propias publicaciones, igual que el resto de posts reales tampoco lo hacen). FIX (GET /api/feed, route.js): tras obtener `openItems`, se excluyen los que pertenecen al propio `currentUser` ANTES de inyectarlos — SOLO en esta inyección del feed principal (el grid del PROPIO perfil, GET /api/users/{username}, sigue usando la MISMA función SIN este filtro adicional, ya que ahí SÍ debe verse tu propio contenido). VERIFICADO con un script Node temporal (fetch real, SIN curl, SIN agente de testing para esta parte, a petición explícita y reiterada del usuario): (1) 'twyk' ya NO ve sus 3 publicaciones propias en su propio feed (sí ve 1 ajena, de otro creador real 'nex', confirmando que el filtro es específicamente 'las MÍAS', no 'todas'). (2) 'marcos' (usuario distinto) SÍ ve las 3 publicaciones de 'twyk'. (3) Simulado el POST exacto que dispara el botón 'Challenge' (marcos retando una publicación real de twyk, con targetAuthor+media de esa publicación) -> 200 OK, reto creado, aparece PENDIENTE en la bandeja de Retos Activos de twyk -> confirma que el CONTRATO completo del botón (crear reto dirigido con la media del reto abierto como objetivo) funciona de extremo a extremo para un no-propietario. Datos de prueba limpiados (reto rechazado tras verificar). Lint limpio. Pendiente de verificación VISUAL en el navegador (UI, no solo API): pedido al agente de testing de frontend."
+
+test_plan:
+  current_focus:
+    - "BUG: el botón 'Challenge' de las publicaciones 'Single' no respondía al pulsarlo"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    -agent: "main"
+    -message: "BUG FIX + verificación pendiente: getOpenChallengeFeedItems ya no inyecta las publicaciones 'Single' del PROPIO viewer en su propio feed principal (por diseño, el botón Challenge no aparece en tus propias publicaciones - eso hacía parecer 'roto' el botón cuando en realidad eran tus propias publicaciones apareciendo donde no debían). Verificado a nivel API con script real (login 2 cuentas distintas, simulé el POST exacto del botón Challenge -> 200, reto creado y visible en Retos Activos). NECESITO que el agente de testing de FRONTEND confirme visualmente en el navegador: (1) login como 'lucia' o 'laura' (NO propietarias de ninguna publicación Single), encontrar una publicación 'Single' de otro usuario en el feed, pulsar el botón 'Challenge' (icono de espadas) y confirmar que se abre el diálogo de reto con el vídeo/foto de esa publicación como objetivo; (2) login como 'twyk' (propietario de 3 publicaciones Single reales) y confirmar que sus PROPIAS publicaciones YA NO aparecen en su propio feed principal (Home). Credenciales en memory/test_credentials.md."
+
+frontend:
+  - task: "APP NATIVA (Android/Compose): en 'Create content', la pestaña 'Single' del selector de modo se envolvía en 2 líneas ('Sing'/'le') en vez de una sola, a diferencia de la web"
+    implemented: true
+    working: "NA"
+    file: "android-twyk/app/src/main/java/com/twyk/app/ui/Upload.kt"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'La tabla de creacion de contenido debe verse igual que la web en la aplicacion nativa' — captura adjunta mostrando el selector 'Versus | 1 vs 1 | Challenges | Sing/le' con el texto de la última pestaña partido en 2 líneas."
+        -working: "NA"
+        -agent: "main"
+        -comment: "100% Kotlin nativo (ui/Upload.kt, `ModeStep`/`ModeSeg`), NO COMPILABLE en este contenedor. CAUSA: el `Row` de las 4 pestañas no tenía ningún mecanismo para garantizar que TODAS midieran su ancho natural — en pantallas estrechas, el ÚLTIMO hijo ('Single', el más nuevo, añadido en una vuelta anterior) se quedaba con menos espacio disponible del que su texto necesita en una sola línea, y `Text` (sin `maxLines`/`softWrap` explícitos) lo envolvía en 2 líneas — a diferencia de la web, donde ese `inline-flex` nunca envuelve. FIX: (1) el `Row` del selector ahora tiene `Modifier.horizontalScroll(rememberScrollState())` — cada pestaña mide su ancho natural SIEMPRE; si las 4 no caben del todo en una pantalla muy estrecha, el propio selector se desliza en vez de romper el texto de ninguna pestaña. (2) `ModeSeg`: el `Text` ahora fuerza `maxLines = 1, softWrap = false` como refuerzo explícito (nunca más se envuelve, pase lo que pase con el ancho disponible). Verificado por revisión manual + balance de paréntesis/llaves de todo el archivo vía git diff (1254/1254 -> 1265/1265, ambos balanceados). NO se invocó agente de testing (100% nativo, sin SDK disponible en este entorno, y a petición explícita y vigente del usuario en esta sesión). Pendiente: el usuario debe recompilar el APK y confirmar que las 4 pestañas ('Versus', '1 vs 1', 'Challenges', 'Single') se ven en una sola línea cada una, igual que en la web."
+
+  - task: "BUG: el botón 'Challenge' de las publicaciones 'Single' (de OTRO usuario, no propias) sigue sin responder en la APK nativa tras el fix de exclusión de publicaciones propias — CAUSA AÚN NO CONFIRMADA, pendiente de más información del usuario"
+    implemented: false
+    working: false
+    file: "android-twyk/app/src/main/java/com/twyk/app/feed/VersusFeed.kt"
+    stuck_count: 1
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'Tambien deben aparecer en la aplicacion nativa y El boton reto de las publicaciones single tambien debe funcionar porque hago click y no responde no hace nada' -> tras preguntar, confirmó: ya recompiló, es una publicación de OTRO usuario (no propia), el botón SÍ aparece visualmente pero al tocarlo literalmente no pasa nada (ni se abre ningún diálogo), y confirma que el mismo botón de reto SÍ funciona en publicaciones Versus/1vs1 normales."
+        -working: false
+        -agent: "main"
+        -comment: "Auditoría exhaustiva línea a línea del cableado completo (RailItem->SocialRail->OpenChallengePage->FeedPager->VersusFeed->MainActivity.kt::onChallenge->quickChallengeTarget->QuickChallengeSheet), comparado contra el mismo cableado EXACTO ya usado por CarouselPage/DuetPage (que el usuario confirma que SÍ funciona) — es literalmente el MISMO código compartido (SocialRail/RailItem, la única diferencia real es qué se le pasa como headAuthorUsername/QuickChallengeTarget), sin ninguna diferencia estructural encontrada que explique 'no responde nada' en un no-propietario. Pedí una captura de pantalla de la publicación Single en cuestión para poder ver el layout exacto y confirmar que el icono tocado es realmente el de espadas — el usuario respondió con una captura de OTRA pantalla distinta ('Create content', el selector de modo, ver tarea de arriba), así que esta pregunta específica sigue SIN respuesta. NO se ha aplicado ningún cambio de código para este punto concreto en este turno (evitando un fix 'a ciegas' sin evidencia de la causa real) — pendiente de la captura de pantalla real de la publicación Single + confirmar si tiene foto o vídeo, para poder seguir diagnosticando con evidencia visual en la próxima vuelta."
+
+test_plan:
+  current_focus:
+    - "APP NATIVA (Android/Compose): en 'Create content', la pestaña 'Single' del selector de modo se envolvía en 2 líneas ('Sing'/'le') en vez de una sola, a diferencia de la web"
+    - "BUG: el botón 'Challenge' de las publicaciones 'Single' (de OTRO usuario, no propias) sigue sin responder en la APK nativa tras el fix de exclusión de publicaciones propias — CAUSA AÚN NO CONFIRMADA, pendiente de más información del usuario"
+  stuck_tasks:
+    - "BUG: el botón 'Challenge' de las publicaciones 'Single' (de OTRO usuario, no propias) sigue sin responder en la APK nativa tras el fix de exclusión de publicaciones propias — CAUSA AÚN NO CONFIRMADA, pendiente de más información del usuario"
+  test_all: false
+  test_priority: "stuck_first"
+
+agent_communication:
+    -agent: "main"
+    -message: "FIX NATIVO (Upload.kt): la pestaña 'Single' de 'Create content' ya no se envuelve en 2 líneas — Row deslizable + Text con maxLines=1/softWrap=false. Requiere recompilar. SIGUE PENDIENTE (sin cambios en este turno, sin evidencia suficiente para un fix seguro): el botón 'Challenge' de publicaciones Single ajenas 'no responde nada' — auditoría exhaustiva del cableado no encontró ninguna diferencia con Carousel/Duet (que sí funcionan); pedí una captura de la publicación Single en cuestión (no de 'Create content') + si es foto o vídeo, para seguir diagnosticando con evidencia real en la próxima vuelta. Sin agente de testing en todo este turno (petición explícita y vigente del usuario)."
+
+
+
 
 
 

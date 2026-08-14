@@ -754,7 +754,23 @@ export async function GET(request, { params }) {
     // rotar de 1 en 1 como antes) — así, en pocas páginas, se termina
     // viendo el conjunto completo igualmente, solo que repartido.
     try {
-      const openItems = await getOpenChallengeFeedItems(currentUser, followingSet)
+      let openItems = await getOpenChallengeFeedItems(currentUser, followingSet)
+      // BUG reportado por el usuario ("hago click [en Challenge] y no
+      // responde, no hace nada"): getOpenChallengeFeedItems() no excluía
+      // los PROPIOS retos abiertos del viewer -> un creador veía sus
+      // propias publicaciones 'Single' inyectadas en SU PROPIO feed
+      // principal, donde el botón 'Challenge' correctamente NO aparece
+      // (no puedes retarte a ti mismo, mismo criterio que isOwnChallenge en
+      // OpenChallengeSlide.jsx/isOwnPost en el nativo) — al no haber botón
+      // ahí, cualquier toque en esa zona no hacía nada, dando la impresión
+      // de un botón roto. El feed algorítmico ("Para Ti") nunca debe
+      // recomendarte tus PROPIAS publicaciones de todos modos (mismo
+      // criterio que el resto de posts reales, que tampoco se auto-
+      // recomiendan) — se excluyen aquí, SOLO para esta inyección del feed
+      // principal (el grid del PROPIO perfil, que sí debe mostrar tus
+      // publicaciones únicas, usa la misma función SIN este filtro, ver el
+      // otro punto de uso en GET /api/users/{username}).
+      if (currentUser) openItems = openItems.filter((it) => it.author?.username !== currentUser.username)
       if (openItems.length) {
         const MAX_OPEN_PER_LOAD = 6
         const REAL_POSTS_BETWEEN = 3

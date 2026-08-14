@@ -13,6 +13,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -316,9 +318,25 @@ fun UploadScreen(onRequireAuth: () -> Unit, onDone: () -> Unit) {
 private fun ModeStep(selected: String, onSelect: (String) -> Unit, onContinue: () -> Unit) {
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Spacer(Modifier.height(8.dp))
-        // Segmentado (sin gap entre botones, como el inline-flex de la web)
+        // Segmentado (sin gap entre botones, como el inline-flex de la web).
+        // BUG reportado por el usuario (captura adjunta): la pestaña "Single"
+        // (la 4ª, la más nueva) se quedaba sin espacio y su texto se envolvía
+        // en 2 líneas ("Sing"/"le") — a diferencia de la web, donde el
+        // `inline-flex` de las 4 pestañas nunca envuelve texto. CAUSA: este
+        // `Row` no tenía ancho propio garantizado — al medir sus 4 hijos,
+        // Compose reparte el ancho disponible en orden, y en pantallas
+        // estrechas el ÚLTIMO hijo (Single) se quedaba con menos espacio del
+        // que su texto necesita en una sola línea, así que Compose lo
+        // envolvía. FIX: se envuelve en `horizontalScroll` (nunca fuerza a
+        // ningún hijo a medirse más pequeño de su ancho natural -cada pestaña
+        // pide su propio ancho intrínseco- y, si las 4 no caben del todo en
+        // pantallas muy estrechas, el usuario puede deslizar el propio
+        // selector en vez de que el texto se rompa) + `ModeSeg` ahora fuerza
+        // explícitamente una sola línea (ver comentario ahí).
         Row(
-            Modifier.clip(RoundedCornerShape(50)).background(Color.White.copy(alpha = 0.06f)).border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(50)).padding(4.dp),
+            Modifier
+                .horizontalScroll(rememberScrollState())
+                .clip(RoundedCornerShape(50)).background(Color.White.copy(alpha = 0.06f)).border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(50)).padding(4.dp),
         ) {
             ModeSeg("Versus", selected == "versus") { onSelect("versus") }
             ModeSeg("1 vs 1", selected == "duet") { onSelect("duet") }
@@ -437,7 +455,18 @@ private fun MiniTile(label: String, strong: Boolean) {
 @Composable
 private fun ModeSeg(label: String, active: Boolean, onClick: () -> Unit) {
     Box(Modifier.clip(RoundedCornerShape(50)).background(if (active) Color.White else Color.Transparent).clickable { onClick() }.padding(horizontal = 16.dp, vertical = 8.dp)) {
-        Text(label, color = if (active) Color.Black else Color(0xFFD4D4D8), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+        // BUG reportado por el usuario ("Single" se envolvía en 2 líneas):
+        // `maxLines = 1` + `softWrap = false` fuerzan una sola línea SIEMPRE
+        // (réplica del comportamiento real de la web, donde el texto de
+        // estos botones nunca envuelve) — ahora, aunque el `Row` padre mida
+        // a este Box con menos ancho del que el texto necesita, el propio
+        // texto exige su ancho natural en una sola línea (el `horizontalScroll`
+        // del Row padre, ver ModeStep, es lo que absorbe cualquier falta de
+        // espacio, en vez de romper el texto).
+        Text(
+            label, color = if (active) Color.Black else Color(0xFFD4D4D8), fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+            maxLines = 1, softWrap = false,
+        )
     }
 }
 
