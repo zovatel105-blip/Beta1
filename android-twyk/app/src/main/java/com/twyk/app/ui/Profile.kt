@@ -673,6 +673,27 @@ fun ProfileScreen(
                     onVote = { id, side, prev ->
                         scope.launch { runCatching { RetrofitProvider.api.vote(VoteRequest(id, side, prev)) } }
                     },
+                    // BUG REPORTADO ("en las publicaciones single el botón social
+                    // Retar no responde a nada por más que haga click en él"):
+                    // este FeedPager (visor de publicación al tocar un elemento
+                    // del grid del perfil — incluye publicaciones tipo "Single"/
+                    // reto abierto, ver OpenChallengePage en VersusFeed.kt) NUNCA
+                    // pasaba `onChallenge`, así que usaba el valor por defecto de
+                    // la firma (`onChallenge: (QuickChallengeTarget) -> Unit =
+                    // {}`, un no-op literal, ver FeedPager en feed/VersusFeed.kt)
+                    // — el botón "Retar" de la columna social (SocialRail) SÍ
+                    // llamaba correctamente a ese callback al tocarlo, pero como
+                    // aquí nunca llegaba ninguna función real, no pasaba nada en
+                    // absoluto, sin importar cuántas veces se tocara — exactamente
+                    // el síntoma reportado. MISMO patrón exacto que los 2 bugs ya
+                    // corregidos antes en este mismo archivo (botón "Challenge" de
+                    // la cabecera del perfil, y el ProfileScreen anidado sin
+                    // `onOpenChallenge`) — tercera aparición del mismo olvido.
+                    // FIX: se pasa `onOpenChallenge` (parámetro recibido por esta
+                    // función ProfileScreen, MISMA firma exacta que `onChallenge`
+                    // de FeedPager, ya correctamente cableado desde MainActivity.kt
+                    // hasta aquí) en vez de dejarlo en el valor por defecto.
+                    onChallenge = onOpenChallenge,
                     showCommentInput = true,
                     // SOLO en el PROPIO perfil, la barra alterna con "reproducciones"
                     // (ver CommentOrViewsBar en VersusFeed.kt) — perfil ajeno sin cambios.
