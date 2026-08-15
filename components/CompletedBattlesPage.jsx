@@ -5,10 +5,11 @@ import { useEffect, useRef, useState } from 'react'
 import { Swiper, SwiperSlide } from 'swiper/react'
 import { Mousewheel, Keyboard } from 'swiper/modules'
 import 'swiper/css'
-import { Swords, Plus, Trophy, Loader2, UserPlus } from 'lucide-react'
+import { Swords, Plus, Trophy, Loader2, UserPlus, Flame } from 'lucide-react'
 import BottomNav from './BottomNav'
 import CarouselSlide from './CarouselSlide'
 import DuetSlide from './DuetSlide'
+import LuxuryBattleSheet from './LuxuryBattleSheet'
 import { notificationsUnreadCount } from '@/lib/notifications'
 import { subscribeCommentCountChange, patchCommentCountInList } from '@/lib/commentCountBus'
 
@@ -56,11 +57,28 @@ const EmptyCompletedState = ({ onOpenUpload, onOpenActive }) => {
   )
 }
 
-export default function CompletedBattlesPage({ open, onClose, onOpenActive, onOpenUpload, onOpenInbox, onOpenProfile, onOpenSuggestions, onGoHome, onGoHomeDouble, refreshKey = 0 }) {
+export default function CompletedBattlesPage({ open, onClose, onOpenActive, onOpenUpload, onOpenInbox, onOpenProfile, onOpenSuggestions, onGoHome, onGoHomeDouble, onEnterLuxuryBattle, refreshKey = 0 }) {
   const [posts, setPosts] = useState([])
   const [loading, setLoading] = useState(false)
   const [activeIndex, setActiveIndex] = useState(0)
   const [muted, setMuted] = useState(true)
+  const [luxurySheetOpen, setLuxurySheetOpen] = useState(false)
+  // Pill de "Luxury Battle" (petición del usuario: mejora sobre larpgpt.com
+  // integrada AQUÍ, en la pestaña Batallas) — solo se muestra si HAY un tema
+  // activo (evita un botón vacío/confuso si nunca se configuró ninguno, ver
+  // GET /api/luxury-battles/active). Se consulta una sola vez al abrir esta
+  // pantalla; la hoja (LuxuryBattleSheet) vuelve a pedir el detalle completo
+  // + leaderboard al abrirse, así que aquí solo hace falta saber SI existe.
+  const [luxuryThemeTitle, setLuxuryThemeTitle] = useState(null)
+  useEffect(() => {
+    if (!open) return
+    let cancelled = false
+    fetch('/api/luxury-battles/active', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d) => { if (!cancelled) setLuxuryThemeTitle(d?.theme?.title || null) })
+      .catch(() => { if (!cancelled) setLuxuryThemeTitle(null) })
+    return () => { cancelled = true }
+  }, [open])
   const swiperRef = useRef(null)
 
   // Loads completed challenges from the backend each time the page opens
@@ -128,6 +146,23 @@ export default function CompletedBattlesPage({ open, onClose, onOpenActive, onOp
             <Plus className="w-[18px] h-[18px]" strokeWidth={2.5} />
           </button>
         </div>
+
+        {/* "Luxury Battle" — pill destacada (petición del usuario: mejora
+            sobre larpgpt.com integrada aquí, en Batallas) — SOLO si hay un
+            tema activo configurado (GET /api/luxury-battles/active). Abre
+            LuxuryBattleSheet (tema + leaderboard + botón de entrada). */}
+        {luxuryThemeTitle && (
+          <div className="flex justify-center mt-2.5">
+            <button
+              onClick={() => setLuxurySheetOpen(true)}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[12px] font-bold active:scale-95 transition"
+              style={{ background: 'linear-gradient(135deg, rgba(252,211,77,0.18), rgba(245,158,11,0.18))', border: '1px solid rgba(252,211,77,0.35)', color: '#FCD34D' }}
+            >
+              <Flame size={12} className="fill-current" />
+              Luxury Battle: {luxuryThemeTitle}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Content: vertical feed of completed challenges or empty state */}
@@ -205,6 +240,15 @@ export default function CompletedBattlesPage({ open, onClose, onOpenActive, onOp
         onOpenProfile={onOpenProfile}
         unreadCount={notificationsUnreadCount}
         activeTab="explore"
+      />
+
+      <LuxuryBattleSheet
+        open={luxurySheetOpen}
+        onClose={() => setLuxurySheetOpen(false)}
+        onEnter={(theme) => {
+          setLuxurySheetOpen(false)
+          onEnterLuxuryBattle?.(theme)
+        }}
       />
     </div>
   )

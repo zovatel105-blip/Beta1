@@ -113,6 +113,12 @@ export default function Feed() {
   // Versus/1vs1/Retos como siempre; 'challenge' = abrir directamente en el
   // flujo de Retos (sin pasar por el selector), usado desde la página de Retos.
   const [uploadInitialMode, setUploadInitialMode] = useState(null)
+  // "Luxury Battle" (petición del usuario, ver LuxuryBattleSheet.jsx): tema
+  // pendiente de adjuntar a la SIGUIENTE subida, seteado por
+  // requestUpload('challenge', theme) desde el botón "Enter with an AI
+  // photo" de la hoja — UploadDialog lo usa para mostrar el banner del tema
+  // y para incluir `luxuryThemeId` en la petición a POST /api/challenges.
+  const [uploadLuxuryTheme, setUploadLuxuryTheme] = useState(null)
   // Gating de publicación: solo usuarios registrados pueden subir/publicar.
   // Si un invitado pulsa "Crear", abrimos el login; tras autenticarse, se abre
   // automáticamente el diálogo de subida (pendingUpload).
@@ -247,9 +253,11 @@ export default function Feed() {
   // `mode` (opcional) permite abrir la subida directamente en un modo
   // concreto (p.ej. 'challenge' cuando se pulsa "Create a challenge"/"Add
   // challenge" desde la página de Retos, en vez de mostrar siempre el
-  // selector Versus/1vs1/Retos empezando en 'Versus').
-  const requestUpload = useCallback((mode) => {
+  // selector Versus/1vs1/Retos empezando en 'Versus'). `theme` (opcional,
+  // solo aplica con mode='challenge') adjunta un tema de "Luxury Battle".
+  const requestUpload = useCallback((mode, theme) => {
     setUploadInitialMode(mode || null)
+    setUploadLuxuryTheme(theme || null)
     if (user) {
       setUploadOpen(true)
     } else {
@@ -708,7 +716,7 @@ export default function Feed() {
         onRequireLogin={() => { setAuthTab('login'); setAuthOpen(true) }}
         onPostViewerChange={setPostViewerOpen}
       />
-      <UploadDialog open={uploadOpen} initialMode={uploadInitialMode} onClose={() => setUploadOpen(false)} onUploaded={handleUploaded} onChallengeCreated={refreshChallenges} />
+      <UploadDialog open={uploadOpen} initialMode={uploadInitialMode} luxuryTheme={uploadLuxuryTheme} onClose={() => { setUploadOpen(false); setUploadLuxuryTheme(null) }} onUploaded={handleUploaded} onChallengeCreated={refreshChallenges} />
       <AuthModal key={authTab} open={authOpen} onClose={() => setAuthOpen(false)} defaultTab={authTab} />
       <ChallengeDialog
         open={challengeOpen}
@@ -743,6 +751,7 @@ export default function Feed() {
         onOpenSuggestions={() => setSuggestionsOpen(true)}
         onGoHome={handleGoHome}
         onGoHomeDouble={handleGoHomeDouble}
+        onEnterLuxuryBattle={(theme) => { setBattlesOpen(false); requestUpload('challenge', theme) }}
       />
       <ActiveChallengesPage
         open={activeChallengesOpen}

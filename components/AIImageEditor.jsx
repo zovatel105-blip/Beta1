@@ -40,7 +40,7 @@ async function dataUrlToFile(dataUrl, filename) {
   return new File([blob], filename, { type: blob.type || 'image/png' })
 }
 
-export default function AIImageEditor({ imageFile, onClose, onApply, onStatusChange }) {
+export default function AIImageEditor({ imageFile, initialPrompt = '', onClose, onApply, onStatusChange }) {
   const [prompt, setPrompt] = useState('')
   const [stage, setStage] = useState('input') // input | loading | result | error
   const [resultUrl, setResultUrl] = useState(null)
@@ -66,12 +66,16 @@ export default function AIImageEditor({ imageFile, onClose, onApply, onStatusCha
   const [trending, setTrending] = useState([])
 
   // Reinicia el formulario y pide sugerencias nuevas cada vez que se entra a
-  // editar un archivo distinto.
+  // editar un archivo distinto. `initialPrompt` (petición del usuario, ver
+  // LuxuryBattleSheet.jsx/UploadDialog.jsx): si se entró a esta foto desde
+  // un tema de "Luxury Battle", la instrucción arranca YA rellena con la
+  // sugerencia del tema (ej. "Put me relaxing on a luxury yacht deck..."),
+  // en vez de vacía — el usuario puede editarla libremente antes de generar.
   useEffect(() => {
     setStage('input')
     setResultUrl(null)
     setErrorMsg(null)
-    setPrompt('')
+    setPrompt(initialPrompt || '')
     setSuggestions([])
     setTrending([])
     if (!imageFile) return

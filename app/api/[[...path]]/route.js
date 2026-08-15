@@ -58,6 +58,11 @@ import {
   toggleSingleVote,
   getSingleVoteCountsByPostIds,
   getSingleVotedPostIdsByUser,
+  getActiveLuxuryTheme,
+  getLuxuryThemeById,
+  setActiveLuxuryTheme,
+  getLuxuryBattlePostsByThemeId,
+  updatePostLuxuryScore,
 } from '@/lib/db'
 import {
   getAllPosts,
@@ -116,6 +121,17 @@ async function getCurrentUser(request) {
     return null
   }
 }
+
+// Quita los campos internos de Mongo (`_id`, `_seq`) antes de devolver un
+// documento leído directamente de una colección (p.ej. luxuryThemes) al
+// cliente — mismo propósito que `strip()` en lib/stores.js (no exportado
+// desde ahí), para no filtrar el ObjectId de Mongo en la respuesta JSON.
+function stripMongoId(doc) {
+  if (!doc) return doc
+  const { _id, _seq, ...rest } = doc
+  return rest
+}
+
 
 // ¿El usuario actual es administrador?
 function isAdmin(user) {
@@ -900,6 +916,55 @@ export async function GET(request, { params }) {
     return NextResponse.json({ posts: await refreshPostCommentCounts(enrichedPosts) })
   }
 
+  // GET /api/luxury-battles/active — tema de lujo actualmente activo (ej.
+  // "Yacht Life"), o { theme: null } si nunca se configuró ninguno. Público
+  // (sin sesión), igual que el resto de datos de descubrimiento del feed.
+  if (path === '/luxury-battles/active') {
+    const theme = await getActiveLuxuryTheme().catch(() => null)
+    return NextResponse.json({ theme: theme ? stripMongoId(theme) : null })
+  }
+
+  // GET /api/luxury-battles/leaderboard?themeId=... — ranking de un tema de
+  // lujo (por defecto, el ACTIVO): combina votos reales de la comunidad
+  // (votes.a+votes.b, mismo mecanismo de siempre) con el puntaje de IA
+  // (0-100 por lado, ver scoreLuxuryBattlePost) en un único `combinedScore`
+  // — ni solo-IA (larpgpt) ni solo-votos, las 2 señales juntas. Público.
+  if (path === '/luxury-battles/leaderboard') {
+    const { searchParams } = new URL(request.url)
+    const themeIdParam = searchParams.get('themeId')
+    const theme = themeIdParam ? await getLuxuryThemeById(themeIdParam).catch(() => null) : await getActiveLuxuryTheme().catch(() => null)
+    if (!theme) {
+      return NextResponse.json({ theme: null, leaderboard: [] })
+    }
+    const posts = await getLuxuryBattlePostsByThemeId(theme.id).catch(() => [])
+    const leaderboard = posts
+      .map((p) => {
+        const votesTotal = (p.votes?.a || 0) + (p.votes?.b || 0)
+        const scoreA = p.luxuryBattle?.scoreA
+        const scoreB = p.luxuryBattle?.scoreB
+        const aiAvg = (typeof scoreA === 'number' && typeof scoreB === 'number') ? (scoreA + scoreB) / 2 : (typeof scoreA === 'number' ? scoreA : (typeof scoreB === 'number' ? scoreB : null))
+        // Cada voto real vale 5 puntos (señal de la comunidad, con más peso:
+        // es más difícil de conseguir que un puntaje automático) + el
+        // promedio del puntaje de IA (0-100, cuando ya se calculó).
+        const combinedScore = votesTotal * 5 + (aiAvg || 0)
+        return {
+          postId: p.id,
+          author: p.sideA?.author || p.author,
+          opponent: p.sideB?.author || null,
+          posterUrl: p.sideA?.posterUrl || p.posterUrl || null,
+          votesTotal,
+          scoreA: typeof scoreA === 'number' ? scoreA : null,
+          scoreB: typeof scoreB === 'number' ? scoreB : null,
+          aiAvg,
+          combinedScore,
+          createdAt: p.createdAt || p.uploadedAt || null,
+        }
+      })
+      .sort((a, b) => b.combinedScore - a.combinedScore)
+      .slice(0, 20)
+    return NextResponse.json({ theme: stripMongoId(theme), leaderboard })
+  }
+
   // Lista de retos (solicitudes de enfrentamiento) pendientes DEL USUARIO ACTUAL.
   // Por defecto devuelve los retos DIRIGIDOS a mí (role=to) -> los que puedo
   // aceptar/rechazar (bandeja, retos activos, badge). role=from = los que yo
@@ -1384,6 +1449,10 @@ export async function POST(request, { params }) {
   // Admin: descartar un reporte. POST /api/admin/reports/:id/dismiss
   if (segs[0] === 'admin' && segs[1] === 'reports' && segs[2] && segs[3] === 'dismiss') {
     return handleDismissReport(segs[2], request)
+  }
+  // Admin: crear/activar el tema de "Luxury Battle" actual. POST /api/admin/luxury-battles/theme
+  if (path === '/admin/luxury-battles/theme') {
+    return handleSetLuxuryTheme(request)
   }
 
   return NextResponse.json({ ok: true })
@@ -2035,6 +2104,16 @@ async function handleCreateChallenge(request) {
     const targetDescription = (formData.get('targetDescription') || '').toString()
     const targetMusic = (formData.get('targetMusic') || '').toString()
     const message = (formData.get('message') || '').toString()
+    // "Luxury Battle" (petición del usuario: réplica MEJORADA del concepto
+    // viral de larpgpt.com, integrada en el sistema de Retos/Versus YA
+    // existente, sin cámara en vivo -eso se agregará más adelante-): si este
+    // reto se crea desde la pantalla de "Luxury Battle" (ver
+    // LuxuryBattleSheet.jsx), llega el id del tema de lujo ACTUALMENTE
+    // activo — se guarda en el propio reto y se propaga al post resultante
+    // al aceptarse (ver handleAcceptChallenge más abajo), donde además se
+    // calcula un puntaje de IA (ver scoreLuxuryBattlePost). Opcional: los
+    // retos normales (sin esto) no cambian en nada.
+    const luxuryThemeId = (formData.get('luxuryThemeId') || '').toString().trim() || null
     // Reto ABIERTO ("challenge a cualquiera"): sin destinatario concreto,
     // visible para cualquiera en el feed (ver getOpenChallengeFeedItems).
     // Cualquiera puede pulsar "Challenge" sobre él (ver OpenChallengeSlide.jsx)
@@ -2099,6 +2178,7 @@ async function handleCreateChallenge(request) {
       targetDescription: openChallenge ? '' : targetDescription,
       targetMusic: openChallenge ? '' : targetMusic,
       message,
+      luxuryThemeId,
       ...readMusicFields(formData),
       createdAt: new Date().toISOString(),
     }
@@ -2219,9 +2299,22 @@ async function handleAcceptChallenge(cid, request) {
       duration: 0,
       uploadedAt: new Date().toISOString(),
       isChallenge: true,
+      // "Luxury Battle" (ver comentario completo en handleCreateChallenge):
+      // si el reto original se creó desde esa pantalla, el post resultante
+      // hereda el mismo tema — así queda visible en el leaderboard
+      // (GET /api/luxury-battles/leaderboard) apenas se acepta.
+      ...(c.luxuryThemeId ? { luxuryThemeId: c.luxuryThemeId } : {}),
     }
     await insertPost(post)
     await deleteChallenge(cid)
+
+    // "Luxury Battle": calcula el puntaje de IA (0-100 por lado, qué tan
+    // bien logra el "look" del tema) — fire-and-forget, NUNCA bloquea la
+    // respuesta de aceptar el reto (mismo criterio que el resto de señales
+    // async de este archivo: impresiones, afinidad social, etc.).
+    if (c.luxuryThemeId) {
+      scoreLuxuryBattlePost(post, c.luxuryThemeId).catch((e) => console.error('luxury battle scoring error', e))
+    }
 
     // Notificar al RETADOR (c.from) que su reto fue aceptado. El que acepta es
     // el retado (c.to) = el usuario autenticado `accepter` (id real).
@@ -2258,6 +2351,105 @@ async function handleRejectChallenge(cid) {
     return NextResponse.json({ error: 'reject_failed', detail: String(err?.message || err) }, { status: 500 })
   }
 }
+
+// ────────────────────────────────────────────────────────────────────────────
+// "LUXURY BATTLES" — juez de IA (petición del usuario: mejora sobre el
+// concepto de larpgpt.com; ahí la IA es el ÚNICO juez, aquí es un puntaje
+// ADICIONAL a los votos reales de la comunidad, ver GET /luxury-battles/
+// leaderboard más arriba). Se llama fire-and-forget desde
+// handleAcceptChallenge en cuanto se crea el post (nunca bloquea aceptar el
+// reto). Analiza la(s) miniatura(s) YA guardadas en disco (sideA/sideB
+// posterUrl, formato local `/uploads/...`) — no hace falta volver a leer el
+// vídeo/imagen original del usuario.
+// ────────────────────────────────────────────────────────────────────────────
+async function readLocalUploadAsBase64(relativeUrl) {
+  if (!relativeUrl || typeof relativeUrl !== 'string' || !relativeUrl.startsWith('/uploads/')) return null
+  try {
+    const abs = nodePath.join(process.cwd(), 'public', relativeUrl)
+    const bytes = await fs.readFile(abs)
+    return bytes.toString('base64')
+  } catch {
+    return null
+  }
+}
+
+async function scoreLuxuryBattlePost(post, themeId) {
+  const theme = await getLuxuryThemeById(themeId)
+  if (!theme) return
+  const apiKey = process.env.EMERGENT_LLM_KEY
+  if (!apiKey) return
+
+  const baseA = await readLocalUploadAsBase64(post.sideA?.posterUrl)
+  const baseB = await readLocalUploadAsBase64(post.sideB?.posterUrl)
+  if (!baseA && !baseB) return
+
+  const fileContents = []
+  if (baseA) fileContents.push(new ImageContent(baseA))
+  if (baseB) fileContents.push(new ImageContent(baseB))
+
+  const chat = new LlmChat(
+    apiKey,
+    `luxury-score-${post.id}`,
+    'You are an impartial judge for a social app "Luxury Battle" game. You will see 1 or 2 photos (side A and, if present, side B of a head-to-head). Rate EACH photo from 0 to 100 on how well it matches the given luxury theme (realism, creativity, and how convincingly it captures that specific luxury vibe), plus a short one-sentence verdict per side. Respond with ONLY JSON of the exact shape {"scoreA": number, "verdictA": string, "scoreB": number|null, "verdictB": string|null} — scoreB/verdictB must be null if there is no side B image. No markdown, no code fences.'
+  ).withModel('gemini', 'gemini-2.5-flash')
+
+  let text
+  try {
+    text = await chat.sendMessage(
+      new UserMessage({
+        text: `Luxury theme: "${theme.title}" — ${theme.description}. ${baseB ? 'The first image is side A, the second image is side B — rate both.' : 'This is side A (no side B image available for this entry) — rate only side A, scoreB/verdictB must be null.'}`,
+        file_contents: fileContents,
+      })
+    )
+  } catch (e) {
+    console.error('luxury battle scoring: chat failed', e)
+    return
+  }
+
+  let parsed = null
+  try {
+    const cleaned = String(text || '').trim().replace(/^```(json)?/i, '').replace(/```$/, '').trim()
+    parsed = JSON.parse(cleaned)
+  } catch {
+    return
+  }
+  if (!parsed || typeof parsed !== 'object') return
+
+  const clamp = (n) => (typeof n === 'number' && Number.isFinite(n) ? Math.max(0, Math.min(100, Math.round(n))) : null)
+  await updatePostLuxuryScore(post.id, {
+    scoreA: clamp(parsed.scoreA),
+    scoreB: clamp(parsed.scoreB),
+    verdictA: typeof parsed.verdictA === 'string' ? parsed.verdictA.slice(0, 200) : '',
+    verdictB: typeof parsed.verdictB === 'string' ? parsed.verdictB.slice(0, 200) : '',
+  })
+}
+
+// POST /api/admin/luxury-battles/theme  body: { title, description, promptHint }
+// Solo admin (isAdmin) — crea un tema nuevo y lo activa (desactiva cualquier
+// otro). `promptHint` se muestra en el editor de IA como sugerencia lista
+// para usar al entrar a la batalla (ver LuxuryBattleSheet.jsx en el
+// frontend).
+async function handleSetLuxuryTheme(request) {
+  try {
+    const currentUser = await getCurrentUser(request)
+    if (!isAdmin(currentUser)) {
+      return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+    }
+    const body = await request.json().catch(() => null)
+    const title = (body?.title || '').toString().trim()
+    const description = (body?.description || '').toString().trim()
+    const promptHint = (body?.promptHint || '').toString().trim()
+    if (!title || !description) {
+      return NextResponse.json({ error: 'missing_fields', message: 'title and description are required' }, { status: 400 })
+    }
+    const theme = await setActiveLuxuryTheme({ title, description, promptHint })
+    return NextResponse.json({ ok: true, theme: stripMongoId(theme) })
+  } catch (err) {
+    console.error('set luxury theme error', err)
+    return NextResponse.json({ error: 'set_theme_failed', detail: String(err?.message || err) }, { status: 500 })
+  }
+}
+
 
 // ────────────────────────────────────────────────────────────────────────────
 // HANDLERS DE COMENTARIOS Y GUARDADOS

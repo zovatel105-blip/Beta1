@@ -25,7 +25,7 @@ const fileKind = (f) => {
   return ''
 }
 
-export default function UploadDialog({ open, initialMode, onClose, onUploaded, onChallengeCreated }) {
+export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, onUploaded, onChallengeCreated }) {
   const inputRef = useRef(null)
   const inputBRef = useRef(null)
   const versusTouchX = useRef(0)
@@ -231,6 +231,12 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
         fd.append('file', file)
         fd.append('targetAuthor', JSON.stringify(tgt))
         fd.append('message', description || '')
+        // "Luxury Battle" (petición del usuario): si se entró a este reto
+        // desde la hoja LuxuryBattleSheet ("Enter with an AI photo"), se
+        // adjunta el id del tema activo — el post resultante al aceptarse
+        // heredará esta etiqueta y competirá en su leaderboard (ver
+        // handleAcceptChallenge/scoreLuxuryBattlePost, route.js).
+        if (luxuryTheme?.id) fd.append('luxuryThemeId', luxuryTheme.id)
       } else {
         xhr.open('POST', '/api/versus')
         fd.append('fileA', file)
@@ -513,6 +519,20 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
             <input ref={inputRef} type="file" accept="video/*,image/*" className="hidden" onChange={handleFileChange('a')} />
             <input ref={inputBRef} type="file" accept="video/*,image/*" className="hidden" onChange={handleFileChange('b')} />
 
+            {/* "Luxury Battle" — banner del tema activo (petición del
+                usuario, ver LuxuryBattleSheet.jsx) — SOLO si se entró desde
+                ahí ("Enter with an AI photo"); no afecta al flujo normal de
+                Retos. Puramente informativo, no bloquea nada del paso. */}
+            {mode === 'challenge' && luxuryTheme && (
+              <div className="absolute top-0 left-0 right-0 z-40 flex justify-center px-4"
+                   style={{ paddingTop: 'max(env(safe-area-inset-top), 14px)' }}>
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-bold backdrop-blur-md"
+                     style={{ background: 'rgba(252,211,77,0.15)', border: '1px solid rgba(252,211,77,0.35)', color: '#FCD34D' }}>
+                  🔥 Luxury Battle: {luxuryTheme.title}
+                </div>
+              </div>
+            )}
+
             {(() => {
               const isAB = mode === 'versus' || mode === 'duet'
 
@@ -741,6 +761,7 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
                       ) : (
                         <AIImageEditor
                           imageFile={aiEditorSlot === 0 ? file : fileB}
+                          initialPrompt={aiEditorSlot === 0 && mode === 'challenge' ? (luxuryTheme?.promptHint || '') : ''}
                           onStatusChange={(status, url) => setAiOverride(status ? { status, url } : null)}
                           onClose={() => { setAiEditorSlot(null); setAiOverride(null) }}
                           onApply={(newFile) => {
