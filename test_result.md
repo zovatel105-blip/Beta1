@@ -4352,6 +4352,34 @@ agent_communication:
     -agent: "main"
     -message: "Renombrado 'Single' -> 'Open' en el ÚNICO lugar donde ese texto era visible para el usuario, tanto en la web (components/UploadDialog.jsx) como en la app nativa (ui/Upload.kt) — solo el string de la etiqueta, sin tocar 'solo'/mode interno. Verificado por grep exhaustivo (confirmado que no quedaba ninguna otra aparición visible) + lint + balance de sintaxis del archivo nativo + reinicio limpio del servidor. NO se usó el agente de testing (instrucción del usuario). Intenté una captura de pantalla directa para confirmar visualmente, pero la app muestra una pantalla 'mobile-only' en el viewport de escritorio obligatorio de esta herramienta — limitación ajena a este cambio."
 
+frontend:
+  - task: "En el grid de perfil, mostrar SOLO reproducciones/vistas (quitar la píldora de votos) — WEB y APP NATIVA"
+    implemented: true
+    working: "NA"
+    file: "components/ProfilePage.jsx, android-twyk/app/src/main/java/com/twyk/app/ui/Profile.kt"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'En el grid de perfil en vez de mostrar los votos arriba y las vistas abajo mejor solo mostrar las vistas/reproducciones'."
+        -working: "NA"
+        -agent: "main"
+        -comment: "Cambio simple y directo en 2 sitios (mismo patrón, WEB y nativo comparten diseño): (1) components/ProfilePage.jsx, `GridItem` — se quitó la variable `totalVotes` y la píldora de votos (VoteIcon); la condición de visibilidad pasó de `(totalVotes > 0 || views > 0)` a solo `views > 0`; queda una única píldora (icono Play + número) abajo-izquierda de cada miniatura del grid, en perfil propio Y ajeno (sin cambio en ese alcance). (2) android-twyk/.../ui/Profile.kt, `ProfileGridItem` — misma cirugía: se quitó `totalVotes` y su `Row` (icono `ic_vote_thin`); el `Column` con 2 píldoras (votos arriba, vistas debajo, `spacedBy(4dp)`) se simplificó a un `Box` con una sola píldora de vistas; condición `if (totalVotes > 0 || views > 0)` -> `if (views > 0)`. `VoteIcon` (web) sigue usándose en otra parte de la página (estadísticas del header), así que no queda ningún import huérfano. Verificado: lint de ProfilePage.jsx sin problemas nuevos (1 warning preexistente sin relación, otra línea); recuento de paréntesis/llaves de Profile.kt balanceado tras el cambio (889/889, 254/254); `sudo supervisorctl restart nextjs` -> arrancó sin errores. NO se invocó ningún agente de testing (instrucción explícita y reiterada del usuario en esta sesión). Pendiente: el usuario debe confirmar visualmente (web y, tras recompilar, app nativa) que el grid del perfil ahora solo muestra la píldora de reproducciones/vistas, sin la de votos."
+
+test_plan:
+  current_focus:
+    - "En el grid de perfil, mostrar SOLO reproducciones/vistas (quitar la píldora de votos) — WEB y APP NATIVA"
+  stuck_tasks:
+    - "BUG: el botón 'Challenge' de las publicaciones 'Single' (de OTRO usuario, no propias) sigue sin responder en la APK nativa tras el fix de exclusión de publicaciones propias — CAUSA AÚN NO CONFIRMADA, pendiente de más información del usuario"
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    -agent: "main"
+    -message: "Grid de perfil (web + nativo): quitada la píldora de votos, ahora solo se muestra la de reproducciones/vistas abajo-izquierda de cada miniatura (perfil propio y ajeno). Verificado por lint + balance de sintaxis + reinicio limpio del servidor. NO se usó el agente de testing (instrucción del usuario)."
+
 
 
 

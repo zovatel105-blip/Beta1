@@ -1266,9 +1266,8 @@ private fun UploadPlaceholderItem(item: UploadQueueItem, onDismiss: () -> Unit) 
 private fun ProfileGridItem(post: Post, onClick: () -> Unit) {
     val isDuet = post.type == "duet" && post.sideA?.videoUrl != null && post.sideB?.videoUrl != null
     val isRow = post.layout == "vertical"
-    val totalVotes = (post.votes?.a ?: 0) + (post.votes?.b ?: 0)
     val views = post.stats?.views ?: 0
-    // Estado del desenfoque de fondo de la píldora de votos (ver hazeSource/
+    // Estado del desenfoque de fondo de la píldora de vistas (ver hazeSource/
     // hazeEffect más abajo) — réplica de `backdrop-blur-sm` de la web. Uno
     // por miniatura (cada Box de esta función es una miniatura independiente).
     val hazeState = rememberHazeState()
@@ -1316,64 +1315,34 @@ private fun ProfileGridItem(post: Post, onClick: () -> Unit) {
             Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.20f)))
         }
 
-        if (totalVotes > 0 || views > 0) {
-            // RÉPLICA EXACTA de la web (usuario: "aplícalo tal cual está en
-            // la web") — components/ProfilePage.jsx, GridItem: contenedor
-            // `bottom-1 left-1 flex-col gap-1` (4dp margen, columna, 4dp
-            // separación entre píldoras); cada píldora `bg-black/55
-            // backdrop-blur-sm px-1.5 py-[2px] rounded-full text-[11px]`
-            // (vía hazeEffect, ver comentario más abajo). Votos ARRIBA,
-            // reproducciones DEBAJO — en perfil propio Y ajeno.
-            Column(
-                Modifier.align(Alignment.BottomStart).padding(4.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                if (totalVotes > 0) {
-                    Row(
-                        Modifier.clip(RoundedCornerShape(50))
-                            .hazeEffect(
-                                state = hazeState,
-                                style = HazeStyle(
-                                    blurRadius = 4.dp,
-                                    tints = listOf(HazeTint(Color.Black.copy(alpha = 0.55f))),
-                                    noiseFactor = 0f,
-                                    fallbackTint = HazeTint(Color.Black.copy(alpha = 0.55f)),
-                                ),
-                            )
-                            .padding(horizontal = 6.dp, vertical = 2.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        // ic_vote_thin (strokeWidth 150) a 16dp — réplica de
-                        // VoteIcon.jsx w-4 h-4 strokeWidth={380} (web, tras
-                        // igualarlo con el nuevo icono de reproducciones); el
-                        // sistema de trazo de este vector nativo no es 1:1
-                        // comparable al de la web, aproximación visual.
-                        Icon(ImageVector.vectorResource(R.drawable.ic_vote_thin), null, tint = Color.White, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text(formatCount(totalVotes), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Normal)
-                    }
-                }
-                if (views > 0) {
-                    Row(
-                        Modifier.clip(RoundedCornerShape(50))
-                            .hazeEffect(
-                                state = hazeState,
-                                style = HazeStyle(
-                                    blurRadius = 4.dp,
-                                    tints = listOf(HazeTint(Color.Black.copy(alpha = 0.55f))),
-                                    noiseFactor = 0f,
-                                    fallbackTint = HazeTint(Color.Black.copy(alpha = 0.55f)),
-                                ),
-                            )
-                            .padding(horizontal = 6.dp, vertical = 2.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        // Icono de trazo hueco (outline), NO relleno — réplica de
-                        // `<Play fill="none" stroke="white" strokeWidth={2}/>` (web).
-                        Icon(Icons.Outlined.PlayArrow, null, tint = Color.White, modifier = Modifier.size(14.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text(formatCount(views), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Normal)
-                    }
+        if (views > 0) {
+            // RÉPLICA EXACTA de la web (components/ProfilePage.jsx, GridItem):
+            // contenedor `bottom-1 left-1` (4dp margen); píldora `bg-black/55
+            // backdrop-blur-sm px-1.5 py-[2px] rounded-full text-[11px]` (vía
+            // hazeEffect, ver comentario más abajo). RENOMBRADO/SIMPLIFICADO a
+            // petición del usuario: antes se mostraban 2 píldoras (votos
+            // arriba, reproducciones debajo) — ahora SOLO reproducciones/
+            // vistas, en perfil propio Y ajeno.
+            Box(Modifier.align(Alignment.BottomStart).padding(4.dp)) {
+                Row(
+                    Modifier.clip(RoundedCornerShape(50))
+                        .hazeEffect(
+                            state = hazeState,
+                            style = HazeStyle(
+                                blurRadius = 4.dp,
+                                tints = listOf(HazeTint(Color.Black.copy(alpha = 0.55f))),
+                                noiseFactor = 0f,
+                                fallbackTint = HazeTint(Color.Black.copy(alpha = 0.55f)),
+                            ),
+                        )
+                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    // Icono de trazo hueco (outline), NO relleno — réplica de
+                    // `<Play fill="none" stroke="white" strokeWidth={2}/>` (web).
+                    Icon(Icons.Outlined.PlayArrow, null, tint = Color.White, modifier = Modifier.size(14.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text(formatCount(views), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Normal)
                 }
             }
         }
