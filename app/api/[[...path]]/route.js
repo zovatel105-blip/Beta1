@@ -2859,13 +2859,25 @@ async function handleAiEditImage(request) {
 // POST /api/ai/suggest-edits
 //   FormData: image (File, foto ya seleccionada por el usuario)
 //   Analiza la foto (visión, modelo de texto — NO genera imagen) y devuelve
-//   4-6 ideas de edición CORTAS y RELEVANTES para ESA foto en concreto (ej.
-//   si es un coche de noche: "Add a private jet flying above", si es una
-//   playa: "Add a dramatic sunset sky"...), para mostrarlas como chips
-//   sugeridos en el editor de IA (usuario: 'las sugerencias deben ser de
-//   algo que tenga que ver con la imagen'). Requiere sesión. Fire-and-forget
-//   desde el cliente (si falla, el frontend usa una lista genérica de
-//   respaldo — nunca bloquea poder escribir una instrucción manual).
+//   2 listas distintas, en UNA sola llamada a la IA:
+//     - `trending`: MODAS/tendencias virales de edición con IA (petición del
+//       usuario: "en Gemini se hizo muy de moda que los usuarios suban la
+//       foto de su rostro y creaban imágenes de lujo, en un yate, en un
+//       coche de lujo, en una mansión... quiero que todas las modas que
+//       aparezcan sean recomendadas") — SOLO si la foto tiene una
+//       cara/persona visible (petición explícita del usuario: no tiene
+//       sentido "ponte en un yate" si la foto es un paisaje o un objeto).
+//       Generadas por la PROPIA IA en cada llamada (petición explícita del
+//       usuario: "que la IA" decida, no una lista fija que yo mantenga a
+//       mano) usando su conocimiento de qué está de moda AHORA en edición
+//       de fotos con IA — así se actualiza sola con el tiempo, sin tocar
+//       código, a medida que el conocimiento del propio modelo avanza.
+//     - `suggestions`: 4-6 ideas CORTAS y RELEVANTES para ESA foto en
+//       concreto (comportamiento YA existente, sin cambios — ej. si es un
+//       coche de noche: "Add a private jet flying above").
+//   Requiere sesión. Fire-and-forget desde el cliente (si falla, el
+//   frontend usa una lista genérica de respaldo — nunca bloquea poder
+//   escribir una instrucción manual).
 async function handleAiSuggestEdits(request) {
   try {
     const currentUser = await getCurrentUser(request)
@@ -2897,25 +2909,42 @@ async function handleAiSuggestEdits(request) {
     const chat = new LlmChat(
       apiKey,
       `img-suggest-${currentUser.id}-${Date.now()}`,
-      'You are a creative photo-editing assistant. Look at the photo and suggest short edit ideas a casual social-media user could ask an AI to apply to THIS specific photo (things to ADD to the background/scene, or a style/mood change) — tailored to what is actually visible in the photo (setting, subjects, time of day, colors). Each idea must be an instruction phrased in imperative form, under 7 words, fun and visually striking. Respond with ONLY a JSON array of 5 short strings, nothing else, no markdown, no code fences.'
+      'You are a creative photo-editing assistant for a social app. Look at the photo and do 2 things. ' +
+      '(1) Decide if it contains a clearly visible human face/person (not just a landscape, object, food, or animal alone) — set "hasPerson" accordingly. ' +
+      'If hasPerson is true, suggest 4-6 of the CURRENTLY TRENDING, viral AI photo-transformation ideas that social-media users are asking AI tools to do RIGHT NOW with a photo of themselves — the glamorous "glow up"/luxury-lifestyle style of edit (e.g. placing the person on a private yacht, in a luxury sports car, inside a mansion, on a private jet, on a red carpet, in designer fashion, in a penthouse at night). Use your own up-to-date knowledge of what is popular in AI photo trends today — do not just reuse the examples above verbatim, prefer what is genuinely trending right now, and vary them. If hasPerson is false, "trending" must be an empty array. ' +
+      '(2) Separately, suggest 4-6 short edit ideas tailored to what is ACTUALLY visible in THIS specific photo (setting, subjects, time of day, colors) — things to add to the background/scene, or a style/mood change. ' +
+      'Every idea in both lists must be phrased as an imperative instruction, under 7 words, fun and visually striking. ' +
+      'Respond with ONLY a JSON object of the exact shape {"hasPerson": true|false, "trending": ["...", ...], "suggestions": ["...", ...]}, nothing else, no markdown, no code fences.'
     ).withModel('gemini', 'gemini-2.5-flash')
 
     const text = await chat.sendMessage(
       new UserMessage({
-        text: 'Suggest 5 short edit ideas for this exact photo, as a JSON array of strings only.',
+        text: 'Analyze this exact photo and respond with the JSON object described in your instructions — hasPerson, trending and suggestions.',
         file_contents: [new ImageContent(base64)],
       })
     )
 
+    const cleanStringArray = (arr) => (Array.isArray(arr) ? arr.filter((s) => typeof s === 'string' && s.trim()).map((s) => s.trim()).slice(0, 6) : [])
+
+    let hasPerson = false
+    let trending = []
     let suggestions = []
     try {
       const cleaned = String(text || '').trim().replace(/^```(json)?/i, '').replace(/```$/, '').trim()
       const parsed = JSON.parse(cleaned)
-      if (Array.isArray(parsed)) {
-        suggestions = parsed.filter((s) => typeof s === 'string' && s.trim()).map((s) => s.trim()).slice(0, 6)
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        hasPerson = parsed.hasPerson === true
+        trending = hasPerson ? cleanStringArray(parsed.trending) : []
+        suggestions = cleanStringArray(parsed.suggestions)
+      } else if (Array.isArray(parsed)) {
+        // Compatibilidad hacia atrás por si el modelo devuelve solo el array
+        // antiguo (sin envolver en {hasPerson,trending,suggestions}).
+        suggestions = cleanStringArray(parsed)
       }
     } catch {
-      // Respaldo: intenta extraer líneas tipo lista si no vino JSON limpio.
+      // Respaldo: intenta extraer líneas tipo lista si no vino JSON limpio
+      // (sin sección "trending" en este caso — mejor omitirla que inventar
+      // algo no confirmado por la IA para ESTA foto).
       suggestions = String(text || '')
         .split('\n')
         .map((l) => l.replace(/^[-*\d.\s"]+/, '').replace(/["\s]+$/, '').trim())
@@ -2923,10 +2952,10 @@ async function handleAiSuggestEdits(request) {
         .slice(0, 6)
     }
 
-    if (suggestions.length === 0) {
+    if (suggestions.length === 0 && trending.length === 0) {
       return NextResponse.json({ error: 'no_suggestions', message: 'Could not analyze this photo' }, { status: 502 })
     }
-    return NextResponse.json({ ok: true, suggestions })
+    return NextResponse.json({ ok: true, hasPerson, trending, suggestions })
   } catch (err) {
     console.error('ai suggest edits error', err)
     return NextResponse.json({ error: 'ai_suggest_failed', message: 'Could not analyze this photo' }, { status: 500 })

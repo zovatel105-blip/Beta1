@@ -4408,6 +4408,34 @@ agent_communication:
     -agent: "main"
     -message: "Editor de imágenes con IA: cambiado el modelo de 'gemini-2.5-flash-image' a 'gemini-3.1-flash-image-preview' (Nano Banana 2, confirmado disponible sin coste extra con la clave actual, tras probar en vivo con listModels()) + prompt de sistema reforzado para fidelidad de personajes conocidos y calidad general. Verificado end-to-end con una llamada real a la API (login real + POST /api/ai/edit-image con foto real, resultado inspeccionado visualmente: Naruto correctamente reconocible e integrado). El modelo de máxima calidad 'Nano Banana Pro' existe pero requiere upgrade de plan (error 403 real de crédito insuficiente) — informar al usuario como opción futura, no aplicado. NO se usó el agente de testing (instrucción del usuario) — verificación 100% con llamadas reales directas hechas por mí."
 
+frontend:
+  - task: "Editor de IA: sección 'Trending' con modas virales de edición (yate, coche de lujo, mansión, etc.), SOLO si la foto tiene una persona visible, generadas por la propia IA en cada carga"
+    implemented: true
+    working: "NA"
+    file: "app/api/[[...path]]/route.js, components/AIImageEditor.jsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'En Gemini se hizo muy de moda que los usuarios suban la foto de su rostro y creaban imagenes de lujo, en un yate, en un coche de lujo, en una mansion, quiero que todas las modas que aparezcan sean recomendadas a los usuarios'. Tras preguntar 3 cosas (dónde mostrarlo, si depende de que haya una persona en la foto, y si la lista la mantengo yo o la genera la IA), el usuario respondió: sección separada y destacada tipo 'Trending' ANTES que las sugerencias normales; SOLO cuando la foto tiene cara/persona visible; que la IA la genere sola (no una lista fija mía)."
+        -working: "NA"
+        -agent: "main"
+        -comment: "Backend (route.js, handleAiSuggestEdits): UNA sola llamada a la IA de visión (gemini-2.5-flash, ya usado para las sugerencias normales, sin coste/latencia adicional de una 2ª llamada) que ahora devuelve un JSON con 3 campos en vez del array plano de antes: `hasPerson` (bool, decidido por la propia IA mirando la foto), `trending` (4-6 ideas de 'modas' de edición con IA tipo lujo -yate, coche deportivo, mansión, jet privado, alfombra roja, ático- generadas con el conocimiento ACTUAL de la IA sobre qué está de moda ahora, SOLO si hasPerson=true; vacío si no), `suggestions` (comportamiento YA existente sin cambios, ideas específicas de ESA foto). Compatibilidad hacia atrás: si el modelo devolviera el array plano antiguo, se sigue aceptando como `suggestions`. Frontend (AIImageEditor.jsx): nuevo estado `trending`; nueva sección con etiqueta 'TRENDING' (icono de fuego, acento ámbar/dorado para distinguirla visualmente) renderizada JUSTO DEBAJO del cuadro de instrucción y ANTES de la fila de sugerencias normales, SOLO si `trending.length > 0` (implica hasPerson=true) — sin lista de respaldo si falla (a diferencia de `suggestions`/FALLBACK_SUGGESTIONS): si la IA no confirma que hay una persona, no se muestra nada de 'moda' en vez de inventar algo no verificado para esa foto. VERIFICADO EN VIVO con 3 fotos reales contra la API ya en producción (NO agente de testing, instrucción explícita del usuario): (1) foto de un coche sin persona -> hasPerson=false, trending=[] (correcto). (2) avatar ilustrado, primer plano abstracto de un ojo/rostro -> hasPerson=false (la IA fue conservadora, correctamente no lo consideró una persona clara). (3) avatar de un personaje anime de cuerpo/rostro completo y claro -> hasPerson=true, trending=['Transformed into luxury yacht owner', 'Become a private jet mogul', 'Walk the glamorous red carpet', 'Star in a high fashion magazine', 'Live it up in a penthouse', 'Reimagine as a royal historical figure'] — exactamente el tipo de 'modas' de lujo que pidió el usuario, generadas dinámicamente por la IA, no una lista fija en el código. Lint limpio en ambos archivos. Reinicio del servidor sin errores. NO se invocó el agente de testing en ningún momento."
+
+test_plan:
+  current_focus:
+    - "Editor de IA: sección 'Trending' con modas virales de edición (yate, coche de lujo, mansión, etc.), SOLO si la foto tiene una persona visible, generadas por la propia IA en cada carga"
+  stuck_tasks:
+    - "BUG: el botón 'Challenge' de las publicaciones 'Single' (de OTRO usuario, no propias) sigue sin responder en la APK nativa tras el fix de exclusión de publicaciones propias — CAUSA AÚN NO CONFIRMADA, pendiente de más información del usuario"
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    -agent: "main"
+    -message: "Editor de IA: añadida sección 'Trending' (modas de edición con IA tipo lujo: yate, coche de lujo, mansión, jet privado...) ANTES de las sugerencias normales, generada por la propia IA en cada carga (no lista fija), y SOLO si la foto tiene una persona visible (también decidido por la IA). Verificado en vivo con 3 fotos reales contra la API en producción: sin persona -> vacío correctamente; con persona clara -> lista de tendencias de lujo generada correctamente. NO se usó el agente de testing (instrucción del usuario)."
+
 
 
 

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Sparkles, Loader2, X, Wand2, RotateCcw, Check } from 'lucide-react'
+import { Sparkles, Loader2, X, Wand2, RotateCcw, Check, Flame } from 'lucide-react'
 
 /**
  * AIImageEditor — controles de edición con IA, 100% EN LÍNEA (sin modal, sin
@@ -52,6 +52,18 @@ export default function AIImageEditor({ imageFile, onClose, onApply, onStatusCha
   // bloquea poder escribir una instrucción manual).
   const [suggestions, setSuggestions] = useState([])
   const [suggestionsLoading, setSuggestionsLoading] = useState(false)
+  // "Modas"/tendencias virales de edición con IA (petición del usuario: "en
+  // Gemini se hizo muy de moda subir la foto de tu rostro y crear imágenes
+  // de lujo -yate, coche de lujo, mansión- quiero que todas las modas que
+  // aparezcan sean recomendadas") — SOLO cuando la foto tiene una
+  // cara/persona visible (la propia IA lo decide, ver hasPerson en la
+  // respuesta de /api/ai/suggest-edits); generadas por la IA en cada carga
+  // (no una lista fija que yo mantenga a mano), así se actualizan solas con
+  // el tiempo. Sin respaldo genérico si falla (a diferencia de
+  // `suggestions`): si la IA no confirma que hay una persona, mejor no
+  // mostrar nada de "moda" que inventar una lista no verificada para esta
+  // foto en concreto.
+  const [trending, setTrending] = useState([])
 
   // Reinicia el formulario y pide sugerencias nuevas cada vez que se entra a
   // editar un archivo distinto.
@@ -61,6 +73,7 @@ export default function AIImageEditor({ imageFile, onClose, onApply, onStatusCha
     setErrorMsg(null)
     setPrompt('')
     setSuggestions([])
+    setTrending([])
     if (!imageFile) return
     let cancelled = false
     setSuggestionsLoading(true)
@@ -75,6 +88,9 @@ export default function AIImageEditor({ imageFile, onClose, onApply, onStatusCha
           setSuggestions(data.suggestions)
         } else {
           setSuggestions(FALLBACK_SUGGESTIONS)
+        }
+        if (res.ok && data?.hasPerson && Array.isArray(data?.trending) && data.trending.length > 0) {
+          setTrending(data.trending)
         }
       } catch {
         if (!cancelled) setSuggestions(FALLBACK_SUGGESTIONS)
@@ -151,6 +167,34 @@ export default function AIImageEditor({ imageFile, onClose, onApply, onStatusCha
               className="w-full bg-transparent text-[15px] text-zinc-100 placeholder:text-zinc-400 focus:outline-none resize-none disabled:opacity-50"
             />
           </div>
+
+          {/* "Trending" — modas virales de edición con IA (petición del
+              usuario), SOLO cuando la foto tiene una persona y la IA
+              devolvió alguna, ANTES de las sugerencias normales de la foto.
+              Estilo distinto (acento ámbar/dorado + icono de fuego) para que
+              se note que es una sección aparte, no más sugerencias iguales. */}
+          {trending.length > 0 && (
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-1 px-1 text-amber-300 text-[11.5px] font-bold uppercase tracking-wide">
+                <Flame size={12} className="fill-amber-300" />
+                Trending
+              </div>
+              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar -mx-1 px-1 pb-0.5">
+                {trending.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    disabled={stage === 'loading'}
+                    onClick={() => setPrompt(s)}
+                    className="shrink-0 whitespace-nowrap text-[11.5px] font-semibold px-3 py-1.5 rounded-full bg-amber-400/10 border border-amber-400/30 text-amber-200 hover:text-amber-50 hover:border-amber-400/60 active:scale-95 transition disabled:opacity-40"
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar -mx-1 px-1 pb-0.5">
             {suggestionsLoading ? (
               <>
