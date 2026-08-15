@@ -25,6 +25,8 @@ import {
   getSavesByUserId,
   isPostSavedByUser,
   incrementPostViews,
+  incrementSingleView,
+  getSingleViewCountsByPostIds,
   getNotifications as getNotificationsDB,
   createNotification,
   markNotificationAsRead,
@@ -293,6 +295,13 @@ async function getOpenChallengeFeedItems(currentUser, followingSet) {
     // esperar a la primera interacción.
     const voteCounts = await getSingleVoteCountsByPostIds(ids).catch(() => ({}))
     const votedByMe = currentUser ? await getSingleVotedPostIdsByUser(currentUser.id, ids).catch(() => new Set()) : new Set()
+    // "Reproducciones/vistas" (stats.views) — BUG FIX ("en las publicaciones
+    // single las reproducciones/visitas se quedan en 0"): estas publicaciones
+    // no viven en la colección `posts`, así que su conteo de vistas se
+    // guarda aparte (colección `singleViews`, ver incrementSingleView/
+    // getSingleViewCountsByPostIds en lib/db.js) y se hidrata aquí mismo, en
+    // cada lectura, igual que ya se hace arriba con `voteCounts`.
+    const viewCounts = await getSingleViewCountsByPostIds(ids).catch(() => ({}))
     return opens.map((c) => {
       const f = c.from?.username ? fresh[c.from.username] : null
       let author = f ? { ...c.from, avatarUrl: f.avatarUrl || c.from.avatarUrl, name: f.name || c.from.name, verified: f.verified } : c.from
@@ -310,7 +319,7 @@ async function getOpenChallengeFeedItems(currentUser, followingSet) {
         author,
         description: c.message || '',
         music: c.musicTitle ? `${c.musicTitle} · ${c.musicArtist}` : 'Open challenge',
-        stats: { likes: 0, comments: commentCounts[id] || 0, shares: 0, saves: 0 },
+        stats: { likes: 0, comments: commentCounts[id] || 0, shares: 0, saves: 0, views: viewCounts[id] || 0 },
         voteCount: voteCounts[id] || 0,
         hasVoted: votedByMe.has(id),
         createdAtMs: c.createdAt ? new Date(c.createdAt).getTime() : Date.now(),
@@ -2697,12 +2706,27 @@ async function handleShare(request) {
 // que gestiona lib/stores.js (COLLECTIONS.POSTS === stores.js POSTS === 'posts').
 // Sin autenticación (métrica pública, igual que los votos/shares); no-op
 // silencioso si el post no existe en Mongo (p.ej. posts demo del feed).
+//
+// BUG FIX ("en las publicaciones single las reproducciones/visitas se
+// quedan en 0"): las publicaciones 'Single' (challenge_open) usan un id
+// SINTÉTICO `open_<challengeId>` (ver getOpenChallengeFeedItems) que NUNCA
+// existe en la colección `posts` — `incrementPostViews(id)` sobre ese id no
+// encontraba ningún documento que actualizar (matchedCount 0, sin error
+// visible por ser fire-and-forget) y el contador se quedaba en 0 para
+// siempre. FIX: si el id recibido empieza por el prefijo `open_`, se
+// incrementa en su lugar `singleViews` (incrementSingleView, lib/db.js —
+// mismo patrón exacto que `singleVotes`/toggleSingleVote, una colección
+// dedicada para estas publicaciones), NUNCA `posts`.
 async function handlePostView(request) {
   try {
     const body = await request.json().catch(() => null)
     const id = body?.id
     if (!id) return NextResponse.json({ error: 'missing_id' }, { status: 400 })
-    incrementPostViews(id).catch(() => {})
+    if (String(id).startsWith('open_')) {
+      incrementSingleView(id).catch(() => {})
+    } else {
+      incrementPostViews(id).catch(() => {})
+    }
     return NextResponse.json({ ok: true })
   } catch {
     // Fire-and-forget: nunca debe romper el visor del perfil.

@@ -96,6 +96,31 @@ export default function OpenChallengeSlide({
 
   useEffect(() => { setVotes(post.voteCount || 0); setUserVoted(!!post.hasVoted) }, [post.id, post.voteCount, post.hasVoted])
 
+  // Contador de "reproducciones" (stats.views) — BUG FIX ("en las
+  // publicaciones single las reproducciones/visitas se quedan en 0"): a
+  // diferencia de CarouselSlide.jsx/DuetSlide.jsx (que SÍ registran cada
+  // vista real vía POST /api/post-view desde siempre), esta tarjeta NUNCA
+  // llamaba a ese endpoint — el contador solo podía subir si ALGUIEN la
+  // veía desde la app nativa (que sí lo intentaba, aunque hasta este mismo
+  // fix el backend tampoco sabía guardarlo para este tipo de publicación,
+  // ver handlePostView/incrementSingleView en route.js/lib/db.js). Réplica
+  // EXACTA del mismo mecanismo ya usado en CarouselSlide.jsx: dedupe por
+  // post.id con un ref (evita contar de más si `isActive` parpadea sin
+  // cambiar de publicación), se dispara con solo VER la tarjeta activa, en
+  // cualquier contexto (feed principal o visor del grid del perfil), sin
+  // requerir ninguna acción del usuario.
+  const viewedIdRef = useRef(null)
+  useEffect(() => {
+    if (!isActive || viewedIdRef.current === post.id) return
+    viewedIdRef.current = post.id
+    fetch('/api/post-view', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: post.id }),
+      keepalive: true,
+    }).catch(() => {})
+  }, [isActive, post.id])
+
   const lsNum = (k) => { try { return parseInt(localStorage.getItem(k) || '0', 10) || 0 } catch { return 0 } }
   const lsSet = (k, v) => { try { localStorage.setItem(k, String(v)) } catch { /* ignore */ } }
   useEffect(() => {
