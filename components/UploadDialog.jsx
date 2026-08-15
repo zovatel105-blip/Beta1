@@ -365,7 +365,13 @@ export default function UploadDialog({ open, initialMode, onClose, onUploaded, o
                   onClick={() => setSelected('solo')}
                   className={`px-3.5 py-2 rounded-full text-[13px] font-semibold transition ${selected === 'solo' ? 'bg-white text-black' : 'text-zinc-300 hover:text-white'}`}
                 >
-                  Single
+                  {/* Renombrado de "Single" a "Open" a petición del usuario: encaja
+                      mejor con lo que ES esta publicación (queda ABIERTA para que
+                      cualquiera te retador — mismo concepto que el `type ==
+                      "challenge_open"` interno, ver route.js) — SOLO el texto
+                      visible cambia, `mode === 'solo'` y el resto del código
+                      quedan intactos. */}
+                  Open
                 </button>
               </div>
             </div>

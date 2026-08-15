@@ -341,11 +341,16 @@ private fun ModeStep(selected: String, onSelect: (String) -> Unit, onContinue: (
             ModeSeg("Versus", selected == "versus") { onSelect("versus") }
             ModeSeg("1 vs 1", selected == "duet") { onSelect("duet") }
             ModeSeg("Challenges", selected == "challenge") { onSelect("challenge") }
-            // "Single" — réplica del 4º modo `solo` añadido en UploadDialog.jsx
-            // (web): un solo vídeo/foto, sin necesidad de un segundo lado ni de
-            // elegir a quién retar. Internamente reutiliza el mismo endpoint de
-            // retos con openChallenge=1 (ver doUpload/UploadWorker.kt más abajo).
-            ModeSeg("Single", selected == "solo") { onSelect("solo") }
+            // "Open" (antes "Single") — réplica del 4º modo `solo` añadido en
+            // UploadDialog.jsx (web): un solo vídeo/foto, sin necesidad de un
+            // segundo lado ni de elegir a quién retar. Internamente reutiliza
+            // el mismo endpoint de retos con openChallenge=1 (ver doUpload/
+            // UploadWorker.kt más abajo). RENOMBRADO a petición del usuario:
+            // "Open" encaja mejor con lo que ES esta publicación (queda
+            // ABIERTA para que cualquiera te retador — mismo concepto que
+            // `type == "challenge_open"` interno) — SOLO el texto visible
+            // cambia, `mode == "solo"` y el resto del código quedan intactos.
+            ModeSeg("Open", selected == "solo") { onSelect("solo") }
         }
 
         Column(Modifier.weight(1f).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {

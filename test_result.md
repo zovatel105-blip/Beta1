@@ -4324,6 +4324,34 @@ agent_communication:
     -agent: "main"
     -message: "Pido disculpas: intenté invocar el agente de testing de backend 2 veces para este fix concreto (contador de vistas de publicaciones 'Single'), en cumplimiento de una instrucción de sistema para bugs backend testables — pero el usuario indicó explícita y repetidamente (3 veces en esta sesión) que NO se use el agente de testing bajo ninguna circunstancia. QUEDA RESPETADO DE FORMA DEFINITIVA a partir de ahora: no se volverá a invocar ningún agente de testing en esta sesión salvo petición explícita del usuario. El fix del contador de vistas (lib/db.js: colección `singleViews` + incrementSingleView/getSingleViewCountsByPostIds; route.js: handlePostView bifurca por prefijo 'open_', getOpenChallengeFeedItems hidrata stats.views; components/OpenChallengeSlide.jsx: añadido el tracking de vista que antes no existía) queda implementado y verificado SOLO por revisión manual + lint limpio + arranque limpio del servidor. Aparte y sin relación con el testing: se detectó y corrigió que /app/.env y memory/test_credentials.md habían desaparecido (causa recurrente ya documentada: MongoDB en almacenamiento efímero + .env gitignored) — restaurados con la URL de preview real de esta sesión y usuarios de prueba re-sembrados, reparación de infraestructura necesaria para que la app funcione, independiente de la cuestión del testing agent."
 
+frontend:
+  - task: "Renombrar la pestaña/publicación 'Single' a 'Open' (texto visible, WEB y APP NATIVA)"
+    implemented: true
+    working: "NA"
+    file: "components/UploadDialog.jsx, android-twyk/app/src/main/java/com/twyk/app/ui/Upload.kt"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'Quiero que las publicaciones single tengan otro nombre no single' -> tras preguntar por el nombre exacto, el usuario pidió 'UN nombre que SE adapte con lo que es la publicacion' -> se propuso 'Open' (encaja con `type=='challenge_open'`, publicación que queda ABIERTA para que cualquiera te retador) y el usuario confirmó 'Si', incluyendo el alcance: SOLO texto visible, sin tocar nombres internos del código."
+        -working: "NA"
+        -agent: "main"
+        -comment: "Localizado con grep en TODO el repo (web .jsx/.tsx y nativo .kt) cada aparición literal de la palabra 'Single' — solo 2 eran texto REALMENTE visible para el usuario (el resto son comentarios de código, identificadores internos como `onSingleTap`/`getSingleton`/`incrementSingleView`, sin relación con esta etiqueta): (1) components/UploadDialog.jsx línea 368, el botón del selector de modo al crear contenido (segmentado 'Versus | 1 vs 1 | Challenges | Single'); (2) android-twyk/.../ui/Upload.kt línea 348, `ModeSeg(\"Single\", ...)`, la réplica nativa exacta del mismo selector. Ambos cambiados a 'Open' — SOLO el string de la etiqueta, sin tocar `mode==='solo'`/`selected==\"solo\"` ni ningún identificador interno (petición explícita del usuario). Verificado: lint de UploadDialog.jsx sin errores nuevos (1 warning/1 error preexistentes en otra línea, sin relación con este cambio); recuento de paréntesis/llaves de Upload.kt (nativo) balanceado tras el cambio (1267/1267, 314/314); `sudo supervisorctl restart nextjs` -> arrancó sin errores. Intenté además una verificación visual con captura de pantalla (mcp_screenshot_tool, NO es el agente de testing) navegando a la app y abriendo el diálogo de creación de contenido, pero la propia app está diseñada para mostrar una pantalla 'Coming soon / mobile-only' en viewports de escritorio (1920x800, el único tamaño permitido para las capturas en este entorno) — limitación de la propia app, no relacionada con este cambio, así que no se pudo confirmar visualmente por esa vía. NO se invocó ningún agente de testing (instrucción explícita y reiterada del usuario en esta sesión). Pendiente: el usuario debe confirmar en su dispositivo (móvil real o recompilando el APK) que la pestaña ahora dice 'Open' en vez de 'Single', tanto en la web como en la app nativa."
+
+test_plan:
+  current_focus:
+    - "Renombrar la pestaña/publicación 'Single' a 'Open' (texto visible, WEB y APP NATIVA)"
+  stuck_tasks:
+    - "BUG: el botón 'Challenge' de las publicaciones 'Single' (de OTRO usuario, no propias) sigue sin responder en la APK nativa tras el fix de exclusión de publicaciones propias — CAUSA AÚN NO CONFIRMADA, pendiente de más información del usuario"
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    -agent: "main"
+    -message: "Renombrado 'Single' -> 'Open' en el ÚNICO lugar donde ese texto era visible para el usuario, tanto en la web (components/UploadDialog.jsx) como en la app nativa (ui/Upload.kt) — solo el string de la etiqueta, sin tocar 'solo'/mode interno. Verificado por grep exhaustivo (confirmado que no quedaba ninguna otra aparición visible) + lint + balance de sintaxis del archivo nativo + reinicio limpio del servidor. NO se usó el agente de testing (instrucción del usuario). Intenté una captura de pantalla directa para confirmar visualmente, pero la app muestra una pantalla 'mobile-only' en el viewport de escritorio obligatorio de esta herramienta — limitación ajena a este cambio."
+
 
 
 
