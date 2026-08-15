@@ -59,11 +59,18 @@ después de que Next.js haga su propio "Reload env: .env" (log de supervisor),
 o preguntar al usuario cuál es la URL que ve en su navegador.
 
 ## Última URL usada (actualizada automáticamente al restaurar)
-NEXT_PUBLIC_BASE_URL=https://5758e226-74e1-4b05-b013-0e06ea0b4007.preview.emergentagent.com
-(.env recreado en esta sesión — FIREBASE_* vacíos otra vez [el usuario debe
-volver a subir el JSON de la cuenta de servicio si necesita push], EMERGENT_LLM_KEY
-renovada vía emergent_integrations_manager: sk-emergent-7C043FbCe556c314d1.
-Config.kt (Android) también actualizado a esta misma URL.)
+NEXT_PUBLIC_BASE_URL=https://d4b8a39b-f370-41c4-9e2c-11b2146e2b7f.preview.emergentagent.com
+(.env recreado en esta sesión — MONGO_URL/ADMIN_EMAILS/CORS_ORIGINS con esta
+misma URL; FIREBASE_* vacíos [el usuario debe volver a subir el JSON de la
+cuenta de servicio si necesita push]; EMERGENT_LLM_KEY obtenida vía
+emergent_integrations_manager: sk-emergent-40c553e4aA1535236B — usada por el
+editor de imágenes/vídeo con IA, ver AI_EDIT_MODEL en route.js, actualmente
+'gemini-3.1-flash-image-preview' ("Nano Banana 2"); 'gemini-3-pro-image-preview'
+("Nano Banana Pro") existe pero da 403 por falta de crédito en el plan
+actual de la clave. Config.kt (Android) NO se tocó en esta sesión — el
+usuario pidió explícitamente no usar el agente de testing / cambios nativos
+por su cuenta en estas tareas concretas, revisar si sigue apuntando a esta
+misma URL antes de recompilar el APK.)
 
 ## ⚠️ ESTADO ACTUAL (esta sesión): FIREBASE_CLIENT_EMAIL / FIREBASE_PRIVATE_KEY RESTAURADOS
 El usuario volvió a subir el JSON de la cuenta de servicio de Firebase

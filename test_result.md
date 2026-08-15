@@ -4380,6 +4380,34 @@ agent_communication:
     -agent: "main"
     -message: "Grid de perfil (web + nativo): quitada la píldora de votos, ahora solo se muestra la de reproducciones/vistas abajo-izquierda de cada miniatura (perfil propio y ajeno). Verificado por lint + balance de sintaxis + reinicio limpio del servidor. NO se usó el agente de testing (instrucción del usuario)."
 
+backend:
+  - task: "Editor de imágenes con IA: mejorar fidelidad/calidad al crear personajes conocidos (anime, etc.) y en general, para que se acerque a la calidad de la app de Gemini"
+    implemented: true
+    working: "NA"
+    file: "app/api/[[...path]]/route.js, .env"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'Quiero que investigues UN prompt para que por ejemplo yo diga UN personaje de anime etc SE cree el mismo personaje no una copiar parecida con El editor de imagen con ia' -> tras proponer un cambio de prompt y pedir confirmación, el usuario aclaró: 'Quiero que funcione igual que Gemini en los dispositivos moviles, cuando le digo a Gemini crea algo lo creea en muy buena calidad y crea lo que le he dicho, pero El editor de ia que Tengo no' (queja de calidad/fidelidad en general, no solo personajes)."
+        -working: "NA"
+        -agent: "main"
+        -comment: "INVESTIGACIÓN EN VIVO (scripts Node directos contra la librería `emergentintegrations` ya usada por el backend, NO agente de testing, NO curl a la API propia — llamadas directas al proveedor igual que hace route.js): (1) `listModels({provider:'gemini'})` reveló que además del modelo ya en uso (`gemini-2.5-flash-image`, 'Nano Banana 1') la EMERGENT_LLM_KEY de este proyecto SÍ tiene acceso a `gemini-3.1-flash-image-preview` ('Nano Banana 2', más reciente) y a `gemini-3-pro-image-preview` ('Nano Banana Pro', el de mayor calidad). (2) Probado en vivo con la MISMA foto real + instrucción ('Add Goku from Dragon Ball Z...'): 'Nano Banana 1' YA rendeeriza a Goku con bastante fidelidad (pelo, gi naranja/azul, símbolo correctos) tanto con el prompt viejo como con uno mejorado — la mejora de PROMPT por sí sola no marcó una diferencia dramática para un personaje tan famoso. 'Nano Banana 2' (gemini-3.1-flash-image-preview) SÍ mostró una integración de luz/sombra en la escena real notablemente mejor (el personaje añadido queda iluminado por los faros/luces de la escena, no 'pegado' encima) — y está disponible SIN coste/plan adicional con la clave actual. 'Nano Banana Pro' (gemini-3-pro-image-preview) dio ERROR 403 real: \"is a heavy model and you don't have enough credits to use it. Upgrade to Standard or Pro to unlock it\" — NO disponible con el plan/presupuesto actual de la clave Emergent (limitación real de facturación, no de código; si el usuario actualiza su plan de Emergent en el futuro, sería el siguiente salto de calidad, cambiando solo la constante del modelo). FIX APLICADO: (1) `AI_EDIT_MODEL` (route.js) cambiado de 'gemini-2.5-flash-image' a 'gemini-3.1-flash-image-preview' (Nano Banana 2, sin coste extra). (2) Prompt de sistema de `handleAiEditImage` reforzado: se pide explícitamente alta fidelidad/calidad de nivel 'top-tier AI image model', iluminación/sombras/perspectiva correctas para la integración, Y que ante un personaje conocido (anime, película, juego, franquicia) se use el conocimiento propio del modelo sobre su diseño canónico en vez de un parecido genérico. VERIFICACIÓN END-TO-END REAL (no agente de testing): detectado y corregido de paso que `EMERGENT_LLM_KEY` faltaba en /app/.env (mismo problema recurrente de infraestructura ya documentado, memory/ENV_BACKUP.md) — restaurada; login real (lucia/Test12345) + POST /api/ai/edit-image real con una foto de prueba real y el prompt 'Add Naruto Uzumaki...' -> 200 OK en ~7s, imagen devuelta y verificada VISUALMENTE (Naruto correctamente reconocible: banda ninja con el símbolo de la Hoja, pelo rubio de punta, chaqueta naranja/negra con el símbolo del clan Uzumaki, ojos azules, marcas de bigotes) e integrado con la iluminación real de la escena (coche/luces nocturnas). Lint limpio. NO se invocó el agente de testing en ningún momento (instrucción explícita y reiterada del usuario en esta sesión) — toda la verificación fue con llamadas reales directas hechas por mí mismo al proveedor y a la propia API ya en producción. LIMITACIÓN A COMUNICAR AL USUARIO: el modelo de MÁXIMA calidad ('Nano Banana Pro') no está disponible con el plan/presupuesto actual de la clave — si se quiere ese nivel superior en el futuro, requiere que el usuario actualice su plan de Universal Key en Emergent (Perfil -> Manage plan)."
+
+test_plan:
+  current_focus:
+    - "Editor de imágenes con IA: mejorar fidelidad/calidad al crear personajes conocidos (anime, etc.) y en general, para que se acerque a la calidad de la app de Gemini"
+  stuck_tasks:
+    - "BUG: el botón 'Challenge' de las publicaciones 'Single' (de OTRO usuario, no propias) sigue sin responder en la APK nativa tras el fix de exclusión de publicaciones propias — CAUSA AÚN NO CONFIRMADA, pendiente de más información del usuario"
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    -agent: "main"
+    -message: "Editor de imágenes con IA: cambiado el modelo de 'gemini-2.5-flash-image' a 'gemini-3.1-flash-image-preview' (Nano Banana 2, confirmado disponible sin coste extra con la clave actual, tras probar en vivo con listModels()) + prompt de sistema reforzado para fidelidad de personajes conocidos y calidad general. Verificado end-to-end con una llamada real a la API (login real + POST /api/ai/edit-image con foto real, resultado inspeccionado visualmente: Naruto correctamente reconocible e integrado). El modelo de máxima calidad 'Nano Banana Pro' existe pero requiere upgrade de plan (error 403 real de crédito insuficiente) — informar al usuario como opción futura, no aplicado. NO se usó el agente de testing (instrucción del usuario) — verificación 100% con llamadas reales directas hechas por mí."
+
 
 
 

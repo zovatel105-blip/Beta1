@@ -2762,7 +2762,27 @@ async function handleNotInterested(request) {
 // Editor de imágenes con IA (creación de contenido)
 // ────────────────────────────────────────────────────────────────────────────
 
-const AI_EDIT_MODEL = 'gemini-2.5-flash-image' // Gemini "Nano Banana" (edición image-to-image)
+// MEJORA DE CALIDAD/FIDELIDAD (petición del usuario: "quiero que funcione
+// igual que Gemini en los dispositivos móviles... crea lo que le he dicho,
+// pero el editor de IA que tengo no" + "quiero que si digo un personaje de
+// anime se cree el mismo personaje, no una copia parecida"). Investigado
+// en vivo (script Node directo contra `emergentintegrations`, NO agente de
+// testing, a petición explícita del usuario) qué modelos Gemini de imagen
+// están realmente disponibles con la EMERGENT_LLM_KEY de este proyecto:
+//   - 'gemini-2.5-flash-image' (Nano Banana 1, el que ya usaba esto): SÍ
+//     disponible, ya renderiza bastante bien personajes muy famosos (Goku
+//     probado en vivo: correcto, gi naranja/azul, pelo, símbolo del pecho).
+//   - 'gemini-3.1-flash-image-preview' (Nano Banana 2, más reciente): SÍ
+//     disponible con la clave actual, sin coste/plan adicional — probado en
+//     vivo con la MISMA foto+instrucción: integración de luz/sombra en la
+//     escena real notablemente mejor que el modelo anterior. Se usa este.
+//   - 'gemini-3-pro-image-preview' (Nano Banana Pro, el de más calidad):
+//     probado en vivo -> ERROR 403 "is a heavy model and you don't have
+//     enough credits to use it. Upgrade to Standard or Pro to unlock it."
+//     NO disponible con el plan/presupuesto actual de la clave — si en el
+//     futuro se actualiza el plan de Emergent, este sería el siguiente
+//     salto de calidad a probar (cambiar solo esta constante).
+const AI_EDIT_MODEL = 'gemini-3.1-flash-image-preview' // Gemini "Nano Banana 2" (edición image-to-image)
 const AI_EDIT_MAX_BYTES = 15 * 1024 * 1024 // mismo límite que fotos en UploadDialog.jsx
 const AI_EDIT_ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
 
@@ -2813,7 +2833,7 @@ async function handleAiEditImage(request) {
     const chat = new LlmChat(
       apiKey,
       `img-edit-${currentUser.id}-${Date.now()}`,
-      'You are an expert photo editing AI. Apply exactly the requested edit to the provided photo. Preserve the rest of the image (subject, framing, lighting, style) unless the instruction says otherwise, and make the added/changed elements look realistic and well integrated. Always return the edited image.'
+      'You are an expert photo editing AI. Apply exactly the requested edit to the provided photo, in high fidelity and high quality — match the level of detail and realism users expect from a top-tier AI image model. Preserve the rest of the image (subject, framing, lighting, style) unless the instruction says otherwise, and make the added/changed elements look realistic and well integrated (correct lighting, shadows, perspective and scale for the scene). When the instruction names a specific, well-known character (e.g., from an anime, movie, game or franchise), render THAT exact character using your own knowledge of their canonical design — correct hairstyle, hair/eye color, outfit, colors and distinguishing features — instead of inventing a generic or approximate lookalike. Always return the edited image.'
     ).withModel('gemini', AI_EDIT_MODEL)
 
     const [, images] = await chat.sendMessageMultimodalResponse(
