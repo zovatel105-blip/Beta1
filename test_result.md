@@ -4262,6 +4262,34 @@ agent_communication:
     -agent: "main"
     -message: "CAUSA RAÍZ REAL ENCONTRADA para el bug 'stuck' del botón 'Retar' en publicaciones Single: la auditoría del turno anterior solo cubrió la ruta del feed PRINCIPAL (VersusFeed->MainActivity, que sí pasa onChallenge correctamente) — pero ui/Profile.kt tiene su PROPIA instancia de FeedPager para el visor de publicación abierto desde el GRID del perfil, y esa llamada NUNCA pasaba `onChallenge` (quedaba en el no-op por defecto de la firma). Cualquier publicación (incluida 'Single') abierta desde el grid de un perfil tenía el botón 'Retar' completamente muerto — mismo patrón que otros 2 bugs ya corregidos antes en el mismo archivo. FIX de 1 línea: `onChallenge = onOpenChallenge` añadido a esa llamada de FeedPager (Profile.kt). 100% Kotlin nativo, NO COMPILABLE en este contenedor. NO se invocó ningún agente de testing (instrucción explícita del usuario en este turno). El usuario debe recompilar el APK y confirmar que el botón 'Retar' ya responde al abrir una publicación Single de otro usuario desde el grid del perfil."
 
+backend:
+  - task: "APP NATIVA (Android/Compose): ninguna publicación 'Single' (challenge_open) aparecía nunca en el feed principal nativo, aunque el backend ya las inyecta ahí (idéntico a la web)"
+    implemented: true
+    working: "NA"
+    file: "android-twyk/app/src/main/java/com/twyk/app/feed/FeedViewModel.kt"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'Todas las publicaciones single deben aparecer en el feed de la aplicacion nativa'."
+        -working: "NA"
+        -agent: "main"
+        -comment: "CAUSA RAÍZ (distinta del bug anterior del botón Retar, aunque relacionada): `FeedViewModel.kt` (ViewModel del feed principal nativo) tenía `private fun isFeedPost(p: Post) = p.type == \"versus\" || p.type == \"duet\"` aplicado en `loadInitial()` DIRECTAMENTE sobre el resultado de `api.feed(0)` (`page?.posts.orEmpty().filter(::isFeedPost)`) — pero GET /api/feed (route.js, compartido con la web) YA inyecta ahí mismo los retos abiertos ('Single', `post.type == \"challenge_open\"`, ver getOpenChallengeFeedItems) mezclados con las publicaciones normales, EXACTAMENTE igual que consume la web. Comparado con hooks/useFeed.js (web): ese MISMO filtro (`p.type === 'duet' || p.type === 'versus'`) existe también ahí, pero SOLO se aplica a `fetchUploads()` (su fallback si /api/feed falla/llega vacío) — `loadInitial()` de la web usa `let list = page?.posts || []` SIN NINGÚN filtro de tipo sobre el resultado normal de /api/feed. El nativo aplicaba ese filtro DEMASIADO PRONTO, sobre la fuente PRINCIPAL en vez de solo sobre el fallback — así, CUALQUIER publicación 'challenge_open' que llegara en esa primera página se descartaba de inmediato. Como el backend, cuando hay pocos retos abiertos (caso típico, <=6, `MAX_OPEN_PER_LOAD`), los inyecta TODOS únicamente en la página `cursor===0` (sin repetirlos en páginas posteriores), el resultado neto era que NINGUNA publicación 'Single' llegaba a verse JAMÁS en el feed principal nativo — ni siquiera parcialmente — aunque el renderizado (`OpenChallengePage`, VersusFeed.kt, `if (post.type == \"challenge_open\")`) ya estaba correctamente implementado y esperando recibirlas. `loadMore()` (paginación) NO tenía este filtro (coincide con `appendUnique` de la web), así que solo `loadInitial()`/la primera página estaba afectada. FIX (1 línea real, FeedViewModel.kt): el resultado de `api.feed(0)` ya NO se filtra por tipo (`var list = page?.posts.orEmpty()`, sin `.filter(::isFeedPost)`) — el filtro se reserva EXCLUSIVAMENTE para el fallback `api.uploads()`, tal cual hace `fetchUploads()` en la web. Verificado: revisado también `FollowingFeedViewModel` (feed/FollowingFeed.kt, página 'Siguiendo') y confirmado que NUNCA tuvo este filtro (no afectado); revisado el despachador de tipos en `FeedPager` (VersusFeed.kt) y confirmado que `challenge_open` ya se enruta a `OpenChallengePage` correctamente desde antes. Recuento de paréntesis/llaves del archivo completo tras el cambio (76/76, 23/23, balanceado). 100% Kotlin nativo, NO COMPILABLE en este contenedor (sin Android SDK); requiere rebuild del APK. NO se invocó ningún agente de testing (instrucción explícita y vigente del usuario en esta sesión: 'no usar el testing agent'). Pendiente: el usuario debe compilar el APK y confirmar que, en el feed principal ('Para Ti'), ahora aparecen las publicaciones 'Single' de otros usuarios (repartidas entre las publicaciones normales, igual que en la web) — no solo desde el grid de un perfil."
+
+test_plan:
+  current_focus:
+    - "APP NATIVA (Android/Compose): ninguna publicación 'Single' (challenge_open) aparecía nunca en el feed principal nativo, aunque el backend ya las inyecta ahí (idéntico a la web)"
+  stuck_tasks:
+    - "BUG: el botón 'Challenge' de las publicaciones 'Single' (de OTRO usuario, no propias) sigue sin responder en la APK nativa tras el fix de exclusión de publicaciones propias — CAUSA AÚN NO CONFIRMADA, pendiente de más información del usuario"
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    -agent: "main"
+    -message: "NUEVO FIX NATIVO (FeedViewModel.kt): las publicaciones 'Single' nunca aparecían en el feed principal nativo porque `loadInitial()` filtraba el resultado de /api/feed a SOLO tipos versus/duet ANTES de guardarlo — descartando cualquier 'challenge_open' que el backend ya inyecta ahí (igual que en la web, donde ese mismo filtro solo se aplica al fallback fetchUploads(), nunca a la página normal del feed). Corregido para que coincida con hooks/useFeed.js: el filtro de tipo ya NO se aplica al resultado de api.feed(0), solo al fallback api.uploads(). 100% Kotlin nativo, no compilable en este contenedor — requiere rebuild del APK. NO se usó ningún agente de testing (instrucción explícita del usuario)."
+
 
 
 

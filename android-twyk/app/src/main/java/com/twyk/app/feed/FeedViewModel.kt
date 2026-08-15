@@ -53,8 +53,36 @@ class FeedViewModel : ViewModel() {
         }
     }
 
+    // Filtro SOLO para el fallback /api/uploads (que devuelve TODO tipo de
+    // publicación tal cual está en la base de datos: versus/duet/challenge_open
+    // sueltos que aún no tienen retador, etc.) — réplica exacta de
+    // `fetchUploads()` en hooks/useFeed.js (web), que aplica este MISMO
+    // filtro (`p.type === 'duet' || p.type === 'versus'`) ÚNICAMENTE a su
+    // propio fallback, NUNCA a la página normal de /api/feed.
     private fun isFeedPost(p: Post) = p.type == "versus" || p.type == "duet"
 
+    // BUG reportado por el usuario ("todas las publicaciones single deben
+    // aparecer en el feed de la aplicación nativa"): este filtro
+    // `isFeedPost` (solo versus/duet) se aplicaba también al resultado de
+    // `api.feed(0)` — pero /api/feed YA inyecta ahí mismo los retos abiertos
+    // ("Single", `post.type == "challenge_open"`, ver getOpenChallengeFeedItems
+    // en route.js) mezclados con las publicaciones normales, exactamente
+    // igual que hace la web (hooks/useFeed.js/loadInitial: `let list =
+    // page?.posts || []`, SIN ningún filtro de tipo — ese filtro solo existe
+    // en `fetchUploads()`, su propio fallback). Al filtrar aquí por tipo
+    // ANTES incluso de guardar el resultado, CUALQUIER publicación
+    // "challenge_open" que llegara en esa primera página quedaba descartada
+    // de inmediato — y como el backend, cuando hay pocos retos abiertos
+    // (caso típico), los inyecta TODOS únicamente en la página cursor===0 (no
+    // los repite en páginas posteriores), el resultado neto era que NINGUNA
+    // publicación "Single" llegaba a verse jamás en el feed principal nativo,
+    // aunque el renderizado (OpenChallengePage, VersusFeed.kt) ya estaba
+    // correctamente implementado y a la espera de recibirlas. FIX: el
+    // resultado de `api.feed(0)` ya NO se filtra por tipo (se guarda tal
+    // cual, igual que la web) — el filtro `isFeedPost` se reserva
+    // EXCLUSIVAMENTE para el fallback `api.uploads()` (que sí puede incluir
+    // otros tipos de publicación ajenos al feed principal), tal cual hace
+    // `fetchUploads()` en la web.
     private fun loadInitial() {
         viewModelScope.launch {
             // SOLO el feed rankeado por el TWYK Engine. ANTES se cargaba
@@ -71,7 +99,7 @@ class FeedViewModel : ViewModel() {
             // (si no, un refresh() posterior a la carga inicial no volvería a
             // añadir los mismos ids y el feed quedaría vacío).
             seen.clear()
-            var list = page?.posts.orEmpty().filter(::isFeedPost)
+            var list = page?.posts.orEmpty()
             if (list.isEmpty()) {
                 list = runCatching { api.uploads().posts.orEmpty().filter(::isFeedPost) }
                     .getOrDefault(emptyList())
