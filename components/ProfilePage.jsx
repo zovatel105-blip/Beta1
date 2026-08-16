@@ -59,7 +59,7 @@ const GridHalf = ({ poster, video }) => {
   return <div className="w-full h-full bg-gradient-to-br from-gray-700 via-gray-800 to-gray-900" />
 }
 
-const GridItem = ({ post, onOpen }) => {
+export const GridItem = ({ post, onOpen }) => {
   const thumb = thumbFor(post)
   const video = videoFor(post)
   const [imgFailed, setImgFailed] = useState(false)
@@ -163,7 +163,7 @@ const PendingGridItem = ({ item }) => {
 
 // Visor de publicaciones: feed vertical deslizable con TODAS las publicaciones
 // del perfil (mismas tarjetas y colores del feed). Arranca en la que se tocó.
-const PostViewer = ({ posts, startId, onClose, onChallenge, onOpenProfile, isOwn = false }) => {
+export const PostViewer = ({ posts, startId, onClose, onChallenge, onOpenProfile, isOwn = false }) => {
   const containerRef = useRef(null)
   const startIndex = Math.max(0, posts.findIndex((p) => p.id === startId))
   const [activeIndex, setActiveIndex] = useState(startIndex)
