@@ -533,7 +533,7 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
                    style={{ paddingTop: 'max(env(safe-area-inset-top), 14px)' }}>
                 <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-bold backdrop-blur-md"
                      style={{ background: 'rgba(252,211,77,0.15)', border: '1px solid rgba(252,211,77,0.35)', color: '#FCD34D' }}>
-                  🔥 Luxury Battle: {luxuryTheme.title}
+                  🔥 Trending Challenge: {luxuryTheme.title}
                 </div>
               </div>
             )}

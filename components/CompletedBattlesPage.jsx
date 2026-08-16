@@ -159,7 +159,7 @@ export default function CompletedBattlesPage({ open, onClose, onOpenActive, onOp
               style={{ background: 'linear-gradient(135deg, rgba(252,211,77,0.18), rgba(245,158,11,0.18))', border: '1px solid rgba(252,211,77,0.35)', color: '#FCD34D' }}
             >
               <Flame size={12} className="fill-current" />
-              Luxury Battle: {luxuryThemeTitle}
+              Trending Challenge: {luxuryThemeTitle}
             </button>
           </div>
         )}

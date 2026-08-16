@@ -59,7 +59,7 @@ export default function LuxuryBattleSheet({ open, onClose, onEnter }) {
       <div className="flex items-center justify-between px-4 pt-2.5 pb-3">
         <div className="flex items-center gap-1.5 text-amber-300 text-[12px] font-bold uppercase tracking-wide">
           <Flame size={13} className="fill-amber-300" />
-          Luxury Battle
+          Trending Challenge
         </div>
         <button
           onClick={onClose}
@@ -73,7 +73,7 @@ export default function LuxuryBattleSheet({ open, onClose, onEnter }) {
       {loading && !loaded ? (
         <div className="px-5 pb-10 pt-2 text-center text-zinc-500 text-[13px]">Loading…</div>
       ) : !theme ? (
-        <div className="px-5 pb-10 pt-2 text-center text-zinc-500 text-[13px]">No active luxury battle right now — check back soon.</div>
+        <div className="px-5 pb-10 pt-2 text-center text-zinc-500 text-[13px]">No active trending challenge right now — check back soon.</div>
       ) : (
         <>
           <div className="px-5 pb-4">
