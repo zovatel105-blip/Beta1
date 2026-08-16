@@ -264,3 +264,30 @@ data class ProfileResponse(val user: ProfileUser? = null, val posts: List<Post>?
 data class FollowResponse(val ok: Boolean = false, val following: Boolean = false, val followers: Int = 0)
 data class UpdateProfileResponse(val ok: Boolean = false, val user: ProfileUser? = null, val error: String? = null)
 data class FollowListResponse(val users: List<ProfileUser>? = null)
+
+
+// ── "Luxury Battle" (réplica de lib/db.js/route.js + LuxuryBattleSheet.jsx
+// web) — tema de lujo actualmente activo (ej. "Yacht Life"), al que un Reto
+// puede adherirse opcionalmente, y su leaderboard (votos reales + puntaje
+// de IA 0-100). Ver ui/Battles.kt (pill + hoja) y data/TwykApi.kt.
+data class LuxuryTheme(
+    val id: String? = null,
+    val title: String? = null,
+    val description: String? = null,
+    val promptHint: String? = null,
+)
+data class LuxuryThemeResponse(val theme: LuxuryTheme? = null)
+data class LuxuryLeaderboardEntry(
+    val postId: String? = null,
+    val entryType: String? = null, // "battle" (1v1) | "open" (reto abierto, sin rival)
+    val author: User? = null,
+    val opponent: User? = null,
+    val posterUrl: String? = null,
+    val votesTotal: Int = 0,
+    val scoreA: Int? = null,
+    val scoreB: Int? = null,
+    val aiAvg: Double? = null,
+    val combinedScore: Double = 0.0,
+    val createdAt: String? = null,
+)
+data class LuxuryLeaderboardResponse(val theme: LuxuryTheme? = null, val leaderboard: List<LuxuryLeaderboardEntry>? = null)

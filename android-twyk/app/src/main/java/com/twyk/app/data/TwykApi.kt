@@ -159,6 +159,11 @@ interface TwykApi {
         @Part("musicArtwork") musicArtwork: RequestBody?,
         @Part("musicPreviewUrl") musicPreviewUrl: RequestBody?,
         @Part("musicTrackId") musicTrackId: RequestBody?,
+        // "Luxury Battle" (petición del usuario, ver ui/Battles.kt/
+        // LuxuryBattleSheet): id del tema activo si este reto se creó desde
+        // esa hoja — null en un reto normal (Retrofit omite la parte @Part
+        // por completo cuando su RequestBody es null, igual que la música).
+        @Part("luxuryThemeId") luxuryThemeId: RequestBody? = null,
     ): ChallengeResponse
 
     // Publicación ÚNICA ("Single", modo `solo` en ui/Upload.kt) — mismo
@@ -181,7 +186,20 @@ interface TwykApi {
         @Part("musicArtwork") musicArtwork: RequestBody?,
         @Part("musicPreviewUrl") musicPreviewUrl: RequestBody?,
         @Part("musicTrackId") musicTrackId: RequestBody?,
+        // "Luxury Battle" (petición del usuario: los retos ABIERTOS también
+        // deben poder competir en el tema activo, no solo los 1v1 dirigidos,
+        // ver scoreLuxuryOpenEntry/route.js) — mismo criterio que arriba.
+        @Part("luxuryThemeId") luxuryThemeId: RequestBody? = null,
     ): ChallengeResponse
+
+    // "Luxury Battle" — tema activo (público, sin sesión) y su leaderboard
+    // (votos reales + puntaje de IA), réplica exacta de GET
+    // /api/luxury-battles/active y /api/luxury-battles/leaderboard (web).
+    @GET("api/luxury-battles/active")
+    suspend fun luxuryBattleActive(): LuxuryThemeResponse
+
+    @GET("api/luxury-battles/leaderboard")
+    suspend fun luxuryBattleLeaderboard(): LuxuryLeaderboardResponse
 
     @GET("api/notifications")
     suspend fun notifications(): NotificationsResponse

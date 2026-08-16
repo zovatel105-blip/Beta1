@@ -327,9 +327,21 @@ export default function OpenChallengeSlide({
         </div>
       )}
 
+      {/* "Luxury Battle" — insignia si esta publicación abierta se etiquetó
+          con el tema activo (petición del usuario: los retos abiertos
+          también compiten en el leaderboard, ver luxuryThemeId/luxuryBattle
+          en getOpenChallengeFeedItems, route.js). Muestra el puntaje de IA
+          en cuanto esté disponible (async, puede tardar unos segundos). */}
+      {post.luxuryThemeId && (
+        <div className="absolute top-12 left-1/2 -translate-x-1/2 z-20 pointer-events-none flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold"
+             style={{ background: 'rgba(252,211,77,0.18)', border: '1px solid rgba(252,211,77,0.4)', color: '#FCD34D' }}>
+          🔥 Luxury Battle{typeof post.luxuryBattle?.scoreA === 'number' ? ` · AI ${post.luxuryBattle.scoreA}` : ''}
+        </div>
+      )}
+
       {/* Pista para votar (mismo criterio que el resto de publicaciones) */}
       {!userVoted && (
-        <div className="absolute top-12 left-1/2 -translate-x-1/2 z-20 pointer-events-none bg-black/45 backdrop-blur text-white text-[10px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap">
+        <div className={`absolute left-1/2 -translate-x-1/2 z-20 pointer-events-none bg-black/45 backdrop-blur text-white text-[10px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap ${post.luxuryThemeId ? 'top-[76px]' : 'top-12'}`}>
           Double-tap to vote
         </div>
       )}

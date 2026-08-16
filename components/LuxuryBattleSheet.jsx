@@ -18,9 +18,12 @@ import Avatar from './Avatar'
  *
  * Props:
  *  - open, onClose: control estándar de la hoja.
- *  - onEnter(theme): el padre decide qué hacer al pulsar "Enter" — en
- *    CompletedBattlesPage.jsx/Feed.jsx esto abre UploadDialog en modo
- *    'challenge' con el tema adjunto (ver luxuryTheme prop de ambos).
+ *  - onEnter(theme, entryMode): el padre decide qué hacer al pulsar un botón
+ *    de entrada — entryMode es 'challenge' (Enter with an AI photo, 1
+ *    contra 1 dirigido) o 'solo' (Post a solo entry, reto abierto sin
+ *    rival) — en CompletedBattlesPage.jsx/Feed.jsx esto abre UploadDialog
+ *    con ese mismo modo inicial y el tema adjunto (ver luxuryTheme prop de
+ *    ambos).
  */
 function formatCount(n) {
   const v = Math.round(Number(n) || 0)
@@ -78,13 +81,25 @@ export default function LuxuryBattleSheet({ open, onClose, onEnter }) {
             <p className="text-zinc-400 text-[13px] mt-1.5 leading-relaxed">{theme.description}</p>
           </div>
 
-          <div className="px-4 pb-4">
+          <div className="px-4 pb-4 space-y-2">
             <button
-              onClick={() => onEnter?.(theme)}
+              onClick={() => onEnter?.(theme, 'challenge')}
               className="w-full py-3.5 rounded-full text-black font-bold text-[15px] flex items-center justify-center gap-2 active:scale-[0.99] transition"
               style={{ background: 'linear-gradient(135deg, #FCD34D, #F59E0B)' }}
             >
               <Sparkles size={17} strokeWidth={2} /> Enter with an AI photo
+            </button>
+            {/* "Publicar entrada abierta" (petición del usuario: los retos
+                ABIERTOS también deben poder competir en el tema activo, no
+                solo un 1 contra 1 dirigido) — sin elegir rival, cualquiera
+                puede votarla y también aparece en el leaderboard (ver
+                scoreLuxuryOpenEntry, route.js). Opción secundaria, más
+                discreta que el botón dorado principal. */}
+            <button
+              onClick={() => onEnter?.(theme, 'solo')}
+              className="w-full py-3 rounded-full text-white font-semibold text-[13.5px] flex items-center justify-center gap-2 border border-white/15 hover:bg-white/[0.04] active:scale-[0.99] transition"
+            >
+              Post a solo entry (no rival)
             </button>
           </div>
 

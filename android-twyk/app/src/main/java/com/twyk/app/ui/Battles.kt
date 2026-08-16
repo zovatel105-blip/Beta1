@@ -16,6 +16,9 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,6 +28,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -38,13 +42,16 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.outlined.PersonAdd
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -85,6 +92,9 @@ import coil.compose.AsyncImage
 import com.twyk.app.R
 import com.twyk.app.absoluteUrl
 import com.twyk.app.data.Challenge
+import com.twyk.app.data.LuxuryLeaderboardEntry
+import com.twyk.app.data.LuxuryTheme
+import com.twyk.app.data.PendingLuxuryEntry
 import com.twyk.app.data.Post
 import com.twyk.app.data.PostEvents
 import com.twyk.app.data.QuickChallengeTarget
@@ -137,15 +147,27 @@ fun BattlesScreen(
     // tampoco muestra un mensaje específico pero al menos aquí se hace
     // visible el problema en vez de que el botón "no haga nada").
     var acceptError by remember { mutableStateOf<String?>(null) }
+    // "Luxury Battle" (petición del usuario, réplica nativa de
+    // CompletedBattlesPage.jsx/LuxuryBattleSheet.jsx web) — tema activo
+    // (null si nunca se configuró ninguno) consultado UNA sola vez al abrir
+    // esta pantalla; la hoja pide el detalle completo + leaderboard al
+    // abrirse (ver LuxuryBattleSheet más abajo).
+    var luxuryTheme by remember { mutableStateOf<LuxuryTheme?>(null) }
+    var luxurySheetOpen by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        luxuryTheme = runCatching { RetrofitProvider.api.luxuryBattleActive().theme }.getOrNull()
+    }
 
     // BUG REPORTADO (edge swipe back cerraba la app): "Sugeridos" y la
     // sub-pestaña "Activos" no tenían BackHandler propio -> el gesto se
     // colaba hasta MainActivity y de ahí, en el peor caso, cerraba la app.
-    // Prioridad: primero "Sugeridos" (más "encima"), luego "Activos"->"Completados".
-    val hasLocalOverlay = suggestionsOpen || tab == "active"
+    // Prioridad: primero "Sugeridos"/hoja de Luxury Battle (más "encima"),
+    // luego "Activos"->"Completados".
+    val hasLocalOverlay = suggestionsOpen || luxurySheetOpen || tab == "active"
     BackHandler(enabled = hasLocalOverlay) {
         when {
             suggestionsOpen -> suggestionsOpen = false
+            luxurySheetOpen -> luxurySheetOpen = false
             tab == "active" -> tab = "completed"
         }
     }
@@ -281,6 +303,41 @@ fun BattlesScreen(
             onOpenSuggestions = { suggestionsOpen = true },
             onOpenUpload = onOpenUpload,
         )
+
+        // "Luxury Battle" — píldora destacada (petición del usuario: réplica
+        // nativa de la de CompletedBattlesPage.jsx web) — SOLO en
+        // "Completados" y solo si hay un tema activo configurado. Abre
+        // LuxuryBattleSheet (tema + leaderboard + botones de entrada).
+        if (tab == "completed" && luxuryTheme != null) {
+            Box(
+                Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 68.dp)
+                    .clip(RoundedCornerShape(50))
+                    .background(Brush.linearGradient(listOf(Color(0xFFFCD34D).copy(alpha = 0.18f), Color(0xFFF59E0B).copy(alpha = 0.18f))))
+                    .border(1.dp, Color(0xFFFCD34D).copy(alpha = 0.35f), RoundedCornerShape(50))
+                    .clickable { luxurySheetOpen = true }
+                    .padding(horizontal = 14.dp, vertical = 6.dp),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Icon(Icons.Filled.LocalFireDepartment, null, tint = Color(0xFFFCD34D), modifier = Modifier.size(13.dp))
+                    Text(
+                        "Luxury Battle: ${luxuryTheme?.title ?: ""}",
+                        color = Color(0xFFFCD34D), fontSize = 12.sp, fontWeight = FontWeight.Bold,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+        }
+    }
+
+    if (luxurySheetOpen) {
+        LuxuryBattleSheet(
+            onClose = { luxurySheetOpen = false },
+            onEnter = { theme, mode ->
+                luxurySheetOpen = false
+                PendingLuxuryEntry.set(theme, mode)
+                onOpenUpload()
+            },
+        )
     }
 
     if (suggestionsOpen) {
@@ -347,6 +404,130 @@ private fun BattlesHeader(
         }
     }
 }
+
+// "Luxury Battle" — hoja inferior (petición del usuario, réplica nativa de
+// LuxuryBattleSheet.jsx web): tema activo + leaderboard (votos reales +
+// puntaje de IA, ver GET /api/luxury-battles/leaderboard) + 2 botones de
+// entrada ("Enter with an AI photo" = reto 1v1 dirigido; "Post a solo
+// entry" = reto ABIERTO sin rival — petición del usuario: ambos deben
+// poder competir). `onEnter(theme, entryMode)` deja la decisión de qué
+// hacer al padre (BattlesScreen ya la conecta a PendingLuxuryEntry.set +
+// onOpenUpload — ver más arriba).
+@Composable
+private fun LuxuryBattleSheet(onClose: () -> Unit, onEnter: (LuxuryTheme, String) -> Unit) {
+    var theme by remember { mutableStateOf<LuxuryTheme?>(null) }
+    var leaderboard by remember { mutableStateOf<List<LuxuryLeaderboardEntry>>(emptyList()) }
+    var loaded by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        val res = runCatching { RetrofitProvider.api.luxuryBattleLeaderboard() }.getOrNull()
+        theme = res?.theme
+        leaderboard = res?.leaderboard.orEmpty()
+        loaded = true
+    }
+
+    Box(
+        Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.6f)).clickable(onClick = onClose),
+        contentAlignment = Alignment.BottomCenter,
+    ) {
+        Column(
+            Modifier.fillMaxWidth()
+                .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+                .background(Color(0xFF09090B))
+                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
+                .navigationBarsPadding()
+                .padding(bottom = 12.dp),
+        ) {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp, top = 14.dp, bottom = 10.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Icon(Icons.Filled.LocalFireDepartment, null, tint = Color(0xFFFCD34D), modifier = Modifier.size(13.dp))
+                    Text("LUXURY BATTLE", color = Color(0xFFFCD34D), fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                }
+                Box(
+                    Modifier.size(26.dp).clip(CircleShape).clickable(onClick = onClose),
+                    contentAlignment = Alignment.Center,
+                ) { Icon(Icons.Filled.Close, "Close", tint = Color(0xFFA1A1AA), modifier = Modifier.size(15.dp)) }
+            }
+
+            if (!loaded) {
+                Box(Modifier.fillMaxWidth().padding(vertical = 40.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = ZincText, strokeWidth = 2.dp, modifier = Modifier.size(22.dp))
+                }
+            } else if (theme == null) {
+                Text(
+                    "No active luxury battle right now - check back soon.", color = Color(0xFF71717A), fontSize = 13.sp,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 40.dp), textAlign = TextAlign.Center,
+                )
+            } else {
+                val t = theme!!
+                Column(Modifier.padding(horizontal = 20.dp, vertical = 4.dp)) {
+                    Text(t.title.orEmpty(), color = Color.White, fontSize = 21.sp, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(6.dp))
+                    Text(t.description.orEmpty(), color = Color(0xFFA1A1AA), fontSize = 13.sp, lineHeight = 18.sp)
+                }
+                Spacer(Modifier.height(14.dp))
+                Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Box(
+                        Modifier.fillMaxWidth().height(50.dp).clip(RoundedCornerShape(50))
+                            .background(Brush.linearGradient(listOf(Color(0xFFFCD34D), Color(0xFFF59E0B))))
+                            .clickable { onEnter(t, "challenge") },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Icon(Icons.Filled.AutoAwesome, null, tint = Color.Black, modifier = Modifier.size(17.dp))
+                            Text("Enter with an AI photo", color = Color.Black, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                    // Publicar entrada abierta (petición del usuario: los retos
+                    // ABIERTOS también deben poder competir en el tema activo).
+                    Box(
+                        Modifier.fillMaxWidth().height(46.dp).clip(RoundedCornerShape(50))
+                            .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(50))
+                            .clickable { onEnter(t, "solo") },
+                        contentAlignment = Alignment.Center,
+                    ) { Text("Post a solo entry (no rival)", color = Color.White, fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold) }
+                }
+                Spacer(Modifier.height(18.dp))
+                HorizontalDivider(color = Color.White.copy(alpha = 0.10f))
+                Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp).heightIn(max = 320.dp).verticalScroll(rememberScrollState())) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp), modifier = Modifier.padding(bottom = 8.dp, start = 2.dp)) {
+                        Icon(Icons.Filled.EmojiEvents, null, tint = Color(0xFF71717A), modifier = Modifier.size(12.dp))
+                        Text("LEADERBOARD", color = Color(0xFF71717A), fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                    }
+                    if (leaderboard.isEmpty()) {
+                        Text(
+                            "No entries yet - be the first to battle!", color = Color(0xFF71717A), fontSize = 13.sp,
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp), textAlign = TextAlign.Center,
+                        )
+                    } else {
+                        leaderboard.forEachIndexed { i, entry ->
+                            Row(
+                                Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            ) {
+                                Text((i + 1).toString(), color = Color(0xFF71717A), fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(20.dp), textAlign = TextAlign.Center)
+                                Box(Modifier.size(36.dp).clip(CircleShape).background(Color(0xFF27272A))) {
+                                    TwykAvatar(entry.author?.avatarUrl, Modifier.fillMaxSize())
+                                }
+                                Column(Modifier.weight(1f)) {
+                                    val nameLine = entry.author?.username.orEmpty() + (entry.opponent?.username?.let { " vs $it" } ?: "")
+                                    Text(nameLine, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    val votesLabel = "${entry.votesTotal} votes" + (entry.aiAvg?.let { " \u00b7 AI ${it.toInt()}" } ?: "")
+                                    Text(votesLabel, color = Color(0xFF71717A), fontSize = 11.sp)
+                                }
+                                Text(entry.combinedScore.toInt().toString(), color = Color(0xFFFCD34D), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 
 @Composable
 private fun SegBtn(label: String, active: Boolean, onClick: () -> Unit) {

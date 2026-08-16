@@ -95,6 +95,14 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
       setSelected('challenge')
       setMode('challenge')
       setStep('file')
+    } else if (initialMode === 'solo') {
+      // "Luxury Battle" — "Post a solo entry" (LuxuryBattleSheet.jsx): igual
+      // que initialMode='challenge' arriba, pero para una publicación
+      // ABIERTA (sin destinatario) — salta el selector Y el paso de "a
+      // quién retar" (que 'solo' ya no usa en su flujo normal).
+      setSelected('solo')
+      setMode('solo')
+      setStep('file')
     } else if (initialMode === 'versus' || initialMode === 'duet') {
       setSelected(initialMode)
     }
@@ -226,6 +234,13 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
         fd.append('file', file)
         fd.append('openChallenge', '1')
         fd.append('message', description || '')
+        // "Luxury Battle" (petición del usuario: los retos ABIERTOS también
+        // deben poder competir en el tema activo, no solo los retos 1
+        // contra 1 dirigidos): si se entró a esta publicación desde
+        // LuxuryBattleSheet ("Post a solo entry"), se adjunta el tema — se
+        // puntúa de inmediato con IA (un solo lado, ver
+        // scoreLuxuryOpenEntry/route.js) y compite en el leaderboard.
+        if (luxuryTheme?.id) fd.append('luxuryThemeId', luxuryTheme.id)
       } else if (mode === 'challenge') {
         xhr.open('POST', '/api/challenges')
         fd.append('file', file)
@@ -521,9 +536,10 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
 
             {/* "Luxury Battle" — banner del tema activo (petición del
                 usuario, ver LuxuryBattleSheet.jsx) — SOLO si se entró desde
-                ahí ("Enter with an AI photo"); no afecta al flujo normal de
-                Retos. Puramente informativo, no bloquea nada del paso. */}
-            {mode === 'challenge' && luxuryTheme && (
+                ahí ("Enter with an AI photo" o "Post a solo entry"); no
+                afecta al flujo normal de Retos/Publicaciones. Puramente
+                informativo, no bloquea nada del paso. */}
+            {(mode === 'challenge' || mode === 'solo') && luxuryTheme && (
               <div className="absolute top-0 left-0 right-0 z-40 flex justify-center px-4"
                    style={{ paddingTop: 'max(env(safe-area-inset-top), 14px)' }}>
                 <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-bold backdrop-blur-md"
@@ -761,7 +777,7 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
                       ) : (
                         <AIImageEditor
                           imageFile={aiEditorSlot === 0 ? file : fileB}
-                          initialPrompt={aiEditorSlot === 0 && mode === 'challenge' ? (luxuryTheme?.promptHint || '') : ''}
+                          initialPrompt={aiEditorSlot === 0 && (mode === 'challenge' || mode === 'solo') ? (luxuryTheme?.promptHint || '') : ''}
                           onStatusChange={(status, url) => setAiOverride(status ? { status, url } : null)}
                           onClose={() => { setAiEditorSlot(null); setAiOverride(null) }}
                           onApply={(newFile) => {

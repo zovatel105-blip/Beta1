@@ -46,6 +46,10 @@ class UploadWorker(appContext: Context, params: WorkerParameters) : CoroutineWor
         const val KEY_MUSIC_ARTWORK = "musicArtwork"
         const val KEY_MUSIC_PREVIEW_URL = "musicPreviewUrl"
         const val KEY_MUSIC_TRACK_ID = "musicTrackId"
+        // "Luxury Battle" (ver ui/Battles.kt/LuxuryBattleSheet) — id del tema
+        // activo adjuntado a este reto (dirigido O abierto), vacío en un
+        // reto/publicación normal.
+        const val KEY_LUXURY_THEME_ID = "luxuryThemeId"
     }
 
     override suspend fun doWork(): Result {
@@ -75,6 +79,7 @@ class UploadWorker(appContext: Context, params: WorkerParameters) : CoroutineWor
             val musicArtwork = musicPart(inputData.getString(KEY_MUSIC_ARTWORK))
             val musicPreviewUrl = musicPart(inputData.getString(KEY_MUSIC_PREVIEW_URL))
             val musicTrackId = musicPart(inputData.getString(KEY_MUSIC_TRACK_ID))
+            val luxuryThemeId = musicPart(inputData.getString(KEY_LUXURY_THEME_ID))
             val response = when (type) {
                 "challenge" -> {
                     val a = fileA ?: return Result.failure()
@@ -95,6 +100,7 @@ class UploadWorker(appContext: Context, params: WorkerParameters) : CoroutineWor
                         inputData.getString(KEY_TARGET_DESCRIPTION).orEmpty().toRequestBody(textType),
                         inputData.getString(KEY_TARGET_MUSIC).orEmpty().toRequestBody(textType),
                         musicTitle, musicArtist, musicArtwork, musicPreviewUrl, musicTrackId,
+                        luxuryThemeId,
                     )
                     null
                 }
@@ -110,6 +116,7 @@ class UploadWorker(appContext: Context, params: WorkerParameters) : CoroutineWor
                         "1".toRequestBody(textType),
                         description.toRequestBody(textType),
                         musicTitle, musicArtist, musicArtwork, musicPreviewUrl, musicTrackId,
+                        luxuryThemeId,
                     )
                     null
                 }

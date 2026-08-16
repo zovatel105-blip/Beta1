@@ -63,6 +63,7 @@ import {
   setActiveLuxuryTheme,
   getLuxuryBattlePostsByThemeId,
   updatePostLuxuryScore,
+  listLuxuryThemes,
 } from '@/lib/db'
 import {
   getAllPosts,
@@ -75,6 +76,8 @@ import {
   deleteChallenge,
   getAllBuiltinVotes,
   incrementBuiltinVote,
+  getOpenLuxuryChallengesByThemeId,
+  updateChallengeLuxuryScore,
 } from '@/lib/stores'
 import { rankFeed, recordVote, recordImpressions, recordWatch, recordEngagement, recordSocialAffinity, recordNotInterested, getNotInterestedIds, computeMetrics } from '@/lib/recommender'
 import { registerDeviceToken, unregisterDeviceToken } from '@/lib/push'
@@ -339,6 +342,13 @@ async function getOpenChallengeFeedItems(currentUser, followingSet) {
         voteCount: voteCounts[id] || 0,
         hasVoted: votedByMe.has(id),
         createdAtMs: c.createdAt ? new Date(c.createdAt).getTime() : Date.now(),
+        // "Luxury Battle": si este reto abierto se creó desde la hoja de
+        // Luxury Battle (ver LuxuryBattleSheet.jsx/handleCreateChallenge),
+        // se expone el tema y el puntaje de IA (de un solo lado, ver
+        // scoreLuxuryOpenEntry) para que la tarjeta muestre la misma
+        // etiqueta que un post de batalla normal.
+        luxuryThemeId: c.luxuryThemeId || null,
+        luxuryBattle: c.luxuryBattle || null,
       }
     })
   } catch (e) {
@@ -929,6 +939,12 @@ export async function GET(request, { params }) {
   // (votes.a+votes.b, mismo mecanismo de siempre) con el puntaje de IA
   // (0-100 por lado, ver scoreLuxuryBattlePost) en un único `combinedScore`
   // — ni solo-IA (larpgpt) ni solo-votos, las 2 señales juntas. Público.
+  // Incluye TAMBIÉN los retos ABIERTOS ("Open"/"Single") etiquetados con
+  // este mismo tema (viven en `challenges`, nunca en `posts` — ver
+  // getOpenLuxuryChallengesByThemeId) con un puntaje de IA de un solo lado
+  // (scoreA únicamente, sin rival) — petición del usuario: los retos
+  // abiertos también deben poder competir en el leaderboard, no solo los
+  // 1 contra 1 dirigidos.
   if (path === '/luxury-battles/leaderboard') {
     const { searchParams } = new URL(request.url)
     const themeIdParam = searchParams.get('themeId')
@@ -937,29 +953,55 @@ export async function GET(request, { params }) {
       return NextResponse.json({ theme: null, leaderboard: [] })
     }
     const posts = await getLuxuryBattlePostsByThemeId(theme.id).catch(() => [])
-    const leaderboard = posts
-      .map((p) => {
-        const votesTotal = (p.votes?.a || 0) + (p.votes?.b || 0)
-        const scoreA = p.luxuryBattle?.scoreA
-        const scoreB = p.luxuryBattle?.scoreB
-        const aiAvg = (typeof scoreA === 'number' && typeof scoreB === 'number') ? (scoreA + scoreB) / 2 : (typeof scoreA === 'number' ? scoreA : (typeof scoreB === 'number' ? scoreB : null))
-        // Cada voto real vale 5 puntos (señal de la comunidad, con más peso:
-        // es más difícil de conseguir que un puntaje automático) + el
-        // promedio del puntaje de IA (0-100, cuando ya se calculó).
-        const combinedScore = votesTotal * 5 + (aiAvg || 0)
-        return {
-          postId: p.id,
-          author: p.sideA?.author || p.author,
-          opponent: p.sideB?.author || null,
-          posterUrl: p.sideA?.posterUrl || p.posterUrl || null,
-          votesTotal,
-          scoreA: typeof scoreA === 'number' ? scoreA : null,
-          scoreB: typeof scoreB === 'number' ? scoreB : null,
-          aiAvg,
-          combinedScore,
-          createdAt: p.createdAt || p.uploadedAt || null,
-        }
-      })
+    const directEntries = posts.map((p) => {
+      const votesTotal = (p.votes?.a || 0) + (p.votes?.b || 0)
+      const scoreA = p.luxuryBattle?.scoreA
+      const scoreB = p.luxuryBattle?.scoreB
+      const aiAvg = (typeof scoreA === 'number' && typeof scoreB === 'number') ? (scoreA + scoreB) / 2 : (typeof scoreA === 'number' ? scoreA : (typeof scoreB === 'number' ? scoreB : null))
+      // Cada voto real vale 5 puntos (señal de la comunidad, con más peso:
+      // es más difícil de conseguir que un puntaje automático) + el
+      // promedio del puntaje de IA (0-100, cuando ya se calculó).
+      const combinedScore = votesTotal * 5 + (aiAvg || 0)
+      return {
+        postId: p.id,
+        entryType: 'battle',
+        author: p.sideA?.author || p.author,
+        opponent: p.sideB?.author || null,
+        posterUrl: p.sideA?.posterUrl || p.posterUrl || null,
+        votesTotal,
+        scoreA: typeof scoreA === 'number' ? scoreA : null,
+        scoreB: typeof scoreB === 'number' ? scoreB : null,
+        aiAvg,
+        combinedScore,
+        createdAt: p.createdAt || p.uploadedAt || null,
+      }
+    })
+
+    const openChallengesForTheme = await getOpenLuxuryChallengesByThemeId(theme.id).catch(() => [])
+    const openIds = openChallengesForTheme.map((c) => `open_${c.id}`)
+    const openVoteCounts = openIds.length ? await getSingleVoteCountsByPostIds(openIds).catch(() => ({})) : {}
+    const openEntries = openChallengesForTheme.map((c) => {
+      const id = `open_${c.id}`
+      const votesTotal = openVoteCounts[id] || 0
+      const scoreA = c.luxuryBattle?.scoreA
+      const aiAvg = typeof scoreA === 'number' ? scoreA : null
+      const combinedScore = votesTotal * 5 + (aiAvg || 0)
+      return {
+        postId: id,
+        entryType: 'open',
+        author: c.from,
+        opponent: null,
+        posterUrl: c.challengerPosterUrl || null,
+        votesTotal,
+        scoreA: typeof scoreA === 'number' ? scoreA : null,
+        scoreB: null,
+        aiAvg,
+        combinedScore,
+        createdAt: c.createdAt || null,
+      }
+    })
+
+    const leaderboard = [...directEntries, ...openEntries]
       .sort((a, b) => b.combinedScore - a.combinedScore)
       .slice(0, 20)
     return NextResponse.json({ theme: stripMongoId(theme), leaderboard })
@@ -1265,6 +1307,18 @@ export async function GET(request, { params }) {
     return NextResponse.json({ reports })
   }
 
+  // Admin: historial de temas de "Luxury Battle" (activos e inactivos) —
+  // GET /api/admin/luxury-battles/themes (solo admin). Usado por el panel
+  // de administración para mostrar qué temas ya se usaron antes.
+  if (path === '/admin/luxury-battles/themes') {
+    const currentUser = await getCurrentUser(request)
+    if (!isAdmin(currentUser)) {
+      return NextResponse.json({ error: 'forbidden', message: 'Solo administradores' }, { status: 403 })
+    }
+    const themes = await listLuxuryThemes().catch(() => [])
+    return NextResponse.json({ themes: themes.map(stripMongoId) })
+  }
+
   if (path === '/' || path === '') {
     return NextResponse.json({ ok: true, service: 'snaptok-api' })
   }
@@ -1453,6 +1507,14 @@ export async function POST(request, { params }) {
   // Admin: crear/activar el tema de "Luxury Battle" actual. POST /api/admin/luxury-battles/theme
   if (path === '/admin/luxury-battles/theme') {
     return handleSetLuxuryTheme(request)
+  }
+  // Admin: generar ideas de tema con IA (título + descripción + prompt para
+  // el editor de IA) basadas en tendencias de lujo ACTUALES — no activa
+  // ningún tema, solo devuelve sugerencias para que el admin elija/edite y
+  // luego llame a /admin/luxury-battles/theme para activarla. POST
+  // /api/admin/luxury-battles/generate-ideas
+  if (path === '/admin/luxury-battles/generate-ideas') {
+    return handleGenerateLuxuryThemeIdeas(request)
   }
 
   return NextResponse.json({ ok: true })
@@ -2184,6 +2246,15 @@ async function handleCreateChallenge(request) {
     }
     await insertChallenge(challenge)
 
+    // "Luxury Battle": un reto ABIERTO ("Open"/"Single") etiquetado con un
+    // tema de lujo se puntúa de inmediato (un solo lado, sin rival — no hay
+    // paso de "aceptar" como en los retos dirigidos) — fire-and-forget,
+    // nunca bloquea la respuesta de crear el reto. Petición del usuario:
+    // los retos abiertos también deben poder competir en el leaderboard.
+    if (openChallenge && luxuryThemeId) {
+      scoreLuxuryOpenEntry(challenge, luxuryThemeId).catch((e) => console.error('luxury open entry scoring error', e))
+    }
+
     if (!openChallenge) {
       // TWYK Engine: retar a alguien (botón Challenge) es afinidad social máxima
       // hacia ese creador (+2.5 en el perfil del retador).
@@ -2373,15 +2444,16 @@ async function readLocalUploadAsBase64(relativeUrl) {
   }
 }
 
-async function scoreLuxuryBattlePost(post, themeId) {
-  const theme = await getLuxuryThemeById(themeId)
-  if (!theme) return
+// Núcleo del "juez de IA" — extraído de la lógica original de
+// scoreLuxuryBattlePost para poder reutilizarlo también en retos ABIERTOS
+// (un solo lado, sin rival, ver scoreLuxuryOpenEntry más abajo — petición
+// del usuario: que los retos abiertos también puedan competir en Luxury
+// Battle). `baseB` es opcional (null en un reto abierto). Devuelve
+// {scoreA, verdictA, scoreB, verdictB} o null si no se pudo puntuar.
+async function runLuxuryJudge(theme, baseA, baseB, seedId) {
   const apiKey = process.env.EMERGENT_LLM_KEY
-  if (!apiKey) return
-
-  const baseA = await readLocalUploadAsBase64(post.sideA?.posterUrl)
-  const baseB = await readLocalUploadAsBase64(post.sideB?.posterUrl)
-  if (!baseA && !baseB) return
+  if (!apiKey) return null
+  if (!baseA && !baseB) return null
 
   const fileContents = []
   if (baseA) fileContents.push(new ImageContent(baseA))
@@ -2389,7 +2461,7 @@ async function scoreLuxuryBattlePost(post, themeId) {
 
   const chat = new LlmChat(
     apiKey,
-    `luxury-score-${post.id}`,
+    `luxury-score-${seedId}`,
     'You are an impartial judge for a social app "Luxury Battle" game. You will see 1 or 2 photos (side A and, if present, side B of a head-to-head). Rate EACH photo from 0 to 100 on how well it matches the given luxury theme (realism, creativity, and how convincingly it captures that specific luxury vibe), plus a short one-sentence verdict per side. Respond with ONLY JSON of the exact shape {"scoreA": number, "verdictA": string, "scoreB": number|null, "verdictB": string|null} — scoreB/verdictB must be null if there is no side B image. No markdown, no code fences.'
   ).withModel('gemini', 'gemini-2.5-flash')
 
@@ -2403,7 +2475,7 @@ async function scoreLuxuryBattlePost(post, themeId) {
     )
   } catch (e) {
     console.error('luxury battle scoring: chat failed', e)
-    return
+    return null
   }
 
   let parsed = null
@@ -2411,17 +2483,42 @@ async function scoreLuxuryBattlePost(post, themeId) {
     const cleaned = String(text || '').trim().replace(/^```(json)?/i, '').replace(/```$/, '').trim()
     parsed = JSON.parse(cleaned)
   } catch {
-    return
+    return null
   }
-  if (!parsed || typeof parsed !== 'object') return
+  if (!parsed || typeof parsed !== 'object') return null
 
   const clamp = (n) => (typeof n === 'number' && Number.isFinite(n) ? Math.max(0, Math.min(100, Math.round(n))) : null)
-  await updatePostLuxuryScore(post.id, {
+  return {
     scoreA: clamp(parsed.scoreA),
     scoreB: clamp(parsed.scoreB),
     verdictA: typeof parsed.verdictA === 'string' ? parsed.verdictA.slice(0, 200) : '',
     verdictB: typeof parsed.verdictB === 'string' ? parsed.verdictB.slice(0, 200) : '',
-  })
+  }
+}
+
+async function scoreLuxuryBattlePost(post, themeId) {
+  const theme = await getLuxuryThemeById(themeId)
+  if (!theme) return
+  const baseA = await readLocalUploadAsBase64(post.sideA?.posterUrl)
+  const baseB = await readLocalUploadAsBase64(post.sideB?.posterUrl)
+  const result = await runLuxuryJudge(theme, baseA, baseB, post.id)
+  if (!result) return
+  await updatePostLuxuryScore(post.id, result)
+}
+
+// Puntúa un reto ABIERTO ("Open"/"Single") etiquetado con un tema de lujo —
+// UN SOLO lado (sin rival), guardado directamente en el propio documento
+// del reto (colección `challenges`, ver updateChallengeLuxuryScore) ya que
+// estos retos nunca llegan a crear un post en `posts`. Fire-and-forget,
+// llamado desde handleCreateChallenge justo tras crear el reto abierto.
+async function scoreLuxuryOpenEntry(challenge, themeId) {
+  const theme = await getLuxuryThemeById(themeId)
+  if (!theme) return
+  const baseA = await readLocalUploadAsBase64(challenge.challengerPosterUrl)
+  if (!baseA) return
+  const result = await runLuxuryJudge(theme, baseA, null, challenge.id)
+  if (!result) return
+  await updateChallengeLuxuryScore(challenge.id, { scoreA: result.scoreA, verdictA: result.verdictA })
 }
 
 // POST /api/admin/luxury-battles/theme  body: { title, description, promptHint }
@@ -2447,6 +2544,68 @@ async function handleSetLuxuryTheme(request) {
   } catch (err) {
     console.error('set luxury theme error', err)
     return NextResponse.json({ error: 'set_theme_failed', detail: String(err?.message || err) }, { status: 500 })
+  }
+}
+
+// POST /api/admin/luxury-battles/generate-ideas  body: { count?, avoid?: string[] }
+// Solo admin — pide a la IA (texto puro, sin imagen) N ideas de tema de
+// "Luxury Battle" acordes a las modas de lujo ACTUALES (no una lista fija
+// en el código, igual criterio que la sección "Trending" del editor de
+// fotos, ver handleAiSuggestEdits) para que el admin las revise/edite y
+// active la que quiera desde el panel. `avoid` (opcional) son títulos ya
+// usados, para pedirle a la IA que no repita.
+async function handleGenerateLuxuryThemeIdeas(request) {
+  try {
+    const currentUser = await getCurrentUser(request)
+    if (!isAdmin(currentUser)) {
+      return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+    }
+    const apiKey = process.env.EMERGENT_LLM_KEY
+    if (!apiKey) {
+      return NextResponse.json({ error: 'ai_not_configured', message: 'AI is not configured' }, { status: 500 })
+    }
+    const body = await request.json().catch(() => ({}))
+    const count = Math.min(Math.max(Number(body?.count) || 4, 1), 6)
+    const avoid = Array.isArray(body?.avoid) ? body.avoid.filter((s) => typeof s === 'string' && s.trim()).slice(0, 30) : []
+
+    const chat = new LlmChat(
+      apiKey,
+      `luxury-theme-ideas-${currentUser.id}-${Date.now()}`,
+      'You are a creative director for a social video-battle app. Users submit an AI-edited photo of themselves living a "luxury battle" theme (e.g. "Yacht Life") and compete head-to-head, judged by real community votes + an AI score of how well their photo matches the theme. Suggest CURRENT, viral-worthy luxury-lifestyle themes based on your up-to-date knowledge of what luxury/glow-up AI photo trends are popular right now (yachts, supercars, mansions, private jets, red carpets, penthouses, designer fashion, exclusive parties, etc. — but feel free to suggest other genuinely trending luxury concepts too, do not limit yourself to these examples). Respond with ONLY a JSON array of objects, each shaped exactly as {"title": string (2-4 words, catchy), "description": string (1 short sentence describing the theme for users), "promptHint": string (1-2 sentences, a ready-to-use AI image-editing instruction starting with "Put me..." or "Transform me...", vivid and specific)}. No markdown, no code fences, no extra text.'
+    ).withModel('gemini', 'gemini-2.5-flash')
+
+    const text = await chat.sendMessage(
+      new UserMessage({
+        text: `Give me ${count} fresh luxury battle theme ideas.${avoid.length ? ` Do not repeat these already-used titles: ${avoid.join(', ')}.` : ''}`,
+      })
+    )
+
+    let ideas = []
+    try {
+      const cleaned = String(text || '').trim().replace(/^```(json)?/i, '').replace(/```$/, '').trim()
+      const parsed = JSON.parse(cleaned)
+      if (Array.isArray(parsed)) {
+        ideas = parsed
+          .filter((it) => it && typeof it === 'object' && it.title && it.description)
+          .map((it) => ({
+            title: String(it.title).slice(0, 60).trim(),
+            description: String(it.description).slice(0, 200).trim(),
+            promptHint: typeof it.promptHint === 'string' ? it.promptHint.slice(0, 300).trim() : '',
+          }))
+          .slice(0, count)
+      }
+    } catch (e) {
+      console.error('luxury theme ideas: parse failed', e)
+      return NextResponse.json({ error: 'ai_parse_failed' }, { status: 502 })
+    }
+
+    if (!ideas.length) {
+      return NextResponse.json({ error: 'no_ideas', message: 'The AI did not return any usable ideas, try again' }, { status: 502 })
+    }
+    return NextResponse.json({ ideas })
+  } catch (err) {
+    console.error('generate luxury theme ideas error', err)
+    return NextResponse.json({ error: 'generate_ideas_failed', detail: String(err?.message || err) }, { status: 500 })
   }
 }
 

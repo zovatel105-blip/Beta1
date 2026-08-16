@@ -133,3 +133,33 @@ object ChallengeBanner {
         state = null
     }
 }
+
+
+// "Luxury Battle" (petición del usuario: réplica nativa de `uploadLuxuryTheme`
+// en Feed.jsx web) — tema pendiente de adjuntar a la SIGUIENTE subida, más el
+// modo de entrada ("challenge" = 1v1 dirigido vía "Enter with an AI photo",
+// "solo" = reto abierto sin rival vía "Post a solo entry"). Escrito por
+// ui/Battles.kt (botones de la hoja LuxuryBattleSheet) y consumido/limpiado
+// por ui/Upload.kt al montar (LaunchedEffect(Unit)) para: saltar el
+// selector de modo, mostrar el banner del tema, y precargar `promptHint` en
+// el editor de fotos con IA (mismo criterio que `luxuryTheme`/`initialPrompt`
+// en UploadDialog.jsx/AIImageEditor.jsx web).
+object PendingLuxuryEntry {
+    var theme by mutableStateOf<LuxuryTheme?>(null)
+        private set
+    var entryMode by mutableStateOf<String?>(null)
+        private set
+
+    fun set(theme: LuxuryTheme, entryMode: String) {
+        this.theme = theme
+        this.entryMode = entryMode
+    }
+
+    fun consume(): Pair<LuxuryTheme, String>? {
+        val t = theme ?: return null
+        val m = entryMode ?: "challenge"
+        theme = null
+        entryMode = null
+        return t to m
+    }
+}

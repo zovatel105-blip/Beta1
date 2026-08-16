@@ -43,6 +43,7 @@ import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.People
@@ -82,6 +83,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.zIndex
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
@@ -95,7 +97,9 @@ import androidx.work.WorkManager
 import coil.compose.AsyncImage
 import com.google.gson.Gson
 import com.twyk.app.R
+import com.twyk.app.data.LuxuryTheme
 import com.twyk.app.data.MusicTrack
+import com.twyk.app.data.PendingLuxuryEntry
 import com.twyk.app.data.RetrofitProvider
 import com.twyk.app.data.Session
 import com.twyk.app.data.UploadQueue
@@ -139,6 +143,24 @@ fun UploadScreen(onRequireAuth: () -> Unit, onDone: () -> Unit) {
     var usersLoading by remember { mutableStateOf(false) }
     var userQuery by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
+
+    // "Luxury Battle" (petición del usuario, réplica nativa de
+    // `uploadLuxuryTheme`/`onEnterLuxuryBattle` en Feed.jsx web) — si se
+    // entró aquí desde la hoja de Luxury Battle (ui/Battles.kt), consume el
+    // tema+modo pendiente UNA sola vez al montar: salta el selector de modo,
+    // entra directo al paso "file" en ese modo, y precarga `promptHint` al
+    // abrir el editor de fotos con IA (ver FileStep más abajo).
+    var luxuryTheme by remember { mutableStateOf<LuxuryTheme?>(null) }
+    LaunchedEffect(Unit) {
+        val pending = PendingLuxuryEntry.consume()
+        if (pending != null) {
+            val (theme, entryMode) = pending
+            luxuryTheme = theme
+            mode = entryMode
+            selected = entryMode
+            step = "file"
+        }
+    }
 
     // Réplica de la validación de UploadDialog.jsx: acepta vídeo O foto (nunca
     // mezclados), ambos lados (A/B) deben ser del MISMO tipo, y cada tipo
@@ -186,6 +208,7 @@ fun UploadScreen(onRequireAuth: () -> Unit, onDone: () -> Unit) {
                     .putString(UploadWorker.KEY_QUEUE_ID, queueId)
                     .putString(UploadWorker.KEY_TYPE, mode)
                     .putString(UploadWorker.KEY_DESCRIPTION, descFinal)
+                luxuryTheme?.id?.let { dataBuilder.putString(UploadWorker.KEY_LUXURY_THEME_ID, it) }
 
                 withContext(Dispatchers.IO) {
                     dataBuilder.putString(UploadWorker.KEY_FILE_A, persistPickedFile(context, "a", a).absolutePath)
@@ -265,6 +288,7 @@ fun UploadScreen(onRequireAuth: () -> Unit, onDone: () -> Unit) {
                 onBack = { step = "mode" },
                 onClose = { onDone() },
                 onPublish = { if (mode == "challenge") { if (uriA != null) step = "target" else error = "Upload your challenge video or photo" } else doUpload(null) },
+                luxuryTheme = luxuryTheme,
                 // Editor de fotos con IA (Versus/1vs1/Retos, ver comentario en
                 // FileStep): al confirmar "Use this photo" se reemplaza el
                 // archivo del slot correspondiente (0=A, 1=B) por el resultado
@@ -495,6 +519,7 @@ private fun FileStep(
     onBack: () -> Unit,
     onClose: () -> Unit,
     onPublish: () -> Unit,
+    luxuryTheme: LuxuryTheme? = null,
     onApplyAiEdit: (Int, Uri) -> Unit,
 ) {
     // Slide activo del carrusel versus (réplica de versusIdx en la web).
@@ -529,7 +554,14 @@ private fun FileStep(
     // cuanto se abre el editor para esta foto; si fallan, respaldo genérico.
     LaunchedEffect(aiEditorSlot) {
         if (aiEditorSlot == null) return@LaunchedEffect
-        aiStage = "input"; aiPrompt = ""; aiError = null; aiResultUri = null
+        aiStage = "input"
+        // "Luxury Battle" (petición del usuario, réplica de `initialPrompt`
+        // en AIImageEditor.jsx web): si esta subida viene de la hoja de
+        // Luxury Battle (mode challenge/solo) y se está editando el slot A
+        // (el único que se sube en esos 2 modos), precarga el `promptHint`
+        // del tema en vez de arrancar con el cuadro vacío.
+        aiPrompt = if (aiEditorSlot == 0 && (mode == "challenge" || mode == "solo")) luxuryTheme?.promptHint.orEmpty() else ""
+        aiError = null; aiResultUri = null
         aiSuggestions = emptyList()
         val srcUri = aiSourceUri ?: return@LaunchedEffect
         aiSuggestionsLoading = true
@@ -605,6 +637,24 @@ private fun FileStep(
     // tenía su propio ajuste `atTop` añadido en una ronda anterior, ahora
     // redundante por el mismo motivo) también se simplifica.
     Box(Modifier.fillMaxSize().background(Color.Black).statusBarsPadding()) {
+        // "Luxury Battle" — banner del tema activo (petición del usuario,
+        // ver ui/Battles.kt/LuxuryBattleSheet) — SOLO si se entró desde ahí
+        // ("Enter with an AI photo" o "Post a solo entry"); no afecta al
+        // flujo normal de Retos/Publicaciones. Puramente informativo.
+        if ((mode == "challenge" || mode == "solo") && luxuryTheme != null) {
+            Box(
+                Modifier.align(Alignment.TopCenter).padding(top = 10.dp).zIndex(10f)
+                    .clip(RoundedCornerShape(50))
+                    .background(Color(0xFFFCD34D).copy(alpha = 0.15f))
+                    .border(1.dp, Color(0xFFFCD34D).copy(alpha = 0.35f), RoundedCornerShape(50))
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Icon(Icons.Filled.LocalFireDepartment, null, tint = Color(0xFFFCD34D), modifier = Modifier.size(12.dp))
+                    Text("Luxury Battle: ${luxuryTheme.title.orEmpty()}", color = Color(0xFFFCD34D), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
         // ── Media: dueto = split con formato; versus = carrusel; reto = único ──
         when (mode) {
             "duet" -> {
