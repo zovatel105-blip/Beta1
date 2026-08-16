@@ -59,18 +59,19 @@ después de que Next.js haga su propio "Reload env: .env" (log de supervisor),
 o preguntar al usuario cuál es la URL que ve en su navegador.
 
 ## Última URL usada (actualizada automáticamente al restaurar)
-NEXT_PUBLIC_BASE_URL=https://battle-preview-4.preview.emergentagent.com
-(.env recreado en esta sesión — MONGO_URL/ADMIN_EMAILS/CORS_ORIGINS con esta
-misma URL; FIREBASE_* vacíos [el usuario debe volver a subir el JSON de la
-cuenta de servicio si necesita push]; EMERGENT_LLM_KEY obtenida vía
-emergent_integrations_manager: sk-emergent-40c553e4aA1535236B — usada por el
-editor de imágenes/vídeo con IA, ver AI_EDIT_MODEL en route.js, actualmente
-'gemini-3.1-flash-image-preview' ("Nano Banana 2"); 'gemini-3-pro-image-preview'
-("Nano Banana Pro") existe pero da 403 por falta de crédito en el plan
-actual de la clave. Config.kt (Android) NO se tocó en esta sesión — el
-usuario pidió explícitamente no usar el agente de testing / cambios nativos
-por su cuenta en estas tareas concretas, revisar si sigue apuntando a esta
-misma URL antes de recompilar el APK.)
+NEXT_PUBLIC_BASE_URL=https://a93966ec-e7cc-47ae-a2e8-a195d290b60d.preview.emergentagent.com
+(.env RECREADO en esta nueva sesión, tras un reinicio de pod que dejó /app/.env
+inexistente y MongoDB vacía — misma causa raíz recurrente de siempre.
+MONGO_URL/ADMIN_EMAILS/CORS_ORIGINS con esta misma URL nueva; FIREBASE_* vacíos
+[el usuario debe volver a subir el JSON de la cuenta de servicio de Firebase si
+necesita push — ver instrucciones más abajo]; EMERGENT_LLM_KEY renovada vía
+emergent_integrations_manager: sk-emergent-c978620E9B2560d379. Base de datos
+re-sembrada con node scripts/seed-core-users.mjs (usuarios twyk/lucia/marcos/
+laura + follows básicos); memory/test_credentials.md recreado. Verificado con
+llamadas reales (node fetch, sin curl): POST /api/auth/login (lucia) -> 200,
+GET /api/feed -> 200, GET /api/uploads -> 200. Config.kt (Android) NO se tocó
+en esta sesión — revisar si sigue apuntando a esta misma URL antes de
+recompilar el APK.)
 
 ## ⚠️ ESTADO ACTUAL (esta sesión): FIREBASE_CLIENT_EMAIL / FIREBASE_PRIVATE_KEY RESTAURADOS
 El usuario volvió a subir el JSON de la cuenta de servicio de Firebase
