@@ -3,8 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Swords, Play, MessageCircle, Bookmark, MoreVertical, Music } from 'lucide-react'
 import ShareIcon from './icons/ShareIcon'
-import VoteIcon from './icons/VoteIcon'
-import VoteBurstEffect from './VoteBurstEffect'
 import Avatar from './Avatar'
 import CaptionText from './CaptionText'
 import CommentsModal from './CommentsModal'
@@ -46,6 +44,12 @@ const COMMENT_BAR_RESERVE = '58px + max(env(safe-area-inset-bottom, 0px), 12px)'
  * aceptarla se publica el versus. El reto abierto original nunca se cierra:
  * varias personas distintas pueden enviar su propia solicitud igual, cada
  * una independiente.
+ *
+ * SIN VOTO (petición explícita del usuario: "quitar el boton de voto de las
+ * publicaciones single"): estas publicaciones solo existen para ser
+ * RETADAS (ver "Challenge" arriba) — no llevan ningún botón/gesto de voto,
+ * a diferencia de las publicaciones versus/1vs1 (que sí comparan 2 lados).
+ * El toque simple sobre el vídeo solo pausa/reanuda.
  */
 export default function OpenChallengeSlide({
   post,
@@ -61,8 +65,6 @@ export default function OpenChallengeSlide({
 }) {
   const { user } = useAuth()
   const videoRef = useRef(null)
-  const overlayRef = useRef(null)
-  const lastTapRef = useRef(0)
   // BUG reportado por el usuario ("en el feed tengo 3 publicaciones single
   // pero no puedo hacer scrolling"): a diferencia de CarouselSlide.jsx/
   // DuetSlide.jsx (que registran onPointerDown/onPointerMove y comparan la
@@ -73,11 +75,8 @@ export default function OpenChallengeSlide({
   // un gesto de scroll vertical normal sobre el feed, sin importar cuánto se
   // haya desplazado el dedo. Resultado: cada vez que el usuario deslizaba
   // (scrolleaba) sobre una publicación única, esta tarjeta lo interpretaba
-  // como un toque -pausando/reanudando el vídeo 280ms después, o si el
-  // gesto coincidía con la ventana de doble-toque, intentando VOTAR (y
-  // abriendo el modal de login si no había sesión, un overlay a pantalla
-  // completa que sí bloquea cualquier scroll posterior)- interfiriendo con
-  // el gesto de scroll del usuario justo en las tarjetas de este tipo.
+  // como un toque -pausando/reanudando el vídeo- interfiriendo con el gesto
+  // de scroll del usuario justo en las tarjetas de este tipo.
   const downRef = useRef({ x: 0, y: 0 })
   const [paused, setPaused] = useState(false)
   const [following, setFollowing] = useState(!!post.author?.isFollowing)
@@ -85,16 +84,10 @@ export default function OpenChallengeSlide({
   const [shareCount, setShareCount] = useState(post.stats?.shares || 0)
   const [saveCount, setSaveCount] = useState(post.stats?.saves || 0)
   const [saved, setSaved] = useState(false)
-  const [votes, setVotes] = useState(post.voteCount || 0)
-  const [userVoted, setUserVoted] = useState(!!post.hasVoted)
-  const [voting, setVoting] = useState(false)
-  const [voteBursts, setVoteBursts] = useState([])
   const [commentsOpen, setCommentsOpen] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [authModalOpen, setAuthModalOpen] = useState(false)
-
-  useEffect(() => { setVotes(post.voteCount || 0); setUserVoted(!!post.hasVoted) }, [post.id, post.voteCount, post.hasVoted])
 
   // Contador de "reproducciones" (stats.views) — BUG FIX ("en las
   // publicaciones single las reproducciones/visitas se quedan en 0"): a
@@ -167,53 +160,10 @@ export default function OpenChallengeSlide({
     if (el.paused) el.play().catch(() => {}); else el.pause()
   }, [isImage])
 
-  // Burst del icono de voto (mismo componente/estilo que el resto de
-  // publicaciones): aparece justo donde se hizo el doble-toque.
-  const spawnVoteBurst = useCallback((pt) => {
-    const burstId = Math.random().toString(36).slice(2)
-    setVoteBursts((b) => [...b, { id: burstId, x: pt?.x, y: pt?.y }])
-    setTimeout(() => setVoteBursts((b) => b.filter((x) => x.id !== burstId)), 900)
-  }, [])
-
-  // Voto ÚNICO (toggle, sin lado A/B): doble-toque en el vídeo vota/quita el
-  // voto. A diferencia del voto A/B, aquí no hay "cambiar de opción" — solo
-  // votado <-> no votado, como un like. El burst SOLO se dispara al votar
-  // (no al quitar el voto).
-  const submitVote = useCallback(async (pt) => {
-    if (!user) { setAuthModalOpen(true); return }
-    if (voting) return
-    setVoting(true)
-    const nextVoted = !userVoted
-    setUserVoted(nextVoted)
-    setVotes((v) => Math.max(0, v + (nextVoted ? 1 : -1)))
-    if (nextVoted) spawnVoteBurst(pt)
-    try {
-      const res = await fetch('/api/single-vote', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ postId: post.id }),
-      })
-      if (res.ok) {
-        const data = await res.json()
-        if (typeof data.count === 'number') setVotes(data.count)
-        if (typeof data.voted === 'boolean') setUserVoted(data.voted)
-      } else {
-        setUserVoted(!nextVoted)
-        setVotes((v) => Math.max(0, v + (nextVoted ? -1 : 1)))
-      }
-    } catch {
-      setUserVoted(!nextVoted)
-      setVotes((v) => Math.max(0, v + (nextVoted ? -1 : 1)))
-    } finally {
-      setVoting(false)
-    }
-  }, [user, voting, userVoted, post.id, spawnVoteBurst])
-
-  // Gestos sobre el vídeo: toque simple = play/pausa, doble-toque = votar.
-  // Mismo patrón/ventana (300ms) que CarouselSlide.jsx — AHORA con el mismo
-  // guard de distancia (dx/dy > 12px = fue un ARRASTRE/scroll, no un toque)
-  // que ya usan CarouselSlide.jsx/DuetSlide.jsx, que faltaba por completo
-  // aquí (ver comentario largo en la declaración de `downRef` más arriba).
+  // Gestos sobre el vídeo: SOLO toque simple = play/pausa (sin voto, ver
+  // comentario del componente) — se conserva el guard de distancia (dx/dy >
+  // 12px = fue un ARRASTRE/scroll, no un toque) para no interferir con el
+  // scroll del feed.
   const onMediaPointerDown = useCallback((e) => {
     downRef.current = { x: e.clientX, y: e.clientY }
   }, [])
@@ -224,25 +174,13 @@ export default function OpenChallengeSlide({
     const dy = e.clientY - d.y
     downRef.current = { x: 0, y: 0 }
     // Hubo arrastre (scroll vertical del feed, o cualquier swipe) -> no es
-    // un toque real: ni pausamos/reanudamos ni intentamos votar. Antes,
-    // CUALQUIER gesto de scroll sobre esta tarjeta disparaba de todos modos
-    // la lógica de toque/doble-toque de abajo (bug reportado: el scroll se
-    // sentía "atascado" al pasar por una publicación única).
+    // un toque real: no pausamos/reanudamos. Antes, CUALQUIER gesto de
+    // scroll sobre esta tarjeta disparaba de todos modos la lógica de toque
+    // de abajo (bug reportado: el scroll se sentía "atascado" al pasar por
+    // una publicación única).
     if (Math.abs(dx) > 12 || Math.abs(dy) > 12) return
-    const now = Date.now()
-    const isDouble = now - lastTapRef.current < 300
-    lastTapRef.current = now
-    if (isDouble) {
-      const rect = overlayRef.current?.getBoundingClientRect()
-      const pt = rect ? { x: e.clientX - rect.left, y: e.clientY - rect.top } : null
-      submitVote(pt)
-      return
-    }
-    setTimeout(() => {
-      if (Date.now() - lastTapRef.current < 280) return
-      togglePlay()
-    }, 280)
-  }, [submitVote, togglePlay])
+    togglePlay()
+  }, [togglePlay])
 
   const handleChallengeClick = useCallback((e) => {
     e.stopPropagation()
@@ -287,21 +225,7 @@ export default function OpenChallengeSlide({
   }, [post.id, saved, user])
 
   return (
-    <div ref={overlayRef} className="relative w-full h-full bg-black overflow-hidden select-none">
-      {/* Definición del degradado de marca (morado -> azul, el mismo del botón
-          "+" de crear y otros acentos de Twyk) reutilizado por el icono de
-          voto y su burst — un SVG 0x0 solo para poder referenciarlo con
-          url(#voteGradientOpen) desde fill/stroke. */}
-      <svg width="0" height="0" className="absolute" aria-hidden="true">
-        <defs>
-          <linearGradient id="voteGradientOpen" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#A855F7" />
-            <stop offset="65%" stopColor="#726CF7" />
-            <stop offset="100%" stopColor="#3B82F6" />
-          </linearGradient>
-        </defs>
-      </svg>
-
+    <div className="relative w-full h-full bg-black overflow-hidden select-none">
       {/* Media a pantalla completa */}
       <div className="absolute inset-0" onPointerDown={onMediaPointerDown} onPointerUp={onMediaPointerUp}>
         {(post.posterUrl || (isImage && mediaUrl)) && (
@@ -326,40 +250,6 @@ export default function OpenChallengeSlide({
           <Play size={72} className="text-white drop-shadow-lg" fill="white" />
         </div>
       )}
-
-      {/* "Luxury Battle" — insignia si esta publicación abierta se etiquetó
-          con el tema activo (petición del usuario: los retos abiertos
-          también compiten en el leaderboard, ver luxuryThemeId/luxuryBattle
-          en getOpenChallengeFeedItems, route.js). Muestra el puntaje de IA
-          en cuanto esté disponible (async, puede tardar unos segundos). */}
-      {post.luxuryThemeId && (
-        <div className="absolute top-12 left-1/2 -translate-x-1/2 z-20 pointer-events-none flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold"
-             style={{ background: 'rgba(252,211,77,0.18)', border: '1px solid rgba(252,211,77,0.4)', color: '#FCD34D' }}>
-          🔥 Luxury Battle{typeof post.luxuryBattle?.scoreA === 'number' ? ` · AI ${post.luxuryBattle.scoreA}` : ''}
-        </div>
-      )}
-
-      {/* Pista para votar (mismo criterio que el resto de publicaciones) */}
-      {!userVoted && (
-        <div className={`absolute left-1/2 -translate-x-1/2 z-20 pointer-events-none bg-black/45 backdrop-blur text-white text-[10px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap ${post.luxuryThemeId ? 'top-[76px]' : 'top-12'}`}>
-          Double-tap to vote
-        </div>
-      )}
-
-      {/* Burst del icono de voto — aparece justo donde se hizo el doble-toque.
-          Degradado de marca (morado -> azul) en vez de un morado plano, para
-          que se sienta identidad Twyk y no "el mismo lila del lado A". */}
-      {voteBursts.map((vb) => (
-        vb.x != null && vb.y != null ? (
-          <div key={vb.id} className="absolute z-30 pointer-events-none" style={{ left: vb.x, top: vb.y, transform: 'translate(-50%, -60px)' }}>
-            <VoteBurstEffect fillColor="url(#voteGradientOpen)" strokeColor="url(#voteGradientOpen)" />
-          </div>
-        ) : (
-          <div key={vb.id} className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none">
-            <VoteBurstEffect fillColor="url(#voteGradientOpen)" strokeColor="url(#voteGradientOpen)" />
-          </div>
-        )
-      ))}
 
       {/* Header — MISMA posición/estilo que el resto de publicaciones
           (abajo-izquierda): avatar + nombre + Seguir, sin ningún distintivo
@@ -392,21 +282,12 @@ export default function OpenChallengeSlide({
       </div>
 
       {/* Columna social derecha — MISMA columna que el resto de publicaciones
-          (comentar/compartir/guardar/más), con "Challenge" en el hueco que
-          normalmente ocupa "Votar" (aquí no hay 2 lados que comparar
-          todavía). Abre el MISMO diálogo de reto que cualquier otra
-          publicación — NO publica nada por sí solo. */}
+          (comentar/compartir/guardar/más), con "Challenge" en el lugar del
+          antiguo botón de voto (SIN voto, ver comentario del componente:
+          esta publicación solo existe para ser retada). Abre el MISMO
+          diálogo de reto que cualquier otra publicación — NO publica nada
+          por sí solo. */}
       <div className="absolute z-20 right-1 flex flex-col items-center gap-4 pointer-events-auto" style={showCommentInput ? { bottom: `calc(${COMMENT_BAR_RESERVE} + 6px)` } : { bottom: 72 }}>
-        <button aria-label="vote" onClick={(e) => e.stopPropagation()} className="flex flex-col items-center gap-1 w-14 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
-          <VoteIcon
-            className="w-[40px] h-[40px]"
-            strokeWidth={210}
-            filled={userVoted}
-            fillColor={userVoted ? 'url(#voteGradientOpen)' : '#fff'}
-            strokeColor={userVoted ? 'url(#voteGradientOpen)' : '#fff'}
-          />
-          <span className="text-[9px] font-semibold text-white leading-none text-center whitespace-nowrap">{countLabel(votes, 'Vote')}</span>
-        </button>
         {!isOwnChallenge && (
           <button
             aria-label="challenge"

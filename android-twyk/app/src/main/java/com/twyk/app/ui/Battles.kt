@@ -332,9 +332,9 @@ fun BattlesScreen(
     if (luxurySheetOpen) {
         LuxuryBattleSheet(
             onClose = { luxurySheetOpen = false },
-            onEnter = { theme, mode ->
+            onEnter = { theme ->
                 luxurySheetOpen = false
-                PendingLuxuryEntry.set(theme, mode)
+                PendingLuxuryEntry.set(theme, "challenge")
                 onOpenUpload()
             },
         )
@@ -407,14 +407,14 @@ private fun BattlesHeader(
 
 // "Luxury Battle" — hoja inferior (petición del usuario, réplica nativa de
 // LuxuryBattleSheet.jsx web): tema activo + leaderboard (votos reales +
-// puntaje de IA, ver GET /api/luxury-battles/leaderboard) + 2 botones de
-// entrada ("Enter with an AI photo" = reto 1v1 dirigido; "Post a solo
-// entry" = reto ABIERTO sin rival — petición del usuario: ambos deben
-// poder competir). `onEnter(theme, entryMode)` deja la decisión de qué
-// hacer al padre (BattlesScreen ya la conecta a PendingLuxuryEntry.set +
-// onOpenUpload — ver más arriba).
+// puntaje de IA) + botón de entrada ("Enter with an AI photo" = reto 1v1
+// dirigido). `onEnter(theme)` deja la decisión de qué hacer al padre
+// (BattlesScreen ya la conecta a PendingLuxuryEntry.set + onOpenUpload —
+// ver más arriba). NOTA: no existe ninguna opción de "publicación abierta
+// sin rival" — petición explícita del usuario: "las publicaciones single
+// no deben estar en las batallas porque solo existen para ser retadas".
 @Composable
-private fun LuxuryBattleSheet(onClose: () -> Unit, onEnter: (LuxuryTheme, String) -> Unit) {
+private fun LuxuryBattleSheet(onClose: () -> Unit, onEnter: (LuxuryTheme) -> Unit) {
     var theme by remember { mutableStateOf<LuxuryTheme?>(null) }
     var leaderboard by remember { mutableStateOf<List<LuxuryLeaderboardEntry>>(emptyList()) }
     var loaded by remember { mutableStateOf(false) }
@@ -469,26 +469,16 @@ private fun LuxuryBattleSheet(onClose: () -> Unit, onEnter: (LuxuryTheme, String
                     Text(t.description.orEmpty(), color = Color(0xFFA1A1AA), fontSize = 13.sp, lineHeight = 18.sp)
                 }
                 Spacer(Modifier.height(14.dp))
-                Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Box(
-                        Modifier.fillMaxWidth().height(50.dp).clip(RoundedCornerShape(50))
-                            .background(Brush.linearGradient(listOf(Color(0xFFFCD34D), Color(0xFFF59E0B))))
-                            .clickable { onEnter(t, "challenge") },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Icon(Icons.Filled.AutoAwesome, null, tint = Color.Black, modifier = Modifier.size(17.dp))
-                            Text("Enter with an AI photo", color = Color.Black, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                        }
+                Box(
+                    Modifier.padding(horizontal = 16.dp).fillMaxWidth().height(50.dp).clip(RoundedCornerShape(50))
+                        .background(Brush.linearGradient(listOf(Color(0xFFFCD34D), Color(0xFFF59E0B))))
+                        .clickable { onEnter(t) },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Icon(Icons.Filled.AutoAwesome, null, tint = Color.Black, modifier = Modifier.size(17.dp))
+                        Text("Enter with an AI photo", color = Color.Black, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                     }
-                    // Publicar entrada abierta (petición del usuario: los retos
-                    // ABIERTOS también deben poder competir en el tema activo).
-                    Box(
-                        Modifier.fillMaxWidth().height(46.dp).clip(RoundedCornerShape(50))
-                            .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(50))
-                            .clickable { onEnter(t, "solo") },
-                        contentAlignment = Alignment.Center,
-                    ) { Text("Post a solo entry (no rival)", color = Color.White, fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold) }
                 }
                 Spacer(Modifier.height(18.dp))
                 HorizontalDivider(color = Color.White.copy(alpha = 0.10f))

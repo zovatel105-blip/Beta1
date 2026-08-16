@@ -557,10 +557,11 @@ private fun FileStep(
         aiStage = "input"
         // "Luxury Battle" (petición del usuario, réplica de `initialPrompt`
         // en AIImageEditor.jsx web): si esta subida viene de la hoja de
-        // Luxury Battle (mode challenge/solo) y se está editando el slot A
-        // (el único que se sube en esos 2 modos), precarga el `promptHint`
-        // del tema en vez de arrancar con el cuadro vacío.
-        aiPrompt = if (aiEditorSlot == 0 && (mode == "challenge" || mode == "solo")) luxuryTheme?.promptHint.orEmpty() else ""
+        // Luxury Battle (mode challenge, único modo que la admite — ver
+        // comentario de LuxuryBattleSheet en ui/Battles.kt) y se está
+        // editando el slot A, precarga el `promptHint` del tema en vez de
+        // arrancar con el cuadro vacío.
+        aiPrompt = if (aiEditorSlot == 0 && mode == "challenge") luxuryTheme?.promptHint.orEmpty() else ""
         aiError = null; aiResultUri = null
         aiSuggestions = emptyList()
         val srcUri = aiSourceUri ?: return@LaunchedEffect
@@ -638,10 +639,12 @@ private fun FileStep(
     // redundante por el mismo motivo) también se simplifica.
     Box(Modifier.fillMaxSize().background(Color.Black).statusBarsPadding()) {
         // "Luxury Battle" — banner del tema activo (petición del usuario,
-        // ver ui/Battles.kt/LuxuryBattleSheet) — SOLO si se entró desde ahí
-        // ("Enter with an AI photo" o "Post a solo entry"); no afecta al
-        // flujo normal de Retos/Publicaciones. Puramente informativo.
-        if ((mode == "challenge" || mode == "solo") && luxuryTheme != null) {
+        // ver ui/Battles.kt/LuxuryBattleSheet) — SOLO en retos DIRIGIDOS
+        // (mode 'challenge'); las publicaciones "Single"/abiertas ('solo')
+        // nunca llevan tema (petición del usuario: "las publicaciones
+        // single no deben estar en las batallas porque solo existen para
+        // ser retadas"). Puramente informativo.
+        if (mode == "challenge" && luxuryTheme != null) {
             Box(
                 Modifier.align(Alignment.TopCenter).padding(top = 10.dp).zIndex(10f)
                     .clip(RoundedCornerShape(50))

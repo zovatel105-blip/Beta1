@@ -245,9 +245,9 @@ export default function CompletedBattlesPage({ open, onClose, onOpenActive, onOp
       <LuxuryBattleSheet
         open={luxurySheetOpen}
         onClose={() => setLuxurySheetOpen(false)}
-        onEnter={(theme, entryMode) => {
+        onEnter={(theme) => {
           setLuxurySheetOpen(false)
-          onEnterLuxuryBattle?.(theme, entryMode)
+          onEnterLuxuryBattle?.(theme)
         }}
       />
     </div>

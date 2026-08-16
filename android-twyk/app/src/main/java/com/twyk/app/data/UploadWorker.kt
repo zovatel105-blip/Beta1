@@ -108,6 +108,9 @@ class UploadWorker(appContext: Context, params: WorkerParameters) : CoroutineWor
                 // endpoint de retos que arriba, pero con openChallenge=1 y
                 // sin ningún campo de destinatario (ver createOpenChallenge
                 // en TwykApi.kt). Solo necesita el archivo A + descripción.
+                // NUNCA lleva luxuryThemeId (petición del usuario: "las
+                // publicaciones single no deben estar en las batallas
+                // porque solo existen para ser retadas").
                 "solo" -> {
                     val a = fileA ?: return Result.failure()
                     val part = progressPart("file", a) { progressA = it; report() }
@@ -116,7 +119,6 @@ class UploadWorker(appContext: Context, params: WorkerParameters) : CoroutineWor
                         "1".toRequestBody(textType),
                         description.toRequestBody(textType),
                         musicTitle, musicArtist, musicArtwork, musicPreviewUrl, musicTrackId,
-                        luxuryThemeId,
                     )
                     null
                 }

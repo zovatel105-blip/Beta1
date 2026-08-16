@@ -174,7 +174,9 @@ interface TwykApi {
     // de UploadDialog.jsx (web), que reutiliza el mismo endpoint así. Aparece
     // con un botón "Challenge" en el feed principal (cualquiera puede retar a
     // su creador, ver getOpenChallengeFeedItems) y en el grid de su propio
-    // perfil (GET /api/users/{username} ya la fusiona con sus posts).
+    // perfil (GET /api/users/{username} ya la fusiona con sus posts). NUNCA
+    // lleva `luxuryThemeId` (petición del usuario: "las publicaciones single
+    // no deben estar en las batallas porque solo existen para ser retadas").
     @Multipart
     @POST("api/challenges")
     suspend fun createOpenChallenge(
@@ -186,10 +188,6 @@ interface TwykApi {
         @Part("musicArtwork") musicArtwork: RequestBody?,
         @Part("musicPreviewUrl") musicPreviewUrl: RequestBody?,
         @Part("musicTrackId") musicTrackId: RequestBody?,
-        // "Luxury Battle" (petición del usuario: los retos ABIERTOS también
-        // deben poder competir en el tema activo, no solo los 1v1 dirigidos,
-        // ver scoreLuxuryOpenEntry/route.js) — mismo criterio que arriba.
-        @Part("luxuryThemeId") luxuryThemeId: RequestBody? = null,
     ): ChallengeResponse
 
     // "Luxury Battle" — tema activo (público, sin sesión) y su leaderboard

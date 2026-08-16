@@ -751,7 +751,7 @@ export default function Feed() {
         onOpenSuggestions={() => setSuggestionsOpen(true)}
         onGoHome={handleGoHome}
         onGoHomeDouble={handleGoHomeDouble}
-        onEnterLuxuryBattle={(theme, entryMode) => { setBattlesOpen(false); requestUpload(entryMode || 'challenge', theme) }}
+        onEnterLuxuryBattle={(theme) => { setBattlesOpen(false); requestUpload('challenge', theme) }}
       />
       <ActiveChallengesPage
         open={activeChallengesOpen}

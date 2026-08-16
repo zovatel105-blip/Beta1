@@ -76,8 +76,6 @@ import {
   deleteChallenge,
   getAllBuiltinVotes,
   incrementBuiltinVote,
-  getOpenLuxuryChallengesByThemeId,
-  updateChallengeLuxuryScore,
 } from '@/lib/stores'
 import { rankFeed, recordVote, recordImpressions, recordWatch, recordEngagement, recordSocialAffinity, recordNotInterested, getNotInterestedIds, computeMetrics } from '@/lib/recommender'
 import { registerDeviceToken, unregisterDeviceToken } from '@/lib/push'
@@ -342,13 +340,6 @@ async function getOpenChallengeFeedItems(currentUser, followingSet) {
         voteCount: voteCounts[id] || 0,
         hasVoted: votedByMe.has(id),
         createdAtMs: c.createdAt ? new Date(c.createdAt).getTime() : Date.now(),
-        // "Luxury Battle": si este reto abierto se creó desde la hoja de
-        // Luxury Battle (ver LuxuryBattleSheet.jsx/handleCreateChallenge),
-        // se expone el tema y el puntaje de IA (de un solo lado, ver
-        // scoreLuxuryOpenEntry) para que la tarjeta muestre la misma
-        // etiqueta que un post de batalla normal.
-        luxuryThemeId: c.luxuryThemeId || null,
-        luxuryBattle: c.luxuryBattle || null,
       }
     })
   } catch (e) {
@@ -939,12 +930,12 @@ export async function GET(request, { params }) {
   // (votes.a+votes.b, mismo mecanismo de siempre) con el puntaje de IA
   // (0-100 por lado, ver scoreLuxuryBattlePost) en un único `combinedScore`
   // — ni solo-IA (larpgpt) ni solo-votos, las 2 señales juntas. Público.
-  // Incluye TAMBIÉN los retos ABIERTOS ("Open"/"Single") etiquetados con
-  // este mismo tema (viven en `challenges`, nunca en `posts` — ver
-  // getOpenLuxuryChallengesByThemeId) con un puntaje de IA de un solo lado
-  // (scoreA únicamente, sin rival) — petición del usuario: los retos
-  // abiertos también deben poder competir en el leaderboard, no solo los
-  // 1 contra 1 dirigidos.
+  // NOTA: solo incluye batallas 1 contra 1 dirigidas (posts en `posts`) —
+  // los retos ABIERTOS ("Open"/"Single") NUNCA compiten aquí (petición
+  // explícita del usuario: "las publicaciones single no deben estar en las
+  // batallas porque solo existen para ser retadas" — su único propósito es
+  // ser aceptados por otra persona, momento en el que SÍ se convierten en
+  // una batalla real vía handleAcceptChallenge/scoreLuxuryBattlePost).
   if (path === '/luxury-battles/leaderboard') {
     const { searchParams } = new URL(request.url)
     const themeIdParam = searchParams.get('themeId')
@@ -953,55 +944,30 @@ export async function GET(request, { params }) {
       return NextResponse.json({ theme: null, leaderboard: [] })
     }
     const posts = await getLuxuryBattlePostsByThemeId(theme.id).catch(() => [])
-    const directEntries = posts.map((p) => {
-      const votesTotal = (p.votes?.a || 0) + (p.votes?.b || 0)
-      const scoreA = p.luxuryBattle?.scoreA
-      const scoreB = p.luxuryBattle?.scoreB
-      const aiAvg = (typeof scoreA === 'number' && typeof scoreB === 'number') ? (scoreA + scoreB) / 2 : (typeof scoreA === 'number' ? scoreA : (typeof scoreB === 'number' ? scoreB : null))
-      // Cada voto real vale 5 puntos (señal de la comunidad, con más peso:
-      // es más difícil de conseguir que un puntaje automático) + el
-      // promedio del puntaje de IA (0-100, cuando ya se calculó).
-      const combinedScore = votesTotal * 5 + (aiAvg || 0)
-      return {
-        postId: p.id,
-        entryType: 'battle',
-        author: p.sideA?.author || p.author,
-        opponent: p.sideB?.author || null,
-        posterUrl: p.sideA?.posterUrl || p.posterUrl || null,
-        votesTotal,
-        scoreA: typeof scoreA === 'number' ? scoreA : null,
-        scoreB: typeof scoreB === 'number' ? scoreB : null,
-        aiAvg,
-        combinedScore,
-        createdAt: p.createdAt || p.uploadedAt || null,
-      }
-    })
-
-    const openChallengesForTheme = await getOpenLuxuryChallengesByThemeId(theme.id).catch(() => [])
-    const openIds = openChallengesForTheme.map((c) => `open_${c.id}`)
-    const openVoteCounts = openIds.length ? await getSingleVoteCountsByPostIds(openIds).catch(() => ({})) : {}
-    const openEntries = openChallengesForTheme.map((c) => {
-      const id = `open_${c.id}`
-      const votesTotal = openVoteCounts[id] || 0
-      const scoreA = c.luxuryBattle?.scoreA
-      const aiAvg = typeof scoreA === 'number' ? scoreA : null
-      const combinedScore = votesTotal * 5 + (aiAvg || 0)
-      return {
-        postId: id,
-        entryType: 'open',
-        author: c.from,
-        opponent: null,
-        posterUrl: c.challengerPosterUrl || null,
-        votesTotal,
-        scoreA: typeof scoreA === 'number' ? scoreA : null,
-        scoreB: null,
-        aiAvg,
-        combinedScore,
-        createdAt: c.createdAt || null,
-      }
-    })
-
-    const leaderboard = [...directEntries, ...openEntries]
+    const leaderboard = posts
+      .map((p) => {
+        const votesTotal = (p.votes?.a || 0) + (p.votes?.b || 0)
+        const scoreA = p.luxuryBattle?.scoreA
+        const scoreB = p.luxuryBattle?.scoreB
+        const aiAvg = (typeof scoreA === 'number' && typeof scoreB === 'number') ? (scoreA + scoreB) / 2 : (typeof scoreA === 'number' ? scoreA : (typeof scoreB === 'number' ? scoreB : null))
+        // Cada voto real vale 5 puntos (señal de la comunidad, con más peso:
+        // es más difícil de conseguir que un puntaje automático) + el
+        // promedio del puntaje de IA (0-100, cuando ya se calculó).
+        const combinedScore = votesTotal * 5 + (aiAvg || 0)
+        return {
+          postId: p.id,
+          entryType: 'battle',
+          author: p.sideA?.author || p.author,
+          opponent: p.sideB?.author || null,
+          posterUrl: p.sideA?.posterUrl || p.posterUrl || null,
+          votesTotal,
+          scoreA: typeof scoreA === 'number' ? scoreA : null,
+          scoreB: typeof scoreB === 'number' ? scoreB : null,
+          aiAvg,
+          combinedScore,
+          createdAt: p.createdAt || p.uploadedAt || null,
+        }
+      })
       .sort((a, b) => b.combinedScore - a.combinedScore)
       .slice(0, 20)
     return NextResponse.json({ theme: stripMongoId(theme), leaderboard })
@@ -2240,20 +2206,17 @@ async function handleCreateChallenge(request) {
       targetDescription: openChallenge ? '' : targetDescription,
       targetMusic: openChallenge ? '' : targetMusic,
       message,
-      luxuryThemeId,
+      // "Luxury Battle": el tema SOLO se guarda en retos DIRIGIDOS (no
+      // abiertos) — petición explícita del usuario: "las publicaciones
+      // single no deben estar en las batallas porque solo existen para ser
+      // retadas". Un reto abierto se convierte en una batalla real (y
+      // hereda el tema correctamente) únicamente cuando OTRA persona lo
+      // reta y este se acepta — ver handleAcceptChallenge más abajo.
+      luxuryThemeId: openChallenge ? null : luxuryThemeId,
       ...readMusicFields(formData),
       createdAt: new Date().toISOString(),
     }
     await insertChallenge(challenge)
-
-    // "Luxury Battle": un reto ABIERTO ("Open"/"Single") etiquetado con un
-    // tema de lujo se puntúa de inmediato (un solo lado, sin rival — no hay
-    // paso de "aceptar" como en los retos dirigidos) — fire-and-forget,
-    // nunca bloquea la respuesta de crear el reto. Petición del usuario:
-    // los retos abiertos también deben poder competir en el leaderboard.
-    if (openChallenge && luxuryThemeId) {
-      scoreLuxuryOpenEntry(challenge, luxuryThemeId).catch((e) => console.error('luxury open entry scoring error', e))
-    }
 
     if (!openChallenge) {
       // TWYK Engine: retar a alguien (botón Challenge) es afinidad social máxima
@@ -2504,21 +2467,6 @@ async function scoreLuxuryBattlePost(post, themeId) {
   const result = await runLuxuryJudge(theme, baseA, baseB, post.id)
   if (!result) return
   await updatePostLuxuryScore(post.id, result)
-}
-
-// Puntúa un reto ABIERTO ("Open"/"Single") etiquetado con un tema de lujo —
-// UN SOLO lado (sin rival), guardado directamente en el propio documento
-// del reto (colección `challenges`, ver updateChallengeLuxuryScore) ya que
-// estos retos nunca llegan a crear un post en `posts`. Fire-and-forget,
-// llamado desde handleCreateChallenge justo tras crear el reto abierto.
-async function scoreLuxuryOpenEntry(challenge, themeId) {
-  const theme = await getLuxuryThemeById(themeId)
-  if (!theme) return
-  const baseA = await readLocalUploadAsBase64(challenge.challengerPosterUrl)
-  if (!baseA) return
-  const result = await runLuxuryJudge(theme, baseA, null, challenge.id)
-  if (!result) return
-  await updateChallengeLuxuryScore(challenge.id, { scoreA: result.scoreA, verdictA: result.verdictA })
 }
 
 // POST /api/admin/luxury-battles/theme  body: { title, description, promptHint }
