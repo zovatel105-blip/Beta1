@@ -16,6 +16,7 @@ import ActiveChallengesPage from './ActiveChallengesPage'
 import AuthModal from './AuthModal'
 import SearchOverlay from './SearchOverlay'
 import SuggestedUsersPage from './SuggestedUsersPage'
+import TrendingChallengePostsPage from './TrendingChallengePostsPage'
 import { useAuth } from '@/contexts/AuthContext'
 import { notificationsUnreadCount } from '@/lib/notifications'
 import { startNetworkMonitor, pickQuality, shouldConserve } from '@/lib/networkQuality'
@@ -137,6 +138,11 @@ export default function Feed() {
   const [activeChallengesOpen, setActiveChallengesOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [suggestionsOpen, setSuggestionsOpen] = useState(false)
+  // Pantalla de publicaciones de un "Trending Challenge" concreto (ej.
+  // "Yacht Life"), abierta al tocar su nombre en el buscador (lupa) — ver
+  // SearchOverlay.jsx / TrendingChallengePostsPage.jsx.
+  const [trendingChallengeOpen, setTrendingChallengeOpen] = useState(false)
+  const [trendingChallengeThemeId, setTrendingChallengeThemeId] = useState(null)
   const [battlesRefresh, setBattlesRefresh] = useState(0)
   const [pendingCount, setPendingCount] = useState(0)
   // Visor de UNA publicación abierta desde el grid del perfil (propio o
@@ -169,6 +175,7 @@ export default function Feed() {
   useBackableOverlay(battlesOpen || activeChallengesOpen, useCallback(() => { setBattlesOpen(false); setActiveChallengesOpen(false) }, []))
   useBackableOverlay(searchOpen, useCallback(() => setSearchOpen(false), []))
   useBackableOverlay(suggestionsOpen, useCallback(() => setSuggestionsOpen(false), []))
+  useBackableOverlay(trendingChallengeOpen, useCallback(() => setTrendingChallengeOpen(false), []))
   // Página "Siguiendo" (nueva, doble-click en Home): el gesto/botón Atrás
   // también vuelve al feed principal, igual que el resto de páginas overlay.
   useBackableOverlay(followingMode, useCallback(() => setFollowingMode(false), []))
@@ -340,7 +347,7 @@ export default function Feed() {
   // que se abre directamente desde Crear/Retos/Bandeja para invitados, sin
   // pasar por ningún otro overlay) -> el audio de la publicación seguía
   // escuchándose de fondo mientras se mostraba el modal de inicio de sesión.
-  const overlayOpen = profileOpen || battlesOpen || activeChallengesOpen || searchOpen || suggestionsOpen || inboxOpen || uploadOpen || authOpen
+  const overlayOpen = profileOpen || battlesOpen || activeChallengesOpen || searchOpen || suggestionsOpen || inboxOpen || uploadOpen || authOpen || trendingChallengeOpen
   const effectivePlayback = playbackEnabled && !overlayOpen
 
   const openChallenge = useCallback((target) => {
@@ -732,6 +739,7 @@ export default function Feed() {
         open={searchOpen}
         onClose={() => setSearchOpen(false)}
         onOpenProfile={openAuthorProfile}
+        onOpenTrendingChallenge={(themeId) => { setTrendingChallengeThemeId(themeId); setTrendingChallengeOpen(true) }}
       />
       <SuggestedUsersPage
         open={suggestionsOpen}
@@ -759,6 +767,17 @@ export default function Feed() {
         onOpenCompleted={() => { setActiveChallengesOpen(false); setBattlesOpen(true) }}
         onAccepted={(post) => { handleChallengeAccepted(post); setBattlesRefresh((k) => k + 1) }}
         onChanged={refreshChallenges}
+      />
+      <TrendingChallengePostsPage
+        open={trendingChallengeOpen}
+        themeId={trendingChallengeThemeId}
+        onClose={() => setTrendingChallengeOpen(false)}
+        onOpenAuthorProfile={(uname) => { setTrendingChallengeOpen(false); openAuthorProfile(uname) }}
+        onOpenUpload={() => { setTrendingChallengeOpen(false); requestUpload() }}
+        onOpenInbox={() => { setTrendingChallengeOpen(false); setInboxOpen(true) }}
+        onOpenProfile={() => { setTrendingChallengeOpen(false); setProfileUsername(null); setProfileOpen(true) }}
+        onGoHome={() => { setTrendingChallengeOpen(false); handleGoHome() }}
+        onGoHomeDouble={() => { setTrendingChallengeOpen(false); handleGoHomeDouble() }}
       />
 
       {/* Banner de subida de reto en segundo plano */}

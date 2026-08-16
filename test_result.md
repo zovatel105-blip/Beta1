@@ -4528,8 +4528,103 @@ agent_communication:
     -agent: "main"
     -message: "Arreglado: (1) editor de IA disponible al responder un reto en 'Active' (ya confirmado por el usuario probándolo él mismo); (2) la sugerencia de texto del tema Luxury Battle ahora también llega a la persona retada (antes solo aparecía para quien crea el reto) — el reto guarda una copia del tema (título+promptHint) al crearse. Verificado en vivo con llamadas reales y Playwright real, SIN agente de testing (instrucción explícita y repetida del usuario)."
 
+backend:
+  - task: "BUG: la píldora amarilla ('Trending Challenge', antes 'Luxury Battle') ya no se muestra en la página de Retos > Completados"
+    implemented: true
+    working: "NA"
+    file: "lib/db.js (getActiveLuxuryTheme/setActiveLuxuryTheme), app/api/[[...path]]/route.js (GET /api/luxury-battles/active, POST /api/admin/luxury-battles/theme), components/CompletedBattlesPage.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: false
+        -agent: "user"
+        -comment: "'Porque la pastilla amarilla que aparecia en la pagina de retos ya no SE muestra' — tras la sesión anterior donde se restauró /app/.env y se resembró la base de datos (solo usuarios, con scripts/seed-core-users.mjs)."
+        -working: "NA"
+        -agent: "main"
+        -comment: "CAUSA RAÍZ: misma causa recurrente de siempre (ver memory/ENV_BACKUP.md) — el pod se reinició, MongoDB vive en almacenamiento efímero y quedó completamente vacía (0 colecciones). En la tarea anterior de esta sesión solo se re-sembraron los USUARIOS (scripts/seed-core-users.mjs); el documento del tema activo de 'Luxury Battle'/'Trending Challenge' (colección `luxuryThemes`, `{active:true}`, ver getActiveLuxuryTheme en lib/db.js) NUNCA se recreó. Por eso GET /api/luxury-battles/active devolvía `{theme:null}` y CompletedBattlesPage.jsx (que solo renderiza la píldora `{luxuryThemeTitle && (...)}`) no mostraba nada — el código de la píldora en sí NO tiene ningún bug, es exactamente el mismo que se renombró de 'Luxury Battle' a 'Trending Challenge' en la tarea anterior. Confirmado con node fetch (sin curl): `luxuryThemes` no existía como colección (0 documentos). FIX: recreado el tema activo 'Yacht Life' (mismo tema usado consistentemente en todas las sesiones anteriores tras cada pérdida de entorno, ver historial en este mismo archivo) vía una llamada REAL a POST /api/admin/luxury-battles/theme, autenticado como admin real (login twyk/Admin12345 -> token Bearer), con title='Yacht Life', description y promptHint ('Put me relaxing on a luxury yacht deck at sunset, wearing designer clothes, champagne in hand, ocean views all around.'). Verificado con GET /api/luxury-battles/active -> 200, `{theme:{title:'Yacht Life', ..., active:true}}`. Con esto, CompletedBattlesPage.jsx debería volver a mostrar la píldora '🔥 Trending Challenge: Yacht Life' al abrir la pestaña Batallas > Completados (mismo mecanismo ya verificado visualmente en sesiones anteriores, sin cambios de código en esta tarea). Necesita verificación del agente de testing (backend) para confirmar el contrato de API antes de dar el bug por resuelto."
+        -working: true
+        -agent: "user"
+        -comment: "'No usar El testing agent y El treading debe estar tambien en El buscador (lupa) del feed' — el usuario no disputa el fix (pasa directamente a pedir una funcionalidad nueva relacionada), pero pide explícitamente NO usar el agente de testing para esta verificación. Se respeta la instrucción; el fix se da por bueno en base a la comprobación manual ya hecha (GET /api/luxury-battles/active -> 200 con theme.title='Yacht Life')."
 
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 1
 
+test_plan:
+  current_focus:
+    - "BUG: la píldora amarilla ('Trending Challenge') ya no se muestra en la página de Retos > Completados"
+  stuck_tasks:
+    - "BUG: el botón 'Challenge' de las publicaciones 'Single' (de OTRO usuario, no propias) sigue sin responder en la APK nativa tras el fix de exclusión de publicaciones propias — CAUSA AÚN NO CONFIRMADA, pendiente de más información del usuario"
+  test_all: false
+  test_priority: "high_first"
 
+agent_communication:
+    -agent: "main"
+    -message: "BUG reportado por el usuario: la píldora amarilla de Retos > Completados (renombrada de 'Luxury Battle' a 'Trending Challenge' en la tarea anterior) dejó de mostrarse. CAUSA: al restaurar /app/.env en la tarea anterior, MongoDB estaba vacía y solo re-sembré usuarios (seed-core-users.mjs), sin recrear el documento del tema activo en la colección `luxuryThemes` — GET /api/luxury-battles/active devolvía theme:null, por eso la píldora (que solo se renderiza si hay un theme activo) no aparecía. FIX: recreado el tema 'Yacht Life' como activo vía POST /api/admin/luxury-battles/theme (login real como admin). El usuario pidió explícitamente NO usar el agente de testing para esta verificación (respetado) y pasó directamente a pedir una funcionalidad relacionada: mostrar el 'trending' también en el buscador (lupa) del feed."
 
+backend:
+  - task: "GET /api/luxury-battles/posts?themeId=... — publicaciones reales de un Trending Challenge concreto"
+    implemented: true
+    working: "NA"
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "Nuevo endpoint público (sin sesión), petición del usuario: 'al hacer click te dirige a las publicaciones en ESE challenge'. Por defecto usa el tema ACTIVO (getActiveLuxuryTheme) o el indicado por ?themeId=; filtra `readUploadMeta()` (colección `posts`) por `p.luxuryThemeId === theme.id`, refresca avatares/nombre/verificado con getCurrentUsersByUsernames (mismo patrón que /api/challenges/completed) y refresca contadores de comentarios (refreshPostCommentCounts). Devuelve {theme, posts:[...]} con la publicación COMPLETA (misma forma que /api/challenges/completed), a diferencia de /api/luxury-battles/leaderboard que solo devuelve un resumen. Verificado con llamada real (node fetch, sin curl): GET /api/luxury-battles/posts -> 200, {theme:{title:'Yacht Life',...}, posts:[]} (0 posts reales etiquetados con este tema todavía, esperado). Si theme es null (nunca se configuró ninguno) devuelve {theme:null, posts:[]}. NO se usó agente de testing (petición explícita y repetida del usuario en esta sesión)."
 
+frontend:
+  - task: "Mostrar los challenges en trending (tema activo, ej. 'Yacht Life') dentro del buscador (lupa) del feed, y al tocarlo abrir sus publicaciones reales"
+    implemented: true
+    working: "NA"
+    file: "components/SearchOverlay.jsx, components/TrendingChallengePostsPage.jsx, components/Feed.jsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'El trending debe estar también en el buscador (lupa) del feed'."
+        -working: "NA"
+        -agent: "main"
+        -comment: "1er intento: añadida una píldora dorada '🔥 Trending Challenge: <título>' en la cabecera de SearchOverlay.jsx (mismo patrón que CompletedBattlesPage.jsx: fetch de GET /api/luxury-battles/active al abrirse, y al tocarla abre LuxuryBattleSheet)."
+        -working: "NA"
+        -agent: "user"
+        -comment: "'No debe aparecer la pastilla deben aparecer los challenge que estan en trending' — corrección: no quiere un botón/píldora que abra otra hoja, quiere ver DIRECTAMENTE los retos que están en tendencia."
+        -working: "NA"
+        -agent: "main"
+        -comment: "Pregunté qué debía pasar al tocar una tarjeta (abrir perfil del autor / abrir el vídeo a pantalla completa / nada); el usuario respondió 'Debe aparecer El challenge en treding por ejemplo :yacht life' — confirma que además de la lista de entradas, el NOMBRE del tema activo (ej. 'Yacht Life') debe verse como encabezado/ejemplo. Con la pregunta original sin respuesta explícita, se tomó por defecto la opción de menor riesgo (reutilizar la navegación ya existente del buscador)."
+        -working: "NA"
+        -agent: "main"
+        -comment: "FIX FINAL: quitada la píldora y el `LuxuryBattleSheet` de SearchOverlay.jsx. En su lugar, nueva sección fija justo debajo de la cabecera de búsqueda: título '🔥 TRENDING CHALLENGE · <título del tema>' (ej. 'Yacht Life', mismos datos que GET /api/luxury-battles/leaderboard, ya usado por LuxuryBattleSheet — combina votos reales + puntaje de IA) + una fila horizontal con scroll de tarjetas (miniatura `posterUrl`, avatar+username del autor, badge de votos totales) — una tarjeta por cada reto real etiquetado con el tema activo. Solo se muestra la sección si HAY un tema activo (si no, ningún cambio visual respecto a antes); si el tema existe pero aún no tiene ninguna entrada, se muestra el título igual con el mensaje 'No entries yet — be the first to battle!' (mismo texto que ya usa LuxuryBattleSheet para el mismo caso). DEFAULT ELEGIDO para la acción al tocar una tarjeta (pregunta sin respuesta explícita del usuario): abre el perfil del autor de ese challenge (`onOpenProfile`, ya existente en SearchOverlay, misma acción que tocar un resultado de búsqueda de usuario) — NO abre el vídeo a pantalla completa (esa opción requeriría una función nueva de visor de post desde el buscador, no implementada). Lint limpio (0 issues). Estado real de datos: el tema activo 'Yacht Life' existe (recreado en la tarea anterior) pero aún no tiene ningún reto etiquetado con él (MongoDB fue re-sembrada solo con usuarios tras la pérdida de entorno) — por eso ahora mismo se vería el encabezado 'Trending Challenge · Yacht Life' con el mensaje vacío; en cuanto exista al menos un reto real con ese tema, aparecerá automáticamente en la fila. NO se usó agente de testing en el frontend (regla del sistema: requiere permiso explícito del usuario, no solicitado en esta tarea) — verificado solo con lint. PENDIENTE: confirmar con el usuario si la acción al tocar una tarjeta (abrir perfil) es la deseada, o si prefiere abrir el vídeo/post directamente."
+        -working: "NA"
+        -agent: "user"
+        -comment: "'Debe mostrar solo El nombre del challenge( son los challenge en tendencia) y Al hacer click te dirige a las publicaciones en ESE challenge' — 3ª corrección: sin miniaturas/votos/avatares, solo el NOMBRE; al tocarlo debe llevar a las publicaciones reales de ese challenge (no al perfil de un autor)."
+        -working: "NA"
+        -agent: "main"
+        -comment: "Confirmado por el usuario (opción 'A' tras pregunta de flujo) + 'no usar el testing agent'. FIX DEFINITIVO: SearchOverlay.jsx simplificado a una sola fila con el nombre del tema activo ('Trending Challenge' + 'Yacht Life' + flecha, sin miniaturas/votos/avatares), consulta GET /api/luxury-battles/active. Al tocarla, cierra el buscador y llama a `onOpenTrendingChallenge(themeId)` (nueva prop). Nuevo componente TrendingChallengePostsPage.jsx: pantalla a pantalla completa con Swiper vertical de CarouselSlide/DuetSlide (mismo patrón que CompletedBattlesPage.jsx) que consume el nuevo GET /api/luxury-battles/posts?themeId=... — muestra TODAS las publicaciones reales de ese challenge concreto. Feed.jsx: nuevo estado `trendingChallengeOpen`/`trendingChallengeThemeId`, incluido en `overlayOpen` (pausa el audio del feed de fondo) y en `useBackableOverlay` (gesto nativo de Atrás), wiring de BottomNav (subir/bandeja/perfil/inicio cierran esta pantalla y abren la correspondiente, igual que el resto de overlays). Lint limpio en los 4 archivos (0 issues). Verificado con llamada real al nuevo endpoint (sin curl): 200, theme.title='Yacht Life', posts=[] (esperado, 0 retos reales con este tema todavía) — la pantalla nueva mostrará su estado vacío hasta que exista al menos una publicación real etiquetada con este tema. NO se usó agente de testing (petición explícita y repetida del usuario)."
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 1
+
+test_plan:
+  current_focus:
+    - "Trending Challenge en el buscador: nombre del tema -> pantalla de publicaciones reales de ese challenge (GET /api/luxury-battles/posts)"
+  stuck_tasks:
+    - "BUG: el botón 'Challenge' de las publicaciones 'Single' (de OTRO usuario, no propias) sigue sin responder en la APK nativa tras el fix de exclusión de publicaciones propias — CAUSA AÚN NO CONFIRMADA, pendiente de más información del usuario"
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    -agent: "main"
+    -message: "Implementado (tras 2 correcciones del usuario): el buscador (lupa) del feed ahora muestra una sección 'Trending Challenge · <tema activo>' con una fila horizontal de tarjetas (miniatura + autor + votos) de los retos reales etiquetados con el tema activo (mismos datos que ya usa el leaderboard de LuxuryBattleSheet, GET /api/luxury-battles/leaderboard). Se quitó la píldora/botón que abría una hoja aparte (pedido explícito del usuario). Ahora mismo la sección mostrará el título 'Yacht Life' con la lista vacía (mensaje 'No entries yet'), porque el tema activo existe pero no hay ningún reto real etiquetado con él todavía tras la última pérdida de entorno. NO se usó agente de testing (frontend no autorizado sin permiso explícito, y el usuario ha pedido repetidamente no usarlo en esta app) — verificado solo con lint (0 issues)."
+    -agent: "user"
+    -comment: "'Debe mostrar solo El nombre del challenge( son los challenge en tendencia) y Al hacer click te dirige a las publicaciones en ESE challenge' — 3ª corrección: nada de miniaturas/votos/avatares en el buscador, solo el NOMBRE, y al tocarlo debe abrir una pantalla con las publicaciones reales de ese challenge (no el perfil de un autor cualquiera)."
+    -agent: "main"
+    -message: "Pregunté para confirmar el flujo exacto (nombre -> pantalla nueva de vídeos deslizables vs. reutilizar Retos>Completados vs. otra cosa); el usuario respondió 'A' (pantalla nueva) + 'no usar el testing agent'. IMPLEMENTADO: (1) BACKEND — nuevo endpoint público GET /api/luxury-battles/posts?themeId=... (route.js): devuelve la publicación COMPLETA (misma forma que /api/challenges/completed, con avatares refrescados) de TODAS las publicaciones reales (de cualquier usuario) etiquetadas con `luxuryThemeId` del tema indicado (por defecto, el activo) — a diferencia de /api/luxury-battles/leaderboard, que solo devuelve un resumen para el ranking. Verificado con llamada real: GET /api/luxury-battles/posts -> 200, theme.title='Yacht Life', posts=[] (0 retos reales etiquetados con este tema todavía, dato real, no hay nada que ocultar). (2) FRONTEND — SearchOverlay.jsx simplificado: ya no muestra tarjetas con miniatura/votos, solo una fila con el nombre del tema ('Trending Challenge' + 'Yacht Life' + flecha), consulta GET /api/luxury-battles/active (más liviano, ya no necesita el leaderboard). Nuevo componente components/TrendingChallengePostsPage.jsx: pantalla a pantalla completa (mismo patrón que CompletedBattlesPage.jsx: Swiper vertical de CarouselSlide/DuetSlide, BottomNav, gesto nativo de Atrás vía useBackableOverlay, pausa de audio de fondo vía `overlayOpen`) que consume el nuevo endpoint. Feed.jsx: nuevo estado `trendingChallengeOpen`/`trendingChallengeThemeId`, wiring completo (BottomNav del feed principal sigue funcionando al navegar desde ahí: subir/bandeja/perfil cierran esta pantalla y abren la correspondiente, igual que el resto de overlays de la app). Lint limpio en los 4 archivos tocados (0 issues). Estado real: como el tema activo 'Yacht Life' no tiene ninguna publicación real etiquetada todavía (MongoDB fue re-sembrada solo con usuarios tras la última pérdida de entorno), la pantalla nueva mostrará su estado vacío ('No hay publicaciones todavía') hasta que exista al menos un reto real con ese tema — comportamiento esperado, no un bug. NO se usó agente de testing (petición explícita y repetida del usuario en esta misma sesión) — verificado con lint + una llamada real (node fetch, sin curl) al nuevo endpoint + logs de supervisor sin errores tras el hot-reload."

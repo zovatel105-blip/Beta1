@@ -1,18 +1,39 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Search, X, ArrowLeft, BadgeCheck } from 'lucide-react'
+import { Search, X, ArrowLeft, BadgeCheck, Flame, ChevronRight } from 'lucide-react'
 import Avatar from './Avatar'
 
 // Overlay de búsqueda de USUARIOS (estilo TikTok). Se abre desde la lupa del
 // feed. Busca en vivo (debounce) contra GET /api/users?q=... y al tocar un
 // resultado abre el perfil de ese usuario.
-export default function SearchOverlay({ open, onClose, onOpenProfile }) {
+//
+// "Trending Challenge" (petición del usuario, tras 2 correcciones en esta
+// misma sesión: 1º una píldora que abría una hoja aparte -descartado-, 2º
+// una fila de tarjetas con miniatura/votos -descartado-, 3º LA DEFINITIVA:
+// "Debe mostrar solo el nombre del challenge (son los challenge en
+// tendencia) y al hacer click te dirige a las publicaciones en ESE
+// challenge"). Aquí se muestra SOLO el nombre del tema activo (ej. "Yacht
+// Life", GET /api/luxury-battles/active) como una fila simple; al tocarlo
+// se llama a `onOpenTrendingChallenge(themeId)`, que el padre (Feed.jsx)
+// usa para cerrar este buscador y abrir TrendingChallengePostsPage.jsx (un
+// vídeo deslizable con TODAS las publicaciones reales de ese challenge).
+export default function SearchOverlay({ open, onClose, onOpenProfile, onOpenTrendingChallenge }) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState([])
   const [loading, setLoading] = useState(false)
   const inputRef = useRef(null)
   const debounceRef = useRef(null)
+  const [trendingTheme, setTrendingTheme] = useState(null)
+  useEffect(() => {
+    if (!open) return
+    let cancelled = false
+    fetch('/api/luxury-battles/active', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d) => { if (!cancelled) setTrendingTheme(d?.theme || null) })
+      .catch(() => { if (!cancelled) setTrendingTheme(null) })
+    return () => { cancelled = true }
+  }, [open])
 
   // Autofocus al abrir; limpiar al cerrar.
   useEffect(() => {
@@ -55,6 +76,12 @@ export default function SearchOverlay({ open, onClose, onOpenProfile }) {
     onOpenProfile?.(username)
   }
 
+  const handleOpenTrending = () => {
+    if (!trendingTheme?.id) return
+    onClose?.()
+    onOpenTrendingChallenge?.(trendingTheme.id)
+  }
+
   return (
     <div className="fixed inset-0 z-[80] bg-[#0a0a0b] flex flex-col">
       {/* Cabecera: volver + input + limpiar */}
@@ -92,6 +119,26 @@ export default function SearchOverlay({ open, onClose, onOpenProfile }) {
           )}
         </div>
       </div>
+
+      {/* "Trending Challenge" — solo el NOMBRE del tema activo (ej. "Yacht
+          Life"). Al tocarlo se abre la pantalla con todas las publicaciones
+          reales de ese challenge. */}
+      {trendingTheme && (
+        <button
+          onClick={handleOpenTrending}
+          className="flex items-center gap-2.5 px-4 py-3 border-b border-white/10 active:bg-white/5 transition text-left"
+        >
+          <div className="w-9 h-9 rounded-full shrink-0 flex items-center justify-center"
+               style={{ background: 'linear-gradient(135deg, rgba(252,211,77,0.18), rgba(245,158,11,0.18))', border: '1px solid rgba(252,211,77,0.35)' }}>
+            <Flame size={16} className="fill-current text-amber-300" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-amber-300 text-[10px] font-bold uppercase tracking-wide">Trending Challenge</p>
+            <p className="text-white text-[15px] font-semibold truncate">{trendingTheme.title}</p>
+          </div>
+          <ChevronRight size={18} className="text-white/30 shrink-0" />
+        </button>
+      )}
 
       {/* Resultados */}
       <div className="flex-1 overflow-y-auto no-scrollbar">

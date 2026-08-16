@@ -973,6 +973,50 @@ export async function GET(request, { params }) {
     return NextResponse.json({ theme: stripMongoId(theme), leaderboard })
   }
 
+  // GET /api/luxury-battles/posts?themeId=... — TODAS las publicaciones
+  // REALES (de CUALQUIER usuario, no solo las mías, a diferencia de
+  // /api/challenges/completed) etiquetadas con un "Trending Challenge" (por
+  // defecto, el tema ACTIVO). Público. Petición del usuario: "Debe mostrar
+  // solo el nombre del challenge... y al hacer click te dirige a las
+  // publicaciones en ESE challenge" — el buscador (lupa) muestra solo el
+  // NOMBRE (ver /luxury-battles/active), y esta ruta alimenta la pantalla
+  // de vídeos deslizables que se abre al tocarlo (TrendingChallengePostsPage.jsx,
+  // mismo componente CarouselSlide/DuetSlide que el resto de la app). A
+  // diferencia de /luxury-battles/leaderboard (que solo devuelve un RESUMEN
+  // para el ranking: autor, votos, puntaje), aquí se devuelve la publicación
+  // COMPLETA (misma forma que /api/challenges/completed) para poder
+  // reproducirla.
+  if (path === '/luxury-battles/posts') {
+    const { searchParams } = new URL(request.url)
+    const themeIdParam = searchParams.get('themeId')
+    const theme = themeIdParam ? await getLuxuryThemeById(themeIdParam).catch(() => null) : await getActiveLuxuryTheme().catch(() => null)
+    if (!theme) {
+      return NextResponse.json({ theme: null, posts: [] })
+    }
+    const meta = await readUploadMeta()
+    const posts = meta.filter((p) => p.luxuryThemeId === theme.id)
+    const unames = []
+    for (const p of posts) {
+      if (p.author?.username) unames.push(p.author.username)
+      if (p.sideA?.author?.username) unames.push(p.sideA.author.username)
+      if (p.sideB?.author?.username) unames.push(p.sideB.author.username)
+    }
+    const freshP = await getCurrentUsersByUsernames(unames)
+    const refreshP = (a) => {
+      if (!a || !a.username) return a
+      const f = freshP[a.username]
+      if (!f) return a
+      return { ...a, avatarUrl: f.avatarUrl || a.avatarUrl, name: f.name || a.name, verified: f.verified }
+    }
+    const enrichedPosts = posts.map((p) => ({
+      ...p,
+      author: refreshP(p.author),
+      sideA: p.sideA ? { ...p.sideA, author: refreshP(p.sideA.author) } : p.sideA,
+      sideB: p.sideB ? { ...p.sideB, author: refreshP(p.sideB.author) } : p.sideB,
+    }))
+    return NextResponse.json({ theme: stripMongoId(theme), posts: await refreshPostCommentCounts(enrichedPosts) })
+  }
+
   // Lista de retos (solicitudes de enfrentamiento) pendientes DEL USUARIO ACTUAL.
   // Por defecto devuelve los retos DIRIGIDOS a mí (role=to) -> los que puedo
   // aceptar/rechazar (bandeja, retos activos, badge). role=from = los que yo
