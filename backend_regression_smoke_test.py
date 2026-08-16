@@ -6,7 +6,7 @@ Tests 5 critical endpoints to confirm no backend regressions.
 import requests
 import sys
 
-BASE_URL = "https://feature-gap-bridge.preview.emergentagent.com/api"
+BASE_URL = "https://battle-preview-4.preview.emergentagent.com/api"
 
 def test_backend_regression():
     print("=" * 80)

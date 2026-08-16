@@ -16,8 +16,8 @@ scripts/seed-core-users.mjs y memory/test_credentials.md).
 ```
 MONGO_URL=mongodb://localhost:27017/twyk
 ADMIN_EMAILS=twyk.apk@gmail.com
-NEXT_PUBLIC_BASE_URL=https://feature-gap-bridge.preview.emergentagent.com
-CORS_ORIGINS=https://feature-gap-bridge.preview.emergentagent.com
+NEXT_PUBLIC_BASE_URL=https://battle-preview-4.preview.emergentagent.com
+CORS_ORIGINS=https://battle-preview-4.preview.emergentagent.com
 FIREBASE_PROJECT_ID=
 FIREBASE_CLIENT_EMAIL=
 FIREBASE_PRIVATE_KEY=
@@ -59,7 +59,7 @@ después de que Next.js haga su propio "Reload env: .env" (log de supervisor),
 o preguntar al usuario cuál es la URL que ve en su navegador.
 
 ## Última URL usada (actualizada automáticamente al restaurar)
-NEXT_PUBLIC_BASE_URL=https://d4b8a39b-f370-41c4-9e2c-11b2146e2b7f.preview.emergentagent.com
+NEXT_PUBLIC_BASE_URL=https://battle-preview-4.preview.emergentagent.com
 (.env recreado en esta sesión — MONGO_URL/ADMIN_EMAILS/CORS_ORIGINS con esta
 misma URL; FIREBASE_* vacíos [el usuario debe volver a subir el JSON de la
 cuenta de servicio si necesita push]; EMERGENT_LLM_KEY obtenida vía
