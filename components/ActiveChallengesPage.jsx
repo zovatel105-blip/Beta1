@@ -5,8 +5,9 @@ import { useEffect, useRef, useState } from 'react'
 import { Swiper, SwiperSlide } from 'swiper/react'
 import { Mousewheel, Keyboard } from 'swiper/modules'
 import 'swiper/css'
-import { Swords, Check, X, Loader2, Film, ChevronUp, Image as ImageIcon } from 'lucide-react'
+import { Swords, Check, X, Loader2, Film, ChevronUp, Image as ImageIcon, Sparkles } from 'lucide-react'
 import Avatar from './Avatar'
+import AIImageEditor from './AIImageEditor'
 
 /**
  * ActiveChallengesPage — Active challenges (premium minimalist, full view).
@@ -35,6 +36,16 @@ const ChallengeSlide = ({ c, active, busy, onAccept, onReject, muted, showNextHi
   const [responseFile, setResponseFile] = useState(null)
   const [responsePreview, setResponsePreview] = useState(null)
   const [typeError, setTypeError] = useState(null)
+  // Editor de fotos con IA para MI respuesta (petición del usuario: "en
+  // active cuando me estan retando no puedo editar la imagen con ia antes
+  // de enviar el reto") — réplica del mismo patrón "en el mismo sitio" que
+  // UploadDialog.jsx (AIImageEditor.jsx): solo aplica a la respuesta que YO
+  // acabo de subir (needsVideo) y solo si es una FOTO (el editor de IA no
+  // soporta vídeo, mismo criterio que el resto de la app). El vídeo/foto
+  // YA existente del reto (targetVideoUrl, cuando no es un reto "de
+  // mención") no se puede editar — no es mío.
+  const [aiEditorOpen, setAiEditorOpen] = useState(false)
+  const [aiOverride, setAiOverride] = useState(null)
   // Refs to the 2 <video> elements (A and B). src is assigned IMPERATIVELY
   // (see effect below) — never declared in JSX — so that only the video that
   // is BOTH (a) on the challenge card currently visible in the vertical
@@ -97,6 +108,9 @@ const ChallengeSlide = ({ c, active, busy, onAccept, onReject, muted, showNextHi
     setTypeError(null)
     setResponseFile(f)
     setResponsePreview((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(f) })
+    // A new response file replaces any AI edit made on the previous one.
+    setAiEditorOpen(false)
+    setAiOverride(null)
     // "After" flow: if you pressed Accept with no video, selecting it sends automatically.
     if (pendingAcceptRef.current) {
       pendingAcceptRef.current = false
@@ -123,11 +137,17 @@ const ChallengeSlide = ({ c, active, busy, onAccept, onReject, muted, showNextHi
   const targetIsImage = c.targetMediaType === 'image' || (!c.targetVideoUrl && !!c.targetImageUrl)
   const responseUrl = needsVideo ? responsePreview : targetUrl
   const responseIsImage = needsVideo ? responseFileIsImage : targetIsImage
+  // Solo se puede editar con IA MI PROPIA respuesta recién subida, y solo si
+  // es una foto (mismo criterio que UploadDialog.jsx: el editor de IA no
+  // soporta vídeo). El contenido YA existente del reto (targetVideoUrl) no
+  // es editable — no lo subí yo en este momento.
+  const canAiEditResponse = needsVideo && !!responseFile && responseFileIsImage
+  const displayedResponseUrl = aiOverride?.status === 'result' ? aiOverride.url : responseUrl
   const aPoster = c.challengerPosterUrl || null
   const responsePoster = needsVideo ? null : (c.targetPosterUrl || null)
   const videos = [
     { url: aUrl, isImage: aIsImage, poster: aPoster, author: c.from, tag: 'A', tagColor: GOLD, isResponse: false },
-    { url: responseUrl, isImage: responseIsImage, poster: responsePoster, author: c.to, tag: 'B', tagColor: '#FFFFFF', isResponse: true },
+    { url: displayedResponseUrl, isImage: responseIsImage, poster: responsePoster, author: c.to, tag: 'B', tagColor: '#FFFFFF', isResponse: true },
   ]
 
   // Play/pause + acquire/release the decoder for each of the 2 videos: ONLY
@@ -152,6 +172,23 @@ const ChallengeSlide = ({ c, active, busy, onAccept, onReject, muted, showNextHi
   return (
     <div className="relative w-full h-full bg-black overflow-hidden">
       <input ref={fileRef} type="file" accept={requiredAccept} className="hidden" onChange={onFileChange} />
+
+      {/* "Luxury Battle" — si este reto trae un tema adjunto (ver
+          luxuryTheme, guardado en el propio reto al crearse — route.js),
+          se avisa aquí también: la persona RETADA debe saber por qué el
+          editor de IA le sugiere ese texto en concreto (ver initialPrompt
+          más abajo) — petición del usuario: "tiene que aparecer también la
+          sugerencia de texto en el retador" (quien acepta el reto). */}
+      {c.luxuryTheme && (
+        <div className="absolute top-0 left-0 right-0 z-30 flex justify-center px-4"
+             style={{ paddingTop: 'max(env(safe-area-inset-top), 14px)' }}>
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-bold backdrop-blur-md"
+               style={{ background: 'rgba(252,211,77,0.15)', border: '1px solid rgba(252,211,77,0.35)', color: '#FCD34D' }}>
+            🔥 Luxury Battle: {c.luxuryTheme.title}
+          </div>
+        </div>
+      )}
+
       {/* Horizontal carousel of videos A / B */}
       <Swiper
         direction="horizontal"
@@ -193,14 +230,41 @@ const ChallengeSlide = ({ c, active, busy, onAccept, onReject, muted, showNextHi
                   >
                     @{v.author?.username}
                   </span>
-                  {/* If it's my freshly uploaded response, allow changing it */}
+                  {/* If it's my freshly uploaded response, allow changing it
+                      and (only for photos) editing it with AI in the same
+                      place — petición del usuario: "en active cuando me
+                      estan retando no puedo editar la imagen con ia antes
+                      de enviar el reto". */}
                   {v.isResponse && needsVideo && (
-                    <button
-                      onClick={pickFile}
-                      className="absolute top-[72px] right-4 z-10 text-[11px] font-semibold bg-black/55 backdrop-blur rounded-full px-3 py-1 text-white border border-white/15 hover:bg-black/70 active:scale-95 transition"
-                    >
-                      Change
-                    </button>
+                    <div className="absolute top-[72px] right-4 z-10 flex items-center gap-2">
+                      {canAiEditResponse && (
+                        <button
+                          onClick={() => setAiEditorOpen(true)}
+                          aria-label="Edit with AI"
+                          className="w-8 h-8 rounded-full flex items-center justify-center bg-black/55 backdrop-blur hover:bg-black/70 active:scale-90 transition text-white border border-white/15"
+                        >
+                          <Sparkles size={15} strokeWidth={1.9} />
+                        </button>
+                      )}
+                      <button
+                        onClick={pickFile}
+                        className="text-[11px] font-semibold bg-black/55 backdrop-blur rounded-full px-3 py-1.5 text-white border border-white/15 hover:bg-black/70 active:scale-95 transition"
+                      >
+                        Change
+                      </button>
+                    </div>
+                  )}
+                  {v.isResponse && aiOverride?.status === 'loading' && (
+                    <div className="absolute inset-0 bg-black/55 backdrop-blur-[1px] flex flex-col items-center justify-center gap-2 pointer-events-none">
+                      <Loader2 size={26} className="animate-spin text-white" />
+                      <span className="text-[12.5px] font-medium text-zinc-200">Editing with AI…</span>
+                    </div>
+                  )}
+                  {v.isResponse && aiOverride?.status === 'result' && (
+                    <span className="absolute left-4 z-10 inline-flex items-center gap-1 text-[10.5px] font-semibold px-2.5 py-1 rounded-full bg-black/60 backdrop-blur border border-white/15"
+                          style={{ top: '108px' }}>
+                      <Sparkles size={11} /> AI result
+                    </span>
                   )}
                 </>
               ) : (
@@ -276,55 +340,76 @@ const ChallengeSlide = ({ c, active, busy, onAccept, onReject, muted, showNextHi
         )}
 
         <div className="px-3 py-2.5">
-          {/* Participants on a single compact line */}
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2 min-w-0 flex-1">
-              <RingAvatar src={c.from?.avatarUrl} size="w-8 h-8" />
-              <span className="text-white font-semibold text-[13px] truncate">@{c.from?.username}</span>
-            </div>
-            <span className="shrink-0 text-white/80 font-bold text-[12px] tracking-wide">VS</span>
-            <div className="flex items-center gap-2 min-w-0 flex-1 justify-end">
-              <span className="text-white font-semibold text-[13px] truncate">@{c.to?.username}</span>
-              <RingAvatar src={c.to?.avatarUrl} size="w-8 h-8" />
-            </div>
-          </div>
+          {/* Mientras se edita mi respuesta con IA, este MISMO panel muestra
+              los controles de AIImageEditor.jsx en su lugar (mismo criterio
+              "en el mismo sitio" que UploadDialog.jsx) — la miniatura de la
+              foto sigue arriba, en el carrusel, sin moverse. */}
+          {aiEditorOpen ? (
+            <AIImageEditor
+              imageFile={responseFile}
+              initialPrompt={c.luxuryTheme?.promptHint || ''}
+              onStatusChange={(status, url) => setAiOverride(status ? { status, url } : null)}
+              onClose={() => { setAiEditorOpen(false); setAiOverride(null) }}
+              onApply={(newFile) => {
+                setResponsePreview((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(newFile) })
+                setResponseFile(newFile)
+                setAiEditorOpen(false)
+                setAiOverride(null)
+              }}
+            />
+          ) : (
+            <>
+              {/* Participants on a single compact line */}
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <RingAvatar src={c.from?.avatarUrl} size="w-8 h-8" />
+                  <span className="text-white font-semibold text-[13px] truncate">@{c.from?.username}</span>
+                </div>
+                <span className="shrink-0 text-white/80 font-bold text-[12px] tracking-wide">VS</span>
+                <div className="flex items-center gap-2 min-w-0 flex-1 justify-end">
+                  <span className="text-white font-semibold text-[13px] truncate">@{c.to?.username}</span>
+                  <RingAvatar src={c.to?.avatarUrl} size="w-8 h-8" />
+                </div>
+              </div>
 
-          {/* For mention challenges: option to upload the video BEFORE accepting. */}
-          {needsVideo && (
-            <button
-              onClick={pickFile}
-              disabled={busy}
-              className="w-full h-10 mt-2.5 rounded-full border border-white/20 text-white font-semibold text-[14px] flex items-center justify-center gap-1.5 hover:bg-white/[0.06] active:scale-[0.99] transition disabled:opacity-50"
-            >
-              {aIsImage ? <ImageIcon size={16} strokeWidth={2} /> : <Film size={16} strokeWidth={2} />}
-              {responseFile
-                ? `Change my ${aIsImage ? 'photo' : 'video'}`
-                : `Upload my ${aIsImage ? 'photo' : 'video'}`}
-            </button>
-          )}
-          {needsVideo && typeError && (
-            <p className="text-rose-400 text-[12px] font-medium text-center mt-1.5">{typeError}</p>
-          )}
+              {/* For mention challenges: option to upload the video BEFORE accepting. */}
+              {needsVideo && (
+                <button
+                  onClick={pickFile}
+                  disabled={busy}
+                  className="w-full h-10 mt-2.5 rounded-full border border-white/20 text-white font-semibold text-[14px] flex items-center justify-center gap-1.5 hover:bg-white/[0.06] active:scale-[0.99] transition disabled:opacity-50"
+                >
+                  {aIsImage ? <ImageIcon size={16} strokeWidth={2} /> : <Film size={16} strokeWidth={2} />}
+                  {responseFile
+                    ? `Change my ${aIsImage ? 'photo' : 'video'}`
+                    : `Upload my ${aIsImage ? 'photo' : 'video'}`}
+                </button>
+              )}
+              {needsVideo && typeError && (
+                <p className="text-rose-400 text-[12px] font-medium text-center mt-1.5">{typeError}</p>
+              )}
 
-          {/* Compact actions */}
-          <div className="flex gap-2 mt-2.5">
-            <button
-              onClick={handleAccept}
-              disabled={busy}
-              className="flex-1 h-10 rounded-full bg-white text-black font-semibold text-[14px] flex items-center justify-center gap-1.5 hover:bg-zinc-100 active:scale-[0.99] transition disabled:opacity-50"
-            >
-              {busy ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} strokeWidth={2.5} />}
-              {needsVideo && !responseFile ? 'Upload & accept' : 'Accept challenge'}
-            </button>
-            <button
-              onClick={() => onReject(c)}
-              disabled={busy}
-              className="shrink-0 w-12 h-10 rounded-full border border-white/20 text-white flex items-center justify-center hover:bg-white/[0.06] active:scale-[0.99] transition disabled:opacity-50"
-              aria-label="Reject"
-            >
-              <X size={18} />
-            </button>
-          </div>
+              {/* Compact actions */}
+              <div className="flex gap-2 mt-2.5">
+                <button
+                  onClick={handleAccept}
+                  disabled={busy}
+                  className="flex-1 h-10 rounded-full bg-white text-black font-semibold text-[14px] flex items-center justify-center gap-1.5 hover:bg-zinc-100 active:scale-[0.99] transition disabled:opacity-50"
+                >
+                  {busy ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} strokeWidth={2.5} />}
+                  {needsVideo && !responseFile ? 'Upload & accept' : 'Accept challenge'}
+                </button>
+                <button
+                  onClick={() => onReject(c)}
+                  disabled={busy}
+                  className="shrink-0 w-12 h-10 rounded-full border border-white/20 text-white flex items-center justify-center hover:bg-white/[0.06] active:scale-[0.99] transition disabled:opacity-50"
+                  aria-label="Reject"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

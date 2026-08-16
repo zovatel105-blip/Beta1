@@ -2168,7 +2168,19 @@ async function handleCreateChallenge(request) {
     // Tipo del contenido retado (lado B): si no llega, se infiere de las URLs.
     if (!targetMediaType) targetMediaType = targetImageUrl ? 'image' : (targetVideoUrl ? 'video' : '')
     const cid = crypto.randomBytes(8).toString('hex')
-    
+
+    // "Luxury Battle": si este reto (dirigido) lleva un tema, se guarda una
+    // COPIA de su título/promptHint DIRECTAMENTE en el propio reto — así el
+    // usuario RETADO ve la misma sugerencia de texto lista para usar al
+    // editar SU foto de respuesta en la pestaña "Active" (ver
+    // ActiveChallengesPage.jsx), sin depender de que el tema siga siendo
+    // el activo en ese momento (podría haber cambiado mientras el reto
+    // estaba pendiente). Petición del usuario: "tiene que aparecer también
+    // la sugerencia de texto en el retador" (quien acepta el reto).
+    const luxuryThemeSnapshot = (!openChallenge && luxuryThemeId)
+      ? await getLuxuryThemeById(luxuryThemeId).catch(() => null)
+      : null
+
     // Usar datos reales del usuario autenticado si está disponible, sino usar fallback
     const realAuthor = currentUser ? {
       id: currentUser.id,
@@ -2213,6 +2225,7 @@ async function handleCreateChallenge(request) {
       // hereda el tema correctamente) únicamente cuando OTRA persona lo
       // reta y este se acepta — ver handleAcceptChallenge más abajo.
       luxuryThemeId: openChallenge ? null : luxuryThemeId,
+      ...(luxuryThemeSnapshot ? { luxuryTheme: { id: luxuryThemeSnapshot.id, title: luxuryThemeSnapshot.title, promptHint: luxuryThemeSnapshot.promptHint || '' } } : {}),
       ...readMusicFields(formData),
       createdAt: new Date().toISOString(),
     }
