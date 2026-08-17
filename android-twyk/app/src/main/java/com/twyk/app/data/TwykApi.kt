@@ -199,6 +199,18 @@ interface TwykApi {
     @GET("api/luxury-battles/leaderboard")
     suspend fun luxuryBattleLeaderboard(): LuxuryLeaderboardResponse
 
+    // GET /api/luxury-battles/posts?themeId=... — TODAS las publicaciones
+    // reales (de cualquier usuario) etiquetadas con un "Trending Challenge"
+    // concreto (por defecto, el activo si themeId es null) — réplica exacta
+    // del endpoint añadido en la web (route.js) para alimentar la pantalla
+    // de grid ui/TrendingChallengePosts.kt, abierta desde el nombre del
+    // challenge en el buscador (ui/Search.kt). Solo se usa `posts` de la
+    // respuesta (PostsResponse, ya usado por completedBattles/saves más
+    // abajo); el campo `theme` del JSON se ignora aquí porque la pantalla ya
+    // obtiene el tema (título) por separado vía luxuryBattleActive().
+    @GET("api/luxury-battles/posts")
+    suspend fun luxuryBattlePosts(@Query("themeId") themeId: String? = null): PostsResponse
+
     @GET("api/notifications")
     suspend fun notifications(): NotificationsResponse
 

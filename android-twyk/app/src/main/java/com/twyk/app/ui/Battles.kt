@@ -320,7 +320,7 @@ fun BattlesScreen(
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Icon(Icons.Filled.LocalFireDepartment, null, tint = Color(0xFFFCD34D), modifier = Modifier.size(13.dp))
                     Text(
-                        "Luxury Battle: ${luxuryTheme?.title ?: ""}",
+                        "Trending Challenge: ${luxuryTheme?.title ?: ""}",
                         color = Color(0xFFFCD34D), fontSize = 12.sp, fontWeight = FontWeight.Bold,
                         maxLines = 1, overflow = TextOverflow.Ellipsis,
                     )
@@ -444,7 +444,7 @@ private fun LuxuryBattleSheet(onClose: () -> Unit, onEnter: (LuxuryTheme) -> Uni
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                     Icon(Icons.Filled.LocalFireDepartment, null, tint = Color(0xFFFCD34D), modifier = Modifier.size(13.dp))
-                    Text("LUXURY BATTLE", color = Color(0xFFFCD34D), fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                    Text("TRENDING CHALLENGE", color = Color(0xFFFCD34D), fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                 }
                 Box(
                     Modifier.size(26.dp).clip(CircleShape).clickable(onClick = onClose),
@@ -458,7 +458,7 @@ private fun LuxuryBattleSheet(onClose: () -> Unit, onEnter: (LuxuryTheme) -> Uni
                 }
             } else if (theme == null) {
                 Text(
-                    "No active luxury battle right now - check back soon.", color = Color(0xFF71717A), fontSize = 13.sp,
+                    "No active trending challenge right now - check back soon.", color = Color(0xFF71717A), fontSize = 13.sp,
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 40.dp), textAlign = TextAlign.Center,
                 )
             } else {

@@ -268,6 +268,10 @@ private fun TwykApp() {
     var profileUsername by remember { mutableStateOf<String?>(null) }
     var feedReloadKey by remember { mutableStateOf(0) }
     var searchOpen by remember { mutableStateOf(false) } // buscador de usuarios (lupa del feed)
+    // Pantalla de publicaciones de un "Trending Challenge" concreto (ej.
+    // "Yacht Life"), abierta al tocar su nombre en el buscador (lupa) — ver
+    // ui/Search.kt / ui/TrendingChallengePosts.kt.
+    var trendingChallengeThemeId by remember { mutableStateOf<String?>(null) }
     var quickChallengeTarget by remember { mutableStateOf<com.twyk.app.data.QuickChallengeTarget?>(null) } // "Retar rápido" a una publicación
     // Barra de navegación inferior visible SOLO en la pestaña "Completados"
     // dentro de Batallas (BattlesScreen la reporta vía onShowNavChange).
@@ -365,6 +369,7 @@ private fun TwykApp() {
         com.twyk.app.data.FullScreenOverlays.profileViewerOpen -> false
         com.twyk.app.data.FullScreenOverlays.settingsOpen -> false
         profileUsername != null -> true
+        trendingChallengeThemeId != null -> true
         tab == Tab.Upload -> false
         tab == Tab.Inbox -> false
         tab == Tab.Battles -> battlesShowNav
@@ -383,7 +388,7 @@ private fun TwykApp() {
     // día con el valor real de cada estado.
     androidx.compose.runtime.SideEffect {
         com.twyk.app.data.AppLifecycle.overlayOpen =
-            profileUsername != null || searchOpen || quickChallengeTarget != null || commentsPostId != null || authOpen
+            profileUsername != null || searchOpen || trendingChallengeThemeId != null || quickChallengeTarget != null || commentsPostId != null || authOpen
     }
 
     // Al abrir la app con una sesión guardada, refresca el usuario desde el
@@ -424,6 +429,7 @@ private fun TwykApp() {
             com.twyk.app.data.FeedOverlays.moreOptions != null -> com.twyk.app.data.FeedOverlays.closeMoreOptions()
             commentsPostId != null -> { commentsPostId = null; commentsVotedSide = null }
             searchOpen -> searchOpen = false
+            trendingChallengeThemeId != null -> trendingChallengeThemeId = null
             profileUsername != null -> profileUsername = null
             tab != Tab.Home -> tab = Tab.Home
             else -> {
@@ -595,6 +601,16 @@ private fun TwykApp() {
             SearchScreen(
                 onClose = { searchOpen = false },
                 onOpenProfile = { uname -> searchOpen = false; openProfile(uname) },
+                onOpenTrendingChallenge = { themeId -> searchOpen = false; trendingChallengeThemeId = themeId },
+            )
+        }
+        trendingChallengeThemeId?.let { themeId ->
+            com.twyk.app.ui.TrendingChallengePostsScreen(
+                themeId = themeId,
+                onClose = { trendingChallengeThemeId = null },
+                onOpenProfile = { uname -> trendingChallengeThemeId = null; openProfile(uname) },
+                onRequireAuth = { authOpen = true },
+                onChallenge = onChallenge,
             )
         }
         quickChallengeTarget?.let { target ->

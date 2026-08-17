@@ -1263,7 +1263,7 @@ private fun UploadPlaceholderItem(item: UploadQueueItem, onDismiss: () -> Unit) 
 }
 
 @Composable
-private fun ProfileGridItem(post: Post, onClick: () -> Unit) {
+fun ProfileGridItem(post: Post, onClick: () -> Unit) {
     val isDuet = post.type == "duet" && post.sideA?.videoUrl != null && post.sideB?.videoUrl != null
     val isRow = post.layout == "vertical"
     val views = post.stats?.views ?: 0

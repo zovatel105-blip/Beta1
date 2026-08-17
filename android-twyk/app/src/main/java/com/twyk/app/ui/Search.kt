@@ -21,7 +21,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.CircularProgressIndicator
@@ -38,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -47,6 +50,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.twyk.app.data.LuxuryTheme
 import com.twyk.app.data.RetrofitProvider
 import com.twyk.app.data.User
 import kotlinx.coroutines.delay
@@ -55,18 +59,29 @@ import kotlinx.coroutines.delay
 // del feed, busca en vivo (debounce) contra GET /api/users?q=... y sin texto
 // muestra "Sugerencias" (la misma lista general). Tocar un resultado abre su
 // perfil.
+//
+// "Trending Challenge" (réplica de la ÚLTIMA versión de SearchOverlay.jsx,
+// tras 3 correcciones del usuario en la sesión donde se implementó en la
+// web): se muestra SOLO el nombre del tema activo (ej. "Yacht Life", GET
+// /api/luxury-battles/active); al tocarlo se llama a
+// `onOpenTrendingChallenge(themeId)`, que MainActivity.kt usa para cerrar
+// este buscador y abrir TrendingChallengePostsScreen (grid de 3 columnas con
+// TODAS las publicaciones reales de ese challenge, ver ui/TrendingChallengePosts.kt).
 @Composable
-fun SearchScreen(onClose: () -> Unit, onOpenProfile: (String) -> Unit) {
+fun SearchScreen(onClose: () -> Unit, onOpenProfile: (String) -> Unit, onOpenTrendingChallenge: (String) -> Unit = {}) {
     var query by remember { mutableStateOf("") }
     var results by remember { mutableStateOf<List<User>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
+    var trendingTheme by remember { mutableStateOf<LuxuryTheme?>(null) }
     val focusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
 
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
         keyboard?.show()
+        trendingTheme = runCatching { RetrofitProvider.api.luxuryBattleActive() }.getOrNull()?.theme
     }
+
 
     // Búsqueda con debounce (250ms, igual que la web).
     LaunchedEffect(query) {
@@ -114,6 +129,31 @@ fun SearchScreen(onClose: () -> Unit, onOpenProfile: (String) -> Unit) {
                             Icon(Icons.Filled.Close, "clear", tint = Color.White.copy(alpha = 0.8f), modifier = Modifier.size(12.dp))
                         }
                     }
+                }
+            }
+
+            // "Trending Challenge" — solo el NOMBRE del tema activo (ej.
+            // "Yacht Life"). Al tocarlo se abre la pantalla con todas las
+            // publicaciones reales de ese challenge.
+            trendingTheme?.let { theme ->
+                Row(
+                    Modifier.fillMaxWidth().clickable { onOpenTrendingChallenge(theme.id.orEmpty()) }
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(
+                        Modifier.size(36.dp).clip(CircleShape)
+                            .background(Brush.linearGradient(listOf(Color(0xFFFCD34D).copy(alpha = 0.18f), Color(0xFFF59E0B).copy(alpha = 0.18f)))),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(Icons.Filled.LocalFireDepartment, null, tint = Color(0xFFFCD34D), modifier = Modifier.size(16.dp))
+                    }
+                    Spacer(Modifier.width(10.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("TRENDING CHALLENGE", color = Color(0xFFFCD34D), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        Text(theme.title.orEmpty(), color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = Color.White.copy(alpha = 0.3f), modifier = Modifier.size(18.dp))
                 }
             }
 
