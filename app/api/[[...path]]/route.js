@@ -3139,6 +3139,20 @@ async function handleNotInterested(request) {
 //     futuro se actualiza el plan de Emergent, este sería el siguiente
 //     salto de calidad a probar (cambiar solo esta constante).
 const AI_EDIT_MODEL = 'gemini-3.1-flash-image-preview' // Gemini "Nano Banana 2" (edición image-to-image)
+// Modelo de RESPALDO automático (petición del usuario: "quiero que el
+// usuario nunca vea este mensaje [AI editing failed], que siempre pueda
+// editar"). MISMA EMERGENT_LLM_KEY, MISMO proveedor (Gemini vía
+// emergentintegrations) — no es una integración nueva ni tiene coste
+// adicional: es el modelo "Nano Banana 1" ya confirmado funcionando de
+// forma estable con esta clave (ver comentario de arriba). Si el modelo
+// principal falla (error transitorio de red/API, respuesta vacía, etc.),
+// se reintenta automáticamente con este antes de mostrar cualquier error al
+// usuario. IMPORTANTE (límite honesto, no ocultado): esto NO puede evitar un
+// fallo si la causa es que el saldo de la clave está agotado por completo
+// (ambos modelos comparten la misma clave/presupuesto) — para eso, la única
+// solución real es activar el auto top-up o añadir saldo manualmente desde
+// el perfil de Emergent.
+const AI_EDIT_FALLBACK_MODEL = 'gemini-2.5-flash-image'
 const AI_EDIT_MAX_BYTES = 15 * 1024 * 1024 // mismo límite que fotos en UploadDialog.jsx
 const AI_EDIT_ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
 
@@ -3185,27 +3199,60 @@ async function handleAiEditImage(request) {
 
     const bytes = Buffer.from(await image.arrayBuffer())
     const base64 = bytes.toString('base64')
+    const systemMessage = 'You are an expert photo editing AI. Apply exactly the requested edit to the provided photo, in high fidelity and high quality — match the level of detail and realism users expect from a top-tier AI image model. Preserve the rest of the image (subject, framing, lighting, style) unless the instruction says otherwise, and make the added/changed elements look realistic and well integrated (correct lighting, shadows, perspective and scale for the scene). When the instruction names a specific, well-known character (e.g., from an anime, movie, game or franchise), render THAT exact character using your own knowledge of their canonical design — correct hairstyle, hair/eye color, outfit, colors and distinguishing features — instead of inventing a generic or approximate lookalike. Always return the edited image.'
 
-    const chat = new LlmChat(
-      apiKey,
-      `img-edit-${currentUser.id}-${Date.now()}`,
-      'You are an expert photo editing AI. Apply exactly the requested edit to the provided photo, in high fidelity and high quality — match the level of detail and realism users expect from a top-tier AI image model. Preserve the rest of the image (subject, framing, lighting, style) unless the instruction says otherwise, and make the added/changed elements look realistic and well integrated (correct lighting, shadows, perspective and scale for the scene). When the instruction names a specific, well-known character (e.g., from an anime, movie, game or franchise), render THAT exact character using your own knowledge of their canonical design — correct hairstyle, hair/eye color, outfit, colors and distinguishing features — instead of inventing a generic or approximate lookalike. Always return the edited image.'
-    ).withModel('gemini', AI_EDIT_MODEL)
+    // Reintentos + modelo de respaldo automático (ver comentario de
+    // AI_EDIT_FALLBACK_MODEL más arriba): hasta 4 intentos en total (2 con
+    // el modelo principal, 2 con el de respaldo) ANTES de mostrar cualquier
+    // error — cubre errores transitorios de red/API y, en algunos casos,
+    // respuestas vacías/bloqueadas de un modelo concreto que el otro modelo
+    // sí resuelve. Solo se devuelve error tras agotar TODOS los intentos.
+    const attempts = [
+      { model: AI_EDIT_MODEL },
+      { model: AI_EDIT_MODEL },
+      { model: AI_EDIT_FALLBACK_MODEL },
+      { model: AI_EDIT_FALLBACK_MODEL },
+    ]
+    let lastErr = null
+    for (let i = 0; i < attempts.length; i++) {
+      const { model } = attempts[i]
+      try {
+        const chat = new LlmChat(
+          apiKey,
+          `img-edit-${currentUser.id}-${Date.now()}-${i}`,
+          systemMessage
+        ).withModel('gemini', model)
 
-    const [, images] = await chat.sendMessageMultimodalResponse(
-      new UserMessage({
-        text: prompt,
-        file_contents: [new ImageContent(base64)],
-      })
-    )
+        const [, images] = await chat.sendMessageMultimodalResponse(
+          new UserMessage({
+            text: prompt,
+            file_contents: [new ImageContent(base64)],
+          })
+        )
 
-    if (!images || images.length === 0) {
-      return NextResponse.json({ error: 'no_image_returned', message: 'The AI could not edit this photo, try a different instruction' }, { status: 502 })
+        if (images && images.length > 0) {
+          const out = images[0]
+          const mimeType = out.mime_type || 'image/png'
+          return NextResponse.json({ ok: true, image: `data:${mimeType};base64,${out.data}`, mimeType })
+        }
+        lastErr = new Error('no_image_returned')
+      } catch (err) {
+        lastErr = err
+        console.error(`ai edit image error (attempt ${i + 1}/${attempts.length}, model=${model})`, err)
+      }
     }
 
-    const out = images[0]
-    const mimeType = out.mime_type || 'image/png'
-    return NextResponse.json({ ok: true, image: `data:${mimeType};base64,${out.data}`, mimeType })
+    // Todos los intentos fallaron. Si el error apunta claramente a falta de
+    // saldo/crédito de la clave, se lo decimos con un mensaje honesto (en
+    // vez de "vuelve a intentarlo", que no ayudaría en ese caso concreto) —
+    // NO hay reintento posible que arregle esto, requiere saldo real.
+    const msg = String(lastErr?.message || '')
+    const isBudget = /credit|budget|quota|insufficient|payment|billing/i.test(msg)
+    if (isBudget) {
+      console.error('AI edit image: todos los modelos fallaron por presupuesto/crédito insuficiente', msg)
+      return NextResponse.json({ error: 'ai_quota_exceeded', message: 'AI editor is temporarily unavailable, please try again later' }, { status: 503 })
+    }
+    return NextResponse.json({ error: 'ai_edit_failed', message: 'AI editing failed, please try again' }, { status: 500 })
   } catch (err) {
     console.error('ai edit image error', err)
     return NextResponse.json({ error: 'ai_edit_failed', message: 'AI editing failed, please try again' }, { status: 500 })

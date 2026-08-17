@@ -4645,3 +4645,37 @@ agent_communication:
     -comment: "'Deberia mostrar un grid de 3 como El perfil con las publicaciones de ese challenge en tendencia'."
     -agent: "main"
     -message: "REDISEÑO COMPLETO de TrendingChallengePostsPage.jsx: de vídeo deslizable a pantalla completa -> grid de 3 columnas reutilizando GridItem/PostViewer (ahora exportados desde ProfilePage.jsx) para un diseño IDÉNTICO al grid 'Posts' del perfil. Esto también resuelve por diseño la posible confusión con Retos (la apariencia ya no tiene nada en común: grid de miniaturas vs. vídeo a pantalla completa). Backend sin cambios (mismo endpoint). Lint limpio, servidor sin errores, verificado con llamada real: posts.length=1 (ya hay contenido real que mostrar). NO se usó agente de testing (sin confirmación explícita del usuario para esta sesión) — PENDIENTE que el usuario confirme visualmente el resultado."
+
+backend:
+  - task: "Editor de IA (POST /api/ai/edit-image): reducir la frecuencia del error 'AI editing failed, please try again' con reintentos + modelo de respaldo automático"
+    implemented: true
+    working: "NA"
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'La ia [de edición] actual tiene que ser ilimitada' -> tras varias preguntas de aclaración (auto top-up de pago vs. clave gratuita de respaldo de Google vs. dejarlo igual), el usuario eligió mantener la EMERGENT_LLM_KEY actual sin cambios ('opción A', sin querer pagar nada). Luego pidió 'que se actualice el key añadiendo más ediciones cuando falte 1' (= auto top-up de pago, aclarado que eso YO no puedo activarlo ni cobrar por código) y preguntó cuántas ediciones le quedan (no tengo esa info, no existe ningún contador en el código ni herramienta que me dé el saldo). Finalmente mandó una captura real del error que SÍ ve: 'AI editing failed, please try again' (con botón 'Try again'), pidiendo 'que el usuario nunca vea este mensaje, que siempre pueda editar'."
+        -working: "NA"
+        -agent: "main"
+        -comment: "LÍMITE HONESTO (no oculto): si la causa real es saldo de la clave EN CERO, ningún cambio de código puede evitar el fallo — eso requiere saldo real (auto top-up o recarga manual, ya discutido y rechazado por el usuario por ahora). Lo que SÍ es una mejora legítima y sin coste/integración nueva: el código anterior solo intentaba UNA vez con un único modelo (gemini-3.1-flash-image-preview, 'Nano Banana 2') y devolvía el error genérico ante CUALQUIER fallo (de red, de la API, respuesta vacía, etc. — sin diferenciar causas). FIX: handleAiEditImage ahora reintenta hasta 4 veces en total ANTES de rendirse: 2 intentos con el modelo principal + 2 con un modelo de RESPALDO automático (gemini-2.5-flash-image, 'Nano Banana 1' — MISMA EMERGENT_LLM_KEY, mismo proveedor Gemini vía emergentintegrations, sin integración nueva ni coste adicional, ya confirmado estable en comentarios previos del código). Solo tras agotar los 4 intentos se devuelve un error al usuario — y si el último error detectado apunta claramente a falta de crédito/presupuesto (regex sobre el mensaje: credit|budget|quota|insufficient|payment|billing), se devuelve un mensaje honesto distinto ('AI editor is temporarily unavailable, please try again later', 503) en vez de 'try again' (que no ayudaría en ese caso). El frontend (AIImageEditor.jsx) no necesitó cambios: ya muestra el campo `message` que devuelva el backend. Verificado con una llamada real end-to-end (login real twyk/Admin12345 + imagen PNG real + prompt real): POST /api/ai/edit-image -> 200, ok:true, imagen devuelta (funcionó en el primer intento con el modelo principal, sin necesitar el respaldo esta vez). Lint limpio (0 issues). Servidor reiniciado y compilando sin errores. NO se usó agente de testing (petición explícita y repetida del usuario en toda esta sesión). ACLARADO explícitamente al usuario: esto reduce (no elimina garantizado) la frecuencia del error para fallos transitorios/de un modelo concreto — NO puede hacer que el editor 'siempre' funcione si el saldo de la clave llega a cero."
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 1
+
+test_plan:
+  current_focus:
+    - "Editor de IA: reintentos + modelo de respaldo automático para reducir 'AI editing failed'"
+  stuck_tasks:
+    - "BUG: el botón 'Challenge' de las publicaciones 'Single' (de OTRO usuario, no propias) sigue sin responder en la APK nativa tras el fix de exclusión de publicaciones propias — CAUSA AÚN NO CONFIRMADA, pendiente de más información del usuario"
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    -agent: "main"
+    -message: "Implementado: el editor de IA ahora reintenta automáticamente (hasta 4 veces: 2 con el modelo principal Nano Banana 2 + 2 con un modelo de respaldo Nano Banana 1, misma clave, sin costo extra) antes de mostrar 'AI editing failed'. Esto reduce fallos transitorios, pero NO puede garantizar que 'siempre' funcione si el saldo de la EMERGENT_LLM_KEY llega a $0 — eso quedó fuera de alcance por decisión explícita del usuario (no quiere pagar auto top-up ni conectar una clave de respaldo de Google todavía). Verificado con una llamada real completa (login + imagen + prompt reales): 200 OK, imagen devuelta. NO se usó agente de testing (petición explícita y repetida del usuario)."
+
