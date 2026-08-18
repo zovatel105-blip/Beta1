@@ -4719,3 +4719,36 @@ agent_communication:
     -agent: "main"
     -message: "BUG reportado por el usuario: las notificaciones de retos con un tema de 'Trending Challenge' (ej. 'Yacht Life') se veían igual que cualquier reto normal ('challenged you to a battle' / 'accepted your challenge', icono genérico). CAUSA: createNotification nunca recibía el título del tema. FIX: el texto de la notificación ahora menciona explícitamente el nombre del Trending Challenge (tanto al crear como al aceptar el reto), y el icono cambia a una llama dorada distintiva. Verificado end-to-end con llamadas reales (crear reto con tema -> notificación correcta; aceptar -> notificación correcta), datos de prueba limpiados. NO se usó agente de testing (petición explícita y repetida del usuario en toda la sesión)."
 
+
+backend:
+  - task: "Editor de IA: reintentos con espera (backoff) entre intentos, para que el editor se recupere solo de límites temporales sin que el usuario tenga que cambiar de cuenta"
+    implemented: true
+    working: "NA"
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'Las ediciones con ia tienen que ser ilimitadas, no usar el testing agent' -> tras restaurar /app/.env (había desaparecido otra vez, causa raíz ya documentada: MongoDB efímera) y confirmar que el código NO tiene ningún contador/tope artificial, el usuario aclaró el síntoma real: 'Cuando cambio de cuenta y vuelvo a editar SE puede pero cuando SE acaban los creditos de la llmkey de nanobanana ya no puedo seguir editando, quiero una forma en la que los creditos SE restauren sin necesidad de cambiar de cuenta'."
+        -working: "NA"
+        -agent: "main"
+        -comment: "CAUSA RAÍZ (distinta a lo que el usuario asumía): revisado node_modules/emergentintegrations/src/llm/chat.ts — LlmChat NO envía ningún dato del usuario de Twyk (currentUser.id) a Gemini/Emergent, solo un header 'X-App-ID' de la app (igual siempre, sea quien sea el usuario logueado en Twyk). Por tanto cambiar de cuenta en Twyk NO puede, técnicamente, cambiar la respuesta de Gemini. Lo que en realidad 'arreglaba' el problema era el TIEMPO transcurrido (cerrar sesión + volver a entrar tarda 10-20s+), suficiente para que un límite temporal de velocidad (rate limit) de Gemini se liberase solo — antes, los 4 reintentos (2 modelo principal + 2 de respaldo, de una mejora anterior) se ejecutaban SIN ninguna pausa, los 4 en menos de 1 segundo, así que un límite temporal nunca tenía tiempo de recuperarse dentro de la misma petición y el usuario veía el error como si se hubiesen 'acabado los créditos'. FIX: añadido backoff creciente ANTES de cada reintento (no antes del primero): 0s / 2s / 3.5s / 6s (array AI_EDIT_RETRY_DELAYS_MS + sleep()), dentro de la MISMA petición HTTP — el usuario ya no necesita cambiar de cuenta ni esperar manualmente, el propio backend le da tiempo al límite temporal para liberarse antes de rendirse. Mantiene la clasificación honesta ya existente: si TODOS los intentos (ahora con backoff) siguen fallando por saldo REALMENTE agotado (regex credit|budget|quota|insufficient|payment|billing), se sigue devolviendo el mensaje distinto de 'temporalmente no disponible' — eso sigue sin poder arreglarse por código, requiere saldo real (ya explicado al usuario, quien pidió específicamente NO activar auto top-up de pago). Lint limpio (0 issues), servidor reiniciado y compilando sin errores. NO se sembraron usuarios/publicaciones de prueba (petición explícita del usuario) y NO se usó agente de testing (petición explícita y repetida) — verificación limitada a revisión de código + arranque limpio del servidor; pendiente que el usuario pruebe en vivo con su propia cuenta real."
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 1
+
+test_plan:
+  current_focus:
+    - "Editor de IA: backoff entre reintentos para recuperarse solo de límites temporales, sin cambiar de cuenta"
+  stuck_tasks:
+    - "BUG: el botón 'Challenge' de las publicaciones 'Single' (de OTRO usuario, no propias) sigue sin responder en la APK nativa tras el fix de exclusión de publicaciones propias — CAUSA AÚN NO CONFIRMADA, pendiente de más información del usuario"
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    -agent: "main"
+    -message: "Restaurado /app/.env (había desaparecido otra vez, causa raíz recurrente ya documentada: MongoDB efímera). NO se sembraron usuarios/publicaciones de prueba (los 4 usuarios que sembré por rutina al inicio de la sesión fueron eliminados de inmediato al indicármelo el usuario) — la base de datos queda vacía, a la espera de que el usuario use su cuenta real. Sobre 'las ediciones con IA tienen que ser ilimitadas': el código YA no tenía ningún tope artificial; el síntoma real (arreglado 'cambiando de cuenta') era un límite temporal de velocidad de Gemini que no tenía tiempo de liberarse porque los 4 reintentos se hacían sin pausa. FIX aplicado: backoff creciente (0/2/3.5/6s) entre reintentos dentro de la misma petición, para que el propio backend le dé tiempo a recuperarse sin que el usuario tenga que cambiar de cuenta. El límite real de saldo de la EMERGENT_LLM_KEY sigue sin poder eliminarse por código (requiere auto top-up o recarga manual desde Perfil -> Administrar plan -> Universal Key, decisión del usuario). NO se usó agente de testing (petición explícita y repetida del usuario)."

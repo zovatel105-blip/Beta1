@@ -3222,6 +3222,22 @@ async function handleAiEditImage(request) {
     // error — cubre errores transitorios de red/API y, en algunos casos,
     // respuestas vacías/bloqueadas de un modelo concreto que el otro modelo
     // sí resuelve. Solo se devuelve error tras agotar TODOS los intentos.
+    //
+    // BACKOFF ENTRE INTENTOS (petición del usuario: "quiero que los
+    // créditos se restauren sin necesidad de cambiar de cuenta" — tras
+    // investigar, `emergentintegrations` NO envía ningún dato del usuario
+    // de Twyk a Gemini, solo un identificador de la app; cambiar de cuenta
+    // en Twyk no puede afectar la respuesta de Gemini. Lo que en realidad
+    // arreglaba el problema era el TIEMPO que tarda cerrar sesión y volver a
+    // entrar, suficiente para que un límite temporal de velocidad -rate
+    // limit- de Gemini se libere solo. Antes los 4 intentos se hacían sin
+    // pausa, todos en menos de 1 segundo, así que un límite temporal nunca
+    // tenía tiempo de recuperarse dentro de la misma petición). Ahora se
+    // espera un poco ANTES de cada reintento (no antes del primero) para
+    // darle esa misma oportunidad de recuperarse SOLO, sin que el usuario
+    // tenga que cerrar sesión ni esperar manualmente.
+    const AI_EDIT_RETRY_DELAYS_MS = [0, 2000, 3500, 6000]
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
     const attempts = [
       { model: AI_EDIT_MODEL },
       { model: AI_EDIT_MODEL },
@@ -3231,6 +3247,9 @@ async function handleAiEditImage(request) {
     let lastErr = null
     for (let i = 0; i < attempts.length; i++) {
       const { model } = attempts[i]
+      if (AI_EDIT_RETRY_DELAYS_MS[i]) {
+        await sleep(AI_EDIT_RETRY_DELAYS_MS[i])
+      }
       try {
         const chat = new LlmChat(
           apiKey,
