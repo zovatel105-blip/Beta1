@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { Bell, Swords, UserPlus, MessageCircle, Check, ChevronLeft, Send, CornerDownRight } from 'lucide-react'
+import { Bell, Swords, UserPlus, MessageCircle, Check, ChevronLeft, Send, CornerDownRight, Flame } from 'lucide-react'
 import VoteIcon from './icons/VoteIcon'
 import Avatar from './Avatar'
 import { useAuth } from '@/contexts/AuthContext'
@@ -28,6 +28,12 @@ function authHeaders() {
 }
 
 const iconFor = (n) => {
+  // "Trending Challenge" (petición del usuario: "las notificaciones que son
+  // trending challenge no aparecen como trending, aparecen como challenge")
+  // — icono distintivo (llama dorada) para CUALQUIER notificación de reto
+  // (crear o aceptar) que lleve un tema activo adjunto, en vez del genérico
+  // Swords/Check. Prioridad sobre el switch normal por tipo.
+  if (n.luxuryThemeTitle) return { Icon: Flame, color: '#FCD34D' }
   switch (n.type) {
     case 'challenge': return { Icon: Swords, color: '#FFFFFF' }
     case 'vote': return { Icon: VoteIcon, color: n.side === 'b' ? TWYK_B : TWYK_A }

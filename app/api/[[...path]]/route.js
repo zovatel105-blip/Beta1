@@ -2284,11 +2284,20 @@ async function handleCreateChallenge(request) {
       try {
         const recipientId = targetAuthor?.id
         if (recipientId && recipientId !== 'anonymous' && recipientId !== currentUser.id) {
+          // "Trending Challenge" (petición del usuario: "las notificaciones
+          // que son trending challenge no aparecen como trending, aparecen
+          // como challenge") — si este reto lleva un tema activo adjunto, el
+          // texto de la notificación lo menciona explícitamente y se guarda
+          // `luxuryThemeTitle` para que el frontend pinte un icono distinto.
+          const text = luxuryThemeSnapshot
+            ? `challenged you to the "${luxuryThemeSnapshot.title}" Trending Challenge${message ? `: ${message}` : ''}`
+            : (message || null)
           await createNotification({
             userId: recipientId,
             type: 'challenge',
             fromUserId: currentUser.id,
-            text: message || null,
+            text,
+            luxuryThemeTitle: luxuryThemeSnapshot?.title || null,
           })
         }
       } catch (notifErr) {
@@ -2413,11 +2422,17 @@ async function handleAcceptChallenge(cid, request) {
       const challengerId = c.from?.id
       const accepterId = accepter?.id || c.to?.id || null
       if (challengerId && challengerId !== 'anonymous') {
+        // "Trending Challenge" (mismo criterio que la notificación de crear
+        // el reto, ver handleCreateChallenge): si el reto llevaba un tema
+        // activo adjunto, lo menciona explícitamente en vez del genérico
+        // "accepted your challenge".
         await createNotification({
           userId: challengerId,
           type: 'accepted',
           fromUserId: accepterId,
           postId: post.id,
+          text: c.luxuryTheme?.title ? `accepted your "${c.luxuryTheme.title}" Trending Challenge` : null,
+          luxuryThemeTitle: c.luxuryTheme?.title || null,
         })
       }
     } catch (notifErr) {
