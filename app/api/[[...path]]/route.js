@@ -80,6 +80,7 @@ import {
 import { rankFeed, recordVote, recordImpressions, recordWatch, recordEngagement, recordSocialAffinity, recordNotInterested, getNotInterestedIds, computeMetrics } from '@/lib/recommender'
 import { registerDeviceToken, unregisterDeviceToken } from '@/lib/push'
 import { LlmChat, UserMessage, ImageContent } from 'emergentintegrations'
+import { GoogleGenAI, Modality } from '@google/genai'
 import { createVideoEditJob, getVideoEditJob, validateVideoForAiEdit, classifyEditMode, MAX_DURATION_SEC } from '@/lib/aiVideoEditor'
 
 export const runtime = 'nodejs'
@@ -3215,6 +3216,43 @@ async function handleAiEditImage(request) {
     const bytes = Buffer.from(await image.arrayBuffer())
     const base64 = bytes.toString('base64')
     const systemMessage = 'You are an expert photo editing AI. Apply exactly the requested edit to the provided photo, in high fidelity and high quality — match the level of detail and realism users expect from a top-tier AI image model. Preserve the rest of the image (subject, framing, lighting, style) unless the instruction says otherwise, and make the added/changed elements look realistic and well integrated (correct lighting, shadows, perspective and scale for the scene). When the instruction names a specific, well-known character (e.g., from an anime, movie, game or franchise), render THAT exact character using your own knowledge of their canonical design — correct hairstyle, hair/eye color, outfit, colors and distinguishing features — instead of inventing a generic or approximate lookalike. Always return the edited image.'
+
+    // INTENTO 0 (petición del usuario: "apliquemos Gemini directo para la
+    // edición de imágenes"): si hay una clave DIRECTA de Google AI Studio
+    // configurada (GOOGLE_GEMINI_API_KEY, distinta de la EMERGENT_LLM_KEY —
+    // esta NO consume saldo de Emergent), se prueba PRIMERO con ella. Si
+    // falla por CUALQUIER motivo (sin facturación activada en el proyecto
+    // de Google -"limit: 0" en modelos de imagen, confirmado en pruebas
+    // reales-, cuota agotada, red, etc.) se sigue exactamente con la cadena
+    // de respaldo de Emergent que ya existía abajo — el usuario nunca deja
+    // de poder editar por esto, solo se pierde la oportunidad de ahorrar
+    // saldo de Emergent en esa edición concreta.
+    const googleApiKey = process.env.GOOGLE_GEMINI_API_KEY
+    if (googleApiKey) {
+      try {
+        const genai = new GoogleGenAI({ apiKey: googleApiKey })
+        const response = await genai.models.generateContent({
+          model: 'gemini-2.5-flash-image',
+          contents: [{
+            role: 'user',
+            parts: [
+              { text: `${systemMessage}\n\nInstruction: ${prompt}` },
+              { inlineData: { mimeType: type, data: base64 } },
+            ],
+          }],
+          config: { responseModalities: [Modality.TEXT, Modality.IMAGE] },
+        })
+        const parts = response?.candidates?.[0]?.content?.parts || []
+        const imagePart = parts.find((p) => p?.inlineData?.data)
+        if (imagePart) {
+          const mimeType = imagePart.inlineData.mimeType || 'image/png'
+          return NextResponse.json({ ok: true, image: `data:${mimeType};base64,${imagePart.inlineData.data}`, mimeType, provider: 'google' })
+        }
+        console.error('AI edit image: Google directo sin imagen en la respuesta, se sigue con Emergent')
+      } catch (err) {
+        console.error('AI edit image: Google directo falló, se sigue con Emergent', err?.message || err)
+      }
+    }
 
     // Reintentos + modelo de respaldo automático (ver comentario de
     // AI_EDIT_FALLBACK_MODEL más arriba): hasta 4 intentos en total (2 con
