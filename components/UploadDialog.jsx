@@ -40,7 +40,7 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
   const [fileB, setFileB] = useState(null)
   const [description, setDescription] = useState('')
   const [error, setError] = useState(null)
-  const [selected, setSelected] = useState('versus')
+  const [selected, setSelected] = useState('solo')
   const [music, setMusic] = useState(null) // track de iTunes seleccionado
   const [musicOpen, setMusicOpen] = useState(false)
   const [previewA, setPreviewA] = useState(null)
@@ -76,7 +76,7 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
   const reset = () => {
     setStep('mode'); setMode(null); setLayout('horizontal'); setTarget(null); setUsers([])
     setFile(null); setFileB(null); setDescription(''); setError(null); setPublishing(false)
-    setSelected('versus'); setVersusIdx(0); setMusic(null); setMusicOpen(false); setAiEditorSlot(null); setAiOverride(null)
+    setSelected('solo'); setVersusIdx(0); setMusic(null); setMusicOpen(false); setAiEditorSlot(null); setAiOverride(null)
   }
 
   useEffect(() => {
@@ -349,27 +349,14 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
         {/* STEP: mode — control segmentado (estilo referencia) */}
         {step === 'mode' && (
           <div className="max-w-md mx-auto w-full min-h-full flex flex-col">
-            {/* Control segmentado */}
+            {/* Control segmentado — petición del usuario: "ocultar el
+                botón de versus y 1vs1 y poner open antes que challenge".
+                Versus/1 vs 1 NO se borran del código (mode 'versus'/'duet'
+                siguen funcionando si se entra por otra vía, ej.
+                initialMode), solo se ocultan estos 2 botones aquí; el
+                orden visible pasa a ser Open, Challenges. */}
             <div className="flex justify-center mt-2 mb-2">
               <div className="inline-flex p-1 rounded-full bg-white/[0.06] border border-white/10">
-                <button
-                  onClick={() => setSelected('versus')}
-                  className={`px-4 py-2 rounded-full text-[13px] font-semibold transition ${selected === 'versus' ? 'bg-white text-black' : 'text-zinc-300 hover:text-white'}`}
-                >
-                  Versus
-                </button>
-                <button
-                  onClick={() => setSelected('duet')}
-                  className={`px-4 py-2 rounded-full text-[13px] font-semibold transition ${selected === 'duet' ? 'bg-white text-black' : 'text-zinc-300 hover:text-white'}`}
-                >
-                  1 vs 1
-                </button>
-                <button
-                  onClick={() => setSelected('challenge')}
-                  className={`px-4 py-2 rounded-full text-[13px] font-semibold transition ${selected === 'challenge' ? 'bg-white text-black' : 'text-zinc-300 hover:text-white'}`}
-                >
-                  Challenges
-                </button>
                 <button
                   onClick={() => setSelected('solo')}
                   className={`px-3.5 py-2 rounded-full text-[13px] font-semibold transition ${selected === 'solo' ? 'bg-white text-black' : 'text-zinc-300 hover:text-white'}`}
@@ -381,6 +368,12 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
                       visible cambia, `mode === 'solo'` y el resto del código
                       quedan intactos. */}
                   Open
+                </button>
+                <button
+                  onClick={() => setSelected('challenge')}
+                  className={`px-4 py-2 rounded-full text-[13px] font-semibold transition ${selected === 'challenge' ? 'bg-white text-black' : 'text-zinc-300 hover:text-white'}`}
+                >
+                  Challenges
                 </button>
               </div>
             </div>
