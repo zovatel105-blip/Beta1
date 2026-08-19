@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Menu, Bookmark, Swords, Users, UserPlus, ArrowLeft, LogOut, Camera, Loader2, X, ShieldAlert, LogIn, CircleUserRound, Activity, ChevronRight, AlertCircle, Play } from 'lucide-react'
+import { Menu, Bookmark, Swords, Users, UserPlus, ArrowLeft, LogOut, Camera, Loader2, X, ShieldAlert, LogIn, CircleUserRound, Activity, ChevronRight, AlertCircle, Play, Flame } from 'lucide-react'
 import VoteIcon from './icons/VoteIcon'
 import ShareIcon from './icons/ShareIcon'
 import { useAuth } from '@/contexts/AuthContext'
@@ -1264,6 +1264,7 @@ const SettingsDrawer = ({ open, onClose, onLogout, isAdmin }) => {
               <div className="divide-y divide-white/[0.05]">
                 <SettingsRow icon={ShieldAlert} label="Moderation panel" href="/admin/reports" />
                 <SettingsRow icon={Activity} label="Engine dashboard" href="/admin/reco" />
+                <SettingsRow icon={Flame} label="Luxury Battles" href="/admin/luxury-battles" />
               </div>
             </div>
           )}
