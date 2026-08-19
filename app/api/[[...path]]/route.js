@@ -2668,15 +2668,16 @@ const USER_LUXURY_THEME_DAILY_LIMIT = 3
 
 // POST /api/luxury-battles/community/create  body: { idea: string }
 // Cualquier usuario logueado (NO requiere admin, a diferencia de
-// /admin/luxury-battles/theme) — petición del usuario: "que los usuarios
-// puedan crear sus trending challenge... un botón nuevo en la pantalla de
-// Retos donde el usuario escribe el nombre/idea y la IA genera la
-// descripción, similar a como ya funciona en el panel de administración
-// pero simplificado". El usuario solo escribe una idea corta; la IA (texto,
-// sin imagen, igual mecanismo que handleGenerateLuxuryThemeIdeas) la
-// expande en título+descripción+promptHint, inspirándose en tendencias
-// REALES actuales de EEUU (petición explícita: "tendencias culturales y
-// virales reales de eeuu"). El resultado se guarda con
+// /admin/luxury-battles/theme). CORRECCIÓN del usuario: "cuando creo un
+// challenge no debe generarse con IA — lo que debe generarse con IA con
+// tendencias virales y culturales es el tema PRINCIPAL, el que muestra
+// Yacht Life" — es decir, la IA con tendencias reales de EEUU es SOLO para
+// el tema OFICIAL (admin, ver handleGenerateLuxuryThemeIdeas más arriba).
+// Aquí, para un usuario normal, NO se llama a ninguna IA: se guarda
+// EXACTAMENTE lo que el usuario escribió, tal cual, como título (y también
+// como descripción simple, para no dejar ese campo vacío en la hoja) — sin
+// promptHint (el editor de IA de la foto ya tiene sugerencias genéricas de
+// respaldo cuando no hay ninguna, ver AIImageEditor.jsx). Se guarda con
 // createUserLuxuryTheme (source:'user', active:false — SEPARADO del tema
 // oficial del admin, petición explícita: "los creados por usuarios
 // aparte"), y se lista en GET /api/luxury-battles/community.
@@ -2686,17 +2687,13 @@ async function handleCreateCommunityLuxuryTheme(request) {
     if (!currentUser) {
       return NextResponse.json({ error: 'unauthorized', message: 'You must log in to create a trending challenge' }, { status: 401 })
     }
-    const apiKey = process.env.EMERGENT_LLM_KEY
-    if (!apiKey) {
-      return NextResponse.json({ error: 'ai_not_configured', message: 'AI is not configured' }, { status: 500 })
-    }
     const body = await request.json().catch(() => ({}))
     const idea = (body?.idea || '').toString().trim()
     if (idea.length < 3) {
       return NextResponse.json({ error: 'missing_idea', message: 'Describe your trending challenge idea' }, { status: 400 })
     }
-    if (idea.length > 120) {
-      return NextResponse.json({ error: 'idea_too_long', message: 'Keep your idea under 120 characters' }, { status: 400 })
+    if (idea.length > 60) {
+      return NextResponse.json({ error: 'idea_too_long', message: 'Keep your challenge name under 60 characters' }, { status: 400 })
     }
 
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000)
@@ -2705,31 +2702,11 @@ async function handleCreateCommunityLuxuryTheme(request) {
       return NextResponse.json({ error: 'daily_limit_reached', message: `You can create up to ${USER_LUXURY_THEME_DAILY_LIMIT} trending challenges per day — try again tomorrow` }, { status: 429 })
     }
 
-    const chat = new LlmChat(
-      apiKey,
-      `user-theme-idea-${currentUser.id}-${Date.now()}`,
-      'You are a creative director for a social video-battle app called Twyk. Users submit an AI-edited photo of themselves living out a themed scene and compete head-to-head, judged by real community votes + an AI score of how well their photo matches the theme. A user just gave you their own raw idea/name for a new trending challenge. Expand it into a polished challenge, blending their idea with your up-to-date knowledge of REAL, CURRENT viral and cultural trends actually happening in the United States right now (fashion, memes, movies/TV, music, sports, aesthetics, social trends — not only luxury). Stay true to the user\'s idea, do not replace it with something unrelated. Respond with ONLY one JSON object shaped exactly as {"title": string (2-4 words, catchy), "description": string (1 short sentence describing the theme for other users), "promptHint": string (1-2 sentences, a ready-to-use AI image-editing instruction starting with "Put me..." or "Transform me...", vivid and specific)}. No markdown, no code fences, no extra text, no array — just the single object.'
-    ).withModel('gemini', 'gemini-2.5-flash')
-
-    const text = await chat.sendMessage(new UserMessage({ text: `My trending challenge idea: "${idea}"` }))
-
-    let parsed = null
-    try {
-      const cleaned = String(text || '').trim().replace(/^```(json)?/i, '').replace(/```$/, '').trim()
-      parsed = JSON.parse(cleaned)
-    } catch (e) {
-      console.error('user luxury theme: parse failed', e)
-      return NextResponse.json({ error: 'ai_parse_failed', message: 'The AI could not generate this challenge, try rephrasing your idea' }, { status: 502 })
-    }
-    if (!parsed || typeof parsed !== 'object' || !parsed.title || !parsed.description) {
-      return NextResponse.json({ error: 'ai_parse_failed', message: 'The AI could not generate this challenge, try rephrasing your idea' }, { status: 502 })
-    }
-
     const theme = await createUserLuxuryTheme({
       createdBy: currentUser.id,
-      title: String(parsed.title).slice(0, 60).trim(),
-      description: String(parsed.description).slice(0, 200).trim(),
-      promptHint: typeof parsed.promptHint === 'string' ? parsed.promptHint.slice(0, 300).trim() : '',
+      title: idea,
+      description: idea,
+      promptHint: '',
     })
     return NextResponse.json({ ok: true, theme: stripMongoId(theme) })
   } catch (err) {

@@ -160,7 +160,12 @@ export default function LuxuryBattleSheet({ open, onClose, onEnter }) {
         <>
           <div className="px-5 pb-4">
             <h2 className="text-white text-[21px] font-bold tracking-tight">{theme.title}</h2>
-            <p className="text-zinc-400 text-[13px] mt-1.5 leading-relaxed">{theme.description}</p>
+            {/* Creación de la comunidad SIN IA (petición del usuario): el
+                título y la descripción se guardan idénticos, así que no
+                repetimos la misma línea dos veces aquí. */}
+            {theme.description && theme.description !== theme.title && (
+              <p className="text-zinc-400 text-[13px] mt-1.5 leading-relaxed">{theme.description}</p>
+            )}
           </div>
 
           <div className="px-4 pb-4">

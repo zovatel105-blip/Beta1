@@ -1,22 +1,19 @@
 'use client'
 
 import { useState } from 'react'
-import { Flame, X, Sparkles, Loader2, Check, RotateCcw } from 'lucide-react'
+import { Flame, X, Loader2, Check, RotateCcw } from 'lucide-react'
 import BottomSheet from './BottomSheet'
 
 /**
  * CreateTrendingChallengeSheet — petición del usuario: "que los usuarios
- * puedan crear sus trending challenge... un botón nuevo en la pantalla de
- * Retos donde el usuario escribe el nombre/idea y la IA genera la
- * descripción, similar a como ya funciona en el panel de administración
- * pero simplificado para usuarios normales". A diferencia del panel de
- * administración (que primero genera VARIAS ideas para elegir y luego las
- * activa en 2 pasos), aquí el usuario solo escribe UNA idea corta y la IA
- * la expande y la crea en un solo paso (POST /api/luxury-battles/community/
- * create) — más simple para un usuario normal. El resultado queda SEPARADO
- * del tema oficial del admin (petición explícita: "los creados por
- * usuarios aparte"), listado en la fila de la comunidad de
- * CompletedBattlesPage.jsx.
+ * puedan crear sus trending challenge". CORRECCIÓN del usuario: "cuando
+ * creo un challenge no debe generarse con IA — lo que debe generarse con
+ * IA con tendencias virales y culturales es el tema PRINCIPAL, el que
+ * muestra Yacht Life" — es decir, aquí NO se llama a ninguna IA: se guarda
+ * EXACTAMENTE lo que el usuario escribe (POST /api/luxury-battles/
+ * community/create). El resultado queda SEPARADO del tema oficial del
+ * admin (petición explícita: "los creados por usuarios aparte"), listado
+ * en la fila de la comunidad dentro de LuxuryBattleSheet.jsx.
  *
  * Props:
  *  - open, onClose: control estándar de la hoja.
@@ -41,7 +38,7 @@ export default function CreateTrendingChallengeSheet({ open, onClose, onCreated 
     onClose?.()
   }
 
-  const generate = async () => {
+  const create = async () => {
     const trimmed = idea.trim()
     if (trimmed.length < 3) return
     setStage('loading')
@@ -84,21 +81,21 @@ export default function CreateTrendingChallengeSheet({ open, onClose, onCreated 
       {(stage === 'input' || stage === 'loading') && (
         <div className="px-4 pb-5">
           <p className="text-zinc-400 text-[13px] mb-3 leading-relaxed">
-            Type your idea and AI will turn it into a challenge others can join — inspired by what&apos;s actually trending right now.
+            Name your own challenge for other users to find and join — exactly as you write it.
           </p>
           <div className="rounded-2xl bg-black/45 backdrop-blur-xl border border-white/10 px-4 py-3">
             <textarea
               value={idea}
               onChange={(e) => setIdea(e.target.value)}
               disabled={stage === 'loading'}
-              placeholder="e.g. cowboy core aesthetic, met gala glam, F1 grid walk…"
+              placeholder="e.g. Cowboy Core, Met Gala Glam, F1 Grid Walk…"
               rows={2}
-              maxLength={120}
+              maxLength={60}
               className="w-full bg-transparent text-[15px] text-zinc-100 placeholder:text-zinc-400 focus:outline-none resize-none disabled:opacity-50"
             />
           </div>
           <button
-            onClick={generate}
+            onClick={create}
             disabled={idea.trim().length < 3 || stage === 'loading'}
             className="w-full mt-3 py-3.5 rounded-full text-black font-bold text-[16px] disabled:opacity-40 active:scale-[0.99] transition flex items-center justify-center gap-2"
             style={{ background: 'linear-gradient(135deg, #FCD34D, #F59E0B)' }}
@@ -106,7 +103,7 @@ export default function CreateTrendingChallengeSheet({ open, onClose, onCreated 
             {stage === 'loading' ? (
               <><Loader2 size={17} className="animate-spin" /> Creating…</>
             ) : (
-              <><Sparkles size={17} strokeWidth={2} /> Generate with AI</>
+              <><Flame size={17} strokeWidth={2} className="fill-current" /> Create</>
             )}
           </button>
         </div>
@@ -118,7 +115,7 @@ export default function CreateTrendingChallengeSheet({ open, onClose, onCreated 
             <p className="text-rose-300 text-[13px]">{errorMsg}</p>
           </div>
           <button
-            onClick={generate}
+            onClick={create}
             className="w-full py-3.5 rounded-full bg-white text-black font-bold text-[16px] active:scale-[0.99] transition flex items-center justify-center gap-2"
           >
             <RotateCcw size={17} strokeWidth={2} /> Try again
@@ -134,7 +131,6 @@ export default function CreateTrendingChallengeSheet({ open, onClose, onCreated 
               <Flame size={12} className="fill-amber-300" /> Your Trending Challenge
             </div>
             <h3 className="text-white text-[18px] font-bold tracking-tight">{theme.title}</h3>
-            <p className="text-zinc-300 text-[13px] mt-1 leading-relaxed">{theme.description}</p>
           </div>
           <p className="text-zinc-500 text-[12px] text-center mb-3">It&apos;s live — other users can already find and join it.</p>
           <button
