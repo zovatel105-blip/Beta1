@@ -207,7 +207,15 @@ export default function LuxuryBattleSheet({ open, onClose, onEnter }) {
       <CreateTrendingChallengeSheet
         open={createSheetOpen}
         onClose={() => setCreateSheetOpen(false)}
-        onCreated={(t) => { loadCommunityThemes(); setSelectedThemeId(t.id) }}
+        onCreated={() => {
+          // Petición del usuario: "los creados por la comunidad cuando
+          // escribo el challenge no debe cambiar [el oficial]" — crear uno
+          // nuevo solo AÑADE su píldora a la fila; NO cambia lo que se está
+          // mostrando en el resto de la hoja (que sigue siendo el tema
+          // OFICIAL por defecto, o el que ya tuvieras seleccionado). Antes
+          // esto seleccionaba automáticamente el recién creado — quitado.
+          loadCommunityThemes()
+        }}
       />
     </BottomSheet>
   )
