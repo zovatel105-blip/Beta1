@@ -57,8 +57,11 @@ export default function SearchOverlay({ open, onClose, onOpenProfile, onOpenTren
 
   // Búsqueda con debounce. Sin texto -> muestra sugerencias (lista general,
   // sin lista de trending: se sigue viendo solo la fila fija de arriba).
-  // Con texto -> busca EN PARALELO usuarios + trending challenges (oficial
-  // + comunidad) que coincidan.
+  // Con texto -> busca EN PARALELO usuarios + trending challenges: oficial
+  // ACTUAL + comunidad + HISTORIAL de oficiales retirados (petición del
+  // usuario tras notar que "Yacht Life" dejó de aparecer al retirarse:
+  // "que los temas oficiales antiguos/retirados sigan siendo buscables
+  // para siempre").
   useEffect(() => {
     if (!open) return
     if (debounceRef.current) clearTimeout(debounceRef.current)
@@ -67,9 +70,10 @@ export default function SearchOverlay({ open, onClose, onOpenProfile, onOpenTren
       try {
         const q = query.trim()
         const usersUrl = q ? `/api/users?q=${encodeURIComponent(q)}` : '/api/users'
-        const [usersRes, communityRes] = await Promise.all([
+        const [usersRes, communityRes, historyRes] = await Promise.all([
           fetch(usersUrl, { cache: 'no-store' }),
           q ? fetch(`/api/luxury-battles/community?q=${encodeURIComponent(q)}`, { cache: 'no-store' }) : Promise.resolve(null),
+          q ? fetch(`/api/luxury-battles/history?q=${encodeURIComponent(q)}`, { cache: 'no-store' }) : Promise.resolve(null),
         ])
         const usersData = await usersRes.json()
         setResults(Array.isArray(usersData.users) ? usersData.users : [])
@@ -78,10 +82,22 @@ export default function SearchOverlay({ open, onClose, onOpenProfile, onOpenTren
           setTrendingResults([])
         } else {
           const communityData = communityRes ? await communityRes.json().catch(() => null) : null
+          const historyData = historyRes ? await historyRes.json().catch(() => null) : null
           const communityMatches = Array.isArray(communityData?.themes) ? communityData.themes : []
+          const historyMatches = Array.isArray(historyData?.themes) ? historyData.themes : []
           const qLower = q.toLowerCase()
           const officialMatches = (trendingTheme?.title || '').toLowerCase().includes(qLower) ? [trendingTheme] : []
-          setTrendingResults([...officialMatches, ...communityMatches])
+          // Dedupe por id: el tema oficial ACTIVO puede venir tanto de
+          // `officialMatches` (chequeo rápido de `trendingTheme`) como de
+          // `historyMatches` (que incluye TODO el historial, activo o no).
+          const seen = new Set()
+          const merged = []
+          for (const t of [...officialMatches, ...historyMatches, ...communityMatches]) {
+            if (!t?.id || seen.has(t.id)) continue
+            seen.add(t.id)
+            merged.push(t)
+          }
+          setTrendingResults(merged)
         }
       } catch {
         setResults([])
@@ -211,7 +227,9 @@ export default function SearchOverlay({ open, onClose, onOpenProfile, onOpenTren
                         <div className="min-w-0 flex-1">
                           <span className="text-white text-[15px] font-semibold truncate block">{t.title}</span>
                           <p className="text-white/50 text-[13px] truncate">
-                            {t.source === 'user' ? (t.creator?.username ? `by @${t.creator.username}` : 'Community challenge') : 'Official challenge'}
+                            {t.source === 'user'
+                              ? (t.creator?.username ? `by @${t.creator.username}` : 'Community challenge')
+                              : (t.active ? 'Official challenge' : 'Official challenge · ended')}
                           </p>
                         </div>
                       </button>

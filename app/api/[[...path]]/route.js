@@ -67,6 +67,7 @@ import {
   createUserLuxuryTheme,
   listCommunityLuxuryThemes,
   countUserLuxuryThemesSince,
+  searchOfficialLuxuryThemesHistory,
 } from '@/lib/db'
 import {
   getAllPosts,
@@ -1044,6 +1045,20 @@ export async function GET(request, { params }) {
     return NextResponse.json({
       themes: themes.map((t) => ({ ...stripMongoId(t), creator: creators[t.createdBy] || null })),
     })
+  }
+
+  // GET /api/luxury-battles/history?q=...  — búsqueda PÚBLICA en el
+  // historial de temas OFICIALES (admin), incluyendo los ya RETIRADOS
+  // (active:false) — petición explícita del usuario tras notar que "Yacht
+  // Life" ya no aparecía en el buscador al dejar de ser el activo: "que
+  // los temas oficiales antiguos/retirados sigan siendo buscables para
+  // siempre (un archivo histórico)". Requiere `q` (sin query no devuelve
+  // nada — evita exponer TODO el historial sin buscar nada en concreto).
+  if (path === '/luxury-battles/history') {
+    const { searchParams } = new URL(request.url)
+    const q = searchParams.get('q') || ''
+    const themes = q ? await searchOfficialLuxuryThemesHistory(q, 10).catch(() => []) : []
+    return NextResponse.json({ themes: themes.map((t) => stripMongoId(t)) })
   }
 
   // Lista de retos (solicitudes de enfrentamiento) pendientes DEL USUARIO ACTUAL.
