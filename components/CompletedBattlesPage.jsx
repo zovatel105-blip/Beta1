@@ -5,11 +5,12 @@ import { useEffect, useRef, useState } from 'react'
 import { Swiper, SwiperSlide } from 'swiper/react'
 import { Mousewheel, Keyboard } from 'swiper/modules'
 import 'swiper/css'
-import { Swords, Plus, Trophy, Loader2, UserPlus, Flame } from 'lucide-react'
+import { Swords, Plus, Trophy, Loader2, UserPlus, Flame, Sparkles } from 'lucide-react'
 import BottomNav from './BottomNav'
 import CarouselSlide from './CarouselSlide'
 import DuetSlide from './DuetSlide'
 import LuxuryBattleSheet from './LuxuryBattleSheet'
+import CreateTrendingChallengeSheet from './CreateTrendingChallengeSheet'
 import { notificationsUnreadCount } from '@/lib/notifications'
 import { subscribeCommentCountChange, patchCommentCountInList } from '@/lib/commentCountBus'
 
@@ -78,6 +79,25 @@ export default function CompletedBattlesPage({ open, onClose, onOpenActive, onOp
       .then((d) => { if (!cancelled) setLuxuryThemeTitle(d?.theme?.title || null) })
       .catch(() => { if (!cancelled) setLuxuryThemeTitle(null) })
     return () => { cancelled = true }
+  }, [open])
+  // Fila SEPARADA de "Trending Challenges" creados por USUARIOS normales
+  // (petición explícita: "que los usuarios puedan crear sus trending
+  // challenge" + "los creados por usuarios aparte" — nunca se mezclan con
+  // la píldora dorada oficial de arriba, que sigue siendo solo del admin).
+  // `luxurySheetThemeId`: null = la hoja muestra el tema OFICIAL activo
+  // (comportamiento de siempre); un id = muestra ESE tema de la comunidad.
+  const [communityThemes, setCommunityThemes] = useState([])
+  const [createSheetOpen, setCreateSheetOpen] = useState(false)
+  const [luxurySheetThemeId, setLuxurySheetThemeId] = useState(null)
+  const loadCommunityThemes = () => {
+    fetch('/api/luxury-battles/community', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d) => setCommunityThemes(Array.isArray(d?.themes) ? d.themes : []))
+      .catch(() => setCommunityThemes([]))
+  }
+  useEffect(() => {
+    if (!open) return
+    loadCommunityThemes()
   }, [open])
   const swiperRef = useRef(null)
 
@@ -154,7 +174,7 @@ export default function CompletedBattlesPage({ open, onClose, onOpenActive, onOp
         {luxuryThemeTitle && (
           <div className="flex justify-center mt-2.5">
             <button
-              onClick={() => setLuxurySheetOpen(true)}
+              onClick={() => { setLuxurySheetThemeId(null); setLuxurySheetOpen(true) }}
               className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[12px] font-bold active:scale-95 transition"
               style={{ background: 'linear-gradient(135deg, rgba(252,211,77,0.18), rgba(245,158,11,0.18))', border: '1px solid rgba(252,211,77,0.35)', color: '#FCD34D' }}
             >
@@ -163,6 +183,35 @@ export default function CompletedBattlesPage({ open, onClose, onOpenActive, onOp
             </button>
           </div>
         )}
+
+        {/* Fila de Trending Challenges de la COMUNIDAD (petición del
+            usuario: "que los usuarios puedan crear sus trending
+            challenge... los creados por usuarios aparte") — SIEMPRE
+            SEPARADA de la píldora oficial de arriba. Incluye siempre un
+            botón "+" para crear uno nuevo, y luego los ya creados por
+            cualquier usuario (más reciente primero). Estilo idéntico
+            (ámbar/dorado) pero más compacto, en una fila horizontal
+            deslizable — mismo patrón visual que "Trending"/sugerencias del
+            editor de IA (AIImageEditor.jsx). */}
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar mt-2 px-1 pb-0.5">
+          <button
+            onClick={() => setCreateSheetOpen(true)}
+            className="shrink-0 flex items-center gap-1 whitespace-nowrap text-[11px] font-bold px-2.5 py-1 rounded-full active:scale-95 transition"
+            style={{ background: 'rgba(252,211,77,0.10)', border: '1px dashed rgba(252,211,77,0.4)', color: '#FCD34D' }}
+          >
+            <Plus size={11} strokeWidth={2.5} /> New Trending Challenge
+          </button>
+          {communityThemes.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => { setLuxurySheetThemeId(t.id); setLuxurySheetOpen(true) }}
+              className="shrink-0 flex items-center gap-1 whitespace-nowrap text-[11px] font-semibold px-2.5 py-1 rounded-full active:scale-95 transition"
+              style={{ background: 'rgba(252,211,77,0.08)', border: '1px solid rgba(252,211,77,0.25)', color: '#FCD34D' }}
+            >
+              <Flame size={10} className="fill-current" /> {t.title}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Content: vertical feed of completed challenges or empty state */}
@@ -244,11 +293,17 @@ export default function CompletedBattlesPage({ open, onClose, onOpenActive, onOp
 
       <LuxuryBattleSheet
         open={luxurySheetOpen}
+        themeId={luxurySheetThemeId}
         onClose={() => setLuxurySheetOpen(false)}
         onEnter={(theme) => {
           setLuxurySheetOpen(false)
           onEnterLuxuryBattle?.(theme)
         }}
+      />
+      <CreateTrendingChallengeSheet
+        open={createSheetOpen}
+        onClose={() => setCreateSheetOpen(false)}
+        onCreated={loadCommunityThemes}
       />
     </div>
   )

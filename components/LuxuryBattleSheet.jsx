@@ -32,17 +32,24 @@ function formatCount(n) {
   return String(v)
 }
 
-export default function LuxuryBattleSheet({ open, onClose, onEnter }) {
+export default function LuxuryBattleSheet({ open, onClose, onEnter, themeId = null }) {
   const [theme, setTheme] = useState(null)
   const [leaderboard, setLeaderboard] = useState([])
   const [loading, setLoading] = useState(false)
   const [loaded, setLoaded] = useState(false)
 
+  // `themeId` (petición del usuario: "que los usuarios puedan crear sus
+  // trending challenge") — cuando se abre esta hoja desde una píldora de la
+  // COMUNIDAD (CompletedBattlesPage.jsx), se pasa el id de ESE tema en vez
+  // de dejar que se use siempre el oficial activo del admin (comportamiento
+  // por defecto, sin cambios, cuando themeId es null). El endpoint ya
+  // soportaba `?themeId=` desde antes (route.js).
   useEffect(() => {
     if (!open) return
     let cancelled = false
     setLoading(true)
-    fetch('/api/luxury-battles/leaderboard', { cache: 'no-store' })
+    const url = themeId ? `/api/luxury-battles/leaderboard?themeId=${encodeURIComponent(themeId)}` : '/api/luxury-battles/leaderboard'
+    fetch(url, { cache: 'no-store' })
       .then((r) => r.json())
       .then((d) => {
         if (cancelled) return
@@ -52,7 +59,7 @@ export default function LuxuryBattleSheet({ open, onClose, onEnter }) {
       .catch(() => { if (!cancelled) { setTheme(null); setLeaderboard([]) } })
       .finally(() => { if (!cancelled) { setLoading(false); setLoaded(true) } })
     return () => { cancelled = true }
-  }, [open])
+  }, [open, themeId])
 
   return (
     <BottomSheet open={open} onClose={onClose} className="bg-zinc-950" maxWidth="max-w-[480px]">
