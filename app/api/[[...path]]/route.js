@@ -2458,8 +2458,15 @@ async function handleAcceptChallenge(cid, request) {
       // "Luxury Battle" (ver comentario completo en handleCreateChallenge):
       // si el reto original se creó desde esa pantalla, el post resultante
       // hereda el mismo tema — así queda visible en el leaderboard
-      // (GET /api/luxury-battles/leaderboard) apenas se acepta.
+      // (GET /api/luxury-battles/leaderboard) apenas se acepta. Se guarda
+      // también el SNAPSHOT (título) directamente en el post -no solo el
+      // id- para que el feed pueda mostrar "Trending Challenge: <título>"
+      // sin tener que consultar el tema aparte (petición del usuario: "si
+      // reto una publicación creada mediante un trending challenge, debe
+      // aparecer en el modal, ejemplo trending Yacht Life" — ver
+      // ChallengeDialog.jsx/CarouselSlide.jsx/DuetSlide.jsx).
       ...(c.luxuryThemeId ? { luxuryThemeId: c.luxuryThemeId } : {}),
+      ...(c.luxuryTheme ? { luxuryTheme: c.luxuryTheme } : {}),
     }
     await insertPost(post)
     await deleteChallenge(cid)

@@ -2,7 +2,7 @@
 /* eslint-disable react-hooks/set-state-in-effect -- reseteo de estado al cerrar; falso positivo de la regla experimental. */
 
 import { useEffect, useRef, useState } from 'react'
-import { ChevronDown, Film, Check, Swords, Upload } from 'lucide-react'
+import { ChevronDown, Film, Check, Swords, Upload, Flame } from 'lucide-react'
 import Avatar from './Avatar'
 
 // Colores de marca para la identidad "versus" (mismos de la votación A/B).
@@ -111,6 +111,22 @@ export default function ChallengeDialog({ open, onClose, target, onSubmit }) {
             <h2 className="text-zinc-900 text-[15px] font-bold tracking-tight leading-tight truncate">Challenge @{username}</h2>
           </div>
         </div>
+
+        {/* "Trending Challenge" — petición del usuario: "cuando reto una
+            publicación que fue creada mediante un trending challenge, debe
+            aparecer en el modal, ejemplo trending Yacht Life". Solo si el
+            contenido que se está retando (`target`) lleva un tema adjunto
+            (nació de aceptar un reto con un Trending Challenge, ver
+            handleAcceptChallenge/route.js — el post guarda `luxuryTheme`). */}
+        {target?.luxuryTheme?.title && (
+          <div className="relative z-10 px-5 -mt-1 mb-1">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-bold w-fit"
+                 style={{ background: 'linear-gradient(135deg, rgba(252,211,77,0.18), rgba(245,158,11,0.18))', border: '1px solid rgba(252,211,77,0.4)', color: '#B45309' }}>
+              <Flame size={12} className="fill-current" />
+              Trending Challenge: {target.luxuryTheme.title}
+            </div>
+          </div>
+        )}
 
         {/* Body */}
         <div className="relative z-10 flex-1 overflow-y-auto px-5 pb-7 space-y-5"

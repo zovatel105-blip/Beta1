@@ -811,7 +811,7 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
               setAuthModalOpen(true);
               return;
             }
-            onChallenge?.({ postId: post.id, mediaType: current.mediaType, videoUrl: current.videoUrl, imageUrl: current.imageUrl, posterUrl: current.posterUrl, author: headAuthor, description: current.description || post.description, music: current.music || post.music });
+            onChallenge?.({ postId: post.id, mediaType: current.mediaType, videoUrl: current.videoUrl, imageUrl: current.imageUrl, posterUrl: current.posterUrl, author: headAuthor, description: current.description || post.description, music: current.music || post.music, luxuryThemeId: post.luxuryThemeId || null, luxuryTheme: post.luxuryTheme || null });
           }} className="flex flex-col items-center gap-1 w-14 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
             <Swords className="w-[30px] h-[30px] text-white" strokeWidth={1.25} />
             <span className={`${challengeCount > 0 ? 'text-[9px] font-semibold' : 'text-[8px] font-bold'} max-w-[30px] overflow-hidden text-white leading-none text-center whitespace-nowrap`}>{countLabel(challengeCount, 'Be 1st')}</span>

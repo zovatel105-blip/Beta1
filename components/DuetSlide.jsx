@@ -957,6 +957,8 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
                     author: sd.author || headAuthor,
                     description: sd.description || post.description,
                     music: sd.music,
+                    luxuryThemeId: post.luxuryThemeId || null,
+                    luxuryTheme: post.luxuryTheme || null,
                   })
                 }}
                 className="group flex flex-col items-center gap-2.5 active:scale-[0.98] transition-all"

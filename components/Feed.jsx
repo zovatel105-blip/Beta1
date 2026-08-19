@@ -246,6 +246,15 @@ export default function Feed() {
     fd.append('targetDescription', target.description || '')
     fd.append('targetMusic', target.music || '')
     fd.append('message', message || '')
+    // "Trending Challenge" (petición del usuario: "cuando reto una
+    // publicación que fue creada mediante trending challenge, debe
+    // aparecer en el modal, ejemplo trending Yacht Life") — si el
+    // contenido que estoy retando (target) lleva un tema adjunto (porque
+    // nació de un Trending Challenge aceptado), se reenvía su id para que
+    // el NUEVO reto también lo lleve — así sigue la cadena: si este nuevo
+    // reto se acepta, su post también queda etiquetado y visible en el
+    // buscador de ese Trending Challenge.
+    if (target.luxuryThemeId) fd.append('luxuryThemeId', target.luxuryThemeId)
     xhr.send(fd)
   }, [refreshChallenges])
 
