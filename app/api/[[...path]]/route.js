@@ -1021,15 +1021,19 @@ export async function GET(request, { params }) {
     return NextResponse.json({ theme: stripMongoId(theme), posts: await refreshPostCommentCounts(enrichedPosts) })
   }
 
-  // GET /api/luxury-battles/community — Trending Challenges creados por
-  // USUARIOS normales (petición del usuario: "que los usuarios puedan
+  // GET /api/luxury-battles/community?q=...  — Trending Challenges creados
+  // por USUARIOS normales (petición del usuario: "que los usuarios puedan
   // crear sus trending challenge" + "los creados por usuarios aparte" —
   // se muestran en su propia fila de píldoras, SEPARADA de la píldora
   // dorada oficial del admin). Público, sin límite de sesión (igual que el
   // resto de datos de descubrimiento). Incluye el autor (username/avatar
-  // ya actualizados) para poder mostrar "creado por @usuario".
+  // ya actualizados) para poder mostrar "creado por @usuario". `q`
+  // opcional (petición del usuario: "el buscador debe buscar trendings y
+  // usuarios") filtra por título — usado por SearchOverlay.jsx.
   if (path === '/luxury-battles/community') {
-    const themes = await listCommunityLuxuryThemes(24).catch(() => [])
+    const { searchParams } = new URL(request.url)
+    const q = searchParams.get('q') || ''
+    const themes = await listCommunityLuxuryThemes(24, q).catch(() => [])
     const ids = themes.map((t) => t.createdBy).filter(Boolean)
     const creators = {}
     for (const id of ids) {
