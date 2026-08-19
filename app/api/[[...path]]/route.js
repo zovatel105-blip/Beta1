@@ -1543,6 +1543,12 @@ export async function POST(request, { params }) {
   if (path === '/admin/luxury-battles/theme') {
     return handleSetLuxuryTheme(request)
   }
+  // Admin: auto-generar Y activar de un solo clic el tema #1 más viral en
+  // EEUU ahora mismo (petición explícita del usuario). POST
+  // /api/admin/luxury-battles/auto-generate
+  if (path === '/admin/luxury-battles/auto-generate') {
+    return handleAutoGenerateLuxuryTheme(request)
+  }
   // Admin: generar ideas de tema con IA (título + descripción + prompt para
   // el editor de IA) basadas en tendencias de lujo ACTUALES — no activa
   // ningún tema, solo devuelve sugerencias para que el admin elija/edite y
@@ -2598,6 +2604,63 @@ async function handleSetLuxuryTheme(request) {
   }
 }
 
+// POST /api/admin/luxury-battles/auto-generate  (sin body)
+// Solo admin — petición del usuario: "el tema principal debe generarse por
+// IA y debe ser lo más viral mundialmente en este momento" (corregido de
+// "en EEUU" a alcance GLOBAL/mundial). A diferencia de /generate-ideas
+// (que da VARIAS opciones para elegir a mano), este pide a la IA
+// EXACTAMENTE la ÚNICA cosa más viral/tendencia ahora mismo A NIVEL
+// MUNDIAL (no una lista, no limitado a un solo país) y la ACTIVA de
+// inmediato como tema oficial — un solo clic, sin paso manual de elegir.
+async function handleAutoGenerateLuxuryTheme(request) {
+  try {
+    const currentUser = await getCurrentUser(request)
+    if (!isAdmin(currentUser)) {
+      return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+    }
+    const apiKey = process.env.EMERGENT_LLM_KEY
+    if (!apiKey) {
+      return NextResponse.json({ error: 'ai_not_configured', message: 'AI is not configured' }, { status: 500 })
+    }
+    const existing = await listLuxuryThemes().catch(() => [])
+    const avoid = existing.map((t) => t.title).filter(Boolean).slice(0, 30)
+
+    const chat = new LlmChat(
+      apiKey,
+      `luxury-theme-auto-${currentUser.id}-${Date.now()}`,
+      'You are a creative director for a social video-battle app called Twyk. Users submit an AI-edited photo of themselves living out a themed scene and compete head-to-head, judged by real community votes + an AI score of how well their photo matches the theme. Using your up-to-date knowledge, identify THE single MOST viral, most talked-about cultural moment or trend happening WORLDWIDE / GLOBALLY RIGHT NOW (today) — not limited to any one country, across any category (fashion, memes, movies/TV, music, sports, aesthetics, social trends, luxury lifestyle, etc.). Pick only ONE, the #1 most viral thing on the planet right now, not a list of options. Respond with ONLY one JSON object shaped exactly as {"title": string (2-4 words, catchy), "description": string (1 short sentence describing the theme for users), "promptHint": string (1-2 sentences, a ready-to-use AI image-editing instruction starting with "Put me..." or "Transform me...", vivid and specific)}. No markdown, no code fences, no extra text, no array — just the single object.'
+    ).withModel('gemini', 'gemini-2.5-flash')
+
+    const text = await chat.sendMessage(
+      new UserMessage({
+        text: `What is THE #1 most viral thing worldwide right now?${avoid.length ? ` Do not repeat these already-used titles: ${avoid.join(', ')}.` : ''}`,
+      })
+    )
+
+    let parsed = null
+    try {
+      const cleaned = String(text || '').trim().replace(/^```(json)?/i, '').replace(/```$/, '').trim()
+      parsed = JSON.parse(cleaned)
+    } catch (e) {
+      console.error('auto-generate luxury theme: parse failed', e)
+      return NextResponse.json({ error: 'ai_parse_failed', message: 'The AI could not generate a theme, try again' }, { status: 502 })
+    }
+    if (!parsed || typeof parsed !== 'object' || !parsed.title || !parsed.description) {
+      return NextResponse.json({ error: 'ai_parse_failed', message: 'The AI could not generate a theme, try again' }, { status: 502 })
+    }
+
+    const theme = await setActiveLuxuryTheme({
+      title: String(parsed.title).slice(0, 60).trim(),
+      description: String(parsed.description).slice(0, 200).trim(),
+      promptHint: typeof parsed.promptHint === 'string' ? parsed.promptHint.slice(0, 300).trim() : '',
+    })
+    return NextResponse.json({ ok: true, theme: stripMongoId(theme) })
+  } catch (err) {
+    console.error('auto-generate luxury theme error', err)
+    return NextResponse.json({ error: 'auto_generate_failed', detail: String(err?.message || err) }, { status: 500 })
+  }
+}
+
 // POST /api/admin/luxury-battles/generate-ideas  body: { count?, avoid?: string[] }
 // Solo admin — pide a la IA (texto puro, sin imagen) N ideas de tema de
 // "Luxury Battle" acordes a las modas de lujo ACTUALES (no una lista fija
@@ -2622,7 +2685,7 @@ async function handleGenerateLuxuryThemeIdeas(request) {
     const chat = new LlmChat(
       apiKey,
       `luxury-theme-ideas-${currentUser.id}-${Date.now()}`,
-      'You are a creative director for a social video-battle app called Twyk. Users submit an AI-edited photo of themselves living out a themed scene (e.g. "Yacht Life") and compete head-to-head, judged by real community votes + an AI score of how well their photo matches the theme. Suggest CURRENT, real, viral-worthy themes based on your up-to-date knowledge of what is ACTUALLY trending culturally and virally in the United States right now — pull from real US trends across categories (luxury lifestyle, fashion, memes, movies/TV, music, sports, aesthetics, social media challenges, etc.), not just generic luxury. Respond with ONLY a JSON array of objects, each shaped exactly as {"title": string (2-4 words, catchy), "description": string (1 short sentence describing the theme for users), "promptHint": string (1-2 sentences, a ready-to-use AI image-editing instruction starting with "Put me..." or "Transform me...", vivid and specific)}. No markdown, no code fences, no extra text.'
+      'You are a creative director for a social video-battle app called Twyk. Users submit an AI-edited photo of themselves living out a themed scene (e.g. "Yacht Life") and compete head-to-head, judged by real community votes + an AI score of how well their photo matches the theme. Suggest CURRENT, real, viral-worthy themes based on your up-to-date knowledge of what is ACTUALLY trending culturally and virally WORLDWIDE / GLOBALLY right now — not limited to any one country, pulling from real global trends across categories (luxury lifestyle, fashion, memes, movies/TV, music, sports, aesthetics, social media challenges, etc.), not just generic luxury. Respond with ONLY a JSON array of objects, each shaped exactly as {"title": string (2-4 words, catchy), "description": string (1 short sentence describing the theme for users), "promptHint": string (1-2 sentences, a ready-to-use AI image-editing instruction starting with "Put me..." or "Transform me...", vivid and specific)}. No markdown, no code fences, no extra text.'
     ).withModel('gemini', 'gemini-2.5-flash')
 
     const text = await chat.sendMessage(

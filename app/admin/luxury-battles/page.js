@@ -39,6 +39,13 @@ export default function AdminLuxuryBattlesPage() {
   const [generating, setGenerating] = useState(false)
   const [genError, setGenError] = useState('')
 
+  // Auto-generar Y activar de un solo clic el tema #1 más viral A NIVEL
+  // MUNDIAL ahora mismo (petición explícita del usuario: "el tema
+  // principal debe generarse por ia y debe ser lo mas viral mundialmente
+  // en este momento") — sin pasar por elegir entre varias ideas.
+  const [autoGenerating, setAutoGenerating] = useState(false)
+  const [autoGenMsg, setAutoGenMsg] = useState('')
+
   const load = useCallback(async () => {
     setLoading(true)
     setError('')
@@ -75,6 +82,30 @@ export default function AdminLuxuryBattlesPage() {
     setDescription(idea.description || '')
     setPromptHint(idea.promptHint || '')
     setSaveMsg('')
+  }
+
+  const autoGenerateAndActivate = async () => {
+    setAutoGenerating(true)
+    setAutoGenMsg('')
+    try {
+      const res = await fetch('/api/admin/luxury-battles/auto-generate', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      })
+      const data = await res.json().catch(() => ({}))
+      if (res.ok && data.theme) {
+        setActiveTheme(data.theme)
+        setThemes((prev) => [data.theme, ...prev.filter((t) => t.id !== data.theme.id)])
+        setAutoGenMsg('Activated: ' + data.theme.title)
+      } else {
+        setAutoGenMsg(data?.message || 'Could not auto-generate a theme')
+      }
+    } catch {
+      setAutoGenMsg('Network error')
+    } finally {
+      setAutoGenerating(false)
+    }
   }
 
   const generateIdeas = async () => {
@@ -183,6 +214,27 @@ export default function AdminLuxuryBattlesPage() {
           )}
         </section>
 
+        {/* Auto-generar Y activar el #1 más viral MUNDIALMENTE, un solo
+            clic (petición explícita del usuario). */}
+        <section className="rounded-2xl p-4 mb-6" style={{ background: 'linear-gradient(135deg, rgba(252,211,77,0.12), rgba(245,158,11,0.12))', border: '1px solid rgba(252,211,77,0.3)' }}>
+          <div className="flex items-center gap-1.5 text-amber-300 text-sm font-bold mb-1.5">
+            <Flame size={15} className="fill-amber-300" /> #1 most viral worldwide, right now
+          </div>
+          <p className="text-white/50 text-xs mb-3">
+            One click: AI picks the single most viral trend on the planet right now and activates it immediately as the official theme.
+          </p>
+          {autoGenMsg && <p className={`text-sm mb-2 ${autoGenMsg.startsWith('Activated') ? 'text-emerald-400' : 'text-red-400'}`}>{autoGenMsg}</p>}
+          <button
+            onClick={autoGenerateAndActivate}
+            disabled={autoGenerating}
+            className="w-full py-3 rounded-full text-black text-sm font-bold inline-flex items-center justify-center gap-2 disabled:opacity-50"
+            style={{ background: 'linear-gradient(135deg, #FCD34D, #F59E0B)' }}
+          >
+            {autoGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Flame className="w-4 h-4" />}
+            {autoGenerating ? 'Finding it...' : 'Auto-generate & activate'}
+          </button>
+        </section>
+
         {/* Generador de ideas con IA */}
         <section className="rounded-2xl bg-zinc-900 border border-white/5 p-4 mb-6">
           <div className="flex items-center justify-between mb-3">
@@ -200,7 +252,7 @@ export default function AdminLuxuryBattlesPage() {
             </button>
           </div>
           <p className="text-white/40 text-xs mb-3">
-            The AI suggests fresh, currently-trending luxury themes based on its own up-to-date knowledge — not a fixed list.
+            The AI suggests fresh, currently-trending themes worldwide based on its own up-to-date knowledge — not a fixed list.
           </p>
           {genError && <p className="text-red-400 text-sm mb-3">{genError}</p>}
           {ideas.length > 0 && (
