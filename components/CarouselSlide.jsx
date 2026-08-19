@@ -1,7 +1,7 @@
 'use client'
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { MessageCircle, Bookmark, Play, Swords, MoreVertical, Music } from 'lucide-react'
+import { MessageCircle, Bookmark, Play, Swords, MoreVertical, Music, Flame } from 'lucide-react'
 import ShareIcon from './icons/ShareIcon'
 import { cn } from '@/lib/utils'
 import VoteIcon from './icons/VoteIcon'
@@ -788,6 +788,22 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
         <div className="mt-1 pointer-events-auto">
           <CaptionText text={current.description || post.description} className="text-white text-sm leading-tight" />
         </div>
+        {/* Petición del usuario: "las publicaciones trending que fueron
+            publicadas deben mostrar que son publicaciones trending SIN
+            mostrar el nombre para distinguirlas de los challenges
+            normales" — píldora genérica (sin título del tema, a
+            propósito) cuando el post nació de un Trending Challenge
+            aceptado (`post.luxuryThemeId`, ver handleAcceptChallenge). */}
+        {post.luxuryThemeId && (
+          <div className="mt-1.5 pointer-events-auto">
+            <span
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold"
+              style={{ background: 'rgba(252,211,77,0.18)', border: '1px solid rgba(252,211,77,0.4)', color: '#FCD34D' }}
+            >
+              <Flame size={10} className="fill-current" /> Trending
+            </span>
+          </div>
+        )}
       </div>
       {hasMusic && (
         <audio ref={audioRef} src={post.musicPreviewUrl} loop preload="none" />
