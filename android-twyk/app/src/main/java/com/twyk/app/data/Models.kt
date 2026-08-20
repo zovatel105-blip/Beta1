@@ -62,6 +62,13 @@ data class Post(
     val videoUrl: String? = null,
     val imageUrl: String? = null,
     val challengeId: String? = null,
+    // "Fire" 🔥 — voto único tipo "me gusta" de esta publicación 'Single'
+    // (toggleSingleVote/getOpenChallengeFeedItems en route.js, sin cambios
+    // de backend). Hidratados por el backend en CADA lectura del feed/perfil
+    // — mismo criterio que `isFollowing` en Author. Réplica de
+    // post.voteCount/post.hasVoted en OpenChallengeSlide.jsx (web).
+    val voteCount: Int = 0,
+    val hasVoted: Boolean = false,
     val stats: Stats? = null,
     // Música adjunta REAL (preview de iTunes de 30s), devuelta por el backend
     // vía readMusicFields() en route.js. Antes se descartaba (solo se leía el
@@ -88,6 +95,12 @@ data class FeedResponse(
 // vez de sumar un voto extra — ver handleVote en route.js. Réplica exacta del
 // body { id, side, previousSide } que ya envía CarouselSlide.jsx/DuetSlide.jsx.
 data class VoteRequest(val id: String, val side: String, val previousSide: String? = null)
+
+// "Fire" 🔥 — voto único (toggle) de una publicación 'Single'/reto abierto,
+// SIN lado A/B. Réplica exacta del body/respuesta de POST /api/single-vote
+// (handleSingleVote en route.js; web: OpenChallengeSlide.jsx).
+data class SingleVoteRequest(val postId: String)
+data class SingleVoteResponse(val ok: Boolean? = null, val voted: Boolean? = null, val count: Int? = null)
 
 // TWYK Engine: registrar un compartido (señal fuerte del algoritmo del feed).
 data class ShareRequest(val id: String)

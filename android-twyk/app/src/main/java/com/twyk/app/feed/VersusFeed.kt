@@ -60,6 +60,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.PlayArrow
@@ -796,18 +797,23 @@ private fun CarouselPage(
 
 // ── Publicación ÚNICA ("Single"/reto abierto, post.type=="challenge_open") ──
 // Un solo vídeo/foto, sin lado A/B que comparar — réplica de
-// OpenChallengeSlide.jsx (web), EXCEPTO el voto único tipo "me gusta"
-// (doble-toque): a petición EXPLÍCITA del usuario, esa parte de la web NO se
-// replica en esta versión nativa (el doble-toque aquí no hace nada: sin
-// burst, sin contador, sin "Vote" en la columna social — ver `hideVote` en
-// SocialRait). El resto SÍ se replica tal cual: cabecera abajo-izquierda con
-// avatar+Seguir (reutiliza HeaderOverlay, que YA es genérico: sideA es null
-// aquí, así que usa post.author/post.description directamente), columna
-// social completa (reutiliza SocialRail: Comentar/Compartir/Guardar/Más +
-// disco), el botón "Challenge" (hueco donde normalmente iría "Votar") abre
-// el MISMO QuickChallengeSheet que el resto de publicaciones — crea un reto
-// NORMAL dirigido al creador, NO publica nada por sí solo — y la barra de
-// "Añadir comentario"/reproducciones al abrir desde el grid del perfil.
+// OpenChallengeSlide.jsx (web). El resto se replica tal cual: cabecera
+// abajo-izquierda con avatar+Seguir (reutiliza HeaderOverlay, que YA es
+// genérico: sideA es null aquí, así que usa post.author/post.description
+// directamente), columna social completa (reutiliza SocialRail: Fire 🔥 en
+// el hueco de "Vote"/Comentar/Compartir/Guardar/Más + disco), el botón
+// "Challenge" abre el MISMO QuickChallengeSheet que el resto de
+// publicaciones — crea un reto NORMAL dirigido al creador, NO publica nada
+// por sí solo — y la barra de "Añadir comentario"/reproducciones al abrir
+// desde el grid del perfil.
+//
+// "FIRE" 🔥 (réplica de la sesión más reciente de OpenChallengeSlide.jsx en
+// la web, que sustituyó el "Vote" A/B por una reacción tipo "me gusta" con
+// mecánica ASIMÉTRICA, no un simple toggle): DOBLE-toque en el vídeo/foto
+// SOLO AÑADE el fuego (addFire, nunca lo quita); tocar el icono en
+// SocialRail es lo que lo QUITA (removeFire). Reutiliza el backend de voto
+// único ya existente (POST /api/single-vote, sin cambios), con
+// conteo/estado inicial hidratados por el feed (post.voteCount/post.hasVoted).
 @Composable
 private fun OpenChallengePage(
     post: Post,
@@ -879,16 +885,64 @@ private fun OpenChallengePage(
         }
     }
 
+    // "Fire" 🔥 — estado inicial hidratado por el backend (post.hasVoted/
+    // post.voteCount, ver comentario de la función). Optimista con
+    // reconciliación del servidor y rollback si la llamada falla, mismo
+    // patrón que "Save" un poco más abajo en SocialRail.
+    var hasFire by remember(post.id) { mutableStateOf(post.hasVoted) }
+    var fireCount by remember(post.id) { mutableStateOf(post.voteCount) }
+
+    fun addFire(): Boolean {
+        if (Session.token == null) { onRequireAuth(); return false }
+        if (!hasFire) {
+            hasFire = true
+            fireCount += 1
+            scope.launch {
+                runCatching { RetrofitProvider.api.singleVote(SingleVoteRequest(post.id)) }
+                    .onSuccess { resp ->
+                        resp.count?.let { fireCount = it }
+                        resp.voted?.let { hasFire = it }
+                    }
+                    .onFailure {
+                        hasFire = false
+                        fireCount = (fireCount - 1).coerceAtLeast(0)
+                    }
+            }
+        }
+        return true
+    }
+
+    fun removeFire() {
+        if (Session.token == null) { onRequireAuth(); return }
+        if (hasFire) {
+            hasFire = false
+            fireCount = (fireCount - 1).coerceAtLeast(0)
+            scope.launch {
+                runCatching { RetrofitProvider.api.singleVote(SingleVoteRequest(post.id)) }
+                    .onSuccess { resp ->
+                        resp.count?.let { fireCount = it }
+                        resp.voted?.let { hasFire = it }
+                    }
+                    .onFailure {
+                        hasFire = true
+                        fireCount += 1
+                    }
+            }
+        }
+    }
+
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         VideoSurface(
             player = player,
             modifier = Modifier.fillMaxSize(),
             side = side,
+            // Naranja + icono de llama — mismo tono `#F97316` que usa la web
+            // para el burst/estado activo de Fire.
+            voteColor = Color(0xFFF97316),
+            burstIcon = Icons.Filled.LocalFireDepartment,
             onSingleTap = { if (!isImage) paused = !paused },
-            // Voto único (doble-toque) NO implementado a propósito en esta
-            // versión nativa (ver comentario de la función) — al devolver
-            // SIEMPRE false, VideoSurface nunca dispara el burst del icono.
-            onVoteA = { false },
+            // Doble-toque = AÑADIR fuego (nunca lo quita, ver addFire arriba).
+            onVoteA = { addFire() },
         )
 
         if (paused && !isImage) {
@@ -909,6 +963,10 @@ private fun OpenChallengePage(
             onRequireAuth = onRequireAuth,
             hideChallenge = hideChallenge,
             hideVote = true,
+            showFire = true,
+            hasFire = hasFire,
+            fireCount = fireCount,
+            onFireRemove = { removeFire() },
             audioActive = isActive && !paused,
             coverUrl = post.posterUrl ?: post.imageUrl,
             hasMusic = false,
@@ -1303,6 +1361,10 @@ private fun VideoSurface(
     // réplica exacta de submitVote() en la web, que solo llama a
     // spawnVoteBurst() cuando el voto se procesó de verdad.
     onVoteA: (Offset) -> Boolean,
+    // Icono del burst del doble-toque — por defecto el de "Vote" (check
+    // relleno); OpenChallengePage pasa el icono de llama (Fire 🔥) en su
+    // lugar, ya que ahí el doble-toque AÑADE fuego, no un voto A/B.
+    burstIcon: ImageVector = ImageVector.vectorResource(R.drawable.ic_vote_filled),
 ) {
     var burstId by remember { mutableStateOf(0L) }
     var burstOffset by remember { mutableStateOf(Offset.Zero) }
@@ -1437,7 +1499,7 @@ private fun VideoSurface(
         // bug reportado: "cuando realizo un voto no tiene la misma
         // animación/tamaño que la web".
         if (burstId != 0L) {
-            VoteBurst(burstId, burstOffset, voteColor) { burstId = 0L }
+            VoteBurst(burstId, burstOffset, voteColor, icon = burstIcon) { burstId = 0L }
         }
     }
 }
@@ -1617,14 +1679,23 @@ private fun BoxScope.SocialRail(
     onRequireAuth: () -> Unit,
     hideChallenge: Boolean = false,
     // Oculta el primer ítem (Votar) de la columna — SOLO lo usa
-    // OpenChallengePage (publicación ÚNICA/"Single"): a petición explícita
-    // del usuario, el voto único (doble-toque tipo "me gusta") de
-    // OpenChallengeSlide.jsx (web) NO se replica en esta versión nativa —
-    // sin este flag, el resto de esta columna (ya genérica y reutilizada tal
-    // cual) mostraría un botón "Vote" que no hace nada. El resto de
+    // OpenChallengePage (publicación ÚNICA/"Single"), que en su lugar puede
+    // mostrar el botón "Fire" 🔥 (ver `showFire` abajo). El resto de
     // publicaciones (Carousel/Duet) no pasan este parámetro (default false,
     // sin cambios de comportamiento).
     hideVote: Boolean = false,
+    // "Fire" 🔥 — reacción tipo "me gusta" de una publicación 'Single', con
+    // el ADN de Twyk (fuego = trending/hot, mismo icono ya usado para
+    // "Trending", `Icons.Filled.LocalFireDepartment`). Réplica de
+    // OpenChallengeSlide.jsx (web) tras su sesión más reciente: este icono
+    // es SOLO indicador (tocarlo QUITA el fuego, ver `onFireRemove`) —
+    // AÑADIRLO se hace con doble-toque sobre el vídeo/foto (ver
+    // OpenChallengePage/VideoSurface.onVoteA), no aquí. SOLO lo pasa
+    // OpenChallengePage (default false/0/{} para el resto de publicaciones).
+    showFire: Boolean = false,
+    hasFire: Boolean = false,
+    fireCount: Int = 0,
+    onFireRemove: () -> Unit = {},
     audioActive: Boolean = false,
     // Portada del lado VISIBLE ahora mismo (o del post si no hay lados) y
     // metadatos de música — misma prioridad EXACTA de contenido que usa el
@@ -1747,6 +1818,14 @@ private fun BoxScope.SocialRail(
         // Votar — al votar pasa a icono SÓLIDO (relleno por dentro), como la web.
         if (!hideVote) {
             RailItem(ImageVector.vectorResource(if (voted != null) R.drawable.ic_vote_filled else R.drawable.ic_vote), label(total, "Vote"), voteTint, size = 40) { }
+        } else if (showFire) {
+            // Fire 🔥 — SOLO indicador visual + acción de QUITAR (ver
+            // comentario del parámetro `showFire` arriba). Naranja cuando ya
+            // se le dio fuego (mismo tono `#F97316` que usa la web), blanco
+            // en caso contrario.
+            RailItem(Icons.Filled.LocalFireDepartment, label(fireCount, "Fire"), if (hasFire) Color(0xFFF97316) else Color.White, size = 30) {
+                if (Session.token == null) onRequireAuth() else onFireRemove()
+            }
         }
         // Challenge (crossed swords) — hidden on "Battles > Completed"
         // (hideChallenge) AND on your OWN posts (headAuthorUsername matches
@@ -2118,7 +2197,7 @@ private fun BoxScope.BufferingSpinner(player: ExoPlayer) {
 // el pico inicial (1.4 → 1.12 → 1.22 → 1.15), solo se desvanece (opacity)
 // sin sensación de "contraerse".
 @Composable
-private fun VoteBurst(id: Long, tapOffset: Offset, color: Color, onEnd: () -> Unit) {
+private fun VoteBurst(id: Long, tapOffset: Offset, color: Color, icon: ImageVector = ImageVector.vectorResource(R.drawable.ic_vote_filled), onEnd: () -> Unit) {
     val density = LocalDensity.current
     val iconSizeDp = 96.dp
     val iconSizePx = with(density) { iconSizeDp.toPx() }
@@ -2186,7 +2265,7 @@ private fun VoteBurst(id: Long, tapOffset: Offset, color: Color, onEnd: () -> Un
         // que antes faltaba por completo (bug reportado: "no tiene la misma
         // animación/tamaño que la web").
         Icon(
-            ImageVector.vectorResource(R.drawable.ic_vote_filled),
+            icon,
             contentDescription = null,
             tint = Color.Black.copy(alpha = 0.45f),
             modifier = Modifier
@@ -2205,7 +2284,7 @@ private fun VoteBurst(id: Long, tapOffset: Offset, color: Color, onEnd: () -> Un
                 },
         )
         Icon(
-            ImageVector.vectorResource(R.drawable.ic_vote_filled),
+            icon,
             contentDescription = null,
             tint = color,
             modifier = Modifier

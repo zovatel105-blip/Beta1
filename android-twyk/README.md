@@ -64,6 +64,17 @@ estado queda intacta** y el vídeo se ve por detrás (edge-to-edge).
 >   Followers/Comments): ahora usan ancho MÍNIMO en vez de tamaño FIJO — con
 >   2+ dígitos (10, 23…) el número no cabía en el círculo fijo de 18dp y se
 >   salía de él, pareciendo un número suelto flotando junto a la pestaña.
+>
+> 🆕 Sesión más reciente (paridad con la web — botón "Fire" 🔥 en
+> publicaciones 'Single'/reto abierto): la web sustituyó el antiguo "Vote"
+> A/B de estas publicaciones por una reacción tipo "me gusta"
+> (`OpenChallengeSlide.jsx`). Réplica exacta en nativo
+> (`VersusFeed.kt::OpenChallengePage`): DOBLE-toque en el vídeo/foto AÑADE
+> el fuego (nunca lo quita; burst naranja `#F97316` con el icono de llama,
+> reutilizando la animación ya existente de `VoteBurst`); tocar el icono en
+> la columna social es lo que lo QUITA. Se añadieron
+> `Post.voteCount`/`Post.hasVoted` (Models.kt) y el endpoint Retrofit
+> `singleVote` (`POST /api/single-vote`, backend sin cambios).
 
 > 👉 Compila la **Fase 1** primero y confirma que arranca; así validamos el
 > toolchain antes de añadir las siguientes fases.

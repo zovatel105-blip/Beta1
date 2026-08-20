@@ -48,6 +48,12 @@ interface TwykApi {
     @POST("api/save")
     suspend fun save(@Body body: SaveRequest): SaveResponse
 
+    // "Fire" 🔥 — voto único (toggle) de una publicación 'Single'/reto
+    // abierto (ver OpenChallengePage en VersusFeed.kt). Réplica exacta de
+    // POST /api/single-vote (web: OpenChallengeSlide.jsx).
+    @POST("api/single-vote")
+    suspend fun singleVote(@Body body: SingleVoteRequest): SingleVoteResponse
+
     // TWYK Engine: registra un compartido (fire-and-forget, alimenta el feed).
     @POST("api/share")
     suspend fun share(@Body body: ShareRequest): ShareResponse
