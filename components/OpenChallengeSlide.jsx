@@ -512,6 +512,7 @@ export default function OpenChallengeSlide({
       <ShareModal
         open={shareOpen}
         postId={post.id}
+        mediaUrl={isImage ? (post.imageUrl || post.posterUrl) : post.videoUrl}
         onShared={() => setShareCount((n) => { const next = n + 1; lsSet(`shrN_${post.id}`, next); return next })}
         onClose={() => setShareOpen(false)}
       />

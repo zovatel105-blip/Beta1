@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Send, Link2, Instagram, Check, ChevronDown } from 'lucide-react'
+import { Send, Link2, Instagram, Check, ChevronDown, Download } from 'lucide-react'
 import BottomSheet from './BottomSheet'
 
 const WhatsAppIcon = () => (
@@ -22,9 +22,22 @@ const XIcon = () => (
 
 /**
  * ShareModal — Hoja inferior de compartir estilo Instagram.
+ *
+ * `mediaUrl` (opcional, foto o vídeo del lado VISIBLE de la publicación):
+ * habilita "Save to device" — petición del usuario tras comparar con
+ * larpgpt.com (punto de virality #2/#3 de ese análisis): hoy compartir solo
+ * mandaba un LINK de vuelta a Twyk; para que cada publicación (sobre todo
+ * las de Luxury Battle, pensadas para "flexear") funcione como su propio
+ * anuncio gratis en Instagram/TikTok, la persona necesita el ARCHIVO limpio
+ * (sin ninguna UI de la app) para publicarlo nativamente ahí, no solo un
+ * enlace. Se descarga vía fetch+blob (no `<a href download>` directo) para
+ * forzar la descarga real incluso en Safari/iOS con recursos de otro
+ * "path" del mismo origen, y para poder mostrar feedback (spinner/check).
  */
-export default function ShareModal({ open, postId, onClose, onShared }) {
+export default function ShareModal({ open, postId, mediaUrl, onClose, onShared }) {
   const [copied, setCopied] = useState(false)
+  const [downloading, setDownloading] = useState(false)
+  const [downloaded, setDownloaded] = useState(false)
 
   const shareUrl = typeof window !== 'undefined' ? `${window.location.origin}/?post=${postId}` : ''
 
@@ -57,8 +70,43 @@ export default function ShareModal({ open, postId, onClose, onShared }) {
       copyLink()
     }
   }
+  const downloadMedia = async () => {
+    if (!mediaUrl || downloading) return
+    setDownloading(true)
+    try {
+      const res = await fetch(mediaUrl)
+      const blob = await res.blob()
+      const blobUrl = URL.createObjectURL(blob)
+      const ext = mediaUrl.match(/\.[a-zA-Z0-9]+($|\?)/)?.[0]?.replace('?', '') || ''
+      const a = document.createElement('a')
+      a.href = blobUrl
+      a.download = `twyk-${postId}${ext}`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 4000)
+      trackShare()
+      setDownloaded(true)
+      setTimeout(() => setDownloaded(false), 1800)
+    } catch { /* noop */ } finally {
+      setDownloading(false)
+    }
+  }
 
   const options = [
+    // Primera opción (prioridad visual, petición del usuario): el archivo
+    // limpio para publicar fuera de Twyk. Solo aparece si esta tarjeta pasó
+    // un `mediaUrl` (todas los tipos de publicación ya lo hacen, ver
+    // CarouselSlide/DuetSlide/OpenChallengeSlide).
+    ...(mediaUrl ? [{
+      key: 'download',
+      label: downloaded ? 'Saved' : downloading ? 'Saving...' : 'Save to device',
+      onClick: downloadMedia,
+      bg: 'bg-zinc-100',
+      icon: downloaded
+        ? <Check className="w-6 h-6 text-green-600" strokeWidth={2} />
+        : <Download className={`w-6 h-6 text-zinc-700 ${downloading ? 'animate-pulse' : ''}`} strokeWidth={1.6} />,
+    }] : []),
     { key: 'dm', label: 'Send to', onClick: sendTo, bg: 'bg-zinc-100', icon: <Send className="w-6 h-6 text-zinc-700" strokeWidth={1.6} /> },
     { key: 'copy', label: copied ? 'Copied' : 'Copy link', onClick: copyLink, bg: 'bg-zinc-100', icon: copied ? <Check className="w-6 h-6 text-green-600" strokeWidth={2} /> : <Link2 className="w-6 h-6 text-zinc-700" strokeWidth={1.6} /> },
     { key: 'ig', label: 'Instagram', onClick: () => openUrl('https://www.instagram.com/'), bg: 'bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600', icon: <Instagram className="w-6 h-6 text-white" strokeWidth={1.8} /> },
@@ -80,7 +128,7 @@ export default function ShareModal({ open, postId, onClose, onShared }) {
         <h3 className="text-center text-[12px] font-semibold text-zinc-800">Share</h3>
       </div>
       <div className="border-t border-zinc-100 px-4 py-6">
-        <div className="grid grid-cols-5 gap-2">
+        <div className="grid grid-cols-3 gap-3">
           {options.map((o) => (
             <button key={o.key} onClick={() => { o.onClick?.(); onShared?.() }} className="flex flex-col items-center gap-2 active:scale-95 transition">
               <span className={`w-14 h-14 rounded-full flex items-center justify-center ${o.bg}`}>{o.icon}</span>

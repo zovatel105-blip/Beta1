@@ -992,6 +992,7 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
       <ShareModal
         open={shareOpen}
         postId={post.id}
+        mediaUrl={current.mediaType === 'image' ? (current.imageUrl || current.posterUrl) : current.videoUrl}
         onShared={() => setShareCount((n) => { const next = n + 1; lsSet(`shrN_${post.id}`, next); return next })}
         onClose={() => setShareOpen(false)}
       />

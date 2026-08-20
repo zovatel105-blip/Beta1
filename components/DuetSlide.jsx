@@ -1091,6 +1091,10 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
       <ShareModal
         open={shareOpen}
         postId={post.id}
+        mediaUrl={(() => {
+          const active = audibleSide === 'b' ? sideB : sideA
+          return active.mediaType === 'image' ? (active.imageUrl || active.posterUrl) : active.videoUrl
+        })()}
         onShared={() => setShareCount((n) => { const next = n + 1; lsSet(`shrN_${post.id}`, next); return next })}
         onClose={() => setShareOpen(false)}
       />
