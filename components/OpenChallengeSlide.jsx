@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Swords, Play, MessageCircle, Bookmark, MoreVertical, Music } from 'lucide-react'
+import { Swords, Play, MessageCircle, Bookmark, MoreVertical, Music, Flame } from 'lucide-react'
 import ShareIcon from './icons/ShareIcon'
 import Avatar from './Avatar'
 import CaptionText from './CaptionText'
@@ -11,6 +11,8 @@ import OptionsModal from './OptionsModal'
 import AuthModal from './AuthModal'
 import QuickCommentInput from './QuickCommentInput'
 import CommentOrViewsBar from './CommentOrViewsBar'
+import FireBurstEffect from './FireBurstEffect'
+import { cn } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
 
 function formatCount(n) {
@@ -45,11 +47,22 @@ const COMMENT_BAR_RESERVE = '58px + max(env(safe-area-inset-bottom, 0px), 12px)'
  * varias personas distintas pueden enviar su propia solicitud igual, cada
  * una independiente.
  *
- * SIN VOTO (petición explícita del usuario: "quitar el boton de voto de las
- * publicaciones single"): estas publicaciones solo existen para ser
- * RETADAS (ver "Challenge" arriba) — no llevan ningún botón/gesto de voto,
- * a diferencia de las publicaciones versus/1vs1 (que sí comparan 2 lados).
- * El toque simple sobre el vídeo solo pausa/reanuda.
+ * SIN VOTO A/B (petición explícita del usuario: "quitar el boton de voto de
+ * las publicaciones single"): estas publicaciones no comparan 2 lados como
+ * versus/1vs1 — el toque simple sobre el vídeo solo pausa/reanuda.
+ *
+ * BOTÓN "FIRE" 🔥 (petición del usuario: "añadir el botón fire manteniendo
+ * los botones que ya están"): reacción tipo "like" con el ADN de Twyk
+ * (fuego = trending/hot). Reutiliza el backend de voto único ya existente
+ * para publicaciones single (toggleSingleVote / POST /api/single-vote,
+ * conteo+estado hidratado vía post.voteCount/post.hasVoted en
+ * getOpenChallengeFeedItems) — antes sin UI aquí; ahora vuelve a mostrarse,
+ * pero como botón de fuego (no como voto A/B), SUMADO a
+ * Retar/Comentarios/Compartir/Guardar/Más, sin quitar ninguno de ellos.
+ * Mecánica pedida explícitamente por el usuario (asimétrica, no un simple
+ * toggle): DOBLE-toque en el vídeo/foto SOLO AÑADE el fuego (addFire, nunca
+ * lo quita — igual que el doble-toque de voto en CarouselSlide.jsx); tocar
+ * el icono de la columna social es lo que lo QUITA (removeFire).
  */
 export default function OpenChallengeSlide({
   post,
@@ -65,6 +78,14 @@ export default function OpenChallengeSlide({
 }) {
   const { user } = useAuth()
   const videoRef = useRef(null)
+  const overlayRef = useRef(null)
+  // Doble-toque (mismo patrón EXACTO que CarouselSlide/DuetSlide para votar):
+  // aquí se usa para dar/quitar "Fire" 🔥 sobre el propio vídeo/foto — el
+  // botón de la columna social es SOLO indicador visual (igual que el icono
+  // de "Vote" en las publicaciones versus, que tampoco reacciona al click,
+  // ver su `onClick={(e) => e.stopPropagation()}`), la acción real es el
+  // doble-toque, para mantener el mismo "ADN" (gesto) en toda la app.
+  const lastTapRef = useRef(0)
   // BUG reportado por el usuario ("en el feed tengo 3 publicaciones single
   // pero no puedo hacer scrolling"): a diferencia de CarouselSlide.jsx/
   // DuetSlide.jsx (que registran onPointerDown/onPointerMove y comparan la
@@ -88,6 +109,18 @@ export default function OpenChallengeSlide({
   const [shareOpen, setShareOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [authModalOpen, setAuthModalOpen] = useState(false)
+
+  // "Fire" 🔥 — reacción tipo "like" con el ADN de Twyk (fuego = trending/hot),
+  // PEDIDA por el usuario como el único botón social NUEVO a añadir, sin
+  // quitar ninguno de los ya existentes. Reutiliza el backend de voto único
+  // ya construido para publicaciones single (toggleSingleVote /
+  // /api/single-vote) — antes sin UI aquí (el botón de voto se había ocultado
+  // a petición del usuario); ahora se muestra de nuevo, pero como "Fire" en
+  // vez de "Vote", y el conteo/estado inicial viene hidratado por el feed
+  // (post.voteCount / post.hasVoted, ver getOpenChallengeFeedItems).
+  const [hasFire, setHasFire] = useState(!!post.hasVoted)
+  const [fireCount, setFireCount] = useState(post.voteCount || 0)
+  const [fireBursts, setFireBursts] = useState([])
 
   // Contador de "reproducciones" (stats.views) — BUG FIX ("en las
   // publicaciones single las reproducciones/visitas se quedan en 0"): a
@@ -121,6 +154,14 @@ export default function OpenChallengeSlide({
     setSaveCount((c) => Math.max(c, lsNum(`savN_${post.id}`)))
   }, [post.id])
   useEffect(() => { setFollowing(!!post.author?.isFollowing) }, [post.author?.username, post.author?.isFollowing])
+
+  // Sincroniza "Fire" con el dato hidratado por el servidor (post.hasVoted/
+  // post.voteCount) para que persista tras recargar y al reciclarse la
+  // tarjeta en la ventana virtualizada del feed — mismo patrón que `following`.
+  useEffect(() => {
+    setHasFire(!!post.hasVoted)
+    setFireCount(post.voteCount || 0)
+  }, [post.id, post.hasVoted, post.voteCount])
 
   const isImage = post.mediaType === 'image'
   const mediaUrl = isImage ? post.imageUrl : post.videoUrl
@@ -160,10 +201,65 @@ export default function OpenChallengeSlide({
     if (el.paused) el.play().catch(() => {}); else el.pause()
   }, [isImage])
 
-  // Gestos sobre el vídeo: SOLO toque simple = play/pausa (sin voto, ver
-  // comentario del componente) — se conserva el guard de distancia (dx/dy >
-  // 12px = fue un ARRASTRE/scroll, no un toque) para no interferir con el
-  // scroll del feed.
+  // Burst del icono de fuego — aparece justo DONDE se hizo doble-toque (mismo
+  // patrón que spawnVoteBurst en CarouselSlide.jsx). Sin coords -> centrado.
+  const spawnFireBurst = useCallback((pt) => {
+    const burstId = Math.random().toString(36).slice(2)
+    setFireBursts((b) => [...b, { id: burstId, x: pt?.x, y: pt?.y }])
+    setTimeout(() => setFireBursts((b) => b.filter((x) => x.id !== burstId)), 900)
+  }, [])
+
+  // Llamada al backend de voto único (toggle) — helper compartido por
+  // addFire/removeFire. Reconcilia con la respuesta real del servidor y
+  // revierte el estado optimista si la llamada falla.
+  const callSingleVote = useCallback((expectedNext) => {
+    fetch('/api/single-vote', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ postId: post.id }),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d && typeof d.count === 'number') setFireCount(d.count)
+        if (d && typeof d.voted === 'boolean') setHasFire(d.voted)
+      })
+      .catch(() => {
+        setHasFire(!expectedNext)
+        setFireCount((n) => Math.max(0, n + (expectedNext ? -1 : 1)))
+      })
+  }, [post.id])
+
+  // AÑADIR "Fire" 🔥 — SOLO con DOBLE-toque sobre el vídeo/foto (ver
+  // onMediaPointerUp), igual que el doble-toque de voto en CarouselSlide.jsx
+  // (mismo "ADN"/gesto en toda la app). Petición explícita del usuario: el
+  // doble-toque únicamente ENCIENDE el fuego (nunca lo apaga) — si ya estaba
+  // encendido, solo repite la animación sin volver a llamar al servidor.
+  const addFire = useCallback((pt) => {
+    if (!user) { setAuthModalOpen(true); return }
+    spawnFireBurst(pt)
+    if (hasFire) return
+    setHasFire(true)
+    setFireCount((n) => n + 1)
+    callSingleVote(true)
+  }, [hasFire, user, spawnFireBurst, callSingleVote])
+
+  // QUITAR "Fire" 🔥 — SOLO al tocar el icono en la columna social (petición
+  // explícita del usuario). Si no estaba encendido, no hace nada.
+  const removeFire = useCallback((e) => {
+    e.stopPropagation()
+    if (!user) { setAuthModalOpen(true); return }
+    if (!hasFire) return
+    setHasFire(false)
+    setFireCount((n) => Math.max(0, n - 1))
+    callSingleVote(false)
+  }, [hasFire, user, callSingleVote])
+
+  // Gestos sobre el vídeo: toque simple = play/pausa; DOBLE toque = AÑADIR
+  // "Fire" 🔥 (nunca lo quita, ver addFire) — mismo patrón exacto que el
+  // doble-toque de voto en CarouselSlide/DuetSlide: debounce de 280ms para
+  // que el primer toque de un doble-toque no dispare también el play/pausa.
+  // Se conserva el guard de distancia (dx/dy > 12px = fue un ARRASTRE/scroll,
+  // no un toque) para no interferir con el scroll del feed.
   const onMediaPointerDown = useCallback((e) => {
     downRef.current = { x: e.clientX, y: e.clientY }
   }, [])
@@ -179,8 +275,20 @@ export default function OpenChallengeSlide({
     // de abajo (bug reportado: el scroll se sentía "atascado" al pasar por
     // una publicación única).
     if (Math.abs(dx) > 12 || Math.abs(dy) > 12) return
-    togglePlay()
-  }, [togglePlay])
+    const now = Date.now()
+    const isDouble = now - lastTapRef.current < 300
+    lastTapRef.current = now
+    if (isDouble) {
+      const rect = overlayRef.current?.getBoundingClientRect()
+      const pt = rect ? { x: e.clientX - rect.left, y: e.clientY - rect.top } : null
+      addFire(pt)
+      return
+    }
+    setTimeout(() => {
+      if (Date.now() - lastTapRef.current < 280) return
+      togglePlay()
+    }, 280)
+  }, [togglePlay, addFire])
 
   const handleChallengeClick = useCallback((e) => {
     e.stopPropagation()
@@ -225,7 +333,7 @@ export default function OpenChallengeSlide({
   }, [post.id, saved, user])
 
   return (
-    <div className="relative w-full h-full bg-black overflow-hidden select-none">
+    <div ref={overlayRef} className="relative w-full h-full bg-black overflow-hidden select-none">
       {/* Media a pantalla completa */}
       <div className="absolute inset-0" onPointerDown={onMediaPointerDown} onPointerUp={onMediaPointerUp}>
         {(post.posterUrl || (isImage && mediaUrl)) && (
@@ -245,11 +353,40 @@ export default function OpenChallengeSlide({
         )}
       </div>
 
+      {/* Pista de descubribilidad del gesto (mismo estilo/posición que el
+          aviso "double-tap to vote" de CarouselSlide.jsx) — solo mientras no
+          se le ha dado fuego todavía a esta publicación. */}
+      {!hasFire && (
+        <div className="absolute top-12 left-1/2 -translate-x-1/2 z-20 pointer-events-none bg-black/45 backdrop-blur text-white text-[10px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap">
+          Double-tap to 🔥
+        </div>
+      )}
+
       {paused && !isImage && (
         <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
           <Play size={72} className="text-white drop-shadow-lg" fill="white" />
         </div>
       )}
+
+      {/* Burst del icono de fuego al doble-tocar — aparece justo DONDE se
+          tocó (un poco por encima); sin coords -> centrado. Mismo patrón que
+          voteBursts en CarouselSlide.jsx. */}
+      {fireBursts.map((fb) => (
+        fb.x != null && fb.y != null ? (
+          <div
+            key={fb.id}
+            className="absolute z-30 pointer-events-none"
+            style={{ left: fb.x, top: fb.y, transform: 'translate(-50%, -60px)' }}
+          >
+            <FireBurstEffect />
+          </div>
+        ) : (
+          <div key={fb.id} className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none">
+            <FireBurstEffect />
+          </div>
+        )
+      ))}
+
 
       {/* Header — MISMA posición/estilo que el resto de publicaciones
           (abajo-izquierda): avatar + nombre + Seguir, sin ningún distintivo
@@ -288,6 +425,17 @@ export default function OpenChallengeSlide({
           diálogo de reto que cualquier otra publicación — NO publica nada
           por sí solo. */}
       <div className="absolute z-20 right-1 flex flex-col items-center gap-4 pointer-events-auto" style={showCommentInput ? { bottom: `calc(${COMMENT_BAR_RESERVE} + 6px)` } : { bottom: 72 }}>
+        {/* Fire 🔥 — reacción "like" con el ADN de Twyk. Único botón NUEVO
+            pedido por el usuario, se añade SIN quitar ninguno de los ya
+            existentes (Retar/Comentarios/Compartir/Guardar/Más). AÑADIR el
+            fuego se hace con DOBLE-toque sobre el vídeo/foto (ver
+            onMediaPointerUp/addFire, mismo "ADN"/gesto que el voto en
+            CarouselSlide.jsx); tocar este icono es lo que lo QUITA
+            (removeFire) — petición explícita del usuario. */}
+        <button aria-label="fire" onClick={removeFire} className="flex flex-col items-center gap-1 w-14 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
+          <Flame className={cn('w-[30px] h-[30px] transition-all duration-200', hasFire ? 'fill-current text-orange-500' : 'text-white')} strokeWidth={1.25} />
+          <span className={`${fireCount > 0 ? 'text-[9px] font-semibold' : 'text-[8px] font-bold'} max-w-[30px] overflow-hidden text-white leading-none text-center whitespace-nowrap`}>{countLabel(fireCount, 'Fire')}</span>
+        </button>
         {!isOwnChallenge && (
           <button
             aria-label="challenge"
