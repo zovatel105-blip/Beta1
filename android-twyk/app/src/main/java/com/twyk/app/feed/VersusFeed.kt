@@ -2573,7 +2573,27 @@ fun VoteResultOverlay(
         ?: otherSide?.author?.username?.let { "@$it" } ?: ""
     val sameAuthorBothSides = !chosenSide?.author?.username.isNullOrBlank() &&
         chosenSide?.author?.username == otherSide?.author?.username
-    val posterUrl = absoluteUrl(chosenSide?.posterUrl)
+    // Vídeo del ganador de fondo (réplica de VSWinnerCard.jsx: `<video muted
+    // loop autoPlay>`) — antes esta tarjeta SIEMPRE mostraba una imagen
+    // estática (posterUrl), incluso cuando el ganador era un vídeo. Reutiliza
+    // ContentOption (ya usado por VSContentCard, mismo patrón: player propio
+    // + su propia caché de disco) para el mismo fallback vídeo->imagen->negro
+    // que la web (`chosenIsImage ? null : chosenSrc`).
+    val context = LocalContext.current
+    val winnerDataSourceFactory = remember { VideoCache.cacheDataSourceFactory(context) }
+    val hasWinnerVideo = chosenSide?.mediaType != "image" && !chosenSide?.videoUrl.isNullOrBlank()
+    val winnerPlayer = remember(chosenSide?.videoUrl) {
+        buildPlayer(context, winnerDataSourceFactory, if (hasWinnerVideo) chosenSide?.videoUrl else null, muted = true)
+    }
+    DisposableEffect(winnerPlayer) {
+        onDispose { winnerPlayer.release() }
+    }
+    LaunchedEffect(winnerPlayer, hasWinnerVideo) {
+        if (hasWinnerVideo) {
+            if (winnerPlayer.playbackState == Player.STATE_IDLE) winnerPlayer.prepare()
+            winnerPlayer.play()
+        }
+    }
 
     // Gesto: deslizar hacia ARRIBA (>60dp) pasa al siguiente duelo — réplica
     // exacta del umbral (SWIPE_THRESHOLD=60) y la dirección de VSWinnerCard.jsx.
@@ -2606,11 +2626,7 @@ fun VoteResultOverlay(
                 .border(2.5.dp, Brush.horizontalGradient(listOf(Color(0xFFA855F7), Color(0xFF3B82F6))), RoundedCornerShape(26.dp))
                 .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { },
         ) {
-            if (posterUrl != null) {
-                AsyncImage(model = posterUrl, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-            } else {
-                Box(Modifier.fillMaxSize().background(Brush.linearGradient(listOf(Color(0xFF27272A), Color.Black))))
-            }
+            ContentOption(chosenSide, winnerPlayer)
             Box(
                 Modifier.fillMaxSize().background(
                     Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.65f), Color.Black.copy(alpha = 0.15f), Color.Black.copy(alpha = 0.9f))),

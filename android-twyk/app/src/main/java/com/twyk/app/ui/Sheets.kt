@@ -3,6 +3,7 @@ package com.twyk.app.ui
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -954,6 +955,23 @@ fun AuthSheet(onClose: () -> Unit, onAuthed: () -> Unit) {
             if (regStep > 0) regStep -= 1 else step = "methods"
         } else {
             step = "methods"
+        }
+    }
+
+    // BUG REPORTADO (edge swipe back cerraba la hoja de login/registro por
+    // completo en vez de retroceder un paso): antes NINGÚN paso de esta hoja
+    // interceptaba el gesto/botón "Atrás" del sistema. FIX: BackHandler LOCAL
+    // con la MISMA lógica exacta que ya usa el icono visible del header (ver
+    // más abajo, `step == "methods" || ageBlocked || ...interests`) — en los
+    // pasos donde se ve una flecha "atrás" retrocede UN paso (goBack()); en
+    // los pasos donde se ve la flecha "cerrar" (splash de métodos, bloqueo
+    // por edad, o el paso final de intereses) cierra la hoja entera, réplica
+    // 1:1 de tocar ese mismo botón.
+    BackHandler {
+        if (step == "methods" || ageBlocked || (view == "register" && step == "form" && REG_STEPS[regStep].key == "interests")) {
+            onClose()
+        } else {
+            goBack()
         }
     }
 

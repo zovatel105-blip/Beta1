@@ -6,6 +6,7 @@ import android.util.Base64
 import android.view.LayoutInflater
 import android.provider.OpenableColumns
 import android.webkit.MimeTypeMap
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -192,6 +193,23 @@ fun UploadScreen(onRequireAuth: () -> Unit, onDone: () -> Unit) {
             userQuery = ""
             users = runCatching { RetrofitProvider.api.users(null).users.orEmpty() }.getOrDefault(emptyList())
             usersLoading = false
+        }
+    }
+
+    // BUG REPORTADO (edge swipe back cerraba la pantalla de Subir por
+    // completo en vez de retroceder un paso): antes NINGÚN paso de este
+    // flujo interceptaba el gesto/botón "Atrás" del sistema — MainActivity.kt
+    // lo resuelve cerrando la pantalla entera (vuelve a Inicio), sin noción
+    // de que "Subir" tiene 3 pasos (mode -> file -> target). FIX: BackHandler
+    // LOCAL (prioridad sobre el del padre por composición más profunda,
+    // mismo patrón ya usado en Profile.kt/Battles.kt) que retrocede UN paso:
+    // target -> file -> mode; en "mode" (enabled=false) el evento sigue
+    // propagándose hacia MainActivity, que sí cierra la pantalla completa
+    // (comportamiento correcto en el primer paso, igual que antes).
+    BackHandler(enabled = step == "target" || step == "file") {
+        when (step) {
+            "target" -> step = "file"
+            "file" -> step = "mode"
         }
     }
 

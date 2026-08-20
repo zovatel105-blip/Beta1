@@ -75,6 +75,22 @@ estado queda intacta** y el vídeo se ve por detrás (edge-to-edge).
 > la columna social es lo que lo QUITA. Se añadieron
 > `Post.voteCount`/`Post.hasVoted` (Models.kt) y el endpoint Retrofit
 > `singleVote` (`POST /api/single-vote`, backend sin cambios).
+>
+> 🆕 Sesión más reciente (2 diferencias pendientes con la web, ambas
+> aplicadas):
+> - **Tarjeta de "Ganador" reproduce vídeo**: antes SIEMPRE mostraba una
+>   imagen estática (poster) de fondo, aunque el ganador fuera un vídeo —
+>   ahora reproduce el vídeo del ganador (silenciado, en bucle, autoplay),
+>   réplica de `winnerVideoUrl` en `VSWinnerCard.jsx`. Reutiliza el mismo
+>   composable `ContentOption` ya usado por la "content card" (long-press).
+> - **Retroceso paso a paso** en los 2 flujos multi-paso que quedaban
+>   pendientes: "Subir" (`Upload.kt`: reto→archivo→modo) y la hoja de
+>   login/registro (`Sheets.kt` `AuthSheet`: métodos→formulario→pasos de
+>   registro) — antes el botón/gesto "Atrás" del sistema cerraba la pantalla
+>   COMPLETA en vez de retroceder un solo paso dentro del flujo. Nuevo
+>   `BackHandler` LOCAL en cada uno (mismo patrón ya usado en
+>   Profile.kt/Battles.kt), con la MISMA lógica que ya usaban sus propios
+>   botones de flecha "atrás"/"cerrar" visibles en pantalla.
 
 > 👉 Compila la **Fase 1** primero y confirma que arranca; así validamos el
 > toolchain antes de añadir las siguientes fases.
