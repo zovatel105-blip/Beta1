@@ -34,10 +34,34 @@ const FALLBACK_SUGGESTIONS = [
   'Make it look cinematic and dramatic',
 ]
 
+// Space público de FLUX.1 Kontext [dev] (modelo abierto de Black Forest
+// Labs) corriendo en GPU GRATUITA (ZeroGPU) — misma estrategia que
+// AIVideoEditor.jsx (LUCY_SPACE): se llama DESDE EL NAVEGADOR a propósito,
+// así la cuota gratis es por IP del llamante, sin cuentas ni tokens. Probado
+// en vivo (script Node real, sin agente de testing): edición precisa
+// (ej. "añade gafas de sol") y transformaciones de escena completas (ej.
+// "ponme en un yate de lujo al atardecer") preservando la identidad de la
+// persona, en ~25-35s. `Qwen/Qwen-Image-Edit` (alternativa evaluada) FALLA
+// de inmediato para llamadas anónimas: "The requested GPU duration (240s) is
+// larger than the maximum allowed" — no es una opción viable ahora mismo.
+// Si el Space gratuito está ocupado/sin cuota, se cae automáticamente al
+// editor del servidor (Nano Banana vía Emergent, con presupuesto limitado):
+// el usuario SIEMPRE puede seguir editando, nunca se queda sin alternativa.
+const FLUX_KONTEXT_SPACE = 'black-forest-labs/FLUX.1-Kontext-Dev'
+
 async function dataUrlToFile(dataUrl, filename) {
   const res = await fetch(dataUrl)
   const blob = await res.blob()
   return new File([blob], filename, { type: blob.type || 'image/png' })
+}
+
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result)
+    reader.onerror = reject
+    reader.readAsDataURL(blob)
+  })
 }
 
 export default function AIImageEditor({ imageFile, initialPrompt = '', onClose, onApply, onStatusChange }) {
@@ -64,6 +88,9 @@ export default function AIImageEditor({ imageFile, initialPrompt = '', onClose, 
   // mostrar nada de "moda" que inventar una lista no verificada para esta
   // foto en concreto.
   const [trending, setTrending] = useState([])
+  // Aviso no bloqueante cuando la GPU gratuita no está disponible y se cae
+  // al editor del servidor (mismo patrón que AIVideoEditor.jsx).
+  const [notice, setNotice] = useState(null)
 
   // Reinicia el formulario y pide sugerencias nuevas cada vez que se entra a
   // editar un archivo distinto. `initialPrompt` (petición del usuario, ver
@@ -75,6 +102,7 @@ export default function AIImageEditor({ imageFile, initialPrompt = '', onClose, 
     setStage('input')
     setResultUrl(null)
     setErrorMsg(null)
+    setNotice(null)
     setPrompt(initialPrompt || '')
     setSuggestions([])
     setTrending([])
@@ -110,7 +138,27 @@ export default function AIImageEditor({ imageFile, initialPrompt = '', onClose, 
     if (trimmed.length < 3 || !imageFile) return
     setStage('loading')
     setErrorMsg(null)
+    setNotice(null)
     onStatusChange?.('loading')
+
+    // 1) Intentar primero la GPU GRATUITA (FLUX.1 Kontext, ilimitada, sin
+    //    coste, llamada desde este navegador). Si falla por cualquier
+    //    motivo (sin cuota, Space ocupado, timeout), se cae al editor del
+    //    servidor de inmediato — el usuario nunca ve un fallo, solo puede
+    //    tardar un poco más de decidir la ruta.
+    try {
+      const dataUrl = await editOnFreeGpu(trimmed)
+      setResultUrl(dataUrl)
+      setStage('result')
+      onStatusChange?.('result', dataUrl)
+      return
+    } catch (e) {
+      console.warn('free GPU image editor unavailable, using server AI:', e?.message)
+      setNotice('Free GPU is busy right now — using the built-in AI editor instead.')
+    }
+
+    // 2) Editor del servidor (Nano Banana vía Emergent LLM Key, presupuesto
+    //    limitado) — respaldo automático, mismo endpoint de siempre.
     try {
       const fd = new FormData()
       fd.append('image', imageFile)
@@ -130,6 +178,34 @@ export default function AIImageEditor({ imageFile, initialPrompt = '', onClose, 
     }
   }
 
+  // Edición en la GPU gratuita (Space público de FLUX.1 Kontext) desde el
+  // NAVEGADOR. Lanza excepción si no se puede (el llamador hace fallback).
+  // Devuelve un data URL (base64), igual que ya devuelve /api/ai/edit-image.
+  const editOnFreeGpu = async (trimmed) => {
+    const { Client, handle_file } = await import('@gradio/client')
+    const client = await Promise.race([
+      Client.connect(FLUX_KONTEXT_SPACE),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('gpu_connect_timeout')), 25000)),
+    ])
+    const result = await Promise.race([
+      client.predict('/infer', {
+        input_image: handle_file(imageFile),
+        prompt: trimmed,
+        seed: 0,
+        randomize_seed: true,
+        guidance_scale: 2.5,
+        steps: 28,
+      }),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('gpu_timeout')), 90000)),
+    ])
+    const out = result?.data?.[0]
+    const url = out?.url
+    if (!url) throw new Error('gpu_no_result')
+    const blob = await (await fetch(url)).blob()
+    if (!blob || blob.size < 500) throw new Error('gpu_empty_result')
+    return blobToDataUrl(blob)
+  }
+
   const useThisPhoto = async () => {
     if (!resultUrl) return
     const file = await dataUrlToFile(resultUrl, `ai-edited-${Date.now()}.png`)
@@ -140,6 +216,7 @@ export default function AIImageEditor({ imageFile, initialPrompt = '', onClose, 
     setStage('input')
     setResultUrl(null)
     setErrorMsg(null)
+    setNotice(null)
     onStatusChange?.(null) // vuelve a mostrar la foto original, arriba, en el mismo sitio
   }
 
@@ -259,6 +336,11 @@ export default function AIImageEditor({ imageFile, initialPrompt = '', onClose, 
           aquí solo se confirma o se reintenta. */}
       {stage === 'result' && (
         <>
+          {notice && (
+            <div className="rounded-2xl bg-amber-500/10 border border-amber-500/25 px-4 py-2.5 text-[12.5px] text-amber-200">
+              {notice}
+            </div>
+          )}
           <div className="rounded-2xl bg-black/45 backdrop-blur-xl border border-white/10 px-4 py-3 flex items-center gap-2 text-[13px] text-zinc-300">
             <Sparkles size={14} className="text-white/80 shrink-0" /> AI result shown above — keep it?
           </div>
