@@ -35,18 +35,19 @@ const FALLBACK_SUGGESTIONS = [
 ]
 
 // Space público de FLUX.1 Kontext [dev] (modelo abierto de Black Forest
-// Labs) corriendo en GPU GRATUITA (ZeroGPU) — misma estrategia que
-// AIVideoEditor.jsx (LUCY_SPACE): se llama DESDE EL NAVEGADOR a propósito,
-// así la cuota gratis es por IP del llamante, sin cuentas ni tokens. Probado
-// en vivo (script Node real, sin agente de testing): edición precisa
-// (ej. "añade gafas de sol") y transformaciones de escena completas (ej.
-// "ponme en un yate de lujo al atardecer") preservando la identidad de la
-// persona, en ~25-35s. `Qwen/Qwen-Image-Edit` (alternativa evaluada) FALLA
-// de inmediato para llamadas anónimas: "The requested GPU duration (240s) is
-// larger than the maximum allowed" — no es una opción viable ahora mismo.
-// Si el Space gratuito está ocupado/sin cuota, se cae automáticamente al
-// editor del servidor (Nano Banana vía Emergent, con presupuesto limitado):
-// el usuario SIEMPRE puede seguir editando, nunca se queda sin alternativa.
+// Labs) corriendo en GPU GRATUITA (ZeroGPU) — RESPALDO gratuito/ilimitado,
+// NO la ruta principal (ver generate() más abajo: Nano Banana va primero,
+// por calidad). Probado en vivo comparando el MISMO selfie + MISMA
+// instrucción contra Nano Banana (gemini-3.1-flash-image-preview): Nano
+// Banana produce una escena más rica en detalle y tarda ~8s; FLUX preserva
+// bien la cara pero con composición más simple, en ~25-35s. `Qwen/
+// Qwen-Image-Edit` (alternativa evaluada) FALLA de inmediato para llamadas
+// anónimas: "The requested GPU duration (240s) is larger than the maximum
+// allowed" — no es una opción viable. Este Space se llama DESDE EL
+// NAVEGADOR (mismo patrón que AIVideoEditor.jsx): la cuota gratis es por IP
+// del llamante, sin cuentas ni tokens — solo se usa si Nano Banana falla de
+// verdad (presupuesto agotado/error), para que el usuario NUNCA se quede
+// sin poder editar aunque se acabe el presupuesto de Emergent.
 const FLUX_KONTEXT_SPACE = 'black-forest-labs/FLUX.1-Kontext-Dev'
 
 async function dataUrlToFile(dataUrl, filename) {
@@ -141,24 +142,15 @@ export default function AIImageEditor({ imageFile, initialPrompt = '', onClose, 
     setNotice(null)
     onStatusChange?.('loading')
 
-    // 1) Intentar primero la GPU GRATUITA (FLUX.1 Kontext, ilimitada, sin
-    //    coste, llamada desde este navegador). Si falla por cualquier
-    //    motivo (sin cuota, Space ocupado, timeout), se cae al editor del
-    //    servidor de inmediato — el usuario nunca ve un fallo, solo puede
-    //    tardar un poco más de decidir la ruta.
-    try {
-      const dataUrl = await editOnFreeGpu(trimmed)
-      setResultUrl(dataUrl)
-      setStage('result')
-      onStatusChange?.('result', dataUrl)
-      return
-    } catch (e) {
-      console.warn('free GPU image editor unavailable, using server AI:', e?.message)
-      setNotice('Free GPU is busy right now — using the built-in AI editor instead.')
-    }
-
-    // 2) Editor del servidor (Nano Banana vía Emergent LLM Key, presupuesto
-    //    limitado) — respaldo automático, mismo endpoint de siempre.
+    // 1) Editor del servidor PRIMERO (Nano Banana vía Emergent LLM Key) —
+    //    prioridad de CALIDAD (petición explícita del usuario: "las
+    //    publicaciones tienen que tener la misma calidad de nanobanana").
+    //    Comparado en vivo con el mismo selfie + misma instrucción: Nano
+    //    Banana (gemini-3.1-flash-image-preview) da una escena más rica en
+    //    detalle (cubierta, cabos, otros barcos al fondo) y tarda ~8s;
+    //    FLUX.1 Kontext (gratis) preserva bien la cara pero con una
+    //    composición algo más simple — por eso NO se usa como ruta
+    //    principal, solo como red de seguridad.
     try {
       const fd = new FormData()
       fd.append('image', imageFile)
@@ -166,13 +158,29 @@ export default function AIImageEditor({ imageFile, initialPrompt = '', onClose, 
       const res = await fetch('/api/ai/edit-image', { method: 'POST', body: fd })
       const data = await res.json().catch(() => null)
       if (!res.ok || !data?.image) {
-        throw new Error(data?.message || 'The AI could not edit this photo')
+        throw new Error(data?.message || data?.error || 'server_ai_failed')
       }
       setResultUrl(data.image)
       setStage('result')
       onStatusChange?.('result', data.image)
+      return
+    } catch (e) {
+      console.warn('server AI (Nano Banana) unavailable, falling back to free GPU:', e?.message)
+    }
+
+    // 2) Respaldo GRATUITO E ILIMITADO (FLUX.1 Kontext, Space público, ver
+    //    editOnFreeGpu) — SOLO si Nano Banana falló de verdad (presupuesto
+    //    agotado, error de red, etc.). Así el usuario NUNCA se queda sin
+    //    poder editar, aunque la calidad prioritaria siga siendo la de
+    //    Nano Banana mientras haya presupuesto disponible.
+    try {
+      const dataUrl = await editOnFreeGpu(trimmed)
+      setResultUrl(dataUrl)
+      setStage('result')
+      setNotice('AI budget is busy right now — used the free unlimited editor instead (slightly different style).')
+      onStatusChange?.('result', dataUrl)
     } catch (err) {
-      setErrorMsg(err.message || 'Something went wrong, please try again')
+      setErrorMsg('The AI could not edit this photo, please try again')
       setStage('error')
       onStatusChange?.(null)
     }

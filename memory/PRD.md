@@ -1,5 +1,28 @@
 # Twyk — PRD / Registro de progreso
 
+## Ronda: alternativa "ilimitada" a Nano Banana para el editor de fotos — orden de prioridad por CALIDAD
+Usuario: "busques una alternativa a nanobanana con la que pueda editar imágenes con IA ilimitada"
+→ luego, tras implementarla: "Las publicaciones tienen que tener la misma calidad de nanobanana".
+Investigadas 2 alternativas gratuitas (Spaces públicos de Hugging Face, mismo patrón que ya usa
+`AIVideoEditor.jsx` con Lucy Edit): `Qwen/Qwen-Image-Edit` (descartada, falla de inmediato para
+llamadas anónimas por límite de duración de GPU) y `black-forest-labs/FLUX.1-Kontext-Dev` (funciona,
+gratis, sin cuenta). COMPARACIÓN EN VIVO con el MISMO selfie + MISMA instrucción ("ponme en un yate
+de lujo al atardecer"): Nano Banana (`gemini-3.1-flash-image-preview`) da una escena más rica en
+detalle (cabos, otros barcos, cubierta) en ~8s; FLUX preserva bien la cara pero con composición más
+simple, en ~25-35s. Por eso el orden final en `components/AIImageEditor.jsx` es: (1) Nano Banana
+PRIMERO (vía `/api/ai/edit-image`, sin cambios) — garantiza la calidad ya conocida; (2) FLUX.1
+Kontext (llamado DESDE EL NAVEGADOR vía `@gradio/client`, Space público, cuota gratis por IP) SOLO
+como respaldo si Nano Banana falla de verdad (presupuesto agotado/error) — el usuario nunca se queda
+sin poder editar, pero la calidad prioritaria mientras haya presupuesto sigue siendo Nano Banana.
+NOTA de verificación: probar la llamada real al Space desde un NAVEGADOR AUTOMATIZADO (Playwright del
+agente de testing) no fue posible — confirmado que el propio sandbox de automatización bloquea
+CUALQUIER `import()` dinámico hacia recursos externos (reproducido incluso con un import nativo sin
+webpack a un CDN, y con un paquete trivial ya usado en el proyecto, `clsx`) — limitación del entorno
+de testing, no del código; el patrón es idéntico al de `AIVideoEditor.jsx`, ya funcionando en
+producción. El mecanismo externo SÍ se verificó exhaustivamente con scripts Node reales (sin
+navegador): funciona y produce buena calidad.
+
+
 ## Ronda: "Marketing Playbook" como página real del panel de admin (antes solo un mensaje de chat)
 Usuario: "En el perfil del admin se añadió marketing playbook" (refiriéndose a que en una sesión
 anterior el playbook de marketing tipo LarpGPT solo se había ESCRITO como mensaje de chat, nunca
