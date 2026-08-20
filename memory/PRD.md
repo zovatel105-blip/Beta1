@@ -1,5 +1,38 @@
 # Twyk — PRD / Registro de progreso
 
+## Ronda: "Marketing Playbook" como página real del panel de admin (antes solo un mensaje de chat)
+Usuario: "En el perfil del admin se añadió marketing playbook" (refiriéndose a que en una sesión
+anterior el playbook de marketing tipo LarpGPT solo se había ESCRITO como mensaje de chat, nunca
+guardado como página real) + "esa función debe crear contenido basado en mi proyecto para
+promocionar la web apk". Construido:
+- `lib/marketingPlaybook.js` (nuevo): estrategia de referencia (formato 21-45s, hook 2s, narrativa,
+  hashtags fijos #twyk/#luxurybattle/#ai/#glowup, cadencia, growth loop), pool de 14 ideas de escena
+  con rotación DETERMINISTA por fecha (sin IA, fallback siempre disponible), y `TWYK_PROJECT_SUMMARY`
+  (descripción real de la app: versus, duetos, retos, Luxury Battle con editor de IA + votos +
+  puntuación de IA + descarga sin marca de agua) usada para anclar la generación con IA.
+- `lib/db.js`: colección `marketingPlaybookLog` (upsert por fecha) + cálculo de racha de días
+  consecutivos publicando.
+- `route.js`: GET `/api/admin/marketing-playbook` (estrategia + idea del día + historial + racha),
+  POST `/api/admin/marketing-playbook/log` (guardar registro del día), POST
+  `/api/admin/marketing-playbook/generate` (IA real, `gemini-2.5-flash` vía Emergent LLM Key, mismo
+  patrón que `handleGenerateLuxuryThemeIdeas` — genera ideas de vídeo ANCLADAS a las funciones reales
+  de Twyk, incluyendo el tema Luxury Battle activo si existe). Los 3 solo-admin.
+- `app/admin/marketing/page.js` (nuevo): panel con racha, sección "Generate content with AI"
+  (verificado en vivo: la IA menciona correctamente la pestaña Luxury Battle, el botón "Save to
+  device", los votos y el AI score — contenido real del producto, no genérico), formulario del día
+  (idea/hashtags/sonido/notas/posted) e historial.
+- `components/ProfilePage.jsx`: nuevo link "Marketing Playbook" en Settings > Administration.
+VERIFICADO end-to-end con scripts Node (fetch real, SIN curl ni agente de testing, a petición
+explícita del usuario "no usar el testing agent"): login admin, GET/POST ambos endpoints, IA genera
+3 ideas reales grounded en el producto, guardar log incrementa racha a 1, persistencia confirmada,
+no-admin y sin sesión reciben 403, regresión de `/api/feed` sin romperse. Datos de prueba eliminados
+tras verificar (colección queda vacía para uso real del admin).
+INFRA (recurrente, ver `ENV_BACKUP.md`): `/app/.env` había desaparecido de nuevo al iniciar esta
+sesión — recreado con la URL actual, `EMERGENT_LLM_KEY` renovada vía `emergent_integrations_manager`
+(sk-emergent-e5dF47559B750A1F44), usuarios re-sembrados, `test_credentials.md` recreado (admin:
+twyk/Admin12345).
+
+
 ## Qué es Twyk
 App tipo "versus" (compara y vota entre A/B, estilo TikTok) con:
 - **Web** (Next.js + MongoDB) en `/app` — funcional, es la fuente de verdad del diseño/comportamiento.

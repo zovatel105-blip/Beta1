@@ -68,7 +68,11 @@ import {
   listCommunityLuxuryThemes,
   countUserLuxuryThemesSince,
   searchOfficialLuxuryThemesHistory,
+  getMarketingPlaybookLogs,
+  upsertMarketingPlaybookLog,
+  getMarketingStreak,
 } from '@/lib/db'
+import { MARKETING_STRATEGY, TWYK_PROJECT_SUMMARY, getIdeaForDate } from '@/lib/marketingPlaybook'
 import {
   getAllPosts,
   insertPost,
@@ -1373,6 +1377,35 @@ export async function GET(request, { params }) {
     return NextResponse.json({ themes: themes.map(stripMongoId) })
   }
 
+  // Admin: Marketing Playbook — GET /api/admin/marketing-playbook (solo
+  // admin). Antes solo existía como un mensaje de chat de una sesión
+  // anterior; ahora es una página real del panel de admin (petición del
+  // usuario). Devuelve la estrategia de referencia (formato de vídeo,
+  // hashtags fijos, cadencia), la idea de contenido sugerida para HOY
+  // (rotación determinista por fecha, sin IA — ver lib/marketingPlaybook.js)
+  // y el historial de publicaciones registradas (para la racha de días
+  // consecutivos publicando).
+  if (path === '/admin/marketing-playbook') {
+    const currentUser = await getCurrentUser(request)
+    if (!isAdmin(currentUser)) {
+      return NextResponse.json({ error: 'forbidden', message: 'Solo administradores' }, { status: 403 })
+    }
+    const todayKey = new Date().toISOString().slice(0, 10)
+    const [logs, streak] = await Promise.all([
+      getMarketingPlaybookLogs(60),
+      getMarketingStreak(),
+    ])
+    const todayEntry = logs.find((l) => l.date === todayKey) || null
+    return NextResponse.json({
+      strategy: MARKETING_STRATEGY,
+      todayKey,
+      suggestedIdea: getIdeaForDate(todayKey),
+      todayEntry,
+      streak,
+      logs,
+    })
+  }
+
   if (path === '/' || path === '') {
     return NextResponse.json({ ok: true, service: 'snaptok-api' })
   }
@@ -1582,6 +1615,20 @@ export async function POST(request, { params }) {
   if (path === '/luxury-battles/community/create') {
     return handleCreateCommunityLuxuryTheme(request)
   }
+  // Admin: guarda/actualiza el registro del día del Marketing Playbook
+  // (posted, idea de contenido usada, hashtags, sonido, notas). POST
+  // /api/admin/marketing-playbook/log
+  if (path === '/admin/marketing-playbook/log') {
+    return handleSaveMarketingPlaybookLog(request)
+  }
+  // Admin: genera ideas de contenido de marketing CON IA, ancladas a las
+  // funciones REALES de Twyk (no escenas de lujo genéricas) — petición
+  // explícita del usuario: "esa función debe crear contenido basado en mi
+  // proyecto para promocionar la web apk". POST
+  // /api/admin/marketing-playbook/generate
+  if (path === '/admin/marketing-playbook/generate') {
+    return handleGenerateMarketingContentIdeas(request)
+  }
 
   return NextResponse.json({ ok: true })
 }
@@ -1638,6 +1685,107 @@ async function handleBlockUser(request) {
       return NextResponse.json({ error: 'cannot_block_yourself' }, { status: 400 })
     }
     return NextResponse.json({ error: 'block_failed' }, { status: 500 })
+  }
+}
+
+// POST /api/admin/marketing-playbook/generate  body: { count?: number,
+// avoid?: string[] } — Solo admin. Genera N ideas de vídeo corto (TikTok/
+// Reels) para PROMOCIONAR la app Twyk, ancladas a sus funciones reales
+// (Luxury Battle, versus, duetos, retos, descarga sin marca de agua — ver
+// TWYK_PROJECT_SUMMARY en lib/marketingPlaybook.js), no escenas de lujo
+// desconectadas del producto. Mismo patrón que handleGenerateLuxuryThemeIdeas.
+async function handleGenerateMarketingContentIdeas(request) {
+  try {
+    const currentUser = await getCurrentUser(request)
+    if (!isAdmin(currentUser)) {
+      return NextResponse.json({ error: 'forbidden', message: 'Solo administradores' }, { status: 403 })
+    }
+    const apiKey = process.env.EMERGENT_LLM_KEY
+    if (!apiKey) {
+      return NextResponse.json({ error: 'ai_not_configured', message: 'AI is not configured' }, { status: 500 })
+    }
+    const body = await request.json().catch(() => ({}))
+    const count = Math.min(Math.max(Number(body?.count) || 3, 1), 6)
+    const avoid = Array.isArray(body?.avoid) ? body.avoid.filter((s) => typeof s === 'string' && s.trim()).slice(0, 30) : []
+
+    let activeThemeTitle = ''
+    try {
+      const active = await getActiveLuxuryTheme()
+      activeThemeTitle = active?.title || ''
+    } catch (_e) { /* noop: sin tema activo, no bloquea la generación */ }
+
+    const chat = new LlmChat(
+      apiKey,
+      `marketing-content-ideas-${currentUser.id}-${Date.now()}`,
+      `You are a short-form video growth marketer (TikTok/Reels) for a real app called Twyk. ${TWYK_PROJECT_SUMMARY}${activeThemeTitle ? ` The CURRENT active Luxury Battle theme in the app right now is "${activeThemeTitle}" — you can reference it directly.` : ''} Your job: write concrete, ready-to-film video ideas that promote Twyk itself (not generic lifestyle content), following this proven format: 21-45s duration, hook shows the RESULT in the first 2 seconds (never the explanation first), same recurring narrative arc ("I asked AI to put me in [scene] and this happened" -> show the Twyk AI editor generating it -> show the result -> show the "Save to device" button -> "posted it on Twyk and this is how it did in the Luxury Battle"), a trending sound reminder, and the fixed CTA "Luxury Battle · link in bio". Respond with ONLY a JSON array of objects, each shaped exactly as {"title": string (3-6 words, catchy), "hook": string (the exact spoken/on-screen hook line for the first 2 seconds), "script": string (2-4 short beats describing what to film/show, mentioning the actual Twyk feature/screen), "hashtags": array of 1-2 strings (extra trend-relevant hashtags, WITHOUT # if you prefer, do not repeat twyk/luxurybattle/ai/glowup which are already fixed), "soundHint": string (1 short phrase describing the kind of trending sound to use)}. No markdown, no code fences, no extra text.`
+    ).withModel('gemini', 'gemini-2.5-flash')
+
+    const text = await chat.sendMessage(
+      new UserMessage({
+        text: `Give me ${count} fresh video ideas to promote Twyk.${avoid.length ? ` Do not repeat these already-used titles: ${avoid.join(', ')}.` : ''}`,
+      })
+    )
+
+    let ideas = []
+    try {
+      const cleaned = String(text || '').trim().replace(/^```(json)?/i, '').replace(/```$/, '').trim()
+      const parsed = JSON.parse(cleaned)
+      if (Array.isArray(parsed)) {
+        ideas = parsed
+          .filter((it) => it && typeof it === 'object' && it.title && it.hook)
+          .map((it) => ({
+            title: String(it.title).slice(0, 80).trim(),
+            hook: String(it.hook).slice(0, 200).trim(),
+            script: typeof it.script === 'string' ? it.script.slice(0, 400).trim() : '',
+            hashtags: Array.isArray(it.hashtags)
+              ? it.hashtags.filter((h) => typeof h === 'string' && h.trim()).slice(0, 3).map((h) => (h.startsWith('#') ? h : `#${h.replace(/\s+/g, '')}`))
+              : [],
+            soundHint: typeof it.soundHint === 'string' ? it.soundHint.slice(0, 120).trim() : '',
+          }))
+          .slice(0, count)
+      }
+    } catch (e) {
+      console.error('marketing content ideas: parse failed', e)
+      return NextResponse.json({ error: 'ai_parse_failed' }, { status: 502 })
+    }
+
+    if (!ideas.length) {
+      return NextResponse.json({ error: 'no_ideas', message: 'The AI did not return any usable ideas, try again' }, { status: 502 })
+    }
+    return NextResponse.json({ ideas })
+  } catch (err) {
+    console.error('generate marketing content ideas error', err)
+    return NextResponse.json({ error: 'generate_ideas_failed', detail: String(err?.message || err) }, { status: 500 })
+  }
+}
+
+// POST /api/admin/marketing-playbook/log  body: { date?, posted, contentIdea,
+// hashtags, sound, notes } — Solo admin. `date` en formato 'YYYY-MM-DD'; si
+// se omite, usa la fecha de HOY (UTC).
+async function handleSaveMarketingPlaybookLog(request) {
+  try {
+    const currentUser = await getCurrentUser(request)
+    if (!isAdmin(currentUser)) {
+      return NextResponse.json({ error: 'forbidden', message: 'Solo administradores' }, { status: 403 })
+    }
+    const body = await request.json().catch(() => ({}))
+    const date = (typeof body?.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.date))
+      ? body.date
+      : new Date().toISOString().slice(0, 10)
+    const entry = await upsertMarketingPlaybookLog({
+      date,
+      posted: !!body?.posted,
+      contentIdea: body?.contentIdea,
+      hashtags: body?.hashtags,
+      sound: body?.sound,
+      notes: body?.notes,
+      updatedBy: currentUser.id,
+    })
+    const streak = await getMarketingStreak()
+    return NextResponse.json({ ok: true, entry, streak })
+  } catch (err) {
+    console.error('marketing playbook log save error', err)
+    return NextResponse.json({ error: 'save_failed', detail: String(err?.message || err) }, { status: 500 })
   }
 }
 
