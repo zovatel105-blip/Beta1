@@ -16,8 +16,8 @@ scripts/seed-core-users.mjs y memory/test_credentials.md).
 ```
 MONGO_URL=mongodb://localhost:27017/twyk
 ADMIN_EMAILS=twyk.apk@gmail.com
-NEXT_PUBLIC_BASE_URL=https://ediciones-ia.preview.emergentagent.com
-CORS_ORIGINS=https://ediciones-ia.preview.emergentagent.com
+NEXT_PUBLIC_BASE_URL=https://admin-content-launch.preview.emergentagent.com
+CORS_ORIGINS=https://admin-content-launch.preview.emergentagent.com
 FIREBASE_PROJECT_ID=
 FIREBASE_CLIENT_EMAIL=
 FIREBASE_PRIVATE_KEY=
@@ -59,7 +59,7 @@ después de que Next.js haga su propio "Reload env: .env" (log de supervisor),
 o preguntar al usuario cuál es la URL que ve en su navegador.
 
 ## Última URL usada (actualizada automáticamente al restaurar)
-NEXT_PUBLIC_BASE_URL=https://ediciones-ia.preview.emergentagent.com
+NEXT_PUBLIC_BASE_URL=https://admin-content-launch.preview.emergentagent.com
 (.env RECREADO en esta nueva sesión, tras un reinicio de pod que dejó /app/.env
 inexistente y MongoDB vacía — misma causa raíz recurrente de siempre.
 MONGO_URL/ADMIN_EMAILS/CORS_ORIGINS con esta misma URL nueva; FIREBASE_* vacíos
