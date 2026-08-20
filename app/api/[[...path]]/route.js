@@ -68,11 +68,16 @@ import {
   listCommunityLuxuryThemes,
   countUserLuxuryThemesSince,
   searchOfficialLuxuryThemesHistory,
-  getMarketingPlaybookLogs,
-  upsertMarketingPlaybookLog,
+  getMarketingPostsByDate,
+  getMarketingPostsRecent,
+  countMarketingPostsByDate,
+  insertMarketingPost,
+  updateMarketingPost,
+  deleteMarketingPost,
+  getMarketingHistorySummary,
   getMarketingStreak,
 } from '@/lib/db'
-import { MARKETING_STRATEGY, TWYK_PROJECT_SUMMARY, getIdeaForDate } from '@/lib/marketingPlaybook'
+import { MARKETING_STRATEGY, TWYK_PROJECT_SUMMARY, CONTENT_PILLARS, DAILY_POST_COUNT, pillarForSlot, getIdeaForDate } from '@/lib/marketingPlaybook'
 import {
   getAllPosts,
   insertPost,
@@ -1377,34 +1382,47 @@ export async function GET(request, { params }) {
     return NextResponse.json({ themes: themes.map(stripMongoId) })
   }
 
-  // Admin: Marketing Playbook — GET /api/admin/marketing-playbook (solo
-  // admin). Antes solo existía como un mensaje de chat de una sesión
-  // anterior; ahora es una página real del panel de admin (petición del
-  // usuario). Devuelve la estrategia de referencia (formato de vídeo,
-  // hashtags fijos, cadencia), la idea de contenido sugerida para HOY
-  // (rotación determinista por fecha, sin IA — ver lib/marketingPlaybook.js)
-  // y el historial de publicaciones registradas (para la racha de días
-  // consecutivos publicando).
+  // Admin: Marketing Playbook — MOTOR DE MARKETING PROFESIONAL. GET
+  // /api/admin/marketing-playbook (solo admin). Antes solo existía como un
+  // mensaje de chat de una sesión anterior; ahora es una página real del
+  // panel de admin (petición del usuario: "esa función debe ser el
+  // marketing de la apk, subir 3-4 publicaciones por día... debe ser un
+  // motor de marketing profesional"). Devuelve la estrategia de referencia,
+  // los pilares de contenido, el LOTE de piezas de HOY (si ya se generó),
+  // la racha de días consecutivos publicando y un resumen del historial.
   if (path === '/admin/marketing-playbook') {
     const currentUser = await getCurrentUser(request)
     if (!isAdmin(currentUser)) {
       return NextResponse.json({ error: 'forbidden', message: 'Solo administradores' }, { status: 403 })
     }
     const todayKey = new Date().toISOString().slice(0, 10)
-    const [logs, streak] = await Promise.all([
-      getMarketingPlaybookLogs(60),
+    const [posts, streak, history] = await Promise.all([
+      getMarketingPostsByDate(todayKey),
       getMarketingStreak(),
+      getMarketingHistorySummary(14),
     ])
-    const todayEntry = logs.find((l) => l.date === todayKey) || null
     return NextResponse.json({
       strategy: MARKETING_STRATEGY,
+      pillars: CONTENT_PILLARS,
+      dailyPostCount: DAILY_POST_COUNT,
       todayKey,
-      suggestedIdea: getIdeaForDate(todayKey),
-      todayEntry,
+      posts,
       streak,
-      logs,
+      history,
     })
   }
+
+  // Admin: historial completo de piezas de marketing (para revisar días
+  // anteriores). GET /api/admin/marketing-playbook/history
+  if (path === '/admin/marketing-playbook/history') {
+    const currentUser = await getCurrentUser(request)
+    if (!isAdmin(currentUser)) {
+      return NextResponse.json({ error: 'forbidden', message: 'Solo administradores' }, { status: 403 })
+    }
+    const posts = await getMarketingPostsRecent(200)
+    return NextResponse.json({ posts })
+  }
+
 
   if (path === '/' || path === '') {
     return NextResponse.json({ ok: true, service: 'snaptok-api' })
@@ -1615,19 +1633,19 @@ export async function POST(request, { params }) {
   if (path === '/luxury-battles/community/create') {
     return handleCreateCommunityLuxuryTheme(request)
   }
-  // Admin: guarda/actualiza el registro del día del Marketing Playbook
-  // (posted, idea de contenido usada, hashtags, sonido, notas). POST
-  // /api/admin/marketing-playbook/log
-  if (path === '/admin/marketing-playbook/log') {
-    return handleSaveMarketingPlaybookLog(request)
+  // Admin: genera un LOTE de piezas de marketing (3-4/día) CON IA, ancladas
+  // a las funciones REALES de Twyk (Luxury Battle, versus, duetos, retos),
+  // cada una con título/guion/hashtags/música E imagen de portada generada
+  // con IA — motor de marketing profesional, petición explícita del usuario.
+  // POST /api/admin/marketing-playbook/generate-batch
+  if (path === '/admin/marketing-playbook/generate-batch') {
+    return handleGenerateMarketingBatch(request)
   }
-  // Admin: genera ideas de contenido de marketing CON IA, ancladas a las
-  // funciones REALES de Twyk (no escenas de lujo genéricas) — petición
-  // explícita del usuario: "esa función debe crear contenido basado en mi
-  // proyecto para promocionar la web apk". POST
-  // /api/admin/marketing-playbook/generate
-  if (path === '/admin/marketing-playbook/generate') {
-    return handleGenerateMarketingContentIdeas(request)
+  // Admin: actualiza una pieza existente del lote (marcar publicada, notas,
+  // ediciones manuales de título/guion/hashtags/música). POST
+  // /api/admin/marketing-playbook/post
+  if (path === '/admin/marketing-playbook/post') {
+    return handleUpdateMarketingPost(request)
   }
 
   return NextResponse.json({ ok: true })
@@ -1688,13 +1706,48 @@ async function handleBlockUser(request) {
   }
 }
 
-// POST /api/admin/marketing-playbook/generate  body: { count?: number,
-// avoid?: string[] } — Solo admin. Genera N ideas de vídeo corto (TikTok/
-// Reels) para PROMOCIONAR la app Twyk, ancladas a sus funciones reales
-// (Luxury Battle, versus, duetos, retos, descarga sin marca de agua — ver
-// TWYK_PROJECT_SUMMARY en lib/marketingPlaybook.js), no escenas de lujo
-// desconectadas del producto. Mismo patrón que handleGenerateLuxuryThemeIdeas.
-async function handleGenerateMarketingContentIdeas(request) {
+// ── MOTOR DE MARKETING: generación de imagen de portada ─────────────────────
+// Genera una imagen de portada (texto -> imagen, SIN foto de entrada) para
+// una pieza de marketing, usando el mismo proveedor (Gemini vía
+// emergentintegrations) que el editor de fotos de Luxury Battle — pero en
+// modo generación PURA (no edición, aquí no hay ninguna foto real de un
+// usuario, solo la descripción de una escena). Guarda el archivo en
+// /public/uploads (igual que el resto de medios de la app) y devuelve su
+// URL relativa, o null si falla (nunca bloquea la pieza de texto: sin
+// imagen es mejor que sin nada).
+async function generateMarketingCoverImage(imagePrompt, postId) {
+  try {
+    const apiKey = process.env.EMERGENT_LLM_KEY
+    if (!apiKey || !imagePrompt) return null
+    const chat = new LlmChat(
+      apiKey,
+      `marketing-cover-${postId}-${Date.now()}`,
+      'You are an expert photorealistic image generator for social media video thumbnails. Generate a single vivid, high-quality, photorealistic image for the described scene. No text, no captions, no logos or watermarks overlaid on the image.'
+    ).withModel('gemini', 'gemini-2.5-flash-image')
+    const [, images] = await chat.sendMessageMultimodalResponse(new UserMessage({ text: imagePrompt }))
+    if (!images || !images[0]?.data) return null
+    const mimeType = images[0].mime_type || 'image/png'
+    const ext = mimeType.includes('png') ? 'png' : 'jpg'
+    const filename = `mkt-${postId}.${ext}`
+    await fs.writeFile(nodePath.join(UPLOAD_DIR, filename), Buffer.from(images[0].data, 'base64'))
+    return `/uploads/${filename}`
+  } catch (err) {
+    console.error('marketing cover image generation failed', err?.message || err)
+    return null
+  }
+}
+
+// POST /api/admin/marketing-playbook/generate-batch  body: { date?, count?,
+// withImages? } — Solo admin. MOTOR DE MARKETING PROFESIONAL (petición
+// explícita del usuario: "esa función debe ser el marketing de la apk,
+// subir 3-4 publicaciones por día... debe ser un motor de marketing
+// profesional"): genera un LOTE de piezas (por defecto DAILY_POST_COUNT,
+// rotando por CONTENT_PILLARS para variar el ángulo de cada una) LISTAS
+// para publicar — título, hook, guion, hashtags, música E imagen de
+// portada generada con IA —, ancladas a las funciones reales de Twyk (ver
+// TWYK_PROJECT_SUMMARY), y las persiste de inmediato (no se pierden si se
+// cierra la página; se pueden ir marcando "publicada" una a una).
+async function handleGenerateMarketingBatch(request) {
   try {
     const currentUser = await getCurrentUser(request)
     if (!isAdmin(currentUser)) {
@@ -1705,8 +1758,11 @@ async function handleGenerateMarketingContentIdeas(request) {
       return NextResponse.json({ error: 'ai_not_configured', message: 'AI is not configured' }, { status: 500 })
     }
     const body = await request.json().catch(() => ({}))
-    const count = Math.min(Math.max(Number(body?.count) || 3, 1), 6)
-    const avoid = Array.isArray(body?.avoid) ? body.avoid.filter((s) => typeof s === 'string' && s.trim()).slice(0, 30) : []
+    const date = (typeof body?.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.date))
+      ? body.date
+      : new Date().toISOString().slice(0, 10)
+    const count = Math.min(Math.max(Number(body?.count) || DAILY_POST_COUNT, 1), 6)
+    const withImages = body?.withImages !== false // por defecto true: motor "listo para publicar"
 
     let activeThemeTitle = ''
     try {
@@ -1714,78 +1770,132 @@ async function handleGenerateMarketingContentIdeas(request) {
       activeThemeTitle = active?.title || ''
     } catch (_e) { /* noop: sin tema activo, no bloquea la generación */ }
 
-    const chat = new LlmChat(
-      apiKey,
-      `marketing-content-ideas-${currentUser.id}-${Date.now()}`,
-      `You are a short-form video growth marketer (TikTok/Reels) for a real app called Twyk. ${TWYK_PROJECT_SUMMARY}${activeThemeTitle ? ` The CURRENT active Luxury Battle theme in the app right now is "${activeThemeTitle}" — you can reference it directly.` : ''} Your job: write concrete, ready-to-film video ideas that promote Twyk itself (not generic lifestyle content), following this proven format: 21-45s duration, hook shows the RESULT in the first 2 seconds (never the explanation first), same recurring narrative arc ("I asked AI to put me in [scene] and this happened" -> show the Twyk AI editor generating it -> show the result -> show the "Save to device" button -> "posted it on Twyk and this is how it did in the Luxury Battle"), a trending sound reminder, and the fixed CTA "Luxury Battle · link in bio". Respond with ONLY a JSON array of objects, each shaped exactly as {"title": string (3-6 words, catchy), "hook": string (the exact spoken/on-screen hook line for the first 2 seconds), "script": string (2-4 short beats describing what to film/show, mentioning the actual Twyk feature/screen), "hashtags": array of 1-2 strings (extra trend-relevant hashtags, WITHOUT # if you prefer, do not repeat twyk/luxurybattle/ai/glowup which are already fixed), "soundHint": string (1 short phrase describing the kind of trending sound to use)}. No markdown, no code fences, no extra text.`
-    ).withModel('gemini', 'gemini-2.5-flash')
+    const startSlot = await countMarketingPostsByDate(date)
+    const created = []
 
-    const text = await chat.sendMessage(
-      new UserMessage({
-        text: `Give me ${count} fresh video ideas to promote Twyk.${avoid.length ? ` Do not repeat these already-used titles: ${avoid.join(', ')}.` : ''}`,
-      })
-    )
-
-    let ideas = []
-    try {
-      const cleaned = String(text || '').trim().replace(/^```(json)?/i, '').replace(/```$/, '').trim()
-      const parsed = JSON.parse(cleaned)
-      if (Array.isArray(parsed)) {
-        ideas = parsed
-          .filter((it) => it && typeof it === 'object' && it.title && it.hook)
-          .map((it) => ({
-            title: String(it.title).slice(0, 80).trim(),
-            hook: String(it.hook).slice(0, 200).trim(),
-            script: typeof it.script === 'string' ? it.script.slice(0, 400).trim() : '',
-            hashtags: Array.isArray(it.hashtags)
-              ? it.hashtags.filter((h) => typeof h === 'string' && h.trim()).slice(0, 3).map((h) => (h.startsWith('#') ? h : `#${h.replace(/\s+/g, '')}`))
+    for (let i = 0; i < count; i++) {
+      const slot = startSlot + i
+      const pillar = pillarForSlot(slot)
+      let idea = null
+      try {
+        const chat = new LlmChat(
+          apiKey,
+          `marketing-batch-${currentUser.id}-${date}-${slot}-${Date.now()}`,
+          `You are a professional short-form video growth marketer (TikTok/Reels) for a real app called Twyk. ${TWYK_PROJECT_SUMMARY}${activeThemeTitle ? ` The CURRENT active Luxury Battle theme in the app right now is "${activeThemeTitle}" — reference it directly if relevant.` : ''} Write ONE concrete, ready-to-film video idea following this content pillar: "${pillar.label}" — ${pillar.angle} Follow this proven format: 21-45s duration, hook shows the RESULT/payoff in the first 2 seconds (never the explanation first), a trending sound reminder, and end on the fixed CTA "Luxury Battle · link in bio". Respond with ONLY a JSON object shaped exactly as {"title": string (3-6 words, catchy), "hook": string (the exact spoken/on-screen hook line for the first 2 seconds), "script": string (2-4 short beats describing exactly what to film/show, mentioning the actual Twyk feature/screen), "hashtags": array of 1-2 strings (extra trend-relevant hashtags, without #, do not repeat twyk/luxurybattle/ai/glowup which are already fixed), "sound": string (1 short phrase describing the kind of trending sound to use), "imagePrompt": string (a vivid, detailed text-to-image prompt describing ONE single still frame/thumbnail that represents the peak moment of this video, photorealistic, no text/logos in the image)}. No markdown, no code fences, no extra text.`
+        ).withModel('gemini', 'gemini-2.5-flash')
+        const text = await chat.sendMessage(new UserMessage({ text: 'Generate the video idea now.' }))
+        const cleaned = String(text || '').trim().replace(/^```(json)?/i, '').replace(/```$/, '').trim()
+        const parsed = JSON.parse(cleaned)
+        if (parsed && typeof parsed === 'object' && parsed.title && parsed.hook) {
+          idea = {
+            title: String(parsed.title).slice(0, 100).trim(),
+            hook: String(parsed.hook).slice(0, 250).trim(),
+            script: typeof parsed.script === 'string' ? parsed.script.slice(0, 500).trim() : '',
+            hashtags: Array.isArray(parsed.hashtags)
+              ? parsed.hashtags.filter((h) => typeof h === 'string' && h.trim()).slice(0, 3).map((h) => (h.startsWith('#') ? h : `#${h.replace(/\s+/g, '')}`))
               : [],
-            soundHint: typeof it.soundHint === 'string' ? it.soundHint.slice(0, 120).trim() : '',
-          }))
-          .slice(0, count)
+            sound: typeof parsed.sound === 'string' ? parsed.sound.slice(0, 150).trim() : '',
+            imagePrompt: typeof parsed.imagePrompt === 'string' ? parsed.imagePrompt.slice(0, 500).trim() : '',
+          }
+        }
+      } catch (e) {
+        console.error(`marketing batch: AI idea failed for slot ${slot}`, e?.message || e)
       }
-    } catch (e) {
-      console.error('marketing content ideas: parse failed', e)
-      return NextResponse.json({ error: 'ai_parse_failed' }, { status: 502 })
+      // Fallback textual (nunca deja al admin sin nada que publicar) si la
+      // IA falló por completo para esta pieza concreta.
+      if (!idea) {
+        const fb = getIdeaForDate(date, slot)
+        idea = {
+          title: fb.title,
+          hook: fb.hook,
+          script: `Show: ${fb.scene}.`,
+          hashtags: [],
+          sound: '',
+          imagePrompt: `Photorealistic vertical thumbnail: ${fb.scene}`,
+        }
+      }
+
+      let post = await insertMarketingPost({
+        date,
+        slot,
+        pillar: pillar.key,
+        pillarLabel: pillar.label,
+        title: idea.title,
+        hook: idea.hook,
+        script: idea.script,
+        hashtags: idea.hashtags,
+        sound: idea.sound,
+        imagePrompt: idea.imagePrompt,
+        imageUrl: '',
+      })
+
+      if (withImages && idea.imagePrompt) {
+        const imageUrl = await generateMarketingCoverImage(idea.imagePrompt, post.id)
+        if (imageUrl) {
+          const updated = await updateMarketingPost(post.id, { imageUrl })
+          if (updated) post = updated
+        }
+      }
+      created.push(post)
     }
 
-    if (!ideas.length) {
-      return NextResponse.json({ error: 'no_ideas', message: 'The AI did not return any usable ideas, try again' }, { status: 502 })
-    }
-    return NextResponse.json({ ideas })
+    const streak = await getMarketingStreak()
+    return NextResponse.json({ ok: true, posts: created, streak })
   } catch (err) {
-    console.error('generate marketing content ideas error', err)
-    return NextResponse.json({ error: 'generate_ideas_failed', detail: String(err?.message || err) }, { status: 500 })
+    console.error('generate marketing batch error', err)
+    return NextResponse.json({ error: 'generate_batch_failed', detail: String(err?.message || err) }, { status: 500 })
   }
 }
 
-// POST /api/admin/marketing-playbook/log  body: { date?, posted, contentIdea,
-// hashtags, sound, notes } — Solo admin. `date` en formato 'YYYY-MM-DD'; si
-// se omite, usa la fecha de HOY (UTC).
-async function handleSaveMarketingPlaybookLog(request) {
+// POST /api/admin/marketing-playbook/post  body: { id, posted?, notes?,
+// title?, hook?, script?, hashtags?, sound? } — Solo admin. Actualiza una
+// pieza existente del lote (marcar publicada, notas, ediciones manuales).
+async function handleUpdateMarketingPost(request) {
   try {
     const currentUser = await getCurrentUser(request)
     if (!isAdmin(currentUser)) {
       return NextResponse.json({ error: 'forbidden', message: 'Solo administradores' }, { status: 403 })
     }
     const body = await request.json().catch(() => ({}))
-    const date = (typeof body?.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.date))
-      ? body.date
-      : new Date().toISOString().slice(0, 10)
-    const entry = await upsertMarketingPlaybookLog({
-      date,
-      posted: !!body?.posted,
-      contentIdea: body?.contentIdea,
-      hashtags: body?.hashtags,
-      sound: body?.sound,
-      notes: body?.notes,
-      updatedBy: currentUser.id,
+    if (!body?.id) {
+      return NextResponse.json({ error: 'missing_id' }, { status: 400 })
+    }
+    const updated = await updateMarketingPost(body.id, {
+      posted: body.posted,
+      notes: body.notes,
+      title: body.title,
+      hook: body.hook,
+      script: body.script,
+      hashtags: body.hashtags,
+      sound: body.sound,
     })
+    if (!updated) {
+      return NextResponse.json({ error: 'not_found' }, { status: 404 })
+    }
     const streak = await getMarketingStreak()
-    return NextResponse.json({ ok: true, entry, streak })
+    return NextResponse.json({ ok: true, post: updated, streak })
   } catch (err) {
-    console.error('marketing playbook log save error', err)
-    return NextResponse.json({ error: 'save_failed', detail: String(err?.message || err) }, { status: 500 })
+    console.error('update marketing post error', err)
+    return NextResponse.json({ error: 'update_failed', detail: String(err?.message || err) }, { status: 500 })
+  }
+}
+
+// DELETE /api/admin/marketing-playbook/post/:id — Solo admin. Descarta una
+// pieza generada que no se quiere usar.
+async function handleDeleteMarketingPost(postId, request) {
+  try {
+    const currentUser = await getCurrentUser(request)
+    if (!isAdmin(currentUser)) {
+      return NextResponse.json({ error: 'forbidden', message: 'Solo administradores' }, { status: 403 })
+    }
+    const deleted = await deleteMarketingPost(postId)
+    if (!deleted) {
+      return NextResponse.json({ error: 'not_found' }, { status: 404 })
+    }
+    return NextResponse.json({ ok: true })
+  } catch (err) {
+    console.error('delete marketing post error', err)
+    return NextResponse.json({ error: 'delete_failed' }, { status: 500 })
   }
 }
 
@@ -4077,6 +4187,13 @@ export async function DELETE(request, { params }) {
   // DELETE /api/push/tokens - Desactivar el token de ESTE dispositivo (logout).
   if (path === '/push/tokens') {
     return handleUnregisterPushToken(request)
+  }
+
+  // Admin: elimina una pieza del lote de Marketing Playbook (descartar una
+  // idea generada que no se quiere usar). DELETE
+  // /api/admin/marketing-playbook/post/:id
+  if (segs[0] === 'admin' && segs[1] === 'marketing-playbook' && segs[2] === 'post' && segs[3]) {
+    return handleDeleteMarketingPost(segs[3], request)
   }
 
   return NextResponse.json({ error: 'not_found' }, { status: 404 })

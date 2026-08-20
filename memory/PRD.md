@@ -32,6 +32,31 @@ sesión — recreado con la URL actual, `EMERGENT_LLM_KEY` renovada vía `emerge
 (sk-emergent-e5dF47559B750A1F44), usuarios re-sembrados, `test_credentials.md` recreado (admin:
 twyk/Admin12345).
 
+### Ampliación en la misma sesión: MOTOR DE MARKETING PROFESIONAL (3-4 posts/día con imagen real)
+Usuario: "esa función es la que debe ser el marketing de la apk, subir 3-4 publicaciones por día...
+debe ser un motor de marketing profesional" + "tú eres mi ingeniero experto en marketing" (delegó las
+decisiones de alcance). Rediseño completo (reemplaza el sistema de "1 idea/día" anterior):
+- `lib/marketingPlaybook.js`: `CONTENT_PILLARS` (5 ángulos que rotan: AI Transformation Reveal,
+  Versus Battle Hype, 1v1 Duet Challenge, POV Reaction, Did You Know) + `DAILY_POST_COUNT=4` +
+  `pillarForSlot()`.
+- `lib/db.js`: colección `marketingPlaybookPosts` (UN documento por PIEZA, no por día) — permite
+  varias piezas/día con su propio estado "publicada" individual, notas, e imagen.
+- `route.js`: `POST /admin/marketing-playbook/generate-batch` (genera N piezas — título, hook, guion,
+  hashtags, sonido, imagePrompt vía `gemini-2.5-flash` — Y la imagen de portada real vía
+  `gemini-2.5-flash-image` en modo TEXTO->IMAGEN puro, verificado en vivo con script Node antes de
+  integrar: genera imágenes fotorrealistas coherentes en ~5-10s cada una, guardadas en
+  `/public/uploads/mkt-<id>.png`), `POST /admin/marketing-playbook/post` (marcar publicada/notas),
+  `DELETE /admin/marketing-playbook/post/:id` (descartar), `GET .../history`.
+- `app/admin/marketing/page.js`: reescrito — botón "Generate today's N posts", tarjetas con imagen +
+  guion + hashtags + sonido + checkbox individual + notas + borrar, progreso "X/N posted today".
+VERIFICADO end-to-end con Node (fetch real, sin curl/testing agent): batch de 1 y de 2 piezas
+generadas con imagen real descargable (200, image/png), rotación de pilares correcta por slot,
+marcar publicada actualiza racha e historial, borrar funciona, 403 sin admin/sin sesión, `/api/feed`
+sin regresión. Datos e imágenes de prueba eliminados tras verificar (colección queda vacía).
+NOTA: durante las pruebas el servidor dev reinició 2 veces por el watchdog de memoria de Next.js (no
+relacionado con este código) — comportamiento ya documentado como propio de este contenedor, sin
+impacto en la lógica del motor (confirmado con una prueba final limpia, proporción exacta 1+1=2).
+
 
 ## Qué es Twyk
 App tipo "versus" (compara y vota entre A/B, estilo TikTok) con:
