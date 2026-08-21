@@ -35,62 +35,29 @@ const FALLBACK_SUGGESTIONS = [
 ]
 
 // Space público de FLUX.1 Kontext [dev] (modelo abierto de Black Forest
-// Labs) corriendo en GPU GRATUITA (ZeroGPU) — petición del usuario: "quiero
-// que uses flux [como principal] y que flux tenga la misma calidad que
-// nanobanana [...] o buscar una alternativa que sea ilimitado y gratis".
-// INVESTIGACIÓN EN VIVO (script Node directo, NO agente de testing):
-// probada una alternativa candidata con mejor puntuación en benchmarks
-// públicos (FireRed-Image-Edit-1.1) — DESCARTADA: su Space reserva 180s de
-// GPU por llamada y la cuota ANÓNIMA gratuita se agota casi de inmediato
-// ("You have exceeded your ZeroGPU quota", incluso en el primer intento) —
-// no es realmente "ilimitado y gratis" para uso anónimo desde el navegador
-// de cada usuario (a diferencia de FLUX.1 Kontext [dev], que sí cabe
-// cómodamente en esa misma cuota anónima, confirmado con múltiples llamadas
-// reales exitosas). Con la MISMA foto+instrucción se comparó en vivo la
-// configuración anterior (steps=28, guidance_scale=2.5) contra una más
-// exigente (steps=30 -el máximo que admite este Space-, guidance_scale=3.5)
-// -> resultado notablemente más nítido y con mejor integración de luz/pelo,
-// el máximo de calidad alcanzable con este modelo gratuito sin dejar de ser
-// anónimo/ilimitado (subir más el guidance_scale, hasta 10, degrada la
-// imagen -sobre-saturación/artefactos-, probado y descartado). Gemini "Nano
-// Banana" sigue siendo objetivamente superior en composición/detalle (usa
-// hardware/modelo de pago), pero el usuario decidió explícitamente: FLUX
-// SIEMPRE primero (aunque tarde más, ~30-40s vs ~8s), Nano Banana solo como
-// respaldo si FLUX falla. Se llama DESDE EL NAVEGADOR (mismo patrón que
-// AIVideoEditor.jsx): la cuota gratis es por IP del llamante, sin cuentas ni
-// tokens.
+// Labs) corriendo en GPU GRATUITA (ZeroGPU) — RESPALDO, no la ruta
+// principal. HISTORIAL: tras varias vueltas probando "FLUX/Qwen primero"
+// (petición anterior del usuario) se investigó a fondo por qué ningún
+// modelo gratuito puede ser realmente "ilimitado": Hugging Face limita el
+// uso de GPU gratuita de ZeroGPU a solo ~2 minutos/día para llamadas
+// anónimas (~3.5 min con cuenta gratis, 25 min solo con cuenta PRO de
+// pago) — un límite de LA PLATAFORMA, no del modelo elegido; con eso
+// alcanza para ~2 ediciones al día antes de que CUALQUIER Space gratuito
+// (FLUX, Qwen, FireRed...) empiece a fallar por cuota agotada
+// ("You have exceeded your ZeroGPU quota", visto en pruebas reales en
+// vivo). Ante esto, el usuario decidió: "Solo usar Nano Banana y cuando se
+// agoten sus ediciones bajar un modelo para poder seguir editando" — es
+// decir, VOLVER al orden original (Nano Banana siempre primero, por
+// calidad/consistencia; FLUX como red de seguridad SOLO si Nano Banana
+// falla de verdad -presupuesto de Emergent agotado, error, etc.-). Ajustado
+// a la máxima calidad que admite este Space (steps=30, guidance_scale=3.5,
+// probado en vivo con mejora notable de nitidez/detalle vs los valores por
+// defecto). Se llama DESDE EL NAVEGADOR (mismo patrón que
+// AIVideoEditor.jsx): la cuota gratis es por sesión del navegador del
+// llamante, sin cuentas ni tokens.
 const FLUX_KONTEXT_SPACE = 'black-forest-labs/FLUX.1-Kontext-Dev'
-const FLUX_GUIDANCE_SCALE = 3.5 // antes 2.5 — probado en vivo, mejora notable de nitidez/detalle
-const FLUX_STEPS = 30 // antes 28 — máximo admitido por este Space
-
-// Space público de Qwen-Image-Edit-2511 (Alibaba/Qwen, modelo abierto,
-// familia considerada de las más fuertes en edición de imagen — petición
-// del usuario: "buscar una alternativa igual a nanobanana en calidad gratis
-// y ilimitada"). Investigadas varias alternativas vía la API pública de
-// Hugging Face (huggingface.co/api/spaces?search=...) ordenadas por likes:
-// el propio Space OFICIAL de Qwen y FireRed-Image-Edit-1.1 reservan 180s de
-// GPU por llamada cada uno -MISMO problema de cuota anónima agotada ya
-// descartado antes con FireRed-; en cambio esta variante comunitaria
-// ("linoyts/Qwen-Image-Edit-2511-Fast", 2200+ likes) usa el decorador
-// `@spaces.GPU()` SIN duración fija (igual patrón que el propio
-// FLUX.1-Kontext-Dev, `@spaces.GPU` sin argumentos) + solo 4 pasos de
-// inferencia por defecto -mucho más ligero-, así que debería caber en la
-// MISMA cuota anónima que ya usa FLUX de forma fiable. NO SE PUDO
-// completar una comparación de calidad en vivo dentro de esta sesión (la
-// cuota anónima COMPARTIDA de este sandbox ya se agotó probando las otras
-// alternativas descartadas arriba, antes de llegar a esta) — se implementa
-// como PRIMER intento (mejor calidad potencial, modelo más reciente que
-// FLUX dev) con caída automática a FLUX y luego a Nano Banana si falla por
-// cualquier motivo, así que no hay riesgo real: en el peor caso, tarda unos
-// segundos más en fallar antes de seguir con la cadena ya probada. El
-// usuario debe confirmar en la app si la calidad resulta mejor que FLUX;
-// si falla sistemáticamente (cuota agotada con frecuencia) se puede quitar
-// este primer intento y volver a dejar FLUX como principal con un cambio de
-// una sola línea.
-const QWEN_EDIT_SPACE = 'linoyts/Qwen-Image-Edit-2511-Fast'
-const QWEN_EDIT_STEPS = 8 // subido un poco del default (4) para más fidelidad
-const QWEN_EDIT_GUIDANCE = 2.5
-const QWEN_EDIT_SIZE = 1024 // el Space exige height/width explícitos (default 256, baja resolución)
+const FLUX_GUIDANCE_SCALE = 3.5
+const FLUX_STEPS = 30
 
 async function dataUrlToFile(dataUrl, filename) {
   const res = await fetch(dataUrl)
@@ -184,35 +151,11 @@ export default function AIImageEditor({ imageFile, initialPrompt = '', onClose, 
     setNotice(null)
     onStatusChange?.('loading')
 
-    // 1) Qwen-Image-Edit-2511 PRIMERO (ver comentario de QWEN_EDIT_SPACE
-    //    arriba: modelo abierto más reciente, mejor candidato de calidad
-    //    entre las alternativas gratis/ilimitadas investigadas).
-    try {
-      const dataUrl = await editOnQwenFast(trimmed)
-      setResultUrl(dataUrl)
-      setStage('result')
-      onStatusChange?.('result', dataUrl)
-      return
-    } catch (e) {
-      console.warn('Qwen-Image-Edit unavailable, falling back to FLUX:', e?.message)
-    }
-
-    // 2) FLUX.1 Kontext [dev] como 2º intento (ver comentario de
-    //    FLUX_KONTEXT_SPACE arriba: gratis, ilimitado, ya probado fiable).
-    try {
-      const dataUrl = await editOnFreeGpu(trimmed)
-      setResultUrl(dataUrl)
-      setStage('result')
-      onStatusChange?.('result', dataUrl)
-      return
-    } catch (e) {
-      console.warn('FLUX (free GPU) unavailable, falling back to server AI (Nano Banana):', e?.message)
-    }
-
-    // 3) RESPALDO FINAL — Nano Banana en el servidor (Emergent LLM Key)
-    //    SOLO si AMBAS opciones gratuitas fallaron de verdad (cuota de GPU
-    //    agotada, Space caído, error de red, etc.) — así el usuario NUNCA
-    //    se queda sin poder editar.
+    // 1) Nano Banana PRIMERO SIEMPRE (petición del usuario: "Solo usar
+    //    nanobanana y cuando se agoten sus ediciones bajar un modelo para
+    //    poder seguir editando") — mejor calidad/consistencia, servidor,
+    //    Emergent LLM Key. Reintenta automáticamente con 2 modelos Gemini
+    //    distintos antes de darse por vencido (ver handleAiEditImage).
     try {
       const fd = new FormData()
       fd.append('image', imageFile)
@@ -224,44 +167,27 @@ export default function AIImageEditor({ imageFile, initialPrompt = '', onClose, 
       }
       setResultUrl(data.image)
       setStage('result')
-      setNotice('The free editor is busy right now — used a higher-tier backup editor instead (slightly different style).')
       onStatusChange?.('result', data.image)
+      return
+    } catch (e) {
+      console.warn('Nano Banana unavailable (budget/error), falling back to free GPU (FLUX):', e?.message)
+    }
+
+    // 2) RESPALDO — "bajar un modelo" (FLUX.1 Kontext [dev], gratis) SOLO
+    //    si Nano Banana falló de verdad (presupuesto de Emergent agotado,
+    //    error de red, etc.) — así el usuario NUNCA se queda sin poder
+    //    editar, aunque la calidad de este respaldo sea algo menor.
+    try {
+      const dataUrl = await editOnFreeGpu(trimmed)
+      setResultUrl(dataUrl)
+      setStage('result')
+      setNotice('AI budget is busy right now — used the free editor instead (slightly different style).')
+      onStatusChange?.('result', dataUrl)
     } catch (err) {
       setErrorMsg('The AI could not edit this photo, please try again')
       setStage('error')
       onStatusChange?.(null)
     }
-  }
-
-  // Edición con Qwen-Image-Edit-2511 (Space público, ver QWEN_EDIT_SPACE
-  // arriba). Lanza excepción si no se puede (el llamador hace fallback a
-  // FLUX). Devuelve un data URL (base64), igual formato que los demás.
-  const editOnQwenFast = async (trimmed) => {
-    const { Client, handle_file } = await import('@gradio/client')
-    const client = await Promise.race([
-      Client.connect(QWEN_EDIT_SPACE),
-      new Promise((_, rej) => setTimeout(() => rej(new Error('gpu_connect_timeout')), 25000)),
-    ])
-    const result = await Promise.race([
-      client.predict('/infer', {
-        images: [{ image: handle_file(imageFile) }],
-        prompt: trimmed,
-        seed: 0,
-        randomize_seed: true,
-        true_guidance_scale: QWEN_EDIT_GUIDANCE,
-        num_inference_steps: QWEN_EDIT_STEPS,
-        height: QWEN_EDIT_SIZE,
-        width: QWEN_EDIT_SIZE,
-        rewrite_prompt: true,
-      }),
-      new Promise((_, rej) => setTimeout(() => rej(new Error('gpu_timeout')), 90000)),
-    ])
-    const first = result?.data?.[0]
-    const url = first?.[0]?.image?.url || first?.image?.url || first?.url
-    if (!url) throw new Error('gpu_no_result')
-    const blob = await (await fetch(url)).blob()
-    if (!blob || blob.size < 500) throw new Error('gpu_empty_result')
-    return blobToDataUrl(blob)
   }
 
   // Edición en la GPU gratuita (Space público de FLUX.1 Kontext) desde el
