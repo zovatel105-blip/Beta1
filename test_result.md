@@ -105,6 +105,27 @@
 user_problem_statement: "Las publicaciones normales deben ser un carrusel de 2 vídeos (opción A / opción B) entre los que se desliza y se vota tocando el vídeo. Se suben 2 vídeos. Reemplaza el vídeo normal. AÑADIDO: votar = doble toque, quitar el corazón/Me gusta, y nueva función 'Retar' (solicitud de enfrentamiento con un vídeo subido que el retado acepta/cancela en la Bandeja). NUEVO: buscador de usuarios en la esquina superior derecha de la página de inicio (icono de lupa que abre un overlay)."
 
 backend:
+  - task: "BUG: la píldora 'Trending Challenge' dejó de aparecer en la página de Retos (Batallas > Completados) + cambio de proveedor de IA (Gemini solo para imagen, Anthropic Claude para el texto del trending challenge)"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js, lib/db.js, components/CompletedBattlesPage.jsx, .env, memory/test_credentials.md"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'En la pagina de reto dejo de aparecer la pastilla de treding, no usar nunca el testing agent'."
+        -working: "NA"
+        -agent: "main"
+        -comment: "CAUSA RAÍZ REAL: /app/.env había desaparecido de nuevo y MongoDB estaba completamente vacía (causa recurrente ya documentada en memory/ENV_BACKUP.md: almacenamiento efímero + .env gitignored) — la colección `luxuryThemes` tenía 0 documentos, así que `getActiveLuxuryTheme()` devolvía null y la píldora de CompletedBattlesPage.jsx (que SOLO se renderiza `if (luxuryThemeTitle)`) correctamente no mostraba nada; no era un bug de la píldora en sí. FIX INFRA: recreado /app/.env (URL de preview actual leída de APP_URL en supervisord.conf), `sudo supervisorctl restart nextjs`, re-sembrados los usuarios base con scripts/seed-core-users.mjs, memory/test_credentials.md recreado."
+        -working: "NA"
+        -agent: "user"
+        -comment: "'La pildora debe ser dependiente de los trendings con ia (que no sea Gemini, que sea una ia gratis/otra) y mostrar UN trending challenge en tendencia' -> tras ofrecer OpenAI o Anthropic vía Emergent Universal Key (ninguna es una IA externa gratuita fuera del sistema, ambas consumen el mismo saldo ya existente del usuario, sin key nueva), eligió Anthropic (Claude)."
+        -working: true
+        -agent: "main"
+        -comment: "FEATURE: los 2 endpoints de generación de texto para el Trending Challenge (POST /api/admin/luxury-battles/auto-generate y POST /api/admin/luxury-battles/generate-ideas, ambos en route.js) migrados de `.withModel('gemini','gemini-2.5-flash')` a `.withModel('anthropic','claude-sonnet-4-6')` (playbook oficial de integration_playbook_expert_v2, misma EMERGENT_LLM_KEY, sin key nueva). Gemini se deja SIN TOCAR en las 2 tareas que sí necesitan VISIÓN (analizar imágenes reales, no generar texto): runLuxuryJudge (puntúa las fotos subidas de Luxury Battle) y el editor de fotos con IA / Nano Banana (handleAiEditImage) — exactamente lo pedido: 'Gemini solo para la edición de imagen'. VERIFICADO CON LLAMADAS REALES (script Node con fetch, SIN curl, SIN ningún agente de testing — instrucción explícita y repetida del usuario en esta sesión 'no usar nunca el testing agent'): POST /api/auth/login (twyk/Admin12345) -> 200 role=admin; POST /api/admin/luxury-battles/auto-generate -> 200, Claude generó y activó un único tema ('Sinners Vampire South', con title/description/promptHint válidos); GET /api/luxury-battles/active -> 200, devuelve ESE MISMO tema activo (confirma que CompletedBattlesPage.jsx ya puede renderizar la píldora, dato-dependiente como se explicó arriba); POST /api/admin/luxury-battles/generate-ideas -> 200, 3 ideas nuevas generadas por Claude, todas distintas del título ya activo (respeta `avoid`). Lint limpio (route.js). El usuario dijo 'Yo me encargo de la revisión' visual final -> no se tomó captura de pantalla adicional (la de escritorio solo muestra el aviso 'Coming soon / mobile-only' ya existente de la app, no relacionado con este fix)."
+
   - task: "APP NATIVA (Android/Compose): botones Seguir y Challenge en 'Sugeridos' deben ser idénticos token por token a los de la web (SuggestedUsersPage.jsx)"
     implemented: true
     working: "NA"

@@ -2909,11 +2909,19 @@ async function handleAutoGenerateLuxuryTheme(request) {
     const existing = await listLuxuryThemes().catch(() => [])
     const avoid = existing.map((t) => t.title).filter(Boolean).slice(0, 30)
 
+    // Petición del usuario: "Gemini debe ser solo para la edición de imagen
+    // y usa otra [IA] para que se encargue de mostrar challenge en
+    // tendencia" — Gemini queda reservado exclusivamente para el editor de
+    // fotos con IA (Nano Banana, ver handleAiEditImage) y para el juez que
+    // puntúa las fotos de Luxury Battle (runLuxuryJudge, tarea de VISIÓN);
+    // este endpoint es 100% texto (no analiza ninguna imagen), así que pasa
+    // a usar Anthropic Claude (misma Emergent Universal Key, sin costo
+    // aparte para el usuario).
     const chat = new LlmChat(
       apiKey,
       `luxury-theme-auto-${currentUser.id}-${Date.now()}`,
       'You are a creative director for a social video-battle app called Twyk. Users submit an AI-edited photo of themselves living out a themed scene and compete head-to-head, judged by real community votes + an AI score of how well their photo matches the theme. Using your up-to-date knowledge, identify THE single MOST viral, most talked-about cultural moment or trend happening WORLDWIDE / GLOBALLY RIGHT NOW (today) — not limited to any one country, across any category (fashion, memes, movies/TV, music, sports, aesthetics, social trends, luxury lifestyle, etc.). Pick only ONE, the #1 most viral thing on the planet right now, not a list of options. Respond with ONLY one JSON object shaped exactly as {"title": string (2-4 words, catchy), "description": string (1 short sentence describing the theme for users), "promptHint": string (1-2 sentences, a ready-to-use AI image-editing instruction starting with "Put me..." or "Transform me...", vivid and specific)}. No markdown, no code fences, no extra text, no array — just the single object.'
-    ).withModel('gemini', 'gemini-2.5-flash')
+    ).withModel('anthropic', 'claude-sonnet-4-6')
 
     const text = await chat.sendMessage(
       new UserMessage({
@@ -2966,11 +2974,14 @@ async function handleGenerateLuxuryThemeIdeas(request) {
     const count = Math.min(Math.max(Number(body?.count) || 4, 1), 6)
     const avoid = Array.isArray(body?.avoid) ? body.avoid.filter((s) => typeof s === 'string' && s.trim()).slice(0, 30) : []
 
+    // Igual que en /auto-generate: solo texto (sin imágenes), así que usa
+    // Anthropic Claude en vez de Gemini (que queda reservado para edición
+    // de imagen / juez visual), vía la misma Emergent Universal Key.
     const chat = new LlmChat(
       apiKey,
       `luxury-theme-ideas-${currentUser.id}-${Date.now()}`,
       'You are a creative director for a social video-battle app called Twyk. Users submit an AI-edited photo of themselves living out a themed scene (e.g. "Yacht Life") and compete head-to-head, judged by real community votes + an AI score of how well their photo matches the theme. Suggest CURRENT, real, viral-worthy themes based on your up-to-date knowledge of what is ACTUALLY trending culturally and virally WORLDWIDE / GLOBALLY right now — not limited to any one country, pulling from real global trends across categories (luxury lifestyle, fashion, memes, movies/TV, music, sports, aesthetics, social media challenges, etc.), not just generic luxury. Respond with ONLY a JSON array of objects, each shaped exactly as {"title": string (2-4 words, catchy), "description": string (1 short sentence describing the theme for users), "promptHint": string (1-2 sentences, a ready-to-use AI image-editing instruction starting with "Put me..." or "Transform me...", vivid and specific)}. No markdown, no code fences, no extra text.'
-    ).withModel('gemini', 'gemini-2.5-flash')
+    ).withModel('anthropic', 'claude-sonnet-4-6')
 
     const text = await chat.sendMessage(
       new UserMessage({
