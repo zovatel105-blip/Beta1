@@ -100,6 +100,23 @@ desaparecer, esta clave también debe restaurarse o el editor de imágenes con
 IA (POST /api/ai/edit-image) dejará de funcionar (no falla la app entera,
 solo esa función).
 
+## TAVILY_API_KEY (búsqueda web en tiempo real para fundamentar el Trending
+## Challenge en tendencias REALES de TikTok/Instagram, no solo el conocimiento
+## entrenado de la IA — petición explícita del usuario, key proporcionada
+## directamente por él, NO vía emergent_integrations_manager)
+TAVILY_API_KEY=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
+Usada por searchViralTrendEvidence() en route.js (generateRegionalThemeWithAI,
+handleAutoGenerateLuxuryTheme, handleGenerateLuxuryThemeIdeas) — busca en la
+web real "qué reto/tendencia de TikTok/Instagram es viral ahora mismo [en
+<país>]" y esa evidencia real (con URLs/fecha) se pasa a Claude como contexto
+para que el tema generado se base en un reto REAL y verificable, no
+inventado. Si esta key falta o Tavily falla, el código cae de vuelta
+silenciosamente al comportamiento anterior (Claude usando solo su propio
+conocimiento) — nunca rompe la función, solo pierde el "grounding" en tiempo
+real. Si /app/.env vuelve a desaparecer, pedir al usuario la misma key de
+nuevo (o que genere una nueva gratis en tavily.com) si esta restauración por
+memoria no es suficiente.
+
 ## IMPORTANTE: también actualizar la app nativa Android
 Cuando la URL de preview cambia, además de /app/.env también hay que
 actualizar `Config.BASE_URL` en

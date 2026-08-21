@@ -105,7 +105,20 @@
 user_problem_statement: "Las publicaciones normales deben ser un carrusel de 2 vídeos (opción A / opción B) entre los que se desliza y se vota tocando el vídeo. Se suben 2 vídeos. Reemplaza el vídeo normal. AÑADIDO: votar = doble toque, quitar el corazón/Me gusta, y nueva función 'Retar' (solicitud de enfrentamiento con un vídeo subido que el retado acepta/cancela en la Bandeja). NUEVO: buscador de usuarios en la esquina superior derecha de la página de inicio (icono de lupa que abre un overlay)."
 
 backend:
-  - task: "FEATURE: el Trending Challenge debe estar en tendencia según la ubicación/zona del usuario (geolocalización por IP + generación regional automática con IA)"
+  - task: "FEATURE: los Trending Challenges deben basarse en retos REALES virales de TikTok/Instagram en este momento (búsqueda web real con Tavily, no solo conocimiento entrenado de la IA)"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js, .env, memory/ENV_BACKUP.md"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'Los trending challenge pueden ser los trending (viral) que estan en tendencia en ese momento en Instagram TikTok' -> tras explicar que ningún LLM (ni siquiera vía Emergent Universal Key) tiene navegación web en tiempo real, y dar el ejemplo real del reto 'Enkyodai' de Japón (viral mundial), el usuario proporcionó una API key de Tavily (tvly-dev-...) para hacer búsqueda web real."
+        -working: true
+        -agent: "main"
+        -comment: "IMPLEMENTADO (integration_playbook_expert_v2 consultado para el contrato exacto de la API de Tavily): nueva función de módulo `searchViralTrendEvidence(place)` en route.js — POST https://api.tavily.com/search (search_depth:'advanced', time_range:'week', include_answer:true), devuelve un resumen + hasta 5 fuentes reales (título+fragmento) o null si falla/sin key (nunca rompe el flujo, cae de vuelta al conocimiento del modelo). Conectada a los 3 generadores de temas existentes: generateRegionalThemeWithAI (por país), handleAutoGenerateLuxuryTheme y handleGenerateLuxuryThemeIdeas (panel admin, global) — el prompt de Claude ahora recibe esa evidencia real como 'untrusted retrieved data' y se le indica preferir un reto REAL/VERIFICABLE de la evidencia sobre inventar uno. TAVILY_API_KEY añadida a /app/.env y a memory/ENV_BACKUP.md (para sobrevivir a la pérdida recurrente de .env). VERIFICADO CON LLAMADAS REALES (Node/fetch, sin testing agent): prueba directa a Tavily confirmó resultados reales y actuales (ej. 'Birra Moretti Setting the Table Challenge', fechado hoy); GET /api/luxury-battles/active para Japón y Francia (países nuevos, sin caché previa) devolvió temas grounded en tendencias reales de TikTok ('Holy Tuff Dance' en Japón, 'We Be Like' en Francia); POST /api/admin/luxury-battles/auto-generate (admin) devolvió 'Bling Bang Born' — el reto viral REAL del anime Mashle/canción 'Bling-Bang-Bang-Born' que se hizo mundialmente viral en TikTok — confirmando que la IA ahora se fundamenta en evidencia real en vez de inventar. Lint limpio."
     implemented: true
     working: true
     file: "app/api/[[...path]]/route.js, lib/db.js, app/privacy/page.js"
