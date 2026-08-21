@@ -34,44 +34,10 @@ const FALLBACK_SUGGESTIONS = [
   'Make it look cinematic and dramatic',
 ]
 
-// Space público de FLUX.1 Kontext [dev] (modelo abierto de Black Forest
-// Labs) corriendo en GPU GRATUITA (ZeroGPU) — RESPALDO, no la ruta
-// principal. HISTORIAL: tras varias vueltas probando "FLUX/Qwen primero"
-// (petición anterior del usuario) se investigó a fondo por qué ningún
-// modelo gratuito puede ser realmente "ilimitado": Hugging Face limita el
-// uso de GPU gratuita de ZeroGPU a solo ~2 minutos/día para llamadas
-// anónimas (~3.5 min con cuenta gratis, 25 min solo con cuenta PRO de
-// pago) — un límite de LA PLATAFORMA, no del modelo elegido; con eso
-// alcanza para ~2 ediciones al día antes de que CUALQUIER Space gratuito
-// (FLUX, Qwen, FireRed...) empiece a fallar por cuota agotada
-// ("You have exceeded your ZeroGPU quota", visto en pruebas reales en
-// vivo). Ante esto, el usuario decidió: "Solo usar Nano Banana y cuando se
-// agoten sus ediciones bajar un modelo para poder seguir editando" — es
-// decir, VOLVER al orden original (Nano Banana siempre primero, por
-// calidad/consistencia; FLUX como red de seguridad SOLO si Nano Banana
-// falla de verdad -presupuesto de Emergent agotado, error, etc.-). Ajustado
-// a la máxima calidad que admite este Space (steps=30, guidance_scale=3.5,
-// probado en vivo con mejora notable de nitidez/detalle vs los valores por
-// defecto). Se llama DESDE EL NAVEGADOR (mismo patrón que
-// AIVideoEditor.jsx): la cuota gratis es por sesión del navegador del
-// llamante, sin cuentas ni tokens.
-const FLUX_KONTEXT_SPACE = 'black-forest-labs/FLUX.1-Kontext-Dev'
-const FLUX_GUIDANCE_SCALE = 3.5
-const FLUX_STEPS = 30
-
 async function dataUrlToFile(dataUrl, filename) {
   const res = await fetch(dataUrl)
   const blob = await res.blob()
   return new File([blob], filename, { type: blob.type || 'image/png' })
-}
-
-function blobToDataUrl(blob) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result)
-    reader.onerror = reject
-    reader.readAsDataURL(blob)
-  })
 }
 
 export default function AIImageEditor({ imageFile, initialPrompt = '', onClose, onApply, onStatusChange }) {
@@ -151,11 +117,17 @@ export default function AIImageEditor({ imageFile, initialPrompt = '', onClose, 
     setNotice(null)
     onStatusChange?.('loading')
 
-    // 1) Nano Banana PRIMERO SIEMPRE (petición del usuario: "Solo usar
-    //    nanobanana y cuando se agoten sus ediciones bajar un modelo para
-    //    poder seguir editando") — mejor calidad/consistencia, servidor,
-    //    Emergent LLM Key. Reintenta automáticamente con 2 modelos Gemini
-    //    distintos antes de darse por vencido (ver handleAiEditImage).
+    // Petición del usuario: "Elimina flux y usa el modelo más potente de
+    // nano banana y cuando se agoten las ediciones bajar un modelo y
+    // cuando se vuelvan a restaurar las ediciones volver al modelo más
+    // potente" — FLUX eliminado por completo; toda la cadena de
+    // "bajar de nivel" (Nano Banana Pro -> Nano Banana 2 -> Nano Banana 1)
+    // vive ahora DENTRO de /api/ai/edit-image (ver handleAiEditImage,
+    // route.js) — este componente solo hace UNA llamada al servidor, que
+    // ya se encarga de intentar el modelo más potente primero y bajar
+    // automáticamente si no está disponible. Como cada edición NUEVA
+    // vuelve a intentar el más potente desde cero, "vuelve solo" al
+    // restaurarse sin necesitar ningún cambio de código.
     try {
       const fd = new FormData()
       fd.append('image', imageFile)
@@ -168,54 +140,11 @@ export default function AIImageEditor({ imageFile, initialPrompt = '', onClose, 
       setResultUrl(data.image)
       setStage('result')
       onStatusChange?.('result', data.image)
-      return
-    } catch (e) {
-      console.warn('Nano Banana unavailable (budget/error), falling back to free GPU (FLUX):', e?.message)
-    }
-
-    // 2) RESPALDO — "bajar un modelo" (FLUX.1 Kontext [dev], gratis) SOLO
-    //    si Nano Banana falló de verdad (presupuesto de Emergent agotado,
-    //    error de red, etc.) — así el usuario NUNCA se queda sin poder
-    //    editar, aunque la calidad de este respaldo sea algo menor.
-    try {
-      const dataUrl = await editOnFreeGpu(trimmed)
-      setResultUrl(dataUrl)
-      setStage('result')
-      setNotice('AI budget is busy right now — used the free editor instead (slightly different style).')
-      onStatusChange?.('result', dataUrl)
     } catch (err) {
       setErrorMsg('The AI could not edit this photo, please try again')
       setStage('error')
       onStatusChange?.(null)
     }
-  }
-
-  // Edición en la GPU gratuita (Space público de FLUX.1 Kontext) desde el
-  // NAVEGADOR. Lanza excepción si no se puede (el llamador hace fallback).
-  // Devuelve un data URL (base64), igual que ya devuelve /api/ai/edit-image.
-  const editOnFreeGpu = async (trimmed) => {
-    const { Client, handle_file } = await import('@gradio/client')
-    const client = await Promise.race([
-      Client.connect(FLUX_KONTEXT_SPACE),
-      new Promise((_, rej) => setTimeout(() => rej(new Error('gpu_connect_timeout')), 25000)),
-    ])
-    const result = await Promise.race([
-      client.predict('/infer', {
-        input_image: handle_file(imageFile),
-        prompt: trimmed,
-        seed: 0,
-        randomize_seed: true,
-        guidance_scale: FLUX_GUIDANCE_SCALE,
-        steps: FLUX_STEPS,
-      }),
-      new Promise((_, rej) => setTimeout(() => rej(new Error('gpu_timeout')), 90000)),
-    ])
-    const out = result?.data?.[0]
-    const url = out?.url
-    if (!url) throw new Error('gpu_no_result')
-    const blob = await (await fetch(url)).blob()
-    if (!blob || blob.size < 500) throw new Error('gpu_empty_result')
-    return blobToDataUrl(blob)
   }
 
   const useThisPhoto = async () => {

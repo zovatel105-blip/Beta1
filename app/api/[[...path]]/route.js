@@ -3787,6 +3787,23 @@ async function handleNotInterested(request) {
 //     futuro se actualiza el plan de Emergent, este sería el siguiente
 //     salto de calidad a probar (cambiar solo esta constante).
 const AI_EDIT_MODEL = 'gemini-3.1-flash-image-preview' // Gemini "Nano Banana 2" (edición image-to-image)
+// Modelo MÁS POTENTE disponible ("Nano Banana Pro") — petición del usuario:
+// "Elimina flux y usa el modelo más potente de nano banana y cuando se
+// agoten las ediciones bajar un modelo y cuando se vuelvan a restaurar las
+// ediciones volver al modelo más potente". Se intenta SIEMPRE PRIMERO en
+// cada petición (por eso "vuelve solo" al recuperarse: no hay ningún
+// estado guardado que recuerde que falló antes, cada edición nueva vuelve
+// a intentar este modelo desde cero). VERIFICADO EN VIVO (script Node
+// directo, NO agente de testing) que SIGUE sin estar disponible con el
+// plan/presupuesto actual de la Emergent Universal Key: error 403 "is a
+// heavy model and you don't have enough credits to use it. Upgrade to
+// Standard or Pro to unlock it." — esto es un límite del PLAN de la cuenta
+// Emergent (Profile -> Manage plan), no algo que el código pueda destrabar
+// por sí solo. Se deja como PRIMER intento de todos modos (código ya listo
+// para "bajar de nivel" automáticamente mientras no esté disponible, y
+// empezar a usarse solo en cuanto el usuario actualice su plan — sin
+// necesitar ningún cambio de código futuro).
+const AI_EDIT_MODEL_PRO = 'gemini-3-pro-image-preview' // Gemini "Nano Banana Pro"
 // Modelo de RESPALDO automático (petición del usuario: "quiero que el
 // usuario nunca vea este mensaje [AI editing failed], que siempre pueda
 // editar"). MISMA EMERGENT_LLM_KEY, MISMO proveedor (Gemini vía
@@ -3908,10 +3925,16 @@ async function handleAiEditImage(request) {
     // tenga que cerrar sesión ni esperar manualmente.
     const AI_EDIT_RETRY_DELAYS_MS = [0, 2000, 3500, 6000]
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+    // Cadena "bajar de nivel" (petición del usuario): Nano Banana Pro
+    // (el más potente, hoy bloqueado por plan — ver comentario de
+    // AI_EDIT_MODEL_PRO) -> Nano Banana 2 (principal actual, 2 intentos con
+    // backoff) -> Nano Banana 1 (respaldo final). Cada edición NUEVA
+    // vuelve a intentar Pro desde cero, así que en cuanto el plan se
+    // actualice empezará a usarse automáticamente sin más cambios.
     const attempts = [
+      { model: AI_EDIT_MODEL_PRO },
       { model: AI_EDIT_MODEL },
       { model: AI_EDIT_MODEL },
-      { model: AI_EDIT_FALLBACK_MODEL },
       { model: AI_EDIT_FALLBACK_MODEL },
     ]
     let lastErr = null
