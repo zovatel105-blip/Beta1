@@ -104,6 +104,23 @@
 
 user_problem_statement: "Las publicaciones normales deben ser un carrusel de 2 vídeos (opción A / opción B) entre los que se desliza y se vota tocando el vídeo. Se suben 2 vídeos. Reemplaza el vídeo normal. AÑADIDO: votar = doble toque, quitar el corazón/Me gusta, y nueva función 'Retar' (solicitud de enfrentamiento con un vídeo subido que el retado acepta/cancela en la Bandeja). NUEVO: buscador de usuarios en la esquina superior derecha de la página de inicio (icono de lupa que abre un overlay)."
 
+frontend:
+  - task: "FEATURE: el editor de fotos con IA (creación de contenido) debe usar FLUX.1 Kontext [dev] como modelo PRIMARIO (gratis/ilimitado) con la máxima calidad posible, y Nano Banana solo como respaldo — invertido del orden anterior"
+    implemented: true
+    working: "NA"
+    file: "components/AIImageEditor.jsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'Quiero que uses flux y que flux tenga la misma calidad que nanobanana' -> tras explicar que son arquitecturas distintas (no pueden ser 'idénticas'), y que igualar a Nano Banana de verdad exige el nivel de PAGO de FLUX (Pro/Max vía fal.ai, ~$0.04-0.08/imagen, requiere API key propia), el usuario rechazó pagar: 'Quiero que uses el modelo actual pero replicando la calidad de nanobanana o buscar una alternativa que SI cumpla con los requisitos y sea ilimitado y gratis'. Confirmó además: 'FLUX primero siempre..., y Nano Banana solo como respaldo si FLUX falla'."
+        -working: "NA"
+        -agent: "main"
+        -comment: "INVESTIGACIÓN EN VIVO (script Node con @gradio/client, NO agente de testing): probada una alternativa gratuita candidata con mejores benchmarks públicos que FLUX dev (FireRed-Image-Edit-1.1, HuggingFace Space) — DESCARTADA tras prueba real: reserva 180s de GPU por llamada y la cuota ANÓNIMA gratuita se agota de inmediato ('You have exceeded your ZeroGPU quota'), no es viable como 'ilimitado y gratis' para llamadas anónimas desde el navegador de cada usuario. En su lugar, se comparó EN VIVO (misma foto de prueba + mismo prompt) la configuración anterior de FLUX.1 Kontext [dev] (steps=28, guidance_scale=2.5) contra una más exigente (steps=30 -máximo admitido por este Space-, guidance_scale=3.5) -> resultado visiblemente más nítido y con mejor integración de luz/detalle de pelo — el máximo de calidad alcanzable con este modelo gratuito sin dejar de ser anónimo/ilimitado. IMPLEMENTADO: generate() en AIImageEditor.jsx invertido — ahora intenta FLUX.1 Kontext [dev] (con los nuevos FLUX_GUIDANCE_SCALE=3.5/FLUX_STEPS=30) PRIMERO SIEMPRE; solo si falla (cuota de GPU agotada, Space caído, red) cae a Nano Banana (/api/ai/edit-image, servidor, Emergent LLM Key) como respaldo — mensaje de aviso actualizado para reflejar el nuevo sentido del fallback ('used a higher-tier backup editor instead' en vez de 'used the free unlimited editor instead'). Verificado con llamadas reales (Node/@gradio/client, sin testing agent — instrucción vigente del usuario): la nueva configuración de FLUX genera resultados correctamente en ~30-40s; lint limpio. NO se pudo usar el agente de testing de backend para esto (es una llamada 100% desde el navegador del usuario a un Space público externo, no una ruta API de Next.js) ni el de frontend (no solicitado por el usuario). Pendiente: el usuario debe probar el editor de IA en la app real y confirmar que la calidad le resulta satisfactoria; puede revertirse fácilmente a Nano Banana primero si prefiere velocidad (~8s) sobre el ahorro de presupuesto."
+
+
 backend:
   - task: "BUG: en la página de Retos la píldora 'Trending Challenge' mostraba el tema regional (ej. 'Don't Go Insane') pero al hacer click/entrar se abría un tema distinto ('Bling Bang Born', el global del admin) — desajuste entre lo anunciado y lo que realmente se abre"
     implemented: true

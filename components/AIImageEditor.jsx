@@ -35,20 +35,33 @@ const FALLBACK_SUGGESTIONS = [
 ]
 
 // Space público de FLUX.1 Kontext [dev] (modelo abierto de Black Forest
-// Labs) corriendo en GPU GRATUITA (ZeroGPU) — RESPALDO gratuito/ilimitado,
-// NO la ruta principal (ver generate() más abajo: Nano Banana va primero,
-// por calidad). Probado en vivo comparando el MISMO selfie + MISMA
-// instrucción contra Nano Banana (gemini-3.1-flash-image-preview): Nano
-// Banana produce una escena más rica en detalle y tarda ~8s; FLUX preserva
-// bien la cara pero con composición más simple, en ~25-35s. `Qwen/
-// Qwen-Image-Edit` (alternativa evaluada) FALLA de inmediato para llamadas
-// anónimas: "The requested GPU duration (240s) is larger than the maximum
-// allowed" — no es una opción viable. Este Space se llama DESDE EL
-// NAVEGADOR (mismo patrón que AIVideoEditor.jsx): la cuota gratis es por IP
-// del llamante, sin cuentas ni tokens — solo se usa si Nano Banana falla de
-// verdad (presupuesto agotado/error), para que el usuario NUNCA se quede
-// sin poder editar aunque se acabe el presupuesto de Emergent.
+// Labs) corriendo en GPU GRATUITA (ZeroGPU) — petición del usuario: "quiero
+// que uses flux [como principal] y que flux tenga la misma calidad que
+// nanobanana [...] o buscar una alternativa que sea ilimitado y gratis".
+// INVESTIGACIÓN EN VIVO (script Node directo, NO agente de testing):
+// probada una alternativa candidata con mejor puntuación en benchmarks
+// públicos (FireRed-Image-Edit-1.1) — DESCARTADA: su Space reserva 180s de
+// GPU por llamada y la cuota ANÓNIMA gratuita se agota casi de inmediato
+// ("You have exceeded your ZeroGPU quota", incluso en el primer intento) —
+// no es realmente "ilimitado y gratis" para uso anónimo desde el navegador
+// de cada usuario (a diferencia de FLUX.1 Kontext [dev], que sí cabe
+// cómodamente en esa misma cuota anónima, confirmado con múltiples llamadas
+// reales exitosas). Con la MISMA foto+instrucción se comparó en vivo la
+// configuración anterior (steps=28, guidance_scale=2.5) contra una más
+// exigente (steps=30 -el máximo que admite este Space-, guidance_scale=3.5)
+// -> resultado notablemente más nítido y con mejor integración de luz/pelo,
+// el máximo de calidad alcanzable con este modelo gratuito sin dejar de ser
+// anónimo/ilimitado (subir más el guidance_scale, hasta 10, degrada la
+// imagen -sobre-saturación/artefactos-, probado y descartado). Gemini "Nano
+// Banana" sigue siendo objetivamente superior en composición/detalle (usa
+// hardware/modelo de pago), pero el usuario decidió explícitamente: FLUX
+// SIEMPRE primero (aunque tarde más, ~30-40s vs ~8s), Nano Banana solo como
+// respaldo si FLUX falla. Se llama DESDE EL NAVEGADOR (mismo patrón que
+// AIVideoEditor.jsx): la cuota gratis es por IP del llamante, sin cuentas ni
+// tokens.
 const FLUX_KONTEXT_SPACE = 'black-forest-labs/FLUX.1-Kontext-Dev'
+const FLUX_GUIDANCE_SCALE = 3.5 // antes 2.5 — probado en vivo, mejora notable de nitidez/detalle
+const FLUX_STEPS = 30 // antes 28 — máximo admitido por este Space
 
 async function dataUrlToFile(dataUrl, filename) {
   const res = await fetch(dataUrl)
@@ -142,15 +155,25 @@ export default function AIImageEditor({ imageFile, initialPrompt = '', onClose, 
     setNotice(null)
     onStatusChange?.('loading')
 
-    // 1) Editor del servidor PRIMERO (Nano Banana vía Emergent LLM Key) —
-    //    prioridad de CALIDAD (petición explícita del usuario: "las
-    //    publicaciones tienen que tener la misma calidad de nanobanana").
-    //    Comparado en vivo con el mismo selfie + misma instrucción: Nano
-    //    Banana (gemini-3.1-flash-image-preview) da una escena más rica en
-    //    detalle (cubierta, cabos, otros barcos al fondo) y tarda ~8s;
-    //    FLUX.1 Kontext (gratis) preserva bien la cara pero con una
-    //    composición algo más simple — por eso NO se usa como ruta
-    //    principal, solo como red de seguridad.
+    // 1) FLUX.1 Kontext [dev] PRIMERO SIEMPRE (petición explícita del
+    //    usuario, ver comentario de FLUX_KONTEXT_SPACE arriba: gratis,
+    //    ilimitado, con la calidad más alta que se pudo lograr sin dejar de
+    //    ser anónimo). Tarda más (~30-40s) que Nano Banana (~8s), pero es la
+    //    ruta que el usuario pidió como principal.
+    try {
+      const dataUrl = await editOnFreeGpu(trimmed)
+      setResultUrl(dataUrl)
+      setStage('result')
+      onStatusChange?.('result', dataUrl)
+      return
+    } catch (e) {
+      console.warn('FLUX (free GPU) unavailable, falling back to server AI (Nano Banana):', e?.message)
+    }
+
+    // 2) RESPALDO — Nano Banana en el servidor (Emergent LLM Key) SOLO si
+    //    FLUX falló de verdad (cuota de GPU gratuita agotada, Space caído,
+    //    error de red, etc.) — así el usuario NUNCA se queda sin poder
+    //    editar.
     try {
       const fd = new FormData()
       fd.append('image', imageFile)
@@ -162,23 +185,8 @@ export default function AIImageEditor({ imageFile, initialPrompt = '', onClose, 
       }
       setResultUrl(data.image)
       setStage('result')
+      setNotice('The free editor is busy right now — used a higher-tier backup editor instead (slightly different style).')
       onStatusChange?.('result', data.image)
-      return
-    } catch (e) {
-      console.warn('server AI (Nano Banana) unavailable, falling back to free GPU:', e?.message)
-    }
-
-    // 2) Respaldo GRATUITO E ILIMITADO (FLUX.1 Kontext, Space público, ver
-    //    editOnFreeGpu) — SOLO si Nano Banana falló de verdad (presupuesto
-    //    agotado, error de red, etc.). Así el usuario NUNCA se queda sin
-    //    poder editar, aunque la calidad prioritaria siga siendo la de
-    //    Nano Banana mientras haya presupuesto disponible.
-    try {
-      const dataUrl = await editOnFreeGpu(trimmed)
-      setResultUrl(dataUrl)
-      setStage('result')
-      setNotice('AI budget is busy right now — used the free unlimited editor instead (slightly different style).')
-      onStatusChange?.('result', dataUrl)
     } catch (err) {
       setErrorMsg('The AI could not edit this photo, please try again')
       setStage('error')
@@ -201,8 +209,8 @@ export default function AIImageEditor({ imageFile, initialPrompt = '', onClose, 
         prompt: trimmed,
         seed: 0,
         randomize_seed: true,
-        guidance_scale: 2.5,
-        steps: 28,
+        guidance_scale: FLUX_GUIDANCE_SCALE,
+        steps: FLUX_STEPS,
       }),
       new Promise((_, rej) => setTimeout(() => rej(new Error('gpu_timeout')), 90000)),
     ])
