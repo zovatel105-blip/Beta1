@@ -105,6 +105,21 @@
 user_problem_statement: "Las publicaciones normales deben ser un carrusel de 2 vídeos (opción A / opción B) entre los que se desliza y se vota tocando el vídeo. Se suben 2 vídeos. Reemplaza el vídeo normal. AÑADIDO: votar = doble toque, quitar el corazón/Me gusta, y nueva función 'Retar' (solicitud de enfrentamiento con un vídeo subido que el retado acepta/cancela en la Bandeja). NUEVO: buscador de usuarios en la esquina superior derecha de la página de inicio (icono de lupa que abre un overlay)."
 
 frontend:
+  - task: "FEATURE: buscar una alternativa gratuita/ilimitada de mayor calidad que FLUX (idealmente cercana a Nano Banana) para el editor de fotos con IA"
+    implemented: true
+    working: "NA"
+    file: "components/AIImageEditor.jsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'Buscar una alternativa igual a nanobanana en calidad gratis y ilimitada'."
+        -working: "NA"
+        -agent: "main"
+        -comment: "INVESTIGACIÓN EN VIVO (API pública de Hugging Face huggingface.co/api/spaces?search=..., ordenada por likes, + inspección de app.py de cada candidato, NO agente de testing): probados varios candidatos con mejores benchmarks/popularidad — Qwen/Qwen-Image-Edit-2511 oficial y FireRed-Image-Edit-1.1 reservan 180s de GPU por llamada cada uno, agotando la cuota ANÓNIMA compartida de este sandbox casi de inmediato (mismo problema ya descartado antes con FireRed); prithivMLmods/Qwen-Image-Edit-2511-LoRAs-Fast descartado por otro motivo (no es edición libre por texto, exige elegir entre una lista fija de ~20 filtros/LoRAs de estilo, no compatible con instrucciones arbitrarias como 'ponme en un yate'); Z-Image-Edit (Tongyi-MAI) no tiene todavía ningún Space público funcional (solo Z-Image-Turbo, que es texto->imagen, no edición). CANDIDATO VIABLE ENCONTRADO: linoyts/Qwen-Image-Edit-2511-Fast (2200+ likes) usa el MISMO patrón ligero que el propio FLUX.1-Kontext-Dev (`@spaces.GPU()` sin duración fija + solo 4 pasos por defecto) — debería caber en la misma cuota anónima que ya usa FLUX de forma fiable. LIMITACIÓN HONESTA: no se pudo completar una comparación de calidad EN VIVO dentro de esta sesión porque la cuota anónima compartida del sandbox ya se agotó probando los candidatos descartados arriba (confirmado con el mensaje real de Hugging Face 'You have exceeded your ZeroGPU quota') — cada usuario REAL de la app tiene su propia cuota independiente (se llama desde SU navegador, no desde este sandbox), así que esto no impide que funcione en producción, pero sí impidió verificar la calidad final con mis propios ojos antes de implementarlo. IMPLEMENTADO de forma SEGURA: Qwen-Image-Edit-2511 (vía linoyts/Qwen-Image-Edit-2511-Fast) se intenta PRIMERO en generate() (mejor candidato de calidad), con caída automática a FLUX.1 Kontext [dev] (ya probado y fiable) y luego a Nano Banana (pago, garantía final) si falla por cualquier motivo — riesgo real mínimo, en el peor caso solo tarda unos segundos más en fallar antes de seguir la cadena ya probada. Lint limpio; nextjs reiniciado sin errores. PENDIENTE: el usuario debe probar el editor en la app real (con su propia cuota de navegador) y confirmar si la calidad de Qwen resulta mejor que FLUX o si falla con frecuencia (en cuyo caso se puede quitar ese primer intento con un cambio de una sola línea, dejando FLUX como principal de nuevo)."
+
   - task: "FEATURE: el editor de fotos con IA (creación de contenido) debe usar FLUX.1 Kontext [dev] como modelo PRIMARIO (gratis/ilimitado) con la máxima calidad posible, y Nano Banana solo como respaldo — invertido del orden anterior"
     implemented: true
     working: "NA"
