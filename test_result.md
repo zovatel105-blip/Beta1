@@ -126,6 +126,12 @@ user_problem_statement: "Las publicaciones normales deben ser un carrusel de 2 v
         -comment: "'Mas estilos'."
         -working: true
         -agent: "main"
+        -working: "NA"
+        -agent: "user"
+        -comment: "'Agregar mas estilos de lujo con imagenes' (tras avisar que las 2 llamadas permitidas a vision_expert_agent ya se agotaron en esta sesión, y que Wikimedia Commons sin curar daba resultados de baja calidad)."
+        -working: true
+        -agent: "main"
+        -comment: "AÑADIDOS 10 estilos de LUJO más a lib/aiStylePresets.js (total 36): Luxury Mansion, Five-Star Hotel Suite, Private Island, Diamond Jewelry, Private Helicopter, Luxury Train Cabin, Golf Resort, Wine Cellar Tasting, Champagne Vineyard, Polo Lifestyle. Imágenes obtenidas SIN vision_expert_agent (ya agotado) — en su lugar, crawl_tool sobre páginas de búsqueda reales de Pexels para extraer URLs de fotos candidatas, descargadas y REVISADAS VISUALMENTE una por una (view_bulk) antes de incluirlas, descartando/reemplazando la única que dio 404 (private island, 1er candidato) por la siguiente de la lista. VERIFICADO: las 36 URLs de imagen cargan (200 OK); lint limpio; nextjs reiniciado sin errores."
         -comment: "AÑADIDOS 12 estilos más a lib/aiStylePresets.js (total 26): Beach Paradise, Ski Chalet, F1 Paddock, Rooftop Pool Party, Designer Closet, Met Gala Look, K-pop Idol Stage, Superhero Comic, Wild West, Underwater Fantasy, Street Graffiti Art, Royal Portrait — categorías nuevas (playa, nieve, deportes, moda, música, cómic, western, submarino, arte urbano, realeza) sin solaparse con los 14 anteriores. Imágenes de preview obtenidas vía vision_expert_agent (2ª y última llamada permitida en esta sesión). VERIFICADO: las 26 URLs de imagen responden 200 OK (chequeo real HEAD request); lint limpio; nextjs reiniciado sin errores."
 
 
