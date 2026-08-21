@@ -61,6 +61,8 @@ import {
   getActiveLuxuryTheme,
   getLuxuryThemeById,
   setActiveLuxuryTheme,
+  getRegionalLuxuryTheme,
+  setRegionalLuxuryTheme,
   getLuxuryBattlePostsByThemeId,
   updatePostLuxuryScore,
   listLuxuryThemes,
@@ -550,6 +552,116 @@ async function filterBlockedPosts(posts, currentUser) {
   })
 }
 
+// ── TRENDING CHALLENGE POR REGIÓN — geolocalización por IP + generación con
+// IA (petición del usuario: "los challenge tienen que estar en tendencia en
+// la ubicación en la que esté el usuario, en su zona"). Aproximado a nivel
+// de PAÍS (no GPS/precisa — coherente con la Política de Privacidad, ver
+// app/privacy/page.js), vía IPWho.is (gratis, sin API key). 100% automático:
+// sin cron externo, el propio tráfico dispara la regeneración cuando el
+// tema de un país caduca (ver getOrGenerateRegionalTheme). Declarado a nivel
+// de MÓDULO (no dentro de GET) a propósito: los Map de caché/lock de abajo
+// deben persistir ENTRE peticiones, no reiniciarse en cada llamada a GET.
+// ────────────────────────────────────────────────────────────────────────────
+
+// Extrae la IP real del visitante detrás del ingress de Kubernetes.
+function getClientIp(request) {
+  try {
+    const xff = request.headers.get('x-forwarded-for')
+    if (xff) {
+      const first = xff.split(',')[0].trim()
+      if (first) return first
+    }
+    const xri = request.headers.get('x-real-ip')
+    if (xri) return xri.trim()
+  } catch { /* ignore */ }
+  return null
+}
+
+// Caché en memoria (proceso Next.js) de ip -> país, 1h de vida — evita
+// golpear el límite gratuito de IPWho.is (1000 req/día) en cada visita, y
+// evita exponer la IP del visitante a nada fuera del propio servidor (nunca
+// se llama desde el cliente).
+const ipCountryCache = new Map()
+const IP_CACHE_TTL_MS = 60 * 60 * 1000
+
+async function getCountryForIp(ip) {
+  if (!ip || ip === '127.0.0.1' || ip === '::1') return null
+  const cached = ipCountryCache.get(ip)
+  if (cached && Date.now() - cached.ts < IP_CACHE_TTL_MS) return cached
+  try {
+    const res = await fetch(`https://ipwho.is/${encodeURIComponent(ip)}`, {
+      signal: AbortSignal.timeout(2500),
+      cache: 'no-store',
+    })
+    if (!res.ok) return cached || null
+    const data = await res.json().catch(() => null)
+    if (!data || data.success === false || !data.country_code) return cached || null
+    const result = { countryCode: String(data.country_code).toUpperCase(), countryName: data.country || null, ts: Date.now() }
+    ipCountryCache.set(ip, result)
+    return result
+  } catch {
+    return cached || null
+  }
+}
+
+// Pide a Claude (Anthropic, texto puro — ver comentario en
+// handleAutoGenerateLuxuryTheme sobre por qué Gemini queda reservado para
+// tareas de visión) el ÚNICO tema más viral AHORA MISMO en un país concreto.
+async function generateRegionalThemeWithAI(countryCode, countryName, avoid = []) {
+  const apiKey = process.env.EMERGENT_LLM_KEY
+  if (!apiKey) return null
+  const place = countryName || countryCode
+  try {
+    const chat = new LlmChat(
+      apiKey,
+      `luxury-theme-region-${countryCode}-${Date.now()}`,
+      'You are a creative director for a social video-battle app called Twyk. Users submit an AI-edited photo of themselves living out a themed scene and compete head-to-head, judged by real community votes + an AI score of how well their photo matches the theme. Using your up-to-date knowledge, identify THE single MOST viral, most talked-about cultural moment or trend happening RIGHT NOW (today) SPECIFICALLY in the given country/region — local trends, memes, shows, sports, fashion, or social moments that are big THERE right now (not necessarily global). Pick only ONE, not a list of options. Respond with ONLY one JSON object shaped exactly as {"title": string (2-4 words, catchy), "description": string (1 short sentence describing the theme for users), "promptHint": string (1-2 sentences, a ready-to-use AI image-editing instruction starting with "Put me..." or "Transform me...", vivid and specific)}. No markdown, no code fences, no extra text, no array — just the single object.'
+    ).withModel('anthropic', 'claude-sonnet-4-6')
+
+    const text = await chat.sendMessage(
+      new UserMessage({
+        text: `What is THE #1 most viral thing right now in ${place}?${avoid.length ? ` Do not repeat these already-used titles: ${avoid.join(', ')}.` : ''}`,
+      })
+    )
+    const cleaned = String(text || '').trim().replace(/^```(json)?/i, '').replace(/```$/, '').trim()
+    const parsed = JSON.parse(cleaned)
+    if (!parsed || typeof parsed !== 'object' || !parsed.title || !parsed.description) return null
+    return {
+      title: String(parsed.title).slice(0, 60).trim(),
+      description: String(parsed.description).slice(0, 200).trim(),
+      promptHint: typeof parsed.promptHint === 'string' ? parsed.promptHint.slice(0, 300).trim() : '',
+    }
+  } catch (e) {
+    console.error('generateRegionalThemeWithAI failed', countryCode, e)
+    return null
+  }
+}
+
+// Evita generaciones simultáneas duplicadas para el mismo país (varios
+// visitantes del mismo país a la vez, justo cuando el tema anterior caduca).
+const regionalGenLocks = new Map()
+
+async function getOrGenerateRegionalTheme(countryCode, countryName) {
+  if (!countryCode) return null
+  const existing = await getRegionalLuxuryTheme(countryCode).catch(() => null)
+  if (existing && existing.expiresAt && new Date(existing.expiresAt) > new Date()) return existing
+  if (regionalGenLocks.has(countryCode)) return regionalGenLocks.get(countryCode)
+  const p = (async () => {
+    try {
+      const generated = await generateRegionalThemeWithAI(countryCode, countryName)
+      if (!generated) return existing || null
+      return await setRegionalLuxuryTheme({ countryCode, countryName, ttlHours: 12, ...generated })
+    } catch (e) {
+      console.error('getOrGenerateRegionalTheme failed', countryCode, e)
+      return existing || null
+    } finally {
+      regionalGenLocks.delete(countryCode)
+    }
+  })()
+  regionalGenLocks.set(countryCode, p)
+  return p
+}
+
 export async function GET(request, { params }) {
   const segs = (params?.path) || []
   const path = '/' + segs.join('/')
@@ -931,12 +1043,20 @@ export async function GET(request, { params }) {
     return NextResponse.json({ posts: await refreshPostCommentCounts(enrichedPosts) })
   }
 
-  // GET /api/luxury-battles/active — tema de lujo actualmente activo (ej.
-  // "Yacht Life"), o { theme: null } si nunca se configuró ninguno. Público
-  // (sin sesión), igual que el resto de datos de descubrimiento del feed.
+  // GET /api/luxury-battles/active — tema de lujo actualmente en tendencia
+  // EN LA ZONA DEL VISITANTE (país aproximado por IP, ver helpers arriba del
+  // archivo), generado y refrescado automáticamente por IA; si no se puede
+  // determinar el país o la IA falla, cae al tema GLOBAL configurado por el
+  // admin (comportamiento de siempre) — nunca deja al frontend sin ningún
+  // tema si existe al menos uno. { theme: null } si nunca hubo ninguno (ni
+  // regional ni global). Público (sin sesión), igual que el resto de datos
+  // de descubrimiento del feed.
   if (path === '/luxury-battles/active') {
-    const theme = await getActiveLuxuryTheme().catch(() => null)
-    return NextResponse.json({ theme: theme ? stripMongoId(theme) : null })
+    const ip = getClientIp(request)
+    const geo = ip ? await getCountryForIp(ip) : null
+    let theme = geo?.countryCode ? await getOrGenerateRegionalTheme(geo.countryCode, geo.countryName).catch(() => null) : null
+    if (!theme) theme = await getActiveLuxuryTheme().catch(() => null)
+    return NextResponse.json({ theme: theme ? stripMongoId(theme) : null, region: geo?.countryCode || null })
   }
 
   // GET /api/luxury-battles/leaderboard?themeId=... — ranking de un tema de

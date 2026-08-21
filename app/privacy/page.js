@@ -42,9 +42,14 @@ export default function PrivacyPage() {
               <li><strong>Uploaded videos</strong> — the content you publish in your challenges.</li>
               <li><strong>Votes</strong> — your A/B choices in challenges.</li>
               <li><strong>Comments</strong> — the text you post on publications.</li>
+              <li><strong>IP address (approximate country only)</strong> — used briefly, server-side, to show trending content relevant to your region.</li>
             </ul>
             <p className="mt-3">
-              We do not collect precise geolocation data, payment information or biometric data.
+              We do not collect precise (GPS) geolocation data, payment information or biometric data.
+              We do use your IP address to estimate an <strong>approximate country-level location</strong> only,
+              so the &quot;Trending Challenge&quot; shown to you reflects what is currently trending in your
+              region. This lookup is performed server-side, is not tied to your account identity, and your
+              IP address is not stored long-term.
             </p>
           </section>
 
