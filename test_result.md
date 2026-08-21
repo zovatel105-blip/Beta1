@@ -104,6 +104,25 @@
 
 user_problem_statement: "Las publicaciones normales deben ser un carrusel de 2 vídeos (opción A / opción B) entre los que se desliza y se vota tocando el vídeo. Se suben 2 vídeos. Reemplaza el vídeo normal. AÑADIDO: votar = doble toque, quitar el corazón/Me gusta, y nueva función 'Retar' (solicitud de enfrentamiento con un vídeo subido que el retado acepta/cancela en la Bandeja). NUEVO: buscador de usuarios en la esquina superior derecha de la página de inicio (icono de lupa que abre un overlay)."
 
+  - task: "FEATURE: galería de estilos tipo LarpGPT en publicaciones Single (reto abierto) — elegir una plantilla visual con imagen de ejemplo y la IA genera de inmediato"
+    implemented: true
+    working: "NA"
+    file: "components/AIImageEditor.jsx, lib/aiStylePresets.js, components/UploadDialog.jsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'En las publicaciones single quiero que añadas una funcion como larpgpt editar y te muestra varios modelos de edicion tu eliges ese modelo y la ia lo genera'."
+        -working: "NA"
+        -agent: "user"
+        -comment: "Aclarado vía ask_human: (1) 'modelos' = PLANTILLAS/ESTILOS visuales (no proveedores de IA); (2) tarjetas CON imagen de ejemplo/preview (galería visual real); (3) lista FIJA, 'con más y mejores estilos que larpgpt'; (4) 'un botón junto a la lista de sugerencia'."
+        -working: "NA"
+        -agent: "main"
+        -comment: "IMPLEMENTADO: nuevo lib/aiStylePresets.js con 14 estilos curados (Yacht Life, Private Jet, Penthouse Skyline, Red Carpet Gala, Supercar Garage, Anime Hero, Cyberpunk Neon, Film Noir, Vintage Polaroid, Fantasy Warrior, Studio Portrait, Vaporwave, Space Explorer, Renaissance Painting) — cada uno con imagen de preview real (vision_expert_agent, 1 sola llamada para las 14) + una instrucción de edición lista para enviar. AIImageEditor.jsx: nuevo prop `showStyleGallery` (default false); nuevo botón dorado 'Styles' (icono LayoutGrid) AL INICIO de la fila de sugerencias, visible SOLO si showStyleGallery=true; nuevo stage='gallery' (grid de 3 columnas, tarjetas cuadradas con la imagen + nombre superpuesto, botón atrás); elegir una tarjeta (pickStyle) aplica su prompt Y genera de inmediato (un solo clic, sin pasos extra, tal como pidió el usuario). generate() refactorizado para aceptar un prompt explícito (necesario para que la galería no dependa de que el estado de React ya se haya actualizado). UploadDialog.jsx: pasa `showStyleGallery={mode === 'solo'}` — SOLO aparece en publicaciones Single/reto abierto, no en versus/duet/challenge (petición explícita del usuario, 'en las publicaciones single'). VERIFICADO: lint limpio en los 3 archivos tocados; las 14 URLs de imagen de preview responden 200 OK (chequeo real HEAD request); nextjs reiniciado sin errores, tráfico real de un usuario activo respondiendo 200 en los logs. NO se pudo tomar una captura de pantalla automatizada de la galería en sí (la app está bloqueada a 'Coming soon' en cualquier viewport/user-agent que el tooling de screenshot logró forzar en este entorno — comportamiento 'mobile-only' ya existente, no relacionado con este cambio) — se pide al usuario que confirme visualmente en la app real (botón dorado 'Styles' debe aparecer junto a las sugerencias SOLO al editar la foto de una publicación Single)."
+
+
 frontend:
   - task: "FEATURE: buscar una alternativa gratuita/ilimitada de mayor calidad que FLUX (idealmente cercana a Nano Banana) para el editor de fotos con IA"
     implemented: true

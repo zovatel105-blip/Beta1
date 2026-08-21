@@ -760,6 +760,7 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
                         <AIImageEditor
                           imageFile={aiEditorSlot === 0 ? file : fileB}
                           initialPrompt={aiEditorSlot === 0 && mode === 'challenge' ? (luxuryTheme?.promptHint || '') : ''}
+                          showStyleGallery={mode === 'solo'}
                           onStatusChange={(status, url) => setAiOverride(status ? { status, url } : null)}
                           onClose={() => { setAiEditorSlot(null); setAiOverride(null) }}
                           onApply={(newFile) => {

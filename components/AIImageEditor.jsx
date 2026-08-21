@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Sparkles, Loader2, X, Wand2, RotateCcw, Check, Flame } from 'lucide-react'
+import { Sparkles, Loader2, X, Wand2, RotateCcw, Check, Flame, LayoutGrid, ArrowLeft } from 'lucide-react'
+import { AI_STYLE_PRESETS } from '@/lib/aiStylePresets'
 
 /**
  * AIImageEditor — controles de edición con IA, 100% EN LÍNEA (sin modal, sin
@@ -20,11 +21,23 @@ import { Sparkles, Loader2, X, Wand2, RotateCcw, Check, Flame } from 'lucide-rea
  * pintan directamente sobre ella (lo gestiona UploadDialog vía
  * `onStatusChange`, ver ese archivo) — aquí solo viven los controles.
  *
+ * GALERÍA DE ESTILOS (petición del usuario: "en las publicaciones single
+ * quiero que añadas una función como larpgpt editar y te muestra varios
+ * modelos de edición, tú eliges ese modelo y la ia lo genera" — confirmado:
+ * plantillas/estilos visuales con imagen de ejemplo, lista fija con MÁS y
+ * MEJORES estilos que larpgpt, un botón junto a la lista de sugerencias).
+ * Solo se muestra cuando `showStyleGallery` es true (pasado por
+ * UploadDialog.jsx SOLO para `mode === 'solo'`, publicaciones Single/reto
+ * abierto — no aparece en versus/duet/challenge). Elegir una tarjeta aplica
+ * su instrucción y genera de inmediato, sin pasos extra.
+ *
  * Props:
  *  - imageFile: File — la foto original ya seleccionada en ese slot
  *  - onClose: () => void — salir sin aplicar (vuelve al panel normal)
  *  - onApply: (newFile: File) => void — usar la foto editada
  *  - onStatusChange: (status: null|'loading'|'result', url?: string) => void
+ *  - showStyleGallery?: boolean — muestra el botón/galería de estilos (solo
+ *    publicaciones Single)
  */
 
 const FALLBACK_SUGGESTIONS = [
@@ -40,9 +53,9 @@ async function dataUrlToFile(dataUrl, filename) {
   return new File([blob], filename, { type: blob.type || 'image/png' })
 }
 
-export default function AIImageEditor({ imageFile, initialPrompt = '', onClose, onApply, onStatusChange }) {
+export default function AIImageEditor({ imageFile, initialPrompt = '', onClose, onApply, onStatusChange, showStyleGallery = false }) {
   const [prompt, setPrompt] = useState('')
-  const [stage, setStage] = useState('input') // input | loading | result | error
+  const [stage, setStage] = useState('input') // input | gallery | loading | result | error
   const [resultUrl, setResultUrl] = useState(null)
   const [errorMsg, setErrorMsg] = useState(null)
   // Sugerencias RELEVANTES a la foto (usuario: 'las sugerencias deben ser de
@@ -109,8 +122,8 @@ export default function AIImageEditor({ imageFile, initialPrompt = '', onClose, 
     return () => { cancelled = true }
   }, [imageFile])
 
-  const generate = async () => {
-    const trimmed = prompt.trim()
+  const generate = async (explicitPrompt) => {
+    const trimmed = (explicitPrompt ?? prompt).trim()
     if (trimmed.length < 3 || !imageFile) return
     setStage('loading')
     setErrorMsg(null)
@@ -145,6 +158,14 @@ export default function AIImageEditor({ imageFile, initialPrompt = '', onClose, 
       setStage('error')
       onStatusChange?.(null)
     }
+  }
+
+  // Elegir una tarjeta de la galería de estilos: aplica su instrucción y
+  // genera de inmediato (petición del usuario: "tú eliges ese modelo y la
+  // ia lo genera" — un solo clic, sin pasos extra).
+  const pickStyle = (preset) => {
+    setPrompt(preset.promptHint)
+    generate(preset.promptHint)
   }
 
   const useThisPhoto = async () => {
@@ -218,6 +239,20 @@ export default function AIImageEditor({ imageFile, initialPrompt = '', onClose, 
           )}
 
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar -mx-1 px-1 pb-0.5">
+            {/* Botón de la galería de estilos (petición del usuario: "un
+                botón junto a la lista de sugerencia") — SOLO en
+                publicaciones Single, ver showStyleGallery. */}
+            {showStyleGallery && (
+              <button
+                type="button"
+                disabled={stage === 'loading'}
+                onClick={() => setStage('gallery')}
+                className="shrink-0 flex items-center gap-1 whitespace-nowrap text-[11.5px] font-bold px-3 py-1.5 rounded-full active:scale-95 transition disabled:opacity-40"
+                style={{ background: 'linear-gradient(135deg, rgba(252,211,77,0.16), rgba(245,158,11,0.16))', border: '1px solid rgba(252,211,77,0.35)', color: '#FCD34D' }}
+              >
+                <LayoutGrid size={12} strokeWidth={2.4} /> Styles
+              </button>
+            )}
             {suggestionsLoading ? (
               <>
                 {[0, 1, 2].map((i) => (
@@ -239,7 +274,7 @@ export default function AIImageEditor({ imageFile, initialPrompt = '', onClose, 
             )}
           </div>
           <button
-            onClick={generate}
+            onClick={() => generate()}
             disabled={prompt.trim().length < 3 || stage === 'loading'}
             className="w-full py-3.5 rounded-full bg-white text-black font-bold text-[16px] disabled:bg-white/20 disabled:text-white/40 active:scale-[0.99] transition flex items-center justify-center gap-2"
           >
@@ -252,6 +287,41 @@ export default function AIImageEditor({ imageFile, initialPrompt = '', onClose, 
         </>
       )}
 
+      {/* STAGE: gallery — galería visual de estilos (petición del usuario,
+          ver comentario superior). Solo cuando showStyleGallery=true
+          (publicaciones Single). Elegir una tarjeta aplica y genera de
+          inmediato. */}
+      {stage === 'gallery' && (
+        <>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setStage('input')}
+              aria-label="Back"
+              className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-white/10 active:scale-90 transition text-zinc-300 hover:text-white shrink-0"
+            >
+              <ArrowLeft size={16} strokeWidth={2} />
+            </button>
+            <p className="text-white text-[13px] font-semibold">Choose a style</p>
+          </div>
+          <div className="grid grid-cols-3 gap-2.5 max-h-[52vh] overflow-y-auto pb-1">
+            {AI_STYLE_PRESETS.map((preset) => (
+              <button
+                key={preset.id}
+                type="button"
+                onClick={() => pickStyle(preset)}
+                className="group relative aspect-square rounded-2xl overflow-hidden border border-white/10 active:scale-95 transition"
+              >
+                <img src={preset.thumb} alt={preset.label} className="absolute inset-0 w-full h-full object-cover" draggable={false} />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent" />
+                <span className="absolute bottom-1.5 left-1.5 right-1.5 text-white text-[11px] font-bold leading-tight text-left drop-shadow">
+                  {preset.label}
+                </span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+
       {/* STAGE: error */}
       {stage === 'error' && (
         <>
@@ -259,7 +329,7 @@ export default function AIImageEditor({ imageFile, initialPrompt = '', onClose, 
             <p className="text-rose-300 text-[13px]">{errorMsg}</p>
           </div>
           <button
-            onClick={generate}
+            onClick={() => generate()}
             className="w-full py-3.5 rounded-full bg-white text-black font-bold text-[16px] active:scale-[0.99] transition flex items-center justify-center gap-2"
           >
             <RotateCcw size={17} strokeWidth={2} /> Try again
