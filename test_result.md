@@ -105,7 +105,23 @@
 user_problem_statement: "Las publicaciones normales deben ser un carrusel de 2 vídeos (opción A / opción B) entre los que se desliza y se vota tocando el vídeo. Se suben 2 vídeos. Reemplaza el vídeo normal. AÑADIDO: votar = doble toque, quitar el corazón/Me gusta, y nueva función 'Retar' (solicitud de enfrentamiento con un vídeo subido que el retado acepta/cancela en la Bandeja). NUEVO: buscador de usuarios en la esquina superior derecha de la página de inicio (icono de lupa que abre un overlay)."
 
 backend:
-  - task: "FEATURE: los Trending Challenges deben basarse en retos REALES virales de TikTok/Instagram en este momento (búsqueda web real con Tavily, no solo conocimiento entrenado de la IA)"
+  - task: "BUG: en la página de Retos la píldora 'Trending Challenge' mostraba el tema regional (ej. 'Don't Go Insane') pero al hacer click/entrar se abría un tema distinto ('Bling Bang Born', el global del admin) — desajuste entre lo anunciado y lo que realmente se abre"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'En la pagina de retos me aparece (Don't Go Insane) y cuando hago click me aparece (bling blang born)' — 2 capturas: la píldora de CompletedBattlesPage.jsx mostrando 'Trending Challenge: Don't Go Insane', y la pantalla que se abre al continuar mostrando 'Trending Challenge: Bling Bang Born'."
+        -working: "NA"
+        -agent: "main"
+        -comment: "CAUSA RAÍZ: al implementar el tema regional por IP se actualizó SOLO GET /api/luxury-battles/active (usado por la píldora en CompletedBattlesPage.jsx/LuxuryBattleSheet.jsx) para resolver el tema por región — pero LuxuryBattleSheet.jsx TAMBIÉN llama a GET /api/luxury-battles/leaderboard (sin themeId) para obtener el título/descripción/botón 'Enter' que se muestra al abrir la hoja, y esa ruta (junto con /luxury-battles/posts, usada por el buscador) seguía resolviendo el tema por defecto con getActiveLuxuryTheme() —SOLO el tema GLOBAL del admin, ignorando la región— causando que la píldora anunciara un tema (regional) distinto del que realmente se abría/con el que se entraba a competir (global). FIX: nueva función de módulo `getEffectiveLuxuryTheme(request)` que centraliza la MISMA resolución (regional por IP con fallback a global) en los 3 endpoints (`/luxury-battles/active`, `/luxury-battles/leaderboard` sin themeId, `/luxury-battles/posts` sin themeId) — ahora los 3 SIEMPRE coinciden para el mismo visitante. Verificado con llamada real (Node/fetch, misma IP simulada en los 3 endpoints): los 3 devuelven el mismo `theme.id`/título ('Don't Go Insane'). Lint limpio. Solicitando verificación del agente de testing de backend (indicado por el sistema para este reporte de bug específico) antes de cerrar la tarea."
+        -working: true
+        -agent: "testing"
+        -comment: "VERIFICADO CON BACKEND TEST EXHAUSTIVO (Python/requests, backend_test.py): ✅ TEST 1 (Regional Consistency) - Para 3 IPs de países distintos (8.8.8.8/US, 82.223.0.1/ES, 200.160.2.3/BR), los 3 endpoints (/luxury-battles/active, /luxury-battles/leaderboard sin themeId, /luxury-battles/posts sin themeId) devuelven el MISMO theme.id y title para cada IP: US→'Don't Go Insane' (id=bfb44a56...), ES→'Kinda Chic Life' (id=142225b8...), BR→'67 Hip Twist' (id=5f3cfd76...). Esto confirma que el BUG REPORTADO (píldora mostraba un tema, abrir mostraba otro) está CORREGIDO — ahora hay consistencia total entre lo que anuncia la píldora (/active) y lo que se abre (/leaderboard, /posts). ✅ TEST 2 (Explicit themeId) - El parámetro themeId explícito en /leaderboard funciona correctamente y devuelve el tema solicitado (no sobrescrito por lógica regional). ✅ TEST 3 (No IP Fallback) - Sin header X-Forwarded-For, los 3 endpoints devuelven el MISMO tema de forma consistente (fallback a tema global/regional por defecto del servidor). ✅ TEST 4 (Smoke Regression) - POST /api/auth/login, GET /api/feed, GET /api/uploads funcionan correctamente (200 OK), sin regresión en otros endpoints. TODOS LOS TESTS PASARON (4/4). El fix de getEffectiveLuxuryTheme() funciona correctamente y resuelve el problema de inconsistencia reportado por el usuario."
     implemented: true
     working: true
     file: "app/api/[[...path]]/route.js, .env, memory/ENV_BACKUP.md"

@@ -703,6 +703,27 @@ async function getOrGenerateRegionalTheme(countryCode, countryName) {
   return p
 }
 
+// Resuelve el tema "por defecto" (sin themeId explícito) de forma IDÉNTICA
+// para los 3 endpoints que lo necesitan (active/leaderboard/posts) — región
+// del visitante por IP si se puede determinar, si no, el tema GLOBAL del
+// admin. FIX de bug reportado por el usuario: "en la página de retos me
+// aparece (Don't Go Insane) [píldora, correcto] y cuando hago click me
+// aparece (Bling Bang Born) [al abrir/entrar, incorrecto]" — la píldora
+// (CompletedBattlesPage.jsx/LuxuryBattleSheet.jsx) usa /luxury-battles/active
+// (ya regional), pero LuxuryBattleSheet ADEMÁS pide el detalle a
+// /luxury-battles/leaderboard (sin themeId) para mostrar título/leaderboard/
+// botón "Enter", y esa ruta (junto con /luxury-battles/posts, usada por el
+// buscador) seguía resolviendo el tema por defecto con getActiveLuxuryTheme()
+// —SOLO el global— en vez de con esta misma lógica regional, causando el
+// desajuste entre lo que la píldora anuncia y lo que realmente se abre/entra.
+async function getEffectiveLuxuryTheme(request) {
+  const ip = getClientIp(request)
+  const geo = ip ? await getCountryForIp(ip) : null
+  let theme = geo?.countryCode ? await getOrGenerateRegionalTheme(geo.countryCode, geo.countryName).catch(() => null) : null
+  if (!theme) theme = await getActiveLuxuryTheme().catch(() => null)
+  return { theme, region: geo?.countryCode || null }
+}
+
 export async function GET(request, { params }) {
   const segs = (params?.path) || []
   const path = '/' + segs.join('/')
@@ -1093,11 +1114,8 @@ export async function GET(request, { params }) {
   // regional ni global). Público (sin sesión), igual que el resto de datos
   // de descubrimiento del feed.
   if (path === '/luxury-battles/active') {
-    const ip = getClientIp(request)
-    const geo = ip ? await getCountryForIp(ip) : null
-    let theme = geo?.countryCode ? await getOrGenerateRegionalTheme(geo.countryCode, geo.countryName).catch(() => null) : null
-    if (!theme) theme = await getActiveLuxuryTheme().catch(() => null)
-    return NextResponse.json({ theme: theme ? stripMongoId(theme) : null, region: geo?.countryCode || null })
+    const { theme, region } = await getEffectiveLuxuryTheme(request)
+    return NextResponse.json({ theme: theme ? stripMongoId(theme) : null, region })
   }
 
   // GET /api/luxury-battles/leaderboard?themeId=... — ranking de un tema de
@@ -1114,7 +1132,7 @@ export async function GET(request, { params }) {
   if (path === '/luxury-battles/leaderboard') {
     const { searchParams } = new URL(request.url)
     const themeIdParam = searchParams.get('themeId')
-    const theme = themeIdParam ? await getLuxuryThemeById(themeIdParam).catch(() => null) : await getActiveLuxuryTheme().catch(() => null)
+    const theme = themeIdParam ? await getLuxuryThemeById(themeIdParam).catch(() => null) : (await getEffectiveLuxuryTheme(request)).theme
     if (!theme) {
       return NextResponse.json({ theme: null, leaderboard: [] })
     }
@@ -1164,7 +1182,7 @@ export async function GET(request, { params }) {
   if (path === '/luxury-battles/posts') {
     const { searchParams } = new URL(request.url)
     const themeIdParam = searchParams.get('themeId')
-    const theme = themeIdParam ? await getLuxuryThemeById(themeIdParam).catch(() => null) : await getActiveLuxuryTheme().catch(() => null)
+    const theme = themeIdParam ? await getLuxuryThemeById(themeIdParam).catch(() => null) : (await getEffectiveLuxuryTheme(request)).theme
     if (!theme) {
       return NextResponse.json({ theme: null, posts: [] })
     }
