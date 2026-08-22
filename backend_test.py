@@ -1,344 +1,309 @@
 #!/usr/bin/env python3
 """
-Backend test for regional Trending Challenge theme consistency bug fix.
-
-Tests that GET /api/luxury-battles/active, GET /api/luxury-battles/leaderboard (no themeId),
-and GET /api/luxury-battles/posts (no themeId) all return the SAME theme for the same visitor IP.
+Backend test for Twyk Rank feature
+Tests the new ranking system added to GET /api/users/:username
 """
 
-import os
 import requests
 import json
-from typing import Dict, Any, Optional
+import sys
 
-# Read base URL from .env
-BASE_URL = None
-with open('/app/.env', 'r') as f:
-    for line in f:
-        if line.startswith('NEXT_PUBLIC_BASE_URL='):
-            BASE_URL = line.split('=', 1)[1].strip()
-            break
+# Base URL from .env
+BASE_URL = "https://native-web-gap.preview.emergentagent.com/api"
 
-if not BASE_URL:
-    raise Exception("NEXT_PUBLIC_BASE_URL not found in .env")
+# Test credentials
+TEST_USERS = [
+    {"username": "twyk", "password": "Admin12345", "role": "admin"},
+    {"username": "lucia", "password": "Test12345", "role": "user"},
+    {"username": "marcos", "password": "Test12345", "role": "user"},
+    {"username": "laura", "password": "Test12345", "role": "user"},
+]
 
-API_BASE = f"{BASE_URL}/api"
-
-# Test IPs from different countries
-TEST_IPS = {
-    '8.8.8.8': 'US',
-    '82.223.0.1': 'ES',
-    '200.160.2.3': 'BR',
-}
-
-def test_regional_theme_consistency():
-    """
-    Core regression test: verify all 3 endpoints return the SAME theme for the same IP.
-    """
-    print("\n" + "="*80)
-    print("TEST 1: Regional Theme Consistency Across Endpoints")
-    print("="*80)
-    
-    all_passed = True
-    
-    for ip, expected_country in TEST_IPS.items():
-        print(f"\n--- Testing IP: {ip} (expected country: {expected_country}) ---")
-        
-        headers = {'X-Forwarded-For': ip}
-        
-        try:
-            # Call all 3 endpoints with the same IP
-            r1 = requests.get(f"{API_BASE}/luxury-battles/active", headers=headers, timeout=10)
-            r2 = requests.get(f"{API_BASE}/luxury-battles/leaderboard", headers=headers, timeout=10)
-            r3 = requests.get(f"{API_BASE}/luxury-battles/posts", headers=headers, timeout=10)
-            
-            print(f"  /active status: {r1.status_code}")
-            print(f"  /leaderboard status: {r2.status_code}")
-            print(f"  /posts status: {r3.status_code}")
-            
-            if r1.status_code != 200 or r2.status_code != 200 or r3.status_code != 200:
-                print(f"  ❌ FAIL: One or more endpoints returned non-200 status")
-                all_passed = False
-                continue
-            
-            data1 = r1.json()
-            data2 = r2.json()
-            data3 = r3.json()
-            
-            theme1 = data1.get('theme')
-            theme2 = data2.get('theme')
-            theme3 = data3.get('theme')
-            
-            if not theme1 or not theme2 or not theme3:
-                print(f"  ❌ FAIL: One or more endpoints returned null theme")
-                print(f"    /active theme: {theme1}")
-                print(f"    /leaderboard theme: {theme2}")
-                print(f"    /posts theme: {theme3}")
-                all_passed = False
-                continue
-            
-            theme1_id = theme1.get('id')
-            theme1_title = theme1.get('title')
-            theme2_id = theme2.get('id')
-            theme2_title = theme2.get('title')
-            theme3_id = theme3.get('id')
-            theme3_title = theme3.get('title')
-            
-            print(f"  /active theme: id={theme1_id}, title='{theme1_title}'")
-            print(f"  /leaderboard theme: id={theme2_id}, title='{theme2_title}'")
-            print(f"  /posts theme: id={theme3_id}, title='{theme3_title}'")
-            
-            # Check if all theme IDs match
-            if theme1_id == theme2_id == theme3_id:
-                print(f"  ✅ PASS: All 3 endpoints returned the SAME theme (id={theme1_id})")
-                
-                # Also verify titles match
-                if theme1_title == theme2_title == theme3_title:
-                    print(f"  ✅ PASS: Theme titles also match ('{theme1_title}')")
-                else:
-                    print(f"  ⚠️  WARNING: Theme IDs match but titles differ (should not happen)")
-                    all_passed = False
-            else:
-                print(f"  ❌ FAIL: Theme IDs DO NOT MATCH across endpoints!")
-                print(f"    This is the BUG that was supposed to be fixed.")
-                all_passed = False
-            
-            # Check region field from /active
-            region = data1.get('region')
-            print(f"  Region detected: {region}")
-            
-        except Exception as e:
-            print(f"  ❌ FAIL: Exception occurred: {e}")
-            all_passed = False
-    
-    return all_passed
-
-
-def test_explicit_theme_id():
-    """
-    Test that explicit themeId parameter overrides regional logic.
-    """
-    print("\n" + "="*80)
-    print("TEST 2: Explicit themeId Parameter Override")
-    print("="*80)
-    
+def login(username, password):
+    """Login and return session token"""
     try:
-        # First, get the current active/regional theme for US
-        headers = {'X-Forwarded-For': '8.8.8.8'}
-        r = requests.get(f"{API_BASE}/luxury-battles/active", headers=headers, timeout=10)
-        
-        if r.status_code != 200:
-            print(f"❌ FAIL: Could not get active theme (status {r.status_code})")
-            return False
-        
-        active_theme = r.json().get('theme')
-        if not active_theme:
-            print(f"❌ FAIL: No active theme available")
-            return False
-        
-        active_theme_id = active_theme.get('id')
-        print(f"\nActive theme for US IP: id={active_theme_id}, title='{active_theme.get('title')}'")
-        
-        # Now try to get leaderboard with explicit themeId (use the same ID)
-        r2 = requests.get(f"{API_BASE}/luxury-battles/leaderboard?themeId={active_theme_id}", headers=headers, timeout=10)
-        
-        if r2.status_code != 200:
-            print(f"❌ FAIL: /leaderboard with explicit themeId returned status {r2.status_code}")
-            return False
-        
-        data2 = r2.json()
-        theme2 = data2.get('theme')
-        
-        if not theme2:
-            print(f"❌ FAIL: /leaderboard with explicit themeId returned null theme")
-            return False
-        
-        theme2_id = theme2.get('id')
-        print(f"/leaderboard with themeId={active_theme_id}: returned theme id={theme2_id}")
-        
-        if theme2_id == active_theme_id:
-            print(f"✅ PASS: Explicit themeId parameter works correctly")
-            return True
+        response = requests.post(
+            f"{BASE_URL}/auth/login",
+            json={"username": username, "password": password},
+            timeout=10
+        )
+        if response.status_code == 200:
+            data = response.json()
+            return data.get("token")
         else:
-            print(f"❌ FAIL: Explicit themeId did not return the requested theme")
-            return False
-            
+            print(f"❌ Login failed for {username}: {response.status_code} - {response.text}")
+            return None
     except Exception as e:
-        print(f"❌ FAIL: Exception occurred: {e}")
+        print(f"❌ Login exception for {username}: {str(e)}")
+        return None
+
+def get_user_profile(username, token=None):
+    """Get user profile with optional authentication"""
+    headers = {}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    
+    response = requests.get(
+        f"{BASE_URL}/users/{username}",
+        headers=headers,
+        timeout=10
+    )
+    return response
+
+def test_rank_structure(username, response_data):
+    """Test that rank object has correct structure"""
+    print(f"\n  Testing rank structure for {username}...")
+    
+    if "user" not in response_data:
+        print(f"    ❌ Missing 'user' key in response")
         return False
-
-
-def test_no_ip_fallback():
-    """
-    Test that requests with NO X-Forwarded-For header fall back to global theme consistently.
-    """
-    print("\n" + "="*80)
-    print("TEST 3: No IP Header - Fallback to Global Theme")
-    print("="*80)
     
-    try:
-        # Call all 3 endpoints WITHOUT any IP header
-        r1 = requests.get(f"{API_BASE}/luxury-battles/active", timeout=10)
-        r2 = requests.get(f"{API_BASE}/luxury-battles/leaderboard", timeout=10)
-        r3 = requests.get(f"{API_BASE}/luxury-battles/posts", timeout=10)
-        
-        print(f"/active status: {r1.status_code}")
-        print(f"/leaderboard status: {r2.status_code}")
-        print(f"/posts status: {r3.status_code}")
-        
-        if r1.status_code != 200 or r2.status_code != 200 or r3.status_code != 200:
-            print(f"❌ FAIL: One or more endpoints returned non-200 status")
-            return False
-        
-        data1 = r1.json()
-        data2 = r2.json()
-        data3 = r3.json()
-        
-        theme1 = data1.get('theme')
-        theme2 = data2.get('theme')
-        theme3 = data3.get('theme')
-        
-        # It's OK if theme is null (no global theme configured), but all 3 should be consistent
-        if theme1 is None and theme2 is None and theme3 is None:
-            print("✅ PASS: All 3 endpoints consistently returned null (no global theme configured)")
-            return True
-        
-        if not theme1 or not theme2 or not theme3:
-            print(f"❌ FAIL: Inconsistent null themes across endpoints")
-            print(f"  /active theme: {theme1}")
-            print(f"  /leaderboard theme: {theme2}")
-            print(f"  /posts theme: {theme3}")
-            return False
-        
-        theme1_id = theme1.get('id')
-        theme2_id = theme2.get('id')
-        theme3_id = theme3.get('id')
-        
-        print(f"/active theme: id={theme1_id}, title='{theme1.get('title')}'")
-        print(f"/leaderboard theme: id={theme2_id}, title='{theme2.get('title')}'")
-        print(f"/posts theme: id={theme3_id}, title='{theme3.get('title')}'")
-        
-        region = data1.get('region')
-        print(f"Region detected: {region} (should be null)")
-        
-        if theme1_id == theme2_id == theme3_id:
-            print(f"✅ PASS: All 3 endpoints returned the SAME global fallback theme (id={theme1_id})")
-            return True
-        else:
-            print(f"❌ FAIL: Theme IDs DO NOT MATCH in fallback scenario")
-            return False
-            
-    except Exception as e:
-        print(f"❌ FAIL: Exception occurred: {e}")
+    user = response_data["user"]
+    
+    if "rank" not in user:
+        print(f"    ❌ Missing 'rank' key in user object")
         return False
+    
+    rank = user["rank"]
+    
+    if rank is None:
+        print(f"    ⚠️  rank is null (user might not be in ranking system)")
+        return False
+    
+    # Check required keys
+    required_keys = ["score", "rank", "total", "tier"]
+    for key in required_keys:
+        if key not in rank:
+            print(f"    ❌ Missing required key '{key}' in rank object")
+            return False
+    
+    # Check types
+    if not isinstance(rank["score"], (int, float)):
+        print(f"    ❌ 'score' should be a number, got {type(rank['score'])}")
+        return False
+    
+    if not isinstance(rank["rank"], int) or rank["rank"] < 1:
+        print(f"    ❌ 'rank' should be an integer >= 1, got {rank['rank']}")
+        return False
+    
+    if not isinstance(rank["total"], int) or rank["total"] < rank["rank"]:
+        print(f"    ❌ 'total' should be an integer >= rank, got {rank['total']}")
+        return False
+    
+    # Check tier structure
+    tier = rank["tier"]
+    if not isinstance(tier, dict):
+        print(f"    ❌ 'tier' should be an object, got {type(tier)}")
+        return False
+    
+    tier_keys = ["name", "emoji", "from", "to"]
+    for key in tier_keys:
+        if key not in tier:
+            print(f"    ❌ Missing required key '{key}' in tier object")
+            return False
+        if not isinstance(tier[key], str):
+            print(f"    ❌ tier.{key} should be a string, got {type(tier[key])}")
+            return False
+    
+    print(f"    ✅ Rank structure is valid")
+    print(f"       Score: {rank['score']}, Rank: {rank['rank']}/{rank['total']}")
+    print(f"       Tier: {tier['emoji']} {tier['name']}")
+    return True
 
+def test_rank_consistency(profiles):
+    """Test that ranks are mutually consistent across users"""
+    print(f"\n  Testing rank consistency across {len(profiles)} users...")
+    
+    ranks = []
+    totals = []
+    
+    for username, data in profiles.items():
+        if "user" in data and "rank" in data["user"] and data["user"]["rank"]:
+            rank_obj = data["user"]["rank"]
+            ranks.append((username, rank_obj["rank"]))
+            totals.append(rank_obj["total"])
+    
+    if len(ranks) < 2:
+        print(f"    ⚠️  Not enough users with ranks to test consistency")
+        return True
+    
+    # Check all totals are the same
+    if len(set(totals)) != 1:
+        print(f"    ❌ Total counts are inconsistent: {totals}")
+        return False
+    
+    print(f"    ✅ All users have same total count: {totals[0]}")
+    
+    # Check all ranks are different (assuming we have different users)
+    rank_values = [r[1] for r in ranks]
+    if len(rank_values) != len(set(rank_values)):
+        print(f"    ⚠️  Some users have the same rank (might be tied scores)")
+        print(f"       Ranks: {ranks}")
+    else:
+        print(f"    ✅ All users have different ranks")
+    
+    # Check ranks are within valid range
+    total = totals[0]
+    for username, rank in ranks:
+        if rank < 1 or rank > total:
+            print(f"    ❌ {username} has invalid rank {rank} (should be 1-{total})")
+            return False
+    
+    print(f"    ✅ All ranks are within valid range (1-{total})")
+    return True
 
-def test_smoke_regression():
-    """
-    Smoke test of other core endpoints to ensure nothing else broke.
-    """
-    print("\n" + "="*80)
-    print("TEST 4: Smoke Test - Core Endpoints Regression")
-    print("="*80)
+def test_profile_regression(username, response_data):
+    """Test that existing profile fields still work"""
+    print(f"\n  Testing profile regression for {username}...")
     
-    all_passed = True
+    if "user" not in response_data:
+        print(f"    ❌ Missing 'user' key")
+        return False
     
-    # Test 1: Login
-    print("\n--- POST /api/auth/login ---")
-    try:
-        r = requests.post(f"{API_BASE}/auth/login", 
-                         json={'username': 'lucia', 'password': 'Test12345'},
-                         timeout=10)
-        print(f"Status: {r.status_code}")
-        if r.status_code == 200:
-            data = r.json()
-            if data.get('ok') and data.get('user'):
-                print(f"✅ PASS: Login successful, user={data['user'].get('username')}")
-                session_token = data.get('token')
-            else:
-                print(f"❌ FAIL: Login response missing expected fields")
-                all_passed = False
-                session_token = None
-        else:
-            print(f"❌ FAIL: Login failed with status {r.status_code}")
-            all_passed = False
-            session_token = None
-    except Exception as e:
-        print(f"❌ FAIL: Exception: {e}")
-        all_passed = False
-        session_token = None
+    user = response_data["user"]
     
-    # Test 2: Feed
-    print("\n--- GET /api/feed ---")
-    try:
-        r = requests.get(f"{API_BASE}/feed?cursor=0&limit=5", timeout=10)
-        print(f"Status: {r.status_code}")
-        if r.status_code == 200:
-            data = r.json()
-            posts = data.get('posts', [])
-            print(f"✅ PASS: Feed returned {len(posts)} posts")
-        else:
-            print(f"❌ FAIL: Feed returned status {r.status_code}")
-            all_passed = False
-    except Exception as e:
-        print(f"❌ FAIL: Exception: {e}")
-        all_passed = False
+    # Check essential fields
+    essential_fields = ["username", "followers", "following", "bio"]
+    for field in essential_fields:
+        if field not in user:
+            print(f"    ❌ Missing essential field '{field}'")
+            return False
     
-    # Test 3: Uploads (requires auth)
-    if session_token:
-        print("\n--- GET /api/uploads ---")
-        try:
-            headers = {'Authorization': f'Bearer {session_token}'}
-            r = requests.get(f"{API_BASE}/uploads", headers=headers, timeout=10)
-            print(f"Status: {r.status_code}")
-            if r.status_code == 200:
-                data = r.json()
-                posts = data.get('posts', [])
-                print(f"✅ PASS: Uploads returned {len(posts)} posts")
-            else:
-                print(f"❌ FAIL: Uploads returned status {r.status_code}")
-                all_passed = False
-        except Exception as e:
-            print(f"❌ FAIL: Exception: {e}")
-            all_passed = False
+    # Check posts array exists
+    if "posts" not in response_data:
+        print(f"    ❌ Missing 'posts' array")
+        return False
     
-    return all_passed
-
+    if not isinstance(response_data["posts"], list):
+        print(f"    ❌ 'posts' should be an array")
+        return False
+    
+    print(f"    ✅ Profile fields intact: username={user['username']}, followers={user['followers']}, following={user['following']}")
+    print(f"    ✅ Posts array present with {len(response_data['posts'])} posts")
+    return True
 
 def main():
-    print("\n" + "="*80)
-    print("BACKEND TEST: Regional Trending Challenge Theme Consistency")
-    print("="*80)
-    print(f"API Base URL: {API_BASE}")
+    print("=" * 80)
+    print("TWYK RANK FEATURE TEST")
+    print("=" * 80)
     
-    results = {}
+    all_passed = True
     
-    # Run all tests
-    results['regional_consistency'] = test_regional_theme_consistency()
-    results['explicit_theme_id'] = test_explicit_theme_id()
-    results['no_ip_fallback'] = test_no_ip_fallback()
-    results['smoke_regression'] = test_smoke_regression()
+    # TEST 1: Get profiles for all test users and verify rank structure
+    print("\n" + "=" * 80)
+    print("TEST 1: Rank Structure Validation")
+    print("=" * 80)
     
-    # Summary
-    print("\n" + "="*80)
+    profiles = {}
+    for user_info in TEST_USERS:
+        username = user_info["username"]
+        print(f"\nFetching profile for {username}...")
+        
+        try:
+            response = get_user_profile(username)
+            
+            if response.status_code != 200:
+                print(f"❌ GET /api/users/{username} returned {response.status_code}")
+                print(f"   Response: {response.text[:200]}")
+                all_passed = False
+                continue
+            
+            data = response.json()
+            profiles[username] = data
+            
+            # Test rank structure
+            if not test_rank_structure(username, data):
+                all_passed = False
+            
+        except Exception as e:
+            print(f"❌ Exception for {username}: {str(e)}")
+            all_passed = False
+    
+    # TEST 2: Rank consistency across users
+    print("\n" + "=" * 80)
+    print("TEST 2: Rank Consistency")
+    print("=" * 80)
+    
+    if not test_rank_consistency(profiles):
+        all_passed = False
+    
+    # TEST 3: Profile regression (existing fields still work)
+    print("\n" + "=" * 80)
+    print("TEST 3: Profile Regression")
+    print("=" * 80)
+    
+    for username, data in profiles.items():
+        if not test_profile_regression(username, data):
+            all_passed = False
+    
+    # TEST 4: Non-existent user returns 404
+    print("\n" + "=" * 80)
+    print("TEST 4: Non-existent User (404)")
+    print("=" * 80)
+    
+    print("\nTesting non-existent user...")
+    try:
+        response = get_user_profile("nonexistent_user_xyz")
+        
+        if response.status_code != 404:
+            print(f"❌ Expected 404, got {response.status_code}")
+            all_passed = False
+        else:
+            data = response.json()
+            if data.get("error") == "user_not_found":
+                print("✅ Non-existent user returns 404 with correct error")
+            else:
+                print(f"⚠️  Got 404 but unexpected error: {data}")
+    except Exception as e:
+        print(f"❌ Exception testing non-existent user: {str(e)}")
+        all_passed = False
+    
+    # TEST 5: General regression - feed and login still work
+    print("\n" + "=" * 80)
+    print("TEST 5: General Regression (Feed & Login)")
+    print("=" * 80)
+    
+    print("\nTesting GET /api/feed...")
+    try:
+        response = requests.get(f"{BASE_URL}/feed", timeout=10)
+        if response.status_code == 200:
+            print("✅ GET /api/feed returns 200")
+        else:
+            print(f"❌ GET /api/feed returned {response.status_code}")
+            all_passed = False
+    except Exception as e:
+        print(f"❌ GET /api/feed failed: {str(e)}")
+        all_passed = False
+    
+    print("\nTesting POST /api/auth/login for all test users...")
+    for user_info in TEST_USERS:
+        username = user_info["username"]
+        token = login(username, user_info["password"])
+        if token:
+            print(f"✅ Login successful for {username}")
+        else:
+            print(f"❌ Login failed for {username}")
+            all_passed = False
+    
+    # SUMMARY
+    print("\n" + "=" * 80)
     print("TEST SUMMARY")
-    print("="*80)
+    print("=" * 80)
     
-    for test_name, passed in results.items():
-        status = "✅ PASS" if passed else "❌ FAIL"
-        print(f"{status}: {test_name}")
-    
-    all_passed = all(results.values())
-    
-    print("\n" + "="*80)
     if all_passed:
-        print("✅ ALL TESTS PASSED")
+        print("\n✅ ALL TESTS PASSED")
+        print("\nThe Twyk Rank feature is working correctly:")
+        print("  - All user profiles return valid rank objects")
+        print("  - Rank structure is correct (score, rank, total, tier)")
+        print("  - Ranks are mutually consistent across users")
+        print("  - Existing profile fields are not affected")
+        print("  - Non-existent users still return 404")
+        print("  - General API endpoints still work")
+        return 0
     else:
-        print("❌ SOME TESTS FAILED")
-    print("="*80 + "\n")
-    
-    return 0 if all_passed else 1
+        print("\n❌ SOME TESTS FAILED")
+        print("\nPlease review the failures above.")
+        return 1
 
-
-if __name__ == '__main__':
-    exit(main())
+if __name__ == "__main__":
+    sys.exit(main())

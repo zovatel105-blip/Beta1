@@ -364,6 +364,86 @@ async function getOpenChallengeFeedItems(currentUser, followingSet) {
   }
 }
 
+// ── TWYK RANK (petición del usuario: "un sistema de ranking como LarpGPT en
+// el perfil"). LarpGPT usa un ranking GLOBAL por puntos con insignias fijas
+// por posición absoluta ("Top 5"/"Top 10"/etc, ver larpgpt.com/battle/
+// leaderboard: LARP BOSS/BILLIONAIRE/MILLIONAIRE/...). Adaptado con el ADN
+// de Twyk:
+//   1) PUNTAJE = TODOS los votos/fuego REALES recibidos en las publicaciones
+//      del usuario (votes.a/votes.b de sus posts versus/1vs1/retos + el
+//      fuego de sus retos abiertos/Single) — es literalmente la razón de
+//      ser de la app (comparar y votar), a diferencia de LarpGPT que usa
+//      "puntos" abstractos de un juego.
+//   2) INSIGNIAS por PERCENTIL (posición/total), no por conteo absoluto como
+//      LarpGPT ("Top 5" solo tiene sentido con miles de usuarios reales) —
+//      así el sistema funciona igual de bien con 4 usuarios de prueba que
+//      con 400.000, sin tener que re-ajustar los umbrales nunca.
+//   3) Nombres/colores con el ADN de Twyk (versus/reto/fuego), NO los de
+//      LarpGPT (que son de temática "hazte rico").
+const TWYK_RANK_TIERS = [
+  { pct: 0.01, name: 'LEGEND', emoji: '👑', from: '#F472B6', to: '#A855F7' },
+  { pct: 0.05, name: 'CHAMPION', emoji: '🏆', from: '#A855F7', to: '#7C3AED' },
+  { pct: 0.15, name: 'ELITE', emoji: '⚔️', from: '#3B82F6', to: '#2563EB' },
+  { pct: 0.35, name: 'CONTENDER', emoji: '💪', from: '#22D3EE', to: '#0EA5E9' },
+  { pct: 0.65, name: 'CHALLENGER', emoji: '🎯', from: '#34D399', to: '#10B981' },
+  { pct: 0.90, name: 'RISING', emoji: '🌱', from: '#A1A1AA', to: '#71717A' },
+  { pct: 1.01, name: 'ROOKIE', emoji: '🆕', from: '#71717A', to: '#52525B' },
+]
+const TWYK_ICON_TIER = { name: 'TWYK ICON', emoji: '🔥', from: '#FCD34D', to: '#F97316' }
+
+function tierForPercentile(pct) {
+  for (const t of TWYK_RANK_TIERS) {
+    if (pct <= t.pct) return t
+  }
+  return TWYK_RANK_TIERS[TWYK_RANK_TIERS.length - 1]
+}
+
+// Puntaje real de CADA usuario registrado -> { [username]: score }. Recorre
+// TODOS los posts reales (votes.a/b de sideA/sideB) + TODOS los retos
+// abiertos ('Single', fuego vía SINGLE_VOTES). Todos los usuarios registrados
+// entran (incluso con 0 puntos), para que el percentil sea real.
+async function computeTwykRankScores() {
+  const [posts, challenges, users] = await Promise.all([
+    getAllPosts().catch(() => []),
+    getAllChallenges().catch(() => []),
+    getAllUsers().catch(() => []),
+  ])
+  const score = {}
+  const bump = (username, n) => {
+    if (!username || !n) return
+    score[username] = (score[username] || 0) + n
+  }
+  for (const p of posts) {
+    if (p.sideA?.author?.username) bump(p.sideA.author.username, p.votes?.a || 0)
+    if (p.sideB?.author?.username) bump(p.sideB.author.username, p.votes?.b || 0)
+  }
+  const opens = (challenges || []).filter((c) => c.open === true)
+  if (opens.length) {
+    const openIds = opens.map((c) => `open_${c.id}`)
+    const fireCounts = await getSingleVoteCountsByPostIds(openIds).catch(() => ({}))
+    for (const c of opens) bump(c.from?.username, fireCounts[`open_${c.id}`] || 0)
+  }
+  for (const u of users) {
+    if (!(u.username in score)) score[u.username] = 0
+  }
+  return score
+}
+
+// Ranking + insignia de UN usuario concreto (null si no está registrado).
+async function computeTwykRank(username) {
+  if (!username) return null
+  const scores = await computeTwykRankScores()
+  if (!(username in scores)) return null
+  const entries = Object.entries(scores).sort((a, b) => b[1] - a[1])
+  const total = entries.length
+  const idx = entries.findIndex(([u]) => u === username)
+  const rank = idx + 1
+  const scoreVal = entries[idx][1]
+  const pct = total > 0 ? rank / total : 1
+  const tier = rank === 1 ? TWYK_ICON_TIER : tierForPercentile(pct)
+  return { score: scoreVal, rank, total, tier }
+}
+
 const ME_AUTHOR = {
   username: 'tu_canal',
   name: 'You',
@@ -1430,6 +1510,16 @@ export async function GET(request, { params }) {
       info.isFollowing = currentUser ? await isFollowingByUsername(currentUser.id, username) : false
     } catch {
       info.isFollowing = false
+    }
+
+    // Ranking Twyk (petición del usuario: "sistema de ranking como LarpGPT
+    // en el perfil") — insignia + posición global, ver computeTwykRank.
+    // Falla en silencio (nunca rompe la carga del perfil por esto).
+    try {
+      info.rank = await computeTwykRank(username)
+    } catch (e) {
+      console.warn('[profile] rank compute failed', String(e?.message || e))
+      info.rank = null
     }
 
     // 2) Publicaciones del usuario: sus uploads reales (se eliminaron los

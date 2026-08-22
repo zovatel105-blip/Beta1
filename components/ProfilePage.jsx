@@ -383,6 +383,11 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
     bio: src?.bio || '',
     followers: followers != null ? followers : (src?.followers || 0),
     following: src?.following || 0,
+    // Ranking Twyk (petición del usuario: "sistema de ranking como LarpGPT
+    // en el perfil") — { score, rank, total, tier:{name,emoji,from,to} },
+    // ver GET /api/users/:username (computeTwykRank en route.js). null
+    // mientras carga o si aún no está disponible.
+    rank: src?.rank || null,
   }
 
   useEffect(() => {
@@ -955,6 +960,29 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
             <p className="text-[13px] text-zinc-300 leading-snug max-w-[300px] mx-auto pt-1.5 whitespace-pre-line">{me.bio}</p>
           )}
         </div>
+
+        {/* Insignia de RANKING (petición del usuario: "un sistema de
+            ranking como LarpGPT en el perfil") — píldora con el ADN de Twyk:
+            puntaje = votos/fuego reales recibidos, insignia por PERCENTIL
+            global (no por conteo absoluto como LarpGPT, ver computeTwykRank
+            en route.js). Solo se muestra si el backend ya devolvió el rank
+            (nunca bloquea ni rompe el resto del perfil si falla). */}
+        {me.rank && (
+          <div className="flex justify-center mt-3">
+            <div
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[11.5px] font-bold tracking-wide"
+              style={{
+                background: `linear-gradient(135deg, ${me.rank.tier.from}26, ${me.rank.tier.to}26)`,
+                border: `1px solid ${me.rank.tier.from}66`,
+                color: me.rank.tier.from,
+              }}
+            >
+              <span>{me.rank.tier.emoji}</span>
+              <span>{me.rank.tier.name}</span>
+              <span className="text-white/40 font-semibold">· #{me.rank.rank}</span>
+            </div>
+          </div>
+        )}
 
         {/* Botones de acción - propios vs ajenos */}
         <div className="mt-5 flex items-center justify-center gap-2">
