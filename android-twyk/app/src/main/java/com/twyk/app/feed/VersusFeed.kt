@@ -60,7 +60,6 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.PlayArrow
@@ -936,10 +935,12 @@ private fun OpenChallengePage(
             player = player,
             modifier = Modifier.fillMaxSize(),
             side = side,
-            // Naranja + icono de llama — mismo tono `#F97316` que usa la web
-            // para el burst/estado activo de Fire.
+            // Naranja + icono de llama (réplica EXACTA del "Flame" de la web,
+            // ver ic_flame_filled.xml — antes Icons.Filled.LocalFireDepartment,
+            // una silueta de Material distinta a la de la web) — mismo tono
+            // `#F97316` que usa la web para el burst/estado activo de Fire.
             voteColor = Color(0xFFF97316),
-            burstIcon = Icons.Filled.LocalFireDepartment,
+            burstIcon = ImageVector.vectorResource(R.drawable.ic_flame_filled),
             onSingleTap = { if (!isImage) paused = !paused },
             // Doble-toque = AÑADIR fuego (nunca lo quita, ver addFire arriba).
             onVoteA = { addFire() },
@@ -955,6 +956,16 @@ private fun OpenChallengePage(
         }
 
         HeaderOverlay(post, onOpenProfile, onRequireAuth, commentBarActive = showCommentInput)
+        // Aviso de descubribilidad "Double-tap to fuego" — réplica EXACTA de
+        // OpenChallengeSlide.jsx (web): visible SOLO mientras esta
+        // publicación 'Single' todavía no tiene fuego dado. Bug reportado
+        // ("en las publicaciones single no hay styles"): CarouselPage/
+        // DuetPage SI tienen su aviso equivalente (VoteHint "Swipe to
+        // compare - double-tap to vote"/"Double-tap to switch your vote"),
+        // pero OpenChallengePage nunca tuvo ninguno.
+        if (!hasFire) {
+            VoteHint("Double-tap to \uD83D\uDD25")
+        }
         SocialRail(
             post = post,
             votes = Votes(),
@@ -1667,6 +1678,33 @@ private fun BoxScope.HeaderOverlay(post: Post, onOpenProfile: (String) -> Unit, 
             Spacer(Modifier.height(6.dp))
             Text(desc, color = Color.White, fontSize = 14.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
+        // Píldora "🔥 Trending" — réplica EXACTA de CarouselSlide.jsx/
+        // DuetSlide.jsx (web): SIN mostrar el nombre del tema (a propósito,
+        // petición del usuario: distinguir posts nacidos de un Trending
+        // Challenge aceptado de los retos normales, sin revelar cuál).
+        // Bug reportado: "las publicaciones no muestran el icono de reto
+        // trending" — el modelo nativo nunca leía `post.luxuryThemeId`
+        // (ver Models.kt) y esta píldora no existía en absoluto aquí.
+        if (post.luxuryThemeId != null) {
+            Spacer(Modifier.height(6.dp))
+            Box(
+                Modifier
+                    .clip(RoundedCornerShape(50))
+                    .background(Color(0x2EFCD34D))
+                    .border(1.dp, Color(0x66FCD34D), RoundedCornerShape(50))
+                    .padding(horizontal = 8.dp, vertical = 2.dp),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Icon(
+                        ImageVector.vectorResource(R.drawable.ic_flame_filled),
+                        contentDescription = null,
+                        tint = Color(0xFFFCD34D),
+                        modifier = Modifier.size(10.dp),
+                    )
+                    Text("Trending", color = Color(0xFFFCD34D), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
     }
 }
 
@@ -1822,8 +1860,18 @@ private fun BoxScope.SocialRail(
             // Fire 🔥 — SOLO indicador visual + acción de QUITAR (ver
             // comentario del parámetro `showFire` arriba). Naranja cuando ya
             // se le dio fuego (mismo tono `#F97316` que usa la web), blanco
-            // en caso contrario.
-            RailItem(Icons.Filled.LocalFireDepartment, label(fireCount, "Fire"), if (hasFire) Color(0xFFF97316) else Color.White, size = 30) {
+            // en caso contrario. BUG reportado ("el icono de fire debe ser
+            // igual al de la web"): antes usaba Icons.Filled.LocalFireDepartment
+            // (Material, silueta distinta) — ahora usa ic_flame/ic_flame_filled,
+            // réplica EXACTA del path SVG del icono "Flame" de lucide-react
+            // (mismo que la web), con el mismo criterio outline/filled que
+            // ic_vote/ic_vote_filled (icono relleno solo cuando ya hay fuego).
+            RailItem(
+                ImageVector.vectorResource(if (hasFire) R.drawable.ic_flame_filled else R.drawable.ic_flame),
+                label(fireCount, "Fire"),
+                if (hasFire) Color(0xFFF97316) else Color.White,
+                size = 30,
+            ) {
                 if (Session.token == null) onRequireAuth() else onFireRemove()
             }
         }

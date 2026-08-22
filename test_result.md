@@ -4936,3 +4936,37 @@ agent_communication:
     -agent: "main"
     -message: "Bug reportado: la píldora 'Trending Challenge' no aparecía en Retos. Causa raíz: NO es un bug de código, la colección luxuryThemes estaba vacía (se perdió con el reinicio de la base de datos al principio de la sesión). Recreado un tema activo ('Yacht Life') directamente en Mongo con los mismos campos que usaría el endpoint de administración. Verificado con una llamada real a GET /api/luxury-battles/active -> 200, tema devuelto correctamente. Pendiente: verificar con el agente de testing (requerido por el protocolo de esta sesión para bugs reportados, aunque el usuario pidió no usarlo) que: (1) GET /api/luxury-battles/active sigue devolviendo el tema correctamente, (2) el endpoint de admin POST /api/admin/luxury-battles/theme sigue funcionando para crear futuros temas, (3) no se rompió nada en /api/luxury-battles/leaderboard ni /api/luxury-battles/posts al haber ahora un tema activo. NO se sembraron usuarios/publicaciones de prueba (se usan las cuentas reales ya existentes: Twyk admin, Phantom user)."
 
+
+
+frontend:
+  - task: "APK nativa: 3 gaps de paridad visual con la web (icono de Fire, aviso de 'Double-tap to fuego' en publicaciones Single, píldora 'Trending' en publicaciones)"
+    implemented: true
+    working: "NA"
+    file: "android-twyk/app/src/main/java/com/twyk/app/feed/VersusFeed.kt, android-twyk/app/src/main/java/com/twyk/app/data/Models.kt, android-twyk/app/src/main/res/drawable/ic_flame.xml, android-twyk/app/src/main/res/drawable/ic_flame_filled.xml"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: false
+        -agent: "user"
+        -comment: "'1.El icono de fire debe ser igual al de la web 2.en las publicaciones single no hay styles 3.las publicaciones no muestran el icono de reto trending' (tras pedir una auditoría general de qué le falta a la app nativa frente a la web)."
+        -working: "NA"
+        -agent: "main"
+        -comment: "3 CAUSAS RAÍZ confirmadas por auditoría de código (VersusFeed.kt vs OpenChallengeSlide.jsx/CarouselSlide.jsx/DuetSlide.jsx web): (1) el botón 'Fire' nativo usaba Icons.Filled.LocalFireDepartment (Material, silueta distinta) en vez del icono 'Flame' de lucide-react que usa la web -> creados ic_flame.xml/ic_flame_filled.xml (mismo pathData SVG exacto que node_modules/lucide-react/.../flame.js, mismo convenio outline/filled que ic_bookmark.xml/ic_vote.xml) y sustituido en RailItem (rail social) + burstIcon (animación del doble-toque). (2) las publicaciones 'Single' (OpenChallengePage) nunca tuvieron el aviso de descubribilidad 'Double-tap to 🔥' que sí tienen Carousel/Duet (VoteHint) -> añadido, visible solo mientras !hasFire. (3) el modelo Post nativo (Models.kt) nunca tenía el campo `luxuryThemeId` (que el backend ya devuelve en cada post), así que la píldora '🔥 Trending' de CarouselSlide.jsx/DuetSlide.jsx NUNCA se replicó en HeaderOverlay (componente compartido por Carousel/Duet/Single) -> campo añadido + píldora renderizada con los mismos colores/tamaños que la web (fondo rgba(252,211,77,.18), borde rgba(252,211,77,.4), texto/icono #FCD34D). Sin cambios de backend (el campo ya se devolvía, solo faltaba leerlo en el modelo nativo). 100% Kotlin + 2 drawables nuevos, NO COMPILABLE en este contenedor (sin Android SDK) — verificado por revisión manual línea a línea de los 3 bloques editados (estructura de Box/Row/if correctamente anidada y cerrada) + recuento de llaves/paréntesis de los archivos tocados (Models.kt 2/2, 108/108 balanceado; VersusFeed.kt con drift de 2 paréntesis en el conteo bruto de todo el archivo de 3250 líneas, verificado manualmente como ruido preexistente de comentarios en español con paréntesis retóricos, no de los bloques nuevos, que se verificaron balanceados 1 a 1). Pendiente OBLIGATORIO: el usuario debe compilar el APK y confirmar visualmente: (a) el icono de Fire en publicaciones Single tiene la silueta de llama de la web (no la de Material); (b) aparece el aviso 'Double-tap to 🔥' en Single antes de darle fuego; (c) las publicaciones (versus/1vs1) nacidas de un Trending Challenge muestran la píldora '🔥 Trending' bajo la descripción."
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 1
+
+test_plan:
+  current_focus:
+    - "APK nativa: icono Fire + aviso Double-tap + píldora Trending — pendiente de compilación y confirmación visual del usuario"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    -agent: "main"
+    -message: "Restaurado el entorno al iniciar esta sesión (.env/EMERGENT_LLM_KEY/usuarios de prueba habían desaparecido de nuevo, causa raíz ya documentada en memory/ENV_BACKUP.md) y verificado login real 200 OK. Usuario pidió una auditoría de qué le falta a la app nativa frente a la web; tras mi primera pasada (3 gaps distintos), el usuario corrigió con 3 gaps MÁS CONCRETOS y prioritarios: icono de Fire distinto al de la web, publicaciones Single 'sin estilos' (interpretado tras revisar el código como el aviso de descubribilidad 'Double-tap to fuego' que faltaba), y ausencia total de la píldora 'Trending' en las publicaciones. Implementados los 3 en Kotlin nativo (VersusFeed.kt/Models.kt + 2 drawables nuevos), sin tocar backend ni web (los 3 eran gaps SOLO del lado nativo). NO se usó agente de testing (no aplica: sin SDK de Android en este contenedor, y no se tocó backend/web). Pendiente: el usuario compila el APK y confirma visualmente los 3 fixes."
+

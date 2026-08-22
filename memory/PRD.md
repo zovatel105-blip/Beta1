@@ -734,3 +734,38 @@ liberación de decoders al salir/background, overlays solo-pausa, spinner con gr
 - ffmpeg/ffprobe vendeados en /app/.bin (predev symlinkea ambos). ebsynth en /app/.bin.
 - EMERGENT_LLM_KEY renovada (ver memory/ENV_BACKUP.md); si se agota: Profile ->
   Manage plan -> Universal Key -> Add Balance.
+
+
+## Ronda: 3 gaps concretos nativo vs web (icono Fire, aviso "Double-tap to fuego" en Single, píldora "Trending")
+Usuario, tras pedirle que identificara qué le falta a la app nativa frente a la web y recibir una
+1ª auditoría con 3 gaps distintos (editor de IA en "Active", editor de vídeo con IA, barra de
+comentario rápido), corrigió con 3 gaps MÁS CONCRETOS y prioritarios que había notado él mismo:
+"1.El icono de fire debe ser igual al de la web 2.en las publicaciones single no hay styles
+3.las publicaciones no muestran el icono de reto trending".
+CAUSAS RAÍZ (auditoría VersusFeed.kt vs OpenChallengeSlide.jsx/CarouselSlide.jsx/DuetSlide.jsx web):
+1. El botón "Fire" nativo usaba `Icons.Filled.LocalFireDepartment` (Material, silueta de llama
+   DISTINTA) en vez del icono "Flame" de lucide-react que usa la web en todos sitios.
+2. Las publicaciones "Single" (`OpenChallengePage`) nunca tuvieron el aviso de descubribilidad
+   "Double-tap to 🔥" que SÍ tienen Carousel/Duet (`VoteHint` con "Swipe to compare.../Double-tap
+   to switch..."); se sentían "sin estilo" frente al resto de tarjetas del feed.
+3. El modelo `Post` nativo (Models.kt) nunca tenía el campo `luxuryThemeId` (el backend YA lo
+   devuelve en cada post, spread completo del documento) — por eso la píldora "🔥 Trending"
+   (fondo rgba(252,211,77,.18), borde rgba(252,211,77,.4), texto/icono #FCD34D) de
+   CarouselSlide.jsx/DuetSlide.jsx nunca se replicó en `HeaderOverlay` (componente compartido por
+   Carousel/Duet/Single en VersusFeed.kt).
+FIX: nuevos `ic_flame.xml`/`ic_flame_filled.xml` (mismo pathData SVG exacto que
+`node_modules/lucide-react/dist/esm/icons/flame.js`, mismo convenio outline/filled que
+`ic_bookmark.xml`/`ic_vote.xml` — fillColor/strokeColor blanco, tintado en runtime vía `tint` de
+`Icon()`), sustituidos en `RailItem` (rail social del botón Fire) y en `burstIcon` de la animación
+de doble-toque; nuevo `VoteHint("Double-tap to 🔥")` en `OpenChallengePage` (visible solo si
+`!hasFire`); campo `luxuryThemeId: String? = null` añadido a `Post` (Models.kt) + píldora
+"Trending" renderizada en `HeaderOverlay` tras la descripción, con los mismos colores/tamaños que
+la web. Sin cambios de backend/web (los 3 gaps eran solo del lado nativo; el campo del post ya se
+devolvía, solo faltaba leerlo). 100% Kotlin + 2 drawables nuevos, NO COMPILABLE en este
+contenedor — verificado por revisión manual de los 3 bloques (estructura Box/Row/if correctamente
+anidada y cerrada) + balance de llaves/paréntesis (Models.kt 2/2, 108/108; VersusFeed.kt con un
+drift de 2 paréntesis en el conteo bruto del archivo completo de 3250 líneas, confirmado como ruido
+preexistente de comentarios en español con paréntesis retóricos tras verificar 1 a 1 que los 3
+bloques nuevos están balanceados). INFRA de esta sesión: `.env`/EMERGENT_LLM_KEY/usuarios de prueba
+habían desaparecido de nuevo (causa raíz recurrente) — restaurados, login real verificado 200 OK.
+Pendiente OBLIGATORIO: el usuario compila el APK y confirma visualmente los 3 fixes.

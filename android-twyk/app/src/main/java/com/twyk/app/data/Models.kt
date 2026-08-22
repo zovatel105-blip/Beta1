@@ -79,6 +79,14 @@ data class Post(
     val musicTitle: String? = null,
     val musicArtist: String? = null,
     val musicArtwork: String? = null,
+    // ID del "Trending Challenge" (antes "Luxury Battle") del que nació esta
+    // publicación (solo posts versus/1vs1 aceptados desde un reto con tema
+    // activo, ver handleAcceptChallenge en route.js) — el backend ya lo
+    // devuelve en cada post (spread completo del documento), pero el modelo
+    // nativo nunca lo leía, así que la píldora "🔥 Trending" de
+    // CarouselSlide.jsx/DuetSlide.jsx (web) NUNCA se replicó aquí (bug
+    // reportado: "las publicaciones no muestran el icono de reto trending").
+    val luxuryThemeId: String? = null,
 )
 
 data class UploadsResponse(val posts: List<Post>? = null)
