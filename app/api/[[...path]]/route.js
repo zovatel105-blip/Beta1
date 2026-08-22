@@ -378,15 +378,21 @@ async function getOpenChallengeFeedItems(currentUser, followingSet) {
 //      LarpGPT ("Top 5" solo tiene sentido con miles de usuarios reales) —
 //      así el sistema funciona igual de bien con 4 usuarios de prueba que
 //      con 400.000, sin tener que re-ajustar los umbrales nunca.
-//   3) Nombres/colores con el ADN de Twyk (versus/reto/fuego), NO los de
-//      LarpGPT (que son de temática "hazte rico").
+//   3) Nombres/colores con el ADN de Twyk REAL (no genéricos de esports)
+//      — feedback del usuario tras la 1ª versión ("no tiene el ADN de
+//      Twyk"): reutiliza literalmente los conceptos/colores YA existentes
+//      en la app — Vote (morado/azul, VoteIcon), Fire (naranja, botón de
+//      fuego de las publicaciones Single), Challenge/VS (espadas), Trending
+//      (dorado/ámbar #FCD34D->#F97316, la MISMA píldora "🔥 Trending" que ya
+//      se muestra en CarouselSlide.jsx/DuetSlide.jsx) — en vez de palabras
+//      inventadas sin relación con Twyk (antes: LEGEND/CHAMPION/ELITE...).
 const TWYK_RANK_TIERS = [
-  { pct: 0.01, name: 'LEGEND', emoji: '👑', from: '#F472B6', to: '#A855F7' },
-  { pct: 0.05, name: 'CHAMPION', emoji: '🏆', from: '#A855F7', to: '#7C3AED' },
-  { pct: 0.15, name: 'ELITE', emoji: '⚔️', from: '#3B82F6', to: '#2563EB' },
-  { pct: 0.35, name: 'CONTENDER', emoji: '💪', from: '#22D3EE', to: '#0EA5E9' },
-  { pct: 0.65, name: 'CHALLENGER', emoji: '🎯', from: '#34D399', to: '#10B981' },
-  { pct: 0.90, name: 'RISING', emoji: '🌱', from: '#A1A1AA', to: '#71717A' },
+  { pct: 0.01, name: 'TRENDING', emoji: '🔥', from: '#FCD34D', to: '#F59E0B' },
+  { pct: 0.05, name: 'VS CHAMPION', emoji: '🏆', from: '#F472B6', to: '#A855F7' },
+  { pct: 0.15, name: 'TOP VOTED', emoji: '🗳️', from: '#A855F7', to: '#7C3AED' },
+  { pct: 0.35, name: 'ON FIRE', emoji: '🔥', from: '#FB923C', to: '#EA580C' },
+  { pct: 0.65, name: 'CONTENDER', emoji: '⚔️', from: '#3B82F6', to: '#2563EB' },
+  { pct: 0.90, name: 'RISING', emoji: '📈', from: '#A1A1AA', to: '#71717A' },
   { pct: 1.01, name: 'ROOKIE', emoji: '🆕', from: '#71717A', to: '#52525B' },
 ]
 const TWYK_ICON_TIER = { name: 'TWYK ICON', emoji: '🔥', from: '#FCD34D', to: '#F97316' }

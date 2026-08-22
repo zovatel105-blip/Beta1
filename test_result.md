@@ -5069,3 +5069,36 @@ test_plan:
 agent_communication:
     -agent: "testing"
     -message: "Twyk Rank feature testing completed successfully. All 5 test suites passed (Rank Structure, Rank Consistency, Profile Regression, Non-existent User 404, General Regression). The ranking system is working correctly: (1) All user profiles return valid rank objects with score/rank/total/tier fields; (2) Ranks are mutually consistent across users (same total, different ranks, valid range); (3) Tier system working (rank 1 gets TWYK ICON, others get percentile-based tiers); (4) No regression in existing profile fields or other API endpoints; (5) Error handling intact (404 for non-existent users). Feature is production-ready. Note: All test users currently have score=0 (no votes yet), but ranking logic is correct and will work properly when votes are cast."
+
+
+frontend:
+  - task: "Ajuste de las insignias del ranking (ADN real de Twyk, no esports genérico) + icono de Votos rotando con Fire en el perfil"
+    implemented: true
+    working: "NA"
+    file: "app/api/[[...path]]/route.js, components/ProfilePage.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: false
+        -agent: "user"
+        -comment: "'No se pero no tiene el adn de twyk' (sobre los nombres LEGEND/CHAMPION/ELITE/etc de la 1ª versión). Pregunté 3 líneas temáticas (versus/batalla, fuego, lujo) + si quería iconos distintos por nivel; respondió: 'Algo que tenga que ver con el adn de twyk y el icono de votos tiene que mostrar una vez los votos y rotar entre votos y fire de las publicaciones' — delega el naming de nuevo pero pide EXPLÍCITAMENTE una 2ª cosa: el icono de 'Votes' del header del perfil debe rotar/alternar entre mostrar Votos y Fire."
+        -working: "NA"
+        -agent: "main"
+        -comment: "1) INSIGNIAS renombradas para usar terminología y COLORES YA EXISTENTES en Twyk (no palabras inventadas de esports): TRENDING (dorado #FCD34D->#F59E0B, el MISMO color que la píldora real '🔥 Trending' de CarouselSlide.jsx) > VS CHAMPION (rosa-morado) > TOP VOTED (morado, color de Vote A) > ON FIRE (naranja, color del botón Fire) > CONTENDER (azul, color de Vote B) > RISING > ROOKIE; TWYK ICON (#1) se mantiene (dorado/naranja, ya encajaba). 2) ProfilePage.jsx: nuevo estado `statRotate` (0|1) con `setInterval` de 2.8s; el icono+número+etiqueta de 'Votes' (arriba-izquierda del header) ahora hace crossfade (opacity, 700ms) entre VoteIcon+stats.votos+'Votes' y Flame+stats.fuego+'Fire' — nuevo `stats.fuego` (suma de `voteCount` de las publicaciones type==='challenge_open' del usuario, el mismo dato que ya alimenta el ranking Twyk). Verificado: lint limpio (0 issues nuevos; 1 warning preexistente sin relación), servidor recompiló sin errores, llamada real a GET /api/users/marcos|lucia|twyk confirma los nuevos nombres/colores de tier (CONTENDER azul, RISING gris, ROOKIE gris oscuro, TWYK ICON dorado/naranja para el rank 1). Pendiente: confirmación visual del usuario (la rotación Votes/Fire solo se puede verificar visualmente, no por API) — preguntar si se desea agente de testing de frontend."
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 1
+
+test_plan:
+  current_focus:
+    - "Insignias de ranking con ADN de Twyk (nombres/colores reales de la app) + rotación Votes/Fire en el header del perfil — pendiente confirmación visual"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    -agent: "main"
+    -message: "Corregidas las insignias del ranking (feedback: 'no tiene el ADN de Twyk') para usar nombres/colores YA existentes en la app (Trending=dorado, Fire=naranja, Vote=morado/azul, Challenge=espadas) en vez de términos genéricos de esports. Además, implementada la 2ª petición del usuario: el icono 'Votes' del perfil ahora rota (crossfade cada 2.8s) entre Votos y Fire totales recibidos. Backend verificado con llamadas reales; la rotación visual requiere confirmación del usuario o del agente de testing de frontend (aún no solicitado)."

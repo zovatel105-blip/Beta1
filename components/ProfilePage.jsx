@@ -640,8 +640,24 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
     // marca con `isChallenge:true` (asignado únicamente al aceptar un reto, ver
     // handleAcceptChallenge en route.js) — contar por esa bandera es lo correcto.
     const retos = myPosts.filter((p) => p?.isChallenge === true).length
-    return { votos, retos }
+    // "Fire" 🔥 — total recibido en las publicaciones 'Single'/reto abierto
+    // (type==='challenge_open', ver getOpenChallengeFeedItems en route.js;
+    // hidratado como post.voteCount). Petición del usuario: "el icono de
+    // votos tiene que rotar entre votos y fire de las publicaciones" — el
+    // mismo ADN que ya usa el ranking Twyk (score = votos + fuego).
+    const fuego = myPosts.reduce((acc, p) => acc + (p?.type === 'challenge_open' ? (p?.voteCount || 0) : 0), 0)
+    return { votos, retos, fuego }
   }, [myPosts])
+
+  // Rotación del icono de "Votes" del header: alterna cada ~2.8s entre
+  // Votos y Fire (ambos son "reacciones a mis publicaciones", el mismo
+  // ADN que ahora combina el ranking Twyk) — petición explícita del
+  // usuario. Crossfade suave, sin depender de ninguna librería nueva.
+  const [statRotate, setStatRotate] = useState(0) // 0 = Votes, 1 = Fire
+  useEffect(() => {
+    const t = setInterval(() => setStatRotate((v) => (v === 0 ? 1 : 0)), 2800)
+    return () => clearInterval(t)
+  }, [])
 
   if (!open) return null
 
@@ -895,14 +911,30 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
         <div className="relative mx-auto w-full max-w-[360px]">
           <div className="grid grid-cols-3 items-center gap-y-7">
 
-            {/* Votos - superior izquierda */}
+            {/* Votos/Fire (rotan) - superior izquierda — petición del usuario:
+                "el icono de votos tiene que rotar entre votos y fire de las
+                publicaciones" — crossfade cada ~2.8s (ver statRotate). */}
             <button className="flex items-center gap-2 text-left active:opacity-60 transition">
-              <span className="shrink-0 flex items-center justify-center">
-                <VoteIcon className="w-9 h-9 text-white" strokeWidth={220} filled={false} />
+              <span className="shrink-0 relative w-9 h-9 flex items-center justify-center">
+                <VoteIcon
+                  className={`absolute inset-0 w-9 h-9 text-white transition-opacity duration-700 ${statRotate === 0 ? 'opacity-100' : 'opacity-0'}`}
+                  strokeWidth={220}
+                  filled={false}
+                />
+                <Flame
+                  className={`absolute inset-0 w-9 h-9 text-orange-500 transition-opacity duration-700 ${statRotate === 1 ? 'opacity-100' : 'opacity-0'}`}
+                  strokeWidth={1.4}
+                />
               </span>
-              <span className="min-w-0">
-                <p className="text-[17px] font-bold text-white leading-none tabular-nums">{formatNumber(stats.votos)}</p>
-                <p className="text-[11px] text-zinc-400 mt-1 font-medium">Votes</p>
+              <span className="min-w-0 relative w-14 h-9">
+                <span className={`absolute inset-0 transition-opacity duration-700 ${statRotate === 0 ? 'opacity-100' : 'opacity-0'}`}>
+                  <p className="text-[17px] font-bold text-white leading-none tabular-nums">{formatNumber(stats.votos)}</p>
+                  <p className="text-[11px] text-zinc-400 mt-1 font-medium">Votes</p>
+                </span>
+                <span className={`absolute inset-0 transition-opacity duration-700 ${statRotate === 1 ? 'opacity-100' : 'opacity-0'}`}>
+                  <p className="text-[17px] font-bold text-white leading-none tabular-nums">{formatNumber(stats.fuego)}</p>
+                  <p className="text-[11px] text-zinc-400 mt-1 font-medium">Fire</p>
+                </span>
               </span>
             </button>
             <div />
