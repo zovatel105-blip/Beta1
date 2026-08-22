@@ -23,7 +23,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -34,6 +36,9 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -44,6 +49,7 @@ import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.MusicNote
@@ -75,6 +81,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.TextStyle
@@ -98,6 +105,8 @@ import androidx.work.WorkManager
 import coil.compose.AsyncImage
 import com.google.gson.Gson
 import com.twyk.app.R
+import com.twyk.app.data.AiStylePreset
+import com.twyk.app.data.AI_STYLE_PRESETS
 import com.twyk.app.data.LuxuryTheme
 import com.twyk.app.data.MusicTrack
 import com.twyk.app.data.PendingLuxuryEntry
@@ -382,17 +391,21 @@ private fun ModeStep(selected: String, onSelect: (String) -> Unit, onContinue: (
         ) {
             ModeSeg("Versus", selected == "versus") { onSelect("versus") }
             ModeSeg("1 vs 1", selected == "duet") { onSelect("duet") }
-            ModeSeg("Challenges", selected == "challenge") { onSelect("challenge") }
+            // Renombrado "Challenges" -> "Direct" (petición del usuario:
+            // "challenge por directo ... en inglés" — este modo es un reto
+            // DIRIGIDO/directo a una persona concreta, a diferencia de
+            // "Post"/Open que queda abierto a cualquiera). SOLO el texto
+            // visible cambia, `selected == "challenge"` intacto.
+            ModeSeg("Direct", selected == "challenge") { onSelect("challenge") }
             // "Open" (antes "Single") — réplica del 4º modo `solo` añadido en
             // UploadDialog.jsx (web): un solo vídeo/foto, sin necesidad de un
             // segundo lado ni de elegir a quién retar. Internamente reutiliza
             // el mismo endpoint de retos con openChallenge=1 (ver doUpload/
-            // UploadWorker.kt más abajo). RENOMBRADO a petición del usuario:
-            // "Open" encaja mejor con lo que ES esta publicación (queda
-            // ABIERTA para que cualquiera te retador — mismo concepto que
-            // `type == "challenge_open"` interno) — SOLO el texto visible
-            // cambia, `mode == "solo"` y el resto del código quedan intactos.
-            ModeSeg("Open", selected == "solo") { onSelect("solo") }
+            // UploadWorker.kt más abajo). RENOMBRADO otra vez a petición del
+            // usuario: "Open" -> "Post" (equivalente en inglés de
+            // "Publicar") — SOLO el texto visible cambia, `mode == "solo"`
+            // y el resto del código quedan intactos.
+            ModeSeg("Post", selected == "solo") { onSelect("solo") }
         }
 
         Column(Modifier.weight(1f).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
@@ -596,8 +609,8 @@ private fun FileStep(
         aiSuggestions = result.getOrNull()?.suggestions?.takeIf { it.isNotEmpty() } ?: AI_FALLBACK_SUGGESTIONS
     }
 
-    fun generateAiEdit() {
-        val trimmed = aiPrompt.trim()
+    fun generateAiEdit(explicitPrompt: String? = null) {
+        val trimmed = (explicitPrompt ?: aiPrompt).trim()
         val srcUri = aiSourceUri
         if (trimmed.length < 3 || srcUri == null) return
         aiStage = "loading"; aiError = null
@@ -629,6 +642,16 @@ private fun FileStep(
                 },
             )
         }
+    }
+
+    // Elegir una tarjeta de la GALERÍA DE ESTILOS (réplica EXACTA de
+    // `pickStyle` en AIImageEditor.jsx web): aplica su instrucción y genera
+    // de inmediato, sin pasos extra — bug reportado por el usuario ("en las
+    // publicaciones single no hay [estilos de edición]"): esta galería
+    // (mode == "solo") nunca existió en el nativo.
+    fun pickStyleAiEdit(preset: AiStylePreset) {
+        aiPrompt = preset.promptHint
+        generateAiEdit(preset.promptHint)
     }
 
     // Qué Uri mostrar en el slot dado: la foto ORIGINAL, salvo que ESE slot
@@ -827,6 +850,13 @@ private fun FileStep(
                     suggestions = aiSuggestions,
                     suggestionsLoading = aiSuggestionsLoading,
                     error = aiError,
+                    // Galería de estilos (réplica de `showStyleGallery` en
+                    // AIImageEditor.jsx web): SOLO en publicaciones
+                    // Single/reto abierto (mode == "solo").
+                    showStyleGallery = mode == "solo",
+                    onOpenGallery = { aiStage = "gallery" },
+                    onCloseGallery = { aiStage = "input" },
+                    onPickStyle = { preset -> pickStyleAiEdit(preset) },
                     onClose = { aiEditorSlot = null; aiStage = "input"; aiResultUri = null },
                     onGenerate = { generateAiEdit() },
                     onUseThisPhoto = {
@@ -1008,12 +1038,18 @@ private fun MediaSlot(
 // mismo MediaSlot (ver aiStage), este panel solo tiene los controles.
 @Composable
 private fun AiEditorPanel(
-    stage: String, // input | loading | result | error
+    stage: String, // input | loading | result | error | gallery
     prompt: String,
     onPromptChange: (String) -> Unit,
     suggestions: List<String>,
     suggestionsLoading: Boolean,
     error: String?,
+    // Galería de "estilos" de edición (réplica de `showStyleGallery` en
+    // AIImageEditor.jsx web) — SOLO publicaciones Single/reto abierto.
+    showStyleGallery: Boolean = false,
+    onOpenGallery: () -> Unit = {},
+    onCloseGallery: () -> Unit = {},
+    onPickStyle: (AiStylePreset) -> Unit = {},
     onClose: () -> Unit,
     onGenerate: () -> Unit,
     onUseThisPhoto: () -> Unit,
@@ -1046,6 +1082,27 @@ private fun AiEditorPanel(
         }
         Spacer(Modifier.height(10.dp))
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            // Botón "Styles" (réplica EXACTA del botón dorado/ámbar de
+            // AIImageEditor.jsx web, MISMA fila que las sugerencias) — bug
+            // reportado: "en las publicaciones single no hay [estilos de
+            // edición]", esta galería nunca existió en el nativo.
+            if (showStyleGallery) {
+                item {
+                    Box(
+                        Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(Brush.linearGradient(listOf(Color(0x28FCD34D), Color(0x28F59E0B))))
+                            .border(1.dp, Color(0x59FCD34D), RoundedCornerShape(50))
+                            .clickable(enabled = stage != "loading") { onOpenGallery() }
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Icon(Icons.Filled.GridView, null, tint = Color(0xFFFCD34D), modifier = Modifier.size(12.dp))
+                            Text("Styles", color = Color(0xFFFCD34D), fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
             if (suggestionsLoading) {
                 items(3) {
                     Box(
@@ -1067,6 +1124,7 @@ private fun AiEditorPanel(
         Spacer(Modifier.height(10.dp))
         val enabled = prompt.trim().length >= 3 && stage != "loading"
         Box(
+
             Modifier.fillMaxWidth().clip(RoundedCornerShape(50))
                 .background(if (enabled) Color.White else Color.White.copy(alpha = 0.20f))
                 .clickable(enabled = enabled) { onGenerate() }.padding(vertical = 14.dp),
@@ -1079,6 +1137,61 @@ private fun AiEditorPanel(
                 } else {
                     Icon(Icons.Filled.AutoFixHigh, null, tint = Color.Black, modifier = Modifier.size(17.dp))
                     Text("Generate with AI", color = Color.Black, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+
+    // STAGE: gallery — réplica EXACTA de AIImageEditor.jsx web: grid de 3
+    // columnas con imagen de ejemplo real + nombre del estilo; elegir una
+    // tarjeta aplica su instrucción y genera de inmediato (pickStyleAiEdit).
+    if (stage == "gallery") {
+        val configuration = LocalConfiguration.current
+        val maxGalleryHeight = (configuration.screenHeightDp * 0.52f).dp
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Box(
+                Modifier.size(28.dp).clip(CircleShape).clickable { onCloseGallery() },
+                contentAlignment = Alignment.Center,
+            ) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = ZincText, modifier = Modifier.size(16.dp)) }
+            Text("Choose a style", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+        }
+        Spacer(Modifier.height(8.dp))
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(3),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier.fillMaxWidth().heightIn(max = maxGalleryHeight),
+        ) {
+            gridItems(AI_STYLE_PRESETS) { preset ->
+                Box(
+                    Modifier
+                        .aspectRatio(1f)
+                        .clip(RoundedCornerShape(16.dp))
+                        .border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(16.dp))
+                        .clickable { onPickStyle(preset) },
+                ) {
+                    AsyncImage(
+                        model = preset.thumb,
+                        contentDescription = preset.label,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                    Box(
+                        Modifier.fillMaxSize().background(
+                            Brush.verticalGradient(
+                                listOf(Color.Transparent, Color.Black.copy(alpha = 0.10f), Color.Black.copy(alpha = 0.85f)),
+                            ),
+                        ),
+                    )
+                    Text(
+                        preset.label,
+                        color = Color.White,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.align(Alignment.BottomStart).padding(6.dp),
+                    )
                 }
             }
         }

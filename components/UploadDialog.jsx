@@ -361,19 +361,26 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
                   onClick={() => setSelected('solo')}
                   className={`px-3.5 py-2 rounded-full text-[13px] font-semibold transition ${selected === 'solo' ? 'bg-white text-black' : 'text-zinc-300 hover:text-white'}`}
                 >
-                  {/* Renombrado de "Single" a "Open" a petición del usuario: encaja
-                      mejor con lo que ES esta publicación (queda ABIERTA para que
-                      cualquiera te retador — mismo concepto que el `type ==
-                      "challenge_open"` interno, ver route.js) — SOLO el texto
-                      visible cambia, `mode === 'solo'` y el resto del código
-                      quedan intactos. */}
-                  Open
+                  {/* Renombrado "Single" -> "Open" -> "Post" (petición del
+                      usuario: "single debe cambiar por publicar ... en
+                      inglés" — traducción usada: "Post", equivalente en
+                      inglés de "Publicar") — SOLO el texto visible cambia,
+                      `mode === 'solo'` y el resto del código quedan intactos. */}
+                  Post
                 </button>
                 <button
                   onClick={() => setSelected('challenge')}
                   className={`px-4 py-2 rounded-full text-[13px] font-semibold transition ${selected === 'challenge' ? 'bg-white text-black' : 'text-zinc-300 hover:text-white'}`}
                 >
-                  Challenges
+                  {/* Renombrado "Challenges" -> "Direct" (petición del
+                      usuario: "challenge por directo ... en inglés" —
+                      traducción usada: "Direct", ya que este modo es un
+                      reto DIRIGIDO/directo a una persona concreta, a
+                      diferencia de "Post"/Open que queda abierto a
+                      cualquiera) — SOLO el texto visible cambia,
+                      `mode === 'challenge'` y el resto del código quedan
+                      intactos. */}
+                  Direct
                 </button>
               </div>
             </div>

@@ -4970,3 +4970,36 @@ agent_communication:
     -agent: "main"
     -message: "Restaurado el entorno al iniciar esta sesión (.env/EMERGENT_LLM_KEY/usuarios de prueba habían desaparecido de nuevo, causa raíz ya documentada en memory/ENV_BACKUP.md) y verificado login real 200 OK. Usuario pidió una auditoría de qué le falta a la app nativa frente a la web; tras mi primera pasada (3 gaps distintos), el usuario corrigió con 3 gaps MÁS CONCRETOS y prioritarios: icono de Fire distinto al de la web, publicaciones Single 'sin estilos' (interpretado tras revisar el código como el aviso de descubribilidad 'Double-tap to fuego' que faltaba), y ausencia total de la píldora 'Trending' en las publicaciones. Implementados los 3 en Kotlin nativo (VersusFeed.kt/Models.kt + 2 drawables nuevos), sin tocar backend ni web (los 3 eran gaps SOLO del lado nativo). NO se usó agente de testing (no aplica: sin SDK de Android en este contenedor, y no se tocó backend/web). Pendiente: el usuario compila el APK y confirma visualmente los 3 fixes."
 
+
+
+frontend:
+  - task: "CORRECCION del punto 2 anterior + galeria de 'estilos de edicion' (Style Gallery) portada a nativo + renombrado Open/Challenges -> Post/Direct (web + nativo)"
+    implemented: true
+    working: "NA"
+    file: "android-twyk/app/src/main/java/com/twyk/app/ui/Upload.kt, android-twyk/app/src/main/java/com/twyk/app/data/AiStylePresets.kt, components/UploadDialog.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: false
+        -agent: "user"
+        -comment: "'2.el Punto 2 es erroneo yo me referia a los estilos de edicion. Y en la web solo hay 2 tipos de subida de publicaciones single y challenge y single debe cambiar por publicar y challenge por directo en Ingles' — corrige el fix anterior (el aviso 'Double-tap to fuego' NO era lo que pedía) y añade 2 peticiones nuevas."
+        -working: "NA"
+        -agent: "main"
+        -comment: "1) CAUSA RAÍZ real del punto 2: 'estilos de edición' = la GALERÍA DE ESTILOS de AIImageEditor.jsx (web) — un botón 'Styles' (ámbar/dorado) SOLO visible en publicaciones Single (mode=='solo') que abre un grid de 44 plantillas visuales (imagen de ejemplo + nombre, lib/aiStylePresets.js) — elegir una aplica su promptHint y genera de inmediato. El editor de IA nativo (Upload.kt) solo tenía input|loading|result|error, SIN ningún stage 'gallery' — la galería entera nunca existió en nativo. FIX: nuevo `data/AiStylePresets.kt` (mismos 44 presets, mismo orden, mismos ids/labels/thumbs/promptHints que la web); `generateAiEdit()` ahora acepta un prompt explícito + nueva `pickStyleAiEdit()`; `AiEditorPanel` con nuevo stage 'gallery' (LazyVerticalGrid 3 columnas, AsyncImage+gradiente+label, back button) y nuevo botón 'Styles' en la misma fila de sugerencias, visible solo si `showStyleGallery = mode == \"solo\"`. 2) Renombrado del selector de modo (petición explícita, traducción a inglés): 'Open'->'Post' y 'Challenges'->'Direct' en AMBOS lados — components/UploadDialog.jsx (botones del paso 'mode') y android-twyk Upload.kt (ModeSeg). Solo texto visible, los valores internos ('solo'/'challenge') no cambiaron. Verificado: lint de UploadDialog.jsx limpio (1 warning/1 error preexistentes, no relacionados, sin tocar esas líneas), servidor Next.js recompiló sin errores tras el cambio. Kotlin (Upload.kt/AiStylePresets.kt) NO COMPILABLE en este contenedor — verificado por balance de llaves/paréntesis (Upload.kt 344/344 y 1393/1393; AiStylePresets.kt 0/0 y 50/50) + revisión manual de la estructura del grid/imports nuevos. Pendiente OBLIGATORIO: el usuario debe confirmar en la web (ya activo) que los botones dicen 'Post'/'Direct', y compilar el APK para confirmar: (a) mismos labels nativos, (b) botón 'Styles' visible solo en publicaciones Single, (c) el grid de 44 estilos abre y, al elegir uno, genera con IA usando ese promptHint."
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 1
+
+test_plan:
+  current_focus:
+    - "Galeria de estilos (Style Gallery) en nativo + renombrado Post/Direct — pendiente confirmacion visual del usuario (web ya activo, nativo pendiente de compilar)"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    -agent: "main"
+    -message: "El usuario corrigió mi interpretación anterior del punto 2 ('no hay styles' = galería de estilos de edición de IA, NO el aviso de doble-toque que ya arreglé) y agregó 2 peticiones: la galería de 44 estilos de AIImageEditor.jsx nunca existió en nativo (portada ahora) y renombrar los botones del selector de modo 'Open'/'Challenges' a 'Post'/'Direct' (aplicado en web y nativo). El fix anterior del aviso 'Double-tap to fuego' se queda (no hace daño, solo no era lo que pedía este punto) — el icono de Fire y la píldora Trending de la ronda anterior siguen vigentes y correctos según confirmación implícita del usuario (no los corrigió)."
