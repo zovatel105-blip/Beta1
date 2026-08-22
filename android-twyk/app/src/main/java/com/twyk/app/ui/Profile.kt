@@ -2,6 +2,7 @@ package com.twyk.app.ui
 
 import android.content.Intent
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -97,6 +98,7 @@ import dev.chrisbanes.haze.hazeEffect
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import kotlin.math.ceil
 import kotlin.math.roundToInt
 
@@ -210,6 +212,12 @@ fun ProfileScreen(
     // `type` inflaba el contador "Challenges" del perfil con publicaciones
     // normales; contar por `isChallenge` es lo correcto.
     val retos = posts.count { it.isChallenge == true }
+    // "Fire" 🔥 total recibido en publicaciones 'Single'/reto abierto
+    // (type=="challenge_open", ver Post.voteCount) — mismo dato que ya
+    // alimenta el ranking Twyk (profile?.rank). Petición del usuario: "el
+    // icono de votos tiene que rotar entre votos y fire de las
+    // publicaciones" — réplica EXACTA de `stats.fuego` en ProfilePage.jsx.
+    val fuego = posts.sumOf { if (it.type == "challenge_open") (it.voteCount) else 0 }
 
     // Pull-to-refresh (deslizar hacia abajo estando arriba del todo para
     // actualizar) — feature nueva pedida por el usuario, aplica tanto al
@@ -525,6 +533,7 @@ fun ProfileScreen(
                     isOwn = isOwn,
                     votos = votos,
                     retos = retos,
+                    fuego = fuego,
                     followers = followers,
                     following = following,
                     followBusy = followBusy,
@@ -964,6 +973,7 @@ private fun ProfileHeaderSection(
     isOwn: Boolean,
     votos: Int,
     retos: Int,
+    fuego: Int,
     followers: Int,
     following: Boolean,
     followBusy: Boolean,
@@ -977,6 +987,17 @@ private fun ProfileHeaderSection(
 ) {
     val name = profile?.name?.takeIf { it.isNotBlank() } ?: profile?.username ?: "User"
     val handle = "@" + (profile?.username ?: "user")
+
+    // Rotación Votes/Fire (petición del usuario: "el icono de votos tiene
+    // que rotar entre votos y fire de las publicaciones") — réplica EXACTA
+    // del crossfade de 2.8s de ProfilePage.jsx (web, statRotate).
+    var statRotate by remember { mutableStateOf(0) } // 0 = Votes, 1 = Fire
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(2800)
+            statRotate = if (statRotate == 0) 1 else 0
+        }
+    }
 
     Column(Modifier.fillMaxWidth().statusBarsPadding()) {
         // Espacio reservado para la barra superior FIJA (ver CollapsedTopBar,
@@ -1007,7 +1028,13 @@ private fun ProfileHeaderSection(
                 Modifier.fillMaxWidth().widthIn(max = 360.dp).padding(horizontal = 20.dp).height(226.dp),
             ) {
                 Row(Modifier.fillMaxWidth().align(Alignment.TopCenter), horizontalArrangement = Arrangement.SpaceBetween) {
-                    StatItem(drawable = R.drawable.ic_vote, value = formatCount(votos), label = "Votes", iconSize = 36.dp)
+                    Crossfade(targetState = statRotate, label = "voteFireStat") { idx ->
+                        if (idx == 0) {
+                            StatItem(drawable = R.drawable.ic_vote, value = formatCount(votos), label = "Votes", iconSize = 36.dp)
+                        } else {
+                            StatItem(drawable = R.drawable.ic_flame_filled, value = formatCount(fuego), label = "Fire", iconSize = 36.dp, iconTint = Color(0xFFF97316))
+                        }
+                    }
                     StatItem(drawable = R.drawable.ic_swords, value = formatCount(retos), label = "Challenges", iconSize = 28.dp, alignEnd = true)
                 }
                 // Avatar centro (sin halo/degradado, igual que la web: círculo plano
@@ -1038,6 +1065,43 @@ private fun ProfileHeaderSection(
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth().widthIn(max = 300.dp).padding(horizontal = 24.dp),
                 )
+            }
+
+            // Insignia de RANKING Twyk (petición del usuario: "un sistema de
+            // ranking como LarpGPT en el perfil", con el ADN real de Twyk —
+            // ver TWYK_RANK_TIERS en route.js: mismos nombres/colores que la
+            // web, TRENDING/VS CHAMPION/TOP VOTED/ON FIRE/CONTENDER/RISING/
+            // ROOKIE/TWYK ICON). El backend decide nombre+colores; el nativo
+            // solo los pinta (hexToColor, UiKit.kt).
+            profile?.rank?.let { rankInfo ->
+                val tier = rankInfo.tier
+                if (tier != null) {
+                    Spacer(Modifier.height(12.dp))
+                    Row(
+                        Modifier
+                            .align(Alignment.CenterHorizontally)
+                            .clip(RoundedCornerShape(50))
+                            .background(
+                                Brush.linearGradient(
+                                    listOf(hexToColor(tier.from).copy(alpha = 0.15f), hexToColor(tier.to).copy(alpha = 0.15f)),
+                                ),
+                            )
+                            .border(1.dp, hexToColor(tier.from).copy(alpha = 0.40f), RoundedCornerShape(50))
+                            .padding(horizontal = 14.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Text(tier.emoji ?: "", fontSize = 11.5.sp)
+                        Text(
+                            tier.name ?: "",
+                            color = hexToColor(tier.from),
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.3.sp,
+                        )
+                        Text("· #${rankInfo.rank}", color = Color.White.copy(alpha = 0.40f), fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                }
             }
 
             // ── Botones (web: mt-5=20dp antes; Follow=px-7=28dp, resto=px-6=24dp) ──
@@ -1149,12 +1213,13 @@ private fun StatItem(
     alignEnd: Boolean = false,
     icon: ImageVector? = null,
     drawable: Int? = null,
+    iconTint: Color = Color.White,
     onClick: (() -> Unit)? = null,
 ) {
     val iconSlot: @Composable () -> Unit = {
         when {
-            drawable != null -> Icon(ImageVector.vectorResource(drawable), null, tint = Color.White, modifier = Modifier.size(iconSize))
-            icon != null -> Icon(icon, null, tint = Color.White, modifier = Modifier.size(iconSize))
+            drawable != null -> Icon(ImageVector.vectorResource(drawable), null, tint = iconTint, modifier = Modifier.size(iconSize))
+            icon != null -> Icon(icon, null, tint = iconTint, modifier = Modifier.size(iconSize))
         }
     }
     val textSlot: @Composable () -> Unit = {

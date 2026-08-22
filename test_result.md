@@ -5102,3 +5102,36 @@ test_plan:
 agent_communication:
     -agent: "main"
     -message: "Corregidas las insignias del ranking (feedback: 'no tiene el ADN de Twyk') para usar nombres/colores YA existentes en la app (Trending=dorado, Fire=naranja, Vote=morado/azul, Challenge=espadas) en vez de términos genéricos de esports. Además, implementada la 2ª petición del usuario: el icono 'Votes' del perfil ahora rota (crossfade cada 2.8s) entre Votos y Fire totales recibidos. Backend verificado con llamadas reales; la rotación visual requiere confirmación del usuario o del agente de testing de frontend (aún no solicitado)."
+
+
+frontend:
+  - task: "Portado a la app nativa Android: insignia de ranking Twyk + rotación Votes/Fire en el header del perfil"
+    implemented: true
+    working: "NA"
+    file: "android-twyk/app/src/main/java/com/twyk/app/ui/Profile.kt, android-twyk/app/src/main/java/com/twyk/app/ui/UiKit.kt, android-twyk/app/src/main/java/com/twyk/app/data/Models.kt"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'Aplicalo a la aplicacion nativa' — pidió portar el sistema de ranking (con las insignias ya corregidas con el ADN de Twyk) y la rotación Votes/Fire del perfil web a la app nativa Android."
+        -working: "NA"
+        -agent: "main"
+        -comment: "100% Kotlin, réplica 1:1 de ProfilePage.jsx: (1) Models.kt: nuevos `TwykRank`/`TwykRankTier` + campo `rank: TwykRank?` en `ProfileUser` (mismos nombres de campo JSON que ya devuelve GET /api/users/:username, sin cambios de backend — Gson los mapea solos). (2) UiKit.kt: nuevo helper `hexToColor(hex, fallback)` (parsea los colores '#RRGGBB' que manda el backend, mismo criterio de 'backend decide colores, nativo solo pinta' que ya usa el resto de la app). (3) Profile.kt: nuevo `fuego` (suma de `voteCount` de las publicaciones `type=='challenge_open'` del perfil, réplica de `stats.fuego`); `ProfileHeaderSection` con nuevo estado `statRotate` (LaunchedEffect con bucle `delay(2800)`, réplica exacta del `setInterval` web) + `Crossfade` (Compose) entre el StatItem de Votes (ic_vote) y uno nuevo de Fire (ic_flame_filled, tinte naranja #F97316) — mismo icono de llama ya corregido en una ronda anterior de esta sesión (no el Material LocalFireDepartment); nueva insignia de ranking bajo el nombre/bio (píldora con degradado usando `tier.from`/`tier.to`, emoji + nombre + '#posición'), oculta por completo si `profile.rank` es null (nunca rompe el perfil). `StatItem` ganó un parámetro opcional `iconTint` (antes tinte blanco fijo) para poder pintar el icono de Fire en naranja sin afectar ningún otro uso existente (default = blanco, sin cambios de comportamiento en el resto de llamadas). NO COMPILABLE en este contenedor (sin Android SDK) — verificado por revisión manual línea a línea de los 4 bloques nuevos + balance de llaves/paréntesis de los 3 archivos (Profile.kt 265/265 y 932/932; UiKit.kt 22/22 y 125/125; Models.kt 2/2 y 112/112). Pendiente OBLIGATORIO: el usuario compila el APK y confirma visualmente: (a) la insignia de ranking aparece bajo el nombre con el mismo nombre/color que en la web; (b) el icono 'Votes' del header rota cada ~2.8s entre Votos y Fire con el icono de llama correcto (no el genérico de Material)."
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 1
+
+test_plan:
+  current_focus:
+    - "APK nativa: insignia de ranking + rotación Votes/Fire en el perfil — pendiente de compilación y confirmación visual del usuario"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    -agent: "main"
+    -message: "Portado a Kotlin nativo (Profile.kt/UiKit.kt/Models.kt) el sistema de ranking Twyk (insignia bajo el nombre, mismos colores/nombres que la web) y la rotación Votes/Fire del icono de estadísticas del perfil (Crossfade cada 2.8s). Sin cambios de backend (el campo `rank` ya lo devolvía GET /api/users/:username desde la ronda anterior). NO compilable en este entorno; pendiente que el usuario compile el APK y confirme visualmente."

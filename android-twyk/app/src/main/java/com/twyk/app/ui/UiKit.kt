@@ -178,6 +178,17 @@ fun formatCount(n: Int): String = when {
     else -> n.toString()
 }
 
+// Parsea un color hex "#RRGGBB" que llega del backend (ver TwykRankTier.from/
+// to, GET /api/users/:username -> user.rank.tier) a un Compose Color. Usado
+// por la insignia de ranking del perfil (ui/Profile.kt) — el backend ya
+// decide los colores exactos (mismos que la web), el nativo solo los pinta.
+fun hexToColor(hex: String?, fallback: Color = Color.White): Color =
+    try {
+        if (hex.isNullOrBlank()) fallback else Color(android.graphics.Color.parseColor(hex))
+    } catch (_: Exception) {
+        fallback
+    }
+
 // Estado "Inicia sesión" premium (centrado, icono en círculo dorado) — estilo web.
 @Composable
 fun LoginPrompt(message: String, onRequireAuth: () -> Unit, icon: ImageVector? = null) {

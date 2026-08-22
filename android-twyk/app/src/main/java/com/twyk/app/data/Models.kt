@@ -279,6 +279,28 @@ data class ProfileUser(
     val bio: String? = null,
     val isFollowing: Boolean = false,
     val reason: String? = null,
+    // Ranking Twyk (petición del usuario: "un sistema de ranking como
+    // LarpGPT en el perfil") — réplica EXACTA del `user.rank` que ya
+    // devuelve GET /api/users/:username (web, computeTwykRank en route.js):
+    // puntaje = votos+fuego reales recibidos, insignia por PERCENTIL global
+    // con el ADN de Twyk (TRENDING/VS CHAMPION/TOP VOTED/ON FIRE/CONTENDER/
+    // RISING/ROOKIE/TWYK ICON — mismos nombres/colores que la web, NO los
+    // términos genéricos de esports de la 1ª versión).
+    val rank: TwykRank? = null,
+)
+
+data class TwykRank(
+    val score: Int = 0,
+    val rank: Int = 0,
+    val total: Int = 0,
+    val tier: TwykRankTier? = null,
+)
+
+data class TwykRankTier(
+    val name: String? = null,
+    val emoji: String? = null,
+    val from: String? = null,
+    val to: String? = null,
 )
 
 data class ProfileResponse(val user: ProfileUser? = null, val posts: List<Post>? = null)
