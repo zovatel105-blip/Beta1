@@ -5234,6 +5234,40 @@ metadata:
 
 test_plan:
   current_focus:
+
+
+frontend:
+  - task: "FEATURE: categoría 'Cars' inspirada en larpgpt.com (13 estilos nuevos: Lambo Huracan, Lambo Studio, McLaren/Corvette/Urus Gas Station, Rolls Royce Cash, Rodeo Drive Lambo, Countach Pose, Maybach Cigar, Dubai AMG Night, Urus Rooftop Night, NYC BMW M4, Mansion Cash) + división de 'vehicles' en cars/yachts/jets (web + nativo)"
+    implemented: true
+    working: "NA"
+    file: "lib/aiStylePresets.js, android-twyk/app/src/main/java/com/twyk/app/data/AiStylePresets.kt"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'Quiero todos los estilos de la categoria cars de larpgpt mejorados'."
+        -working: "NA"
+        -agent: "main"
+        -comment: "INVESTIGACIÓN de la categoría real 'Cars' de larpgpt.com (crawl_tool sobre la home + web_search_tool_v2): confirmados los nombres reales de sus escenas de coches (Lambo Huracan, Lambo Studio, McLaren Gas Station, Corvette C8 Gas Station, Rolls Royce Cash, Rodeo Drive Lambo, Countach Pose, Maybach Cigar, Dubai AMG Night, Urus Rooftop Night, NYC BMW M4, Gas Station Urus, Mansion Cash). IMPLEMENTADO ('mejorados' = mismos conceptos/escenas + prompts más detallados + fotos de ejemplo curadas y verificadas, en vez de depender de un asset de marca de terceros): 13 estilos nuevos, categoría 'cars'. Para poder filtrar 'Cars' igual que larpgpt, la categoría 'vehicles' (creada la ronda anterior) se DIVIDIÓ en 3 más específicas: `cars` (8 estilos existentes reclasificados + estos 13 = 21), `yachts` (3), `jets` (4); `luxury-train` pasó a `luxury` (no es coche/yate/jet). `AI_STYLE_CATEGORIES` actualizado: All/Luxury/Cars/Yachts/Jets/Vacation/Fashion/Fantasy. Total de estilos: 57 -> 70. Ni AIImageEditor.jsx ni Upload.kt necesitaron ningún cambio de código (ya filtran dinámicamente por `AI_STYLE_CATEGORIES`/`preset.category`, confirmado con grep que ninguno tiene 'vehicles' hardcodeado) — la nueva categoría 'Cars' aparece sola. VERIFICADO: conteo real (Node require) confirma 70 presets, distribución exacta cars=21/yachts=3/jets=4/luxury=10/fashion=5/fantasy=14/vacation=13, sin ids duplicados; las 13 URLs nuevas (vision_expert_agent, 2ª y ÚLTIMA llamada permitida en esta sesión) responden 200 OK; TODAS las 70 URLs re-verificadas 200 OK tras el cambio; lint limpio; balance de código de AiStylePresets.kt (0/0 llaves, 93/93 paréntesis) tras el cambio. Servidor Next.js sin errores (usuario activo probando en vivo durante la implementación, según logs). NO SE INVOCÓ ningún agente de testing en esta ronda (instrucción explícita y reiterada del usuario). El lado nativo no es compilable/testeable en este entorno. Pendiente: confirmación visual del usuario en la web (activa) y recompilar el APK para el nativo."
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 1
+
+test_plan:
+  current_focus:
+    - "Categoría 'Cars' (21 estilos, incluidos los 13 inspirados en larpgpt.com) visible como pestaña filtrable en la galería de Styles — pendiente confirmación visual (web + nativo)"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    -agent: "main"
+    -message: "Investigada la categoría real 'Cars' de larpgpt.com y recreados sus 13 conceptos de escena (Lambo Huracan, McLaren/Corvette/Urus Gas Station, Rolls Royce Cash, Countach Pose, Maybach Cigar, Dubai AMG Night, NYC BMW M4, Mansion Cash, etc.) con prompts más detallados y fotos verificadas. La categoría 'vehicles' se dividió en cars(21)/yachts(3)/jets(4) para poder filtrar 'Cars' explícitamente. Total: 70 estilos. Sin cambios de código en la UI (ya filtraba dinámicamente por categoría). NO se usó agente de testing (instrucción explícita del usuario)."
+
     - "Galería de Styles: 57 estilos + filtro por categoría (Luxury/Vehicles/Vacation/Fashion/Fantasy) — pendiente confirmación visual del usuario (web + nativo)"
   stuck_tasks: []
   test_all: false
