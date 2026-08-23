@@ -5135,3 +5135,43 @@ test_plan:
 agent_communication:
     -agent: "main"
     -message: "Portado a Kotlin nativo (Profile.kt/UiKit.kt/Models.kt) el sistema de ranking Twyk (insignia bajo el nombre, mismos colores/nombres que la web) y la rotación Votes/Fire del icono de estadísticas del perfil (Crossfade cada 2.8s). Sin cambios de backend (el campo `rank` ya lo devolvía GET /api/users/:username desde la ronda anterior). NO compilable en este entorno; pendiente que el usuario compile el APK y confirme visualmente."
+
+
+
+backend:
+  - task: "BUG: en la app nativa el feed no muestra más de 13-15 publicaciones cuando debe ser un feed infinito (GET /api/feed hasMore quedaba false para siempre)"
+    implemented: true
+    working: "NA"
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'En la aplicacion nativa en El feed no muestra mas de 13-15 publicaciones cuando debe ser UN feed infinito y El scroll debe ser igual de sensible que El de Instagram y TikTok'."
+        -working: "NA"
+        -agent: "main"
+        -comment: "CAUSA RAÍZ (compartida por web y nativo, mismo backend): `rankFeed()` (lib/recommender.js) YA implementa paginación CON WRAP ('Paginación con wrap (scroll infinito)', comentario propio en el código: cuando el cursor supera el nº de candidatos reales, vuelve a servir contenido reciclado/reordenado en vez de vaciarse) — pero en el handler GET /api/feed (route.js) el campo `hasMore` de la respuesta se calculaba como `cursor + limit < totalCandidates`: en cuanto el cursor superaba el total de publicaciones reales (versus/duet) existentes, `hasMore` pasaba a `false` PARA SIEMPRE. Tanto `hooks/useFeed.js` (web) como `FeedViewModel.kt` (nativo) dejan de pedir más páginas en cuanto ven `hasMore=false` (`if (loading || !hasMore) return` en ambos) — así que el feed se quedaba atascado en el nº de publicaciones reales que hubiera (p.ej. 13-15), pese a que el motor de ranking podía seguir sirviendo contenido en bucle indefinidamente. FIX: `hasMore` ahora es `totalCandidates > 0` — mientras exista AL MENOS 1 publicación real en el sistema, el feed puede seguir sirviéndolo en bucle (igual que TikTok/Instagram, que nunca 'se acaban'); con 0 publicaciones reales, `hasMore` sigue siendo `false` (nada que reciclar). VERIFICACIÓN PROPIA (Node fetch, sin curl): sembradas 10 publicaciones demo reales (`scripts/seed-demo-battles.mjs 14`, prefijo `versus_demo_`) y `GET /api/feed?cursor=<0,8,16,40,120>&limit=8` devuelve `hasMore:true` en TODOS los casos (antes del fix, ya habría sido `false` desde cursor=8: 8+8=16 >= 10) con `limit` posts en cada página, reciclados/reordenados (wraparound funcionando). Lint limpio. Además, en esta misma ronda: cambio 100% nativo Android (Kotlin, `feed/VersusFeed.kt`) para la 2ª parte de la petición ('el scroll debe ser igual de sensible que Instagram/TikTok') — `VerticalPager` del feed compartido (Feed/Battles>Completados/visor de perfil) ahora usa `PagerDefaults.flingBehavior(snapPositionalThreshold = 0.15f, snapAnimationSpec = spring(...) sin rebote)` en vez de los valores de fábrica (umbral 0.5f = había que arrastrar medio slide para cambiar de página con un swipe lento) — un arrastre corto ya dispara el cambio de página, igual que TikTok/Reels. Este cambio nativo NO es compilable/testeable en este entorno (sin SDK de Android) — verificado por revisión manual + balance de llaves/paréntesis del archivo (588/588 llaves; delta de paréntesis introducido por mi edición: +8/+8, balanceado — el archivo ya tenía un drift preexistente de 2 en el conteo bruto por prosa en comentarios, sin relación, documentado en rondas anteriores).
+        -working: "NA"
+        -agent: "user"
+        -comment: "'No usar el testing agent' / 'Dije que no uses el testing agent' (instrucción explícita y reiterada, ANTES de que se llegara a invocar ningún agente de testing en esta ronda)."
+        -working: "NA"
+        -agent: "main"
+        -comment: "NO SE INVOCÓ ningún agente de testing en esta ronda, por instrucción explícita y reiterada del usuario (mismo criterio que otras rondas anteriores de esta misma sesión/proyecto). Verificación queda SOLO la manual ya realizada arriba (Node fetch real, sin curl, sin agente de testing): 10 posts demo reales sembrados, `GET /api/feed` con cursores 0/8/16/40/120 devuelve `hasMore:true` y `limit` posts reciclados en todos los casos. `needs_retesting` se deja en `false` para no volver a disparar una llamada automática al agente de testing en este ítem."
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 1
+
+test_plan:
+  current_focus:
+    - "BUG: en la app nativa el feed no muestra más de 13-15 publicaciones cuando debe ser un feed infinito (GET /api/feed hasMore quedaba false para siempre)"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    -agent: "main"
+    -message: "Backend fix listo para verificación: GET /api/feed ya no pone hasMore=false solo porque el cursor supera el número de publicaciones reales existentes — ahora hasMore refleja si existe contenido real en absoluto (>0), permitiendo que el wraparound ya implementado en rankFeed() sirva un feed verdaderamente infinito (igual que TikTok/Instagram). Hay 10 publicaciones demo sembradas (prefijo versus_demo_, creadas por mí para verificar) — por favor pedir GET /api/feed con cursores crecientes muy por encima de 10*limit (ej. 0, 8, 16, 40, 120) y confirmar que hasMore sigue true y se siguen recibiendo `limit` posts (reciclados/reordenados) en cada página, sin errores 500; también confirmar con 0 publicaciones reales (si es posible simularlo) que hasMore=false; y regresión general (login, /api/feed/following, /api/uploads, /api/vote, /api/auth/me) sin romperse. El otro cambio de esta ronda (sensibilidad del swipe, PagerDefaults.flingBehavior) es 100% nativo Android/Kotlin, no compilable/testeable en este entorno — no requiere testing automático."

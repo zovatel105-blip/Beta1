@@ -1107,7 +1107,27 @@ export async function GET(request, { params }) {
       }
     } catch { /* ignore: el feed nunca debe romperse por esto */ }
 
-    const payload = { posts, nextCursor: cursor + limit, hasMore: cursor + limit < totalCandidates }
+    // BUG reportado por el usuario ("el feed no muestra más de 13-15
+    // publicaciones cuando debe ser un feed infinito"): `rankFeed()`
+    // (lib/recommender.js) YA implementa paginación CON WRAP ("scroll
+    // infinito" — ver su comentario ahí: cuando el cursor supera el nº de
+    // candidatos reales, vuelve a empezar desde el principio del ranking en
+    // vez de quedarse sin contenido), pero `hasMore` aquí se calculaba como
+    // `cursor + limit < totalCandidates` — una vez el cursor superaba el
+    // total de publicaciones reales (versus/duet) disponibles, `hasMore`
+    // pasaba a `false` PARA SIEMPRE, y tanto la web (`hooks/useFeed.js`)
+    // como el nativo (`FeedViewModel.kt`) dejan de pedir más páginas en
+    // cuanto ven `hasMore=false` — el feed se quedaba "atascado" en el
+    // número de publicaciones reales que existieran (p.ej. 13-15), aunque
+    // el motor de ranking pudiera seguir sirviendo contenido (reciclado/
+    // re-ordenado) indefinidamente. FIX: `hasMore` ya NO depende de cuánto
+    // se ha avanzado el cursor frente al total — solo de si existe AL MENOS
+    // 1 publicación real (`totalCandidates > 0`); mientras haya contenido,
+    // el feed puede seguir sirviéndolo en bucle (igual que TikTok/Instagram,
+    // que jamás "se acaban", reciclan con nuevo orden). Solo con 0
+    // publicaciones reales en todo el sistema `hasMore` es `false` (no hay
+    // nada que mostrar, ni siquiera reciclado).
+    const payload = { posts, nextCursor: cursor + limit, hasMore: totalCandidates > 0 }
     if (debug) {
       payload.debug = items.filter(Boolean).map((it) => ({ id: it.post.id, author: it.post.author?.username, score: +it.score.toFixed(4), ...it.dbg }))
     }

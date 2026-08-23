@@ -15,6 +15,8 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.keyframes
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -47,6 +49,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerDefaults
 import androidx.compose.foundation.pager.VerticalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -308,9 +311,27 @@ fun FeedPager(
         FeedPrefetcher.updateWindow(context, videos.distinct(), posters.distinct())
     }
 
+    // Sensibilidad del swipe (petición del usuario: "el scroll debe ser
+    // igual de sensible que el de Instagram y TikTok"). Por defecto,
+    // VerticalPager solo avanza de página con un arrastre LENTO si cubre
+    // >=50% de la pantalla (`snapPositionalThreshold` de fábrica = 0.5f) —
+    // TikTok/Instagram Reels reaccionan a toques/deslizamientos mucho más
+    // cortos (un "flick" corto ya cambia de vídeo). Bajar el umbral a 0.15
+    // (15% de la pantalla) hace que un arrastre corto YA dispare el cambio
+    // de página aunque sea lento; un fling rápido siempre avanza de todos
+    // modos (gobernado por la velocidad del gesto, no por este umbral —
+    // sin cambios ahí). `snapAnimationSpec` con más rigidez (StiffnessHigh,
+    // sin rebote) acorta la animación de snap final, para que la transición
+    // se sienta inmediata en vez de "flotante".
+    val feedFlingBehavior = PagerDefaults.flingBehavior(
+        state = pagerState,
+        snapPositionalThreshold = 0.15f,
+        snapAnimationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessHigh),
+    )
     VerticalPager(
         state = pagerState,
         beyondViewportPageCount = 1,
+        flingBehavior = feedFlingBehavior,
         modifier = Modifier.fillMaxSize().background(Color.Black).statusBarsPadding(),
     ) { page ->
         val post = posts[page]
