@@ -5173,5 +5173,39 @@ test_plan:
   test_priority: "high_first"
 
 agent_communication:
+
+
+frontend:
+  - task: "BUG: galería de 'Styles' (publicaciones tipo Post) — las miniaturas tardan mucho en mostrarse y a veces al tocar un estilo se aplica/genera otro distinto (web + nativo)"
+    implemented: true
+    working: "NA"
+    file: "lib/aiStylePresets.js, components/AIImageEditor.jsx, android-twyk/app/src/main/java/com/twyk/app/data/AiStylePresets.kt, android-twyk/app/src/main/java/com/twyk/app/ui/Upload.kt"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: false
+        -agent: "user"
+        -comment: "'Elimina las publicaciones de prueba y en publicaciones tipo post (styles) tardan mucho en mostrar la portada y aveces cuando hago click en UN estilo SE selecciona otro'."
+        -working: "NA"
+        -agent: "main"
+        -comment: "LIMPIEZA: eliminadas las 10 publicaciones demo (`versus_demo_*`) sembradas en la ronda anterior para verificar el fix del feed infinito (`db.posts.deleteMany`, 0 posts restantes). 2 CAUSAS RAÍZ confirmadas para el bug de la galería de estilos (lib/aiStylePresets.js, 44 presets, compartidos 1:1 por web y nativo): (1) LENTITUD: las URLs `thumb` (Unsplash/Pexels) NO pedían ningún tamaño — Unsplash servía la foto ORIGINAL a resolución completa (~1-4 MB cada una) para pintar un cuadradito de miniatura en el grid; verificado con fetch real ANTES del fix (1020KB y 4115KB en 2 ejemplos). FIX: script que reescribe las 44 URLs (web Y nativo) añadiendo `w=480&h=480&fit=crop` (Unsplash, soporta parámetros imgix) o `w=480&h=480` (Pexels) — verificado con fetch real DESPUÉS del fix: mismas fotos ahora entre 20-63 KB (~95-98% menos), las 44 URLs siguen respondiendo 200 OK. (2) SELECCIÓN CRUZADA: `generate()`/`generateAiEdit()` ponen `stage='loading'` de forma SÍNCRONA, pero ni React (web) ni la recomposición de Compose (nativo) pintan ese cambio al instante — si el usuario, impaciente por la lentitud del punto (1), tocaba una 2ª tarjeta DISTINTA justo antes de ese repintado, se disparaba una 2ª llamada de generación EN PARALELO con la 1ª, y la que terminara más tarde 'ganaba' el resultado aunque no fuera el estilo que el usuario creía haber elegido. FIX: guard síncrono en ambos lados — WEB: nuevo `pickedRef` (useRef, se lee/escribe al instante, sin depender de un repintado) en `pickStyle()`, puesto a `true` en el primer toque válido y reseteado solo al reabrir la galería (`openStyleGallery`); NATIVO: `pickStyleAiEdit()` ahora comprueba `if (aiStage != \"gallery\") return` al entrar — como `aiStage` está respaldado por `mutableStateOf`, su lectura SIEMPRE es el valor más reciente (a diferencia de una closure de React), así que basta sin necesitar un ref aparte. Arreglado el causante principal (lentitud) reduce además la probabilidad de que el usuario llegue a tocar 2 tarjetas por impaciencia. VERIFICADO: lint limpio en los 2 archivos JS (aiStylePresets.js, AIImageEditor.jsx); las 44 URLs nuevas responden 200 OK (fetch real); balance de llaves/paréntesis de Upload.kt (342/342, 1399/1399, EXACTO tras el cambio) y AiStylePresets.kt (0/0, 50/50, sin cambios estructurales) — Kotlin NO COMPILABLE/testeable en este entorno. NO SE INVOCÓ ningún agente de testing en esta ronda, por instrucción explícita y reiterada del usuario ('no usar el testing agent'). Pendiente: el usuario debe confirmar en la web (activa ya) que la galería carga rápido, y recompilar el APK para confirmar lo mismo + que ya no se generan estilos equivocados en ninguno de los 2 lados."
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 1
+
+test_plan:
+  current_focus:
+    - "Galería de Styles: velocidad de carga de miniaturas + selección correcta del estilo tocado (web + nativo)"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    -agent: "main"
+    -message: "Publicaciones de prueba (versus_demo_*) eliminadas (0 posts en la colección ahora). Bug de la galería de Styles corregido en 2 frentes: miniaturas optimizadas (URLs de Unsplash/Pexels ahora piden tamaño pequeño en vez de la foto original) y guard síncrono contra selección cruzada al tocar 2 tarjetas rápido. NO se usó ningún agente de testing en esta ronda, por instrucción explícita del usuario — verificación 100% manual (fetch real para las URLs, lint, balance de código para el lado nativo)."
+
     -agent: "main"
     -message: "Backend fix listo para verificación: GET /api/feed ya no pone hasMore=false solo porque el cursor supera el número de publicaciones reales existentes — ahora hasMore refleja si existe contenido real en absoluto (>0), permitiendo que el wraparound ya implementado en rankFeed() sirva un feed verdaderamente infinito (igual que TikTok/Instagram). Hay 10 publicaciones demo sembradas (prefijo versus_demo_, creadas por mí para verificar) — por favor pedir GET /api/feed con cursores crecientes muy por encima de 10*limit (ej. 0, 8, 16, 40, 120) y confirmar que hasMore sigue true y se siguen recibiendo `limit` posts (reciclados/reordenados) en cada página, sin errores 500; también confirmar con 0 publicaciones reales (si es posible simularlo) que hasMore=false; y regresión general (login, /api/feed/following, /api/uploads, /api/vote, /api/auth/me) sin romperse. El otro cambio de esta ronda (sensibilidad del swipe, PagerDefaults.flingBehavior) es 100% nativo Android/Kotlin, no compilable/testeable en este entorno — no requiere testing automático."

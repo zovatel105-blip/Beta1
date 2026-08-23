@@ -650,7 +650,19 @@ private fun FileStep(
     // de inmediato, sin pasos extra — bug reportado por el usuario ("en las
     // publicaciones single no hay [estilos de edición]"): esta galería
     // (mode == "solo") nunca existió en el nativo.
+    // GUARD (bug reportado por el usuario: "a veces cuando hago click en un
+    // estilo se selecciona otro"): sin esto, tocar una 2ª tarjeta DISTINTA
+    // justo antes de que la recomposición retire la galería de pantalla
+    // (p.ej. mientras las miniaturas aún tardaban en cargar — ver fix de
+    // AiStylePresets.kt, ahora piden versiones pequeñas) disparaba una 2ª
+    // llamada a generateAiEdit() en paralelo con la 1ª, y la que terminara
+    // más tarde "ganaba" el resultado aunque no fuera la tarjeta elegida.
+    // `aiStage` (respaldado por `mutableStateOf`) siempre se lee al
+    // instante (no queda "congelado" como una closure de React), así que
+    // comprobarlo aquí basta para bloquear cualquier toque posterior hasta
+    // que se reabre la galería desde cero (onOpenGallery).
     fun pickStyleAiEdit(preset: AiStylePreset) {
+        if (aiStage != "gallery") return
         aiPrompt = preset.promptHint
         generateAiEdit(preset.promptHint)
     }

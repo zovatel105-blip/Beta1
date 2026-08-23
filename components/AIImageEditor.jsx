@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Sparkles, Loader2, X, Wand2, RotateCcw, Check, Flame, LayoutGrid, ArrowLeft } from 'lucide-react'
 import { AI_STYLE_PRESETS } from '@/lib/aiStylePresets'
 
@@ -160,10 +160,33 @@ export default function AIImageEditor({ imageFile, initialPrompt = '', onClose, 
     }
   }
 
+  // GUARD contra selección "fantasma" (bug reportado por el usuario: "a
+  // veces cuando hago click en un estilo se selecciona otro"). CAUSA RAÍZ:
+  // `generate()` pone `stage='loading'` de forma síncrona, pero React NO
+  // pinta ese cambio en el DOM al instante — si el usuario, impaciente
+  // porque las miniaturas de la galería tardaban en cargar (ver fix de
+  // lib/aiStylePresets.js: ahora piden versiones pequeñas en vez de fotos a
+  // resolución completa), tocaba una 2ª tarjeta DISTINTA justo antes de ese
+  // repintado, `pickStyle` se ejecutaba una 2ª vez con OTRO preset mientras
+  // la 1ª llamada a generate() seguía en curso — dos ediciones en paralelo
+  // compitiendo por pisar `resultUrl`, y la que terminara más tarde
+  // "ganaba" aunque no fuera la tarjeta que el usuario creía haber
+  // elegido. `pickedRef` (un ref, no un estado — se lee/escribe al
+  // instante, sin esperar ningún repintado) se pone a `true` en el PRIMER
+  // toque válido y bloquea cualquier toque posterior hasta que se vuelve a
+  // abrir la galería desde cero.
+  const pickedRef = useRef(false)
+  const openStyleGallery = () => {
+    pickedRef.current = false
+    setStage('gallery')
+  }
+
   // Elegir una tarjeta de la galería de estilos: aplica su instrucción y
   // genera de inmediato (petición del usuario: "tú eliges ese modelo y la
   // ia lo genera" — un solo clic, sin pasos extra).
   const pickStyle = (preset) => {
+    if (pickedRef.current) return
+    pickedRef.current = true
     setPrompt(preset.promptHint)
     generate(preset.promptHint)
   }
@@ -246,7 +269,7 @@ export default function AIImageEditor({ imageFile, initialPrompt = '', onClose, 
               <button
                 type="button"
                 disabled={stage === 'loading'}
-                onClick={() => setStage('gallery')}
+                onClick={openStyleGallery}
                 className="shrink-0 flex items-center gap-1 whitespace-nowrap text-[11.5px] font-bold px-3 py-1.5 rounded-full active:scale-95 transition disabled:opacity-40"
                 style={{ background: 'linear-gradient(135deg, rgba(252,211,77,0.16), rgba(245,158,11,0.16))', border: '1px solid rgba(252,211,77,0.35)', color: '#FCD34D' }}
               >
