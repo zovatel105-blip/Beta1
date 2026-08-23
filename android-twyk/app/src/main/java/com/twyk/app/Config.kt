@@ -10,7 +10,7 @@ package com.twyk.app
 // ─────────────────────────────────────────────────────────────────
 object Config {
     // URL del preview de tu app web Twyk (debe acabar en "/").
-    const val BASE_URL = "https://bae696f1-e024-43e5-a9be-9fba7da6bad0.preview.emergentagent.com/"
+    const val BASE_URL = "https://emergent-editor-key.preview.emergentagent.com/"
 }
 
 // Convierte rutas relativas (/uploads/x.mp4, /videos/x.mp4) en URLs absolutas.

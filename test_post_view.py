@@ -10,7 +10,7 @@ import sys
 import time
 
 # Base URL from environment
-BASE_URL = os.getenv('NEXT_PUBLIC_BASE_URL', 'https://native-web-gap.preview.emergentagent.com')
+BASE_URL = os.getenv('NEXT_PUBLIC_BASE_URL', 'https://emergent-editor-key.preview.emergentagent.com')
 API_URL = f"{BASE_URL}/api"
 
 # Test credentials

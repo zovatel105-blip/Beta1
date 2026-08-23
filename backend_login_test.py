@@ -23,7 +23,7 @@ import sys
 import os
 
 # Base URL from environment
-BASE_URL = os.getenv('NEXT_PUBLIC_BASE_URL', 'https://native-web-gap.preview.emergentagent.com')
+BASE_URL = os.getenv('NEXT_PUBLIC_BASE_URL', 'https://emergent-editor-key.preview.emergentagent.com')
 API_BASE = f"{BASE_URL}/api"
 
 print(f"Testing against: {API_BASE}")

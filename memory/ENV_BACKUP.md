@@ -16,8 +16,8 @@ scripts/seed-core-users.mjs y memory/test_credentials.md).
 ```
 MONGO_URL=mongodb://localhost:27017/twyk
 ADMIN_EMAILS=twyk.apk@gmail.com
-NEXT_PUBLIC_BASE_URL=https://native-web-gap.preview.emergentagent.com
-CORS_ORIGINS=https://native-web-gap.preview.emergentagent.com
+NEXT_PUBLIC_BASE_URL=https://emergent-editor-key.preview.emergentagent.com
+CORS_ORIGINS=https://emergent-editor-key.preview.emergentagent.com
 FIREBASE_PROJECT_ID=
 FIREBASE_CLIENT_EMAIL=
 FIREBASE_PRIVATE_KEY=
@@ -59,18 +59,21 @@ después de que Next.js haga su propio "Reload env: .env" (log de supervisor),
 o preguntar al usuario cuál es la URL que ve en su navegador.
 
 ## Última URL usada (actualizada automáticamente al restaurar)
-NEXT_PUBLIC_BASE_URL=https://bae696f1-e024-43e5-a9be-9fba7da6bad0.preview.emergentagent.com
+NEXT_PUBLIC_BASE_URL=https://fadd5931-a624-4815-a602-ca0bf44b4f58.preview.emergentagent.com
 (.env RECREADO en esta nueva sesión, tras un reinicio de pod que dejó /app/.env
 inexistente y MongoDB vacía — misma causa raíz recurrente de siempre.
 MONGO_URL/ADMIN_EMAILS/CORS_ORIGINS con esta misma URL nueva; FIREBASE_* vacíos
 [el usuario debe volver a subir el JSON de la cuenta de servicio de Firebase si
 necesita push]; EMERGENT_LLM_KEY renovada vía emergent_integrations_manager:
-sk-emergent-00a15Ec3eF73c94655; TAVILY_API_KEY restaurada igual que antes. Base
+sk-emergent-16fE8EcCf0a1d80C6A; TAVILY_API_KEY restaurada igual que antes. Base
 de datos re-sembrada con node scripts/seed-core-users.mjs (usuarios twyk/lucia/
 marcos/laura + follows básicos); memory/test_credentials.md recreado.
 Verificado con llamada real (node fetch, sin curl): POST /api/auth/login
-(lucia) -> 200. Config.kt (Android) NO se tocó en esta sesión — revisar si
-sigue apuntando a esta misma URL antes de recompilar el APK.)
+(twyk) -> 200. Config.kt (Android) NO se tocó en esta sesión — revisar si
+sigue apuntando a esta misma URL antes de recompilar el APK.
+
+## Sesión anterior (URL emergent-editor-key.preview.emergentagent.com, key
+sk-emergent-00a15Ec3eF73c94655) reemplazada por la de arriba.)
 
 ## ⚠️ ESTADO ACTUAL (esta sesión): FIREBASE_CLIENT_EMAIL / FIREBASE_PRIVATE_KEY RESTAURADOS
 El usuario volvió a subir el JSON de la cuenta de servicio de Firebase
