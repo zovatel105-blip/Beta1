@@ -5209,3 +5209,37 @@ agent_communication:
 
     -agent: "main"
     -message: "Backend fix listo para verificación: GET /api/feed ya no pone hasMore=false solo porque el cursor supera el número de publicaciones reales existentes — ahora hasMore refleja si existe contenido real en absoluto (>0), permitiendo que el wraparound ya implementado en rankFeed() sirva un feed verdaderamente infinito (igual que TikTok/Instagram). Hay 10 publicaciones demo sembradas (prefijo versus_demo_, creadas por mí para verificar) — por favor pedir GET /api/feed con cursores crecientes muy por encima de 10*limit (ej. 0, 8, 16, 40, 120) y confirmar que hasMore sigue true y se siguen recibiendo `limit` posts (reciclados/reordenados) en cada página, sin errores 500; también confirmar con 0 publicaciones reales (si es posible simularlo) que hasMore=false; y regresión general (login, /api/feed/following, /api/uploads, /api/vote, /api/auth/me) sin romperse. El otro cambio de esta ronda (sensibilidad del swipe, PagerDefaults.flingBehavior) es 100% nativo Android/Kotlin, no compilable/testeable en este entorno — no requiere testing automático."
+
+
+frontend:
+  - task: "FEATURE: más estilos en la galería de IA (57 en total) + filtro por categoría (Luxury/Vehicles/Vacation/Fashion/Fantasy) + 7 estilos nuevos de interior/exterior de coches/yates/jets de lujo (web + nativo)"
+    implemented: true
+    working: "NA"
+    file: "lib/aiStylePresets.js, components/AIImageEditor.jsx, android-twyk/app/src/main/java/com/twyk/app/data/AiStylePresets.kt, android-twyk/app/src/main/java/com/twyk/app/ui/Upload.kt"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'Crea mas estilos y tambien que se puedan elegir por categoria ej: luxury, vacation, etc. crea estilos dentro/fuera de coches yates jets de lujo'."
+        -working: "NA"
+        -agent: "main"
+        -comment: "1) CATEGORIZACIÓN: cada uno de los 44 estilos existentes recibió un campo `category` (luxury/vehicles/vacation/fashion/fantasy) según su temática real; nuevo export `AI_STYLE_CATEGORIES` (web) / `AI_STYLE_CATEGORIES` (nativo, `data class AiStyleCategory`). 2) 13 ESTILOS NUEVOS (imágenes reales vía vision_expert_agent, verificadas con fetch real 200 OK antes de incluirlas, con los mismos parámetros de tamaño w=480&h=480 del fix anterior): 7 de interior/exterior de coches/yates/jets de lujo (Luxury Car Interior, Chauffeured Arrival -limusina exterior-, Supercar Showroom, Yacht Interior Lounge, Superyacht Marina -exterior-, Private Jet Tarmac -exterior-, Private Jet Suite -interior-) que llevan la categoría 'vehicles' de 9 a 16 estilos; 3 de lujo (Infinity Pool Villa, Private Chef Dining, Luxury Spa Retreat) y 3 de vacaciones (Overwater Bungalow, Desert Glamping, Cruise Ship Deck) para redondear esas categorías. Total: 44 -> 57 estilos. 3) FILTRO POR CATEGORÍA: WEB (AIImageEditor.jsx) — nuevo estado `styleCategory` (default 'all', se resetea al abrir la galería) + fila de pestañas (mismo estilo que las pestañas de sugerencias) sobre el grid, que filtra `AI_STYLE_PRESETS` por `category`; NATIVO (Upload.kt) — mismo patrón: `styleCategory` local (remember, reseteado al entrar a la etapa 'gallery') + `Row` con `horizontalScroll` de píldoras + `LazyVerticalGrid` filtrado por categoría (con `key = { it.id }` añadido de paso, buena práctica para listas con posible reordenamiento por filtro). VERIFICADO: conteo real (Node require del archivo) confirma 57 presets totales, distribución exacta luxury=9/vehicles=16/vacation=13/fashion=5/fantasy=14, sin ids duplicados; lint limpio en los 2 archivos web; balance de llaves/paréntesis de Upload.kt (352/352, 1427/1427) y AiStylePresets.kt (0/0, 75/75) tras el cambio, ambos EXACTOS. Servidor Next.js sin errores tras el cambio (confirmado en logs, incluida una llamada real POST /api/ai/edit-image 200 del propio usuario probando en vivo mientras se implementaba). NO SE INVOCÓ ningún agente de testing en esta ronda (instrucción explícita y reiterada del usuario, vigente en toda la sesión). El lado nativo (Kotlin) no es compilable/testeable en este entorno. Pendiente: el usuario confirma visualmente en la web (activa ya) que aparecen las pestañas de categoría y los 57 estilos correctos, y recompila el APK para confirmar lo mismo en nativo."
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 1
+
+test_plan:
+  current_focus:
+    - "Galería de Styles: 57 estilos + filtro por categoría (Luxury/Vehicles/Vacation/Fashion/Fantasy) — pendiente confirmación visual del usuario (web + nativo)"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    -agent: "main"
+    -message: "Añadidos 13 estilos nuevos (7 de coches/yates/jets interior+exterior, 6 de lujo/vacaciones) a la galería de IA, total 57. Cada estilo (incluidos los 44 anteriores) ahora tiene una categoría (Luxury/Vehicles/Vacation/Fashion/Fantasy) y se añadió una fila de pestañas para filtrar por categoría, en web y nativo. NO se usó agente de testing (instrucción explícita del usuario) — verificación 100% manual: conteo/distribución de categorías vía Node, fetch real de las 13 URLs nuevas, lint, balance de código nativo."
+

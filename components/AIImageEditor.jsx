@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { Sparkles, Loader2, X, Wand2, RotateCcw, Check, Flame, LayoutGrid, ArrowLeft } from 'lucide-react'
-import { AI_STYLE_PRESETS } from '@/lib/aiStylePresets'
+import { AI_STYLE_PRESETS, AI_STYLE_CATEGORIES } from '@/lib/aiStylePresets'
 
 /**
  * AIImageEditor — controles de edición con IA, 100% EN LÍNEA (sin modal, sin
@@ -56,6 +56,10 @@ async function dataUrlToFile(dataUrl, filename) {
 export default function AIImageEditor({ imageFile, initialPrompt = '', onClose, onApply, onStatusChange, showStyleGallery = false }) {
   const [prompt, setPrompt] = useState('')
   const [stage, setStage] = useState('input') // input | gallery | loading | result | error
+  // Filtro por categoría de la galería de estilos (petición del usuario:
+  // "que se puedan elegir por categoria ej: luxury, vacation, etc"). 'all'
+  // = sin filtrar, muestra los 57 estilos.
+  const [styleCategory, setStyleCategory] = useState('all')
   const [resultUrl, setResultUrl] = useState(null)
   const [errorMsg, setErrorMsg] = useState(null)
   // Sugerencias RELEVANTES a la foto (usuario: 'las sugerencias deben ser de
@@ -178,6 +182,7 @@ export default function AIImageEditor({ imageFile, initialPrompt = '', onClose, 
   const pickedRef = useRef(false)
   const openStyleGallery = () => {
     pickedRef.current = false
+    setStyleCategory('all')
     setStage('gallery')
   }
 
@@ -326,8 +331,26 @@ export default function AIImageEditor({ imageFile, initialPrompt = '', onClose, 
             </button>
             <p className="text-white text-[13px] font-semibold">Choose a style</p>
           </div>
+          {/* Pestañas de categoría (petición del usuario: "que se puedan
+              elegir por categoria ej: luxury, vacation, etc") — fila
+              horizontal con scroll, misma estética que las pestañas de
+              sugerencias de arriba. 'All' siempre primero. */}
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1 pb-0.5">
+            {AI_STYLE_CATEGORIES.map((cat) => (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => setStyleCategory(cat.id)}
+                className={`shrink-0 whitespace-nowrap text-[11.5px] font-bold px-3 py-1.5 rounded-full active:scale-95 transition ${
+                  styleCategory === cat.id ? 'bg-white text-black' : 'bg-white/[0.06] text-zinc-300 border border-white/10'
+                }`}
+              >
+                {cat.label}
+              </button>
+            ))}
+          </div>
           <div className="grid grid-cols-3 gap-2.5 max-h-[52vh] overflow-y-auto pb-1">
-            {AI_STYLE_PRESETS.map((preset) => (
+            {AI_STYLE_PRESETS.filter((preset) => styleCategory === 'all' || preset.category === styleCategory).map((preset) => (
               <button
                 key={preset.id}
                 type="button"

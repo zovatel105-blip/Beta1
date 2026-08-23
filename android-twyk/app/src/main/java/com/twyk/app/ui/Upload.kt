@@ -106,6 +106,7 @@ import coil.compose.AsyncImage
 import com.google.gson.Gson
 import com.twyk.app.R
 import com.twyk.app.data.AiStylePreset
+import com.twyk.app.data.AI_STYLE_CATEGORIES
 import com.twyk.app.data.AI_STYLE_PRESETS
 import com.twyk.app.data.LuxuryTheme
 import com.twyk.app.data.MusicTrack
@@ -1161,6 +1162,13 @@ private fun AiEditorPanel(
     if (stage == "gallery") {
         val configuration = LocalConfiguration.current
         val maxGalleryHeight = (configuration.screenHeightDp * 0.52f).dp
+        // Filtro por categoría (petición del usuario: "que se puedan
+        // elegir por categoria ej: luxury, vacation, etc") — réplica
+        // exacta de `styleCategory` en AIImageEditor.jsx web. Se
+        // resetea a "all" cada vez que se ENTRA a esta etapa (mismo
+        // criterio que openStyleGallery() en la web).
+        var styleCategory by remember { mutableStateOf("all") }
+        LaunchedEffect(Unit) { styleCategory = "all" }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Box(
                 Modifier.size(28.dp).clip(CircleShape).clickable { onCloseGallery() },
@@ -1169,13 +1177,35 @@ private fun AiEditorPanel(
             Text("Choose a style", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
         }
         Spacer(Modifier.height(8.dp))
+        Row(
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            for (cat in AI_STYLE_CATEGORIES) {
+                val active = styleCategory == cat.id
+                Box(
+                    Modifier
+                        .clip(RoundedCornerShape(50))
+                        .background(if (active) Color.White else Color.White.copy(alpha = 0.06f))
+                        .let { if (!active) it.border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(50)) else it }
+                        .clickable { styleCategory = cat.id }
+                        .padding(horizontal = 12.dp, vertical = 7.dp),
+                ) {
+                    Text(cat.label, color = if (active) Color.Black else ZincText, fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        val filteredPresets = remember(styleCategory) {
+            if (styleCategory == "all") AI_STYLE_PRESETS else AI_STYLE_PRESETS.filter { it.category == styleCategory }
+        }
         LazyVerticalGrid(
             columns = GridCells.Fixed(3),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
             modifier = Modifier.fillMaxWidth().heightIn(max = maxGalleryHeight),
         ) {
-            gridItems(AI_STYLE_PRESETS) { preset ->
+            gridItems(filteredPresets, key = { it.id }) { preset ->
                 Box(
                     Modifier
                         .aspectRatio(1f)
