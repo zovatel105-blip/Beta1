@@ -139,8 +139,14 @@ fun UploadScreen(onRequireAuth: () -> Unit, onDone: () -> Unit) {
     val scope = rememberCoroutineScope()
 
     var step by remember { mutableStateOf("mode") } // mode | file | target | uploading
-    var selected by remember { mutableStateOf("versus") } // versus | duet | challenge (en paso mode)
-    var mode by remember { mutableStateOf("versus") }
+    // Petición del usuario: "que en la página de creación solo aparezca Post
+    // y Direct como en la web" — réplica exacta del default de
+    // UploadDialog.jsx (web), donde `selected`/`mode` arrancan en 'solo'
+    // (Post), no en 'versus'. Versus/1vs1 NO se borran del código (siguen
+    // funcionando si se entra por otra vía, ej. Luxury Battle), solo dejan
+    // de ser el modo por defecto ni aparecer como botones (ver ModeStep).
+    var selected by remember { mutableStateOf("solo") } // versus | duet | challenge | solo (en paso mode)
+    var mode by remember { mutableStateOf("solo") }
     var layout by remember { mutableStateOf("horizontal") }
     var uriA by remember { mutableStateOf<Uri?>(null) }
     var uriB by remember { mutableStateOf<Uri?>(null) }
@@ -389,23 +395,18 @@ private fun ModeStep(selected: String, onSelect: (String) -> Unit, onContinue: (
                 .horizontalScroll(rememberScrollState())
                 .clip(RoundedCornerShape(50)).background(Color.White.copy(alpha = 0.06f)).border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(50)).padding(4.dp),
         ) {
-            ModeSeg("Versus", selected == "versus") { onSelect("versus") }
-            ModeSeg("1 vs 1", selected == "duet") { onSelect("duet") }
-            // Renombrado "Challenges" -> "Direct" (petición del usuario:
-            // "challenge por directo ... en inglés" — este modo es un reto
-            // DIRIGIDO/directo a una persona concreta, a diferencia de
-            // "Post"/Open que queda abierto a cualquiera). SOLO el texto
-            // visible cambia, `selected == "challenge"` intacto.
-            ModeSeg("Direct", selected == "challenge") { onSelect("challenge") }
-            // "Open" (antes "Single") — réplica del 4º modo `solo` añadido en
-            // UploadDialog.jsx (web): un solo vídeo/foto, sin necesidad de un
-            // segundo lado ni de elegir a quién retar. Internamente reutiliza
-            // el mismo endpoint de retos con openChallenge=1 (ver doUpload/
-            // UploadWorker.kt más abajo). RENOMBRADO otra vez a petición del
-            // usuario: "Open" -> "Post" (equivalente en inglés de
-            // "Publicar") — SOLO el texto visible cambia, `mode == "solo"`
-            // y el resto del código quedan intactos.
+            // Petición del usuario: "que en la página de creación solo
+            // aparezca Post y Direct como en la web" — réplica exacta del
+            // selector de UploadDialog.jsx (web), que SOLO muestra estos 2
+            // botones (mismo orden: Post primero, Direct después). Los
+            // botones "Versus"/"1 vs 1" se OCULTAN aquí (no se borran del
+            // resto del código: `mode == "versus"`/`"duet"` siguen
+            // funcionando en pantallas que entran directo a "file", ej.
+            // Luxury Battle vía PendingLuxuryEntry) — mismo criterio que la
+            // web ("Versus/1 vs 1 NO se borran del código... solo se ocultan
+            // estos 2 botones aquí", ver UploadDialog.jsx).
             ModeSeg("Post", selected == "solo") { onSelect("solo") }
+            ModeSeg("Direct", selected == "challenge") { onSelect("challenge") }
         }
 
         Column(Modifier.weight(1f).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {

@@ -1,5 +1,30 @@
 # Twyk — PRD / Registro de progreso
 
+## Ronda: página de creación nativa — solo "Post" y "Direct" (paridad con la web)
+Usuario: "Quiero que en la aplicacion nativa en la pagina de creacion solo aparezca post y direct
+como en la web". La web (`UploadDialog.jsx`) ya solo muestra 2 botones en el selector de modo
+("Post"=`solo`, "Direct"=`challenge`); Versus/1vs1 se ocultaron ahí en una ronda anterior sin
+borrarse del código. El nativo (`ui/Upload.kt` → `ModeStep`) todavía mostraba 4 botones (Versus,
+1 vs 1, Direct, Post) con "Versus" como modo por defecto. FIX (réplica exacta del criterio web):
+- Estado inicial `selected`/`mode` de `UploadScreen`: `"versus"` -> `"solo"` (mismo default que
+  `UploadDialog.jsx`, `useState('solo')`).
+- `ModeStep`: el `Row` del selector ahora solo renderiza `ModeSeg("Post", ...)` y
+  `ModeSeg("Direct", ...)` (mismo orden que la web). Los botones "Versus"/"1 vs 1" se quitan del
+  `Row`, NO se borra el resto del código (`mode == "versus"`/`"duet"` siguen funcionando si se
+  entra por otra vía, ej. `PendingLuxuryEntry`/Luxury Battle, que salta este selector y va directo
+  al paso "file" con el modo ya fijado — no se ve afectado por este cambio).
+100% Kotlin (`ui/Upload.kt`), NO COMPILABLE en este contenedor (sin SDK de Android). Verificado por
+revisión manual + balance de llaves/paréntesis del archivo completo (342/342, 1392/1392) +
+comparación línea a línea con `UploadDialog.jsx` (mismo default, mismos 2 botones, mismo orden).
+Sin cambios de backend/web. Pendiente: el usuario debe recompilar el APK y confirmar que la
+pantalla de creación (botón "+") ya solo muestra "Post" y "Direct".
+
+INFRA de esta sesión: `/app/.env` y MongoDB habían desaparecido de nuevo (causa raíz recurrente,
+ver `ENV_BACKUP.md`) — restaurados (`NEXT_PUBLIC_BASE_URL`=nueva URL del pod,
+`EMERGENT_LLM_KEY` renovada vía `emergent_integrations_manager`, `TAVILY_API_KEY` restaurada),
+usuarios re-sembrados (`node scripts/seed-core-users.mjs`), `test_credentials.md` recreado (admin
+`twyk`/`Admin12345`). Verificado con `POST /api/auth/login` real -> 200.
+
 ## Ronda: alternativa "ilimitada" a Nano Banana para el editor de fotos — orden de prioridad por CALIDAD
 Usuario: "busques una alternativa a nanobanana con la que pueda editar imágenes con IA ilimitada"
 → luego, tras implementarla: "Las publicaciones tienen que tener la misma calidad de nanobanana".
