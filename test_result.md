@@ -5259,6 +5259,40 @@ metadata:
 
 test_plan:
   current_focus:
+
+
+frontend:
+  - task: "FEATURE: 6 estilos más en 'Cars' (27 total): Maybach Interior, Rolls Royce Money Flex, Ferrari, Bugatti, Bentley, G-Wagon (web + nativo)"
+    implemented: true
+    working: "NA"
+    file: "lib/aiStylePresets.js, android-twyk/app/src/main/java/com/twyk/app/data/AiStylePresets.kt"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'Crea mas de la categoria cars y tambien quiero que crees una en El interior de UN Maybach y flexeando dinero en un roys royce'."
+        -working: "NA"
+        -agent: "main"
+        -comment: "6 estilos nuevos en 'cars' (21 -> 27): los 2 pedidos explícitamente — Maybach Interior (interior de un Maybach, distinto del ya existente 'Maybach Cigar Night' que es EXTERIOR) y Rolls Royce Money Flex (flexear un fajo de billetes en primer plano dentro de un Rolls Royce, distinto del ya existente 'Rolls Royce Cash' que muestra el dinero apilado en el asiento) — más 4 adicionales para seguir ampliando la categoría: Ferrari Open Road, Bugatti Showroom, Bentley Arrival, G-Wagon Urban Night. Imágenes reales obtenidas vía crawl_tool sobre páginas de búsqueda de Pexels (los 2 usos permitidos de vision_expert_agent en esta sesión ya se agotaron en la ronda anterior) — cada URL con su descripción real de Pexels confirmada antes de elegirla (ej. 'interior of mercedes-s450', 'hand holding fan of us dollar bills', 'sleek red sports car... driving', 'silver bugatti chiron... showroom', 'black bentley coupe... urban street', 'black mercedes brabus g-wagon... urban') y verificada con fetch real (200 OK) antes de incluirla. VERIFICADO: conteo real confirma 76 presets totales (antes 70), cars=27, sin ids duplicados; las 6 URLs nuevas Y las 76 en total responden 200 OK; lint limpio; balance de código de AiStylePresets.kt (0/0 llaves, 102/102 paréntesis) tras el cambio. Servidor Next.js sin errores (usuario activo en la app durante la implementación, según logs). NO SE INVOCÓ ningún agente de testing en esta ronda (instrucción explícita y reiterada del usuario). El lado nativo no es compilable/testeable en este entorno. Pendiente: confirmación visual del usuario en la web (activa) y recompilar el APK."
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 1
+
+test_plan:
+  current_focus:
+    - "Categoría 'Cars' ampliada a 27 estilos, incluidos Maybach Interior y Rolls Royce Money Flex — pendiente confirmación visual (web + nativo)"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    -agent: "main"
+    -message: "Añadidos 6 estilos más a 'Cars' (ahora 27 en total, 76 en toda la galería), incluidos los 2 pedidos explícitamente: interior de un Maybach y flexear dinero dentro de un Rolls Royce (distintos de los 2 estilos de Maybach/Rolls Royce ya existentes). Imágenes obtenidas vía crawl_tool sobre Pexels (vision_expert_agent ya agotado en esta sesión), todas verificadas con fetch real 200 OK. NO se usó agente de testing (instrucción explícita del usuario)."
+
     - "Categoría 'Cars' (21 estilos, incluidos los 13 inspirados en larpgpt.com) visible como pestaña filtrable en la galería de Styles — pendiente confirmación visual (web + nativo)"
   stuck_tasks: []
   test_all: false

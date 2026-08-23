@@ -100,6 +100,18 @@ val AI_STYLE_PRESETS: List<AiStylePreset> = listOf(
     AiStylePreset("nyc-bmw-m4", "NYC BMW M4", "cars", "https://images.unsplash.com/photo-1576289681078-d32a1bdcf9b5?crop=entropy&cs=srgb&fm=jpg&q=85&w=480&h=480&fit=crop", "Put me posing next to a BMW M4 parked on a New York City street at night, city lights and traffic in the background, photorealistic."),
     AiStylePreset("gas-station-urus", "Gas Station Urus", "cars", "https://images.unsplash.com/photo-1775582524187-6c49b9947df5?crop=entropy&cs=srgb&fm=jpg&q=85&w=480&h=480&fit=crop", "Put me standing next to a Lamborghini Urus at a gas station at night, dramatic overhead lighting, photorealistic."),
     AiStylePreset("mansion-cash-arrival", "Mansion Cash Arrival", "cars", "https://images.pexels.com/photos/20474659/pexels-photo-20474659.jpeg?auto=compress&cs=tinysrgb&w=480&h=480", "Put me standing beside a luxury SUV parked in the driveway of a grand mansion, holding stacks of cash, golden hour lighting, photorealistic."),
+    // 7ª ronda de estilos (petición del usuario: "Crea mas de la categoria
+    // cars y tambien quiero que crees una en el interior de un Maybach y
+    // flexeando dinero en un rolls royce") — réplica EXACTA de
+    // lib/aiStylePresets.js (web): 6 estilos más de "cars" (Maybach
+    // Interior, Rolls Royce Money Flex, Ferrari, Bugatti, Bentley,
+    // G-Wagon), mismos ids/URLs/promptHints.
+    AiStylePreset("maybach-interior", "Maybach Interior", "cars", "https://images.pexels.com/photos/26691305/pexels-photo-26691305.jpeg?auto=compress&cs=tinysrgb&w=480&h=480", "Put me sitting inside the plush leather interior of a Maybach, premium wood trim and ambient lighting, elegant outfit, photorealistic."),
+    AiStylePreset("rolls-royce-money-flex", "Rolls Royce Money Flex", "cars", "https://images.pexels.com/photos/4968655/pexels-photo-4968655.jpeg?auto=compress&cs=tinysrgb&w=480&h=480", "Put me inside a Rolls-Royce flexing a fanned stack of cash close to the camera, confident expression, luxurious leather interior, photorealistic."),
+    AiStylePreset("ferrari-open-road", "Ferrari Open Road", "cars", "https://images.pexels.com/photos/12964218/pexels-photo-12964218.jpeg?auto=compress&cs=tinysrgb&w=480&h=480", "Put me driving a red Ferrari on an open road, confident pose, sunny day, photorealistic."),
+    AiStylePreset("bugatti-showroom", "Bugatti Showroom", "cars", "https://images.pexels.com/photos/12964186/pexels-photo-12964186.jpeg?auto=compress&cs=tinysrgb&w=480&h=480", "Put me posing next to a Bugatti in a sleek glass-walled showroom, dramatic lighting, photorealistic."),
+    AiStylePreset("bentley-arrival", "Bentley Arrival", "cars", "https://images.pexels.com/photos/8343503/pexels-photo-8343503.jpeg?auto=compress&cs=tinysrgb&w=480&h=480", "Put me standing next to a sleek black Bentley parked on an elegant urban street, confident pose, photorealistic."),
+    AiStylePreset("g-wagon-urban-night", "G-Wagon Urban Night", "cars", "https://images.pexels.com/photos/20136034/pexels-photo-20136034.jpeg?auto=compress&cs=tinysrgb&w=480&h=480", "Put me standing next to a black Mercedes G-Wagon parked on a vibrant city street at night, neon lights, photorealistic."),
 )
 
 // Categorías para el filtro de la galería (réplica exacta de
