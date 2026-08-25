@@ -1,0 +1,16 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <!-- Réplica EXACTA del icono "Flame" de lucide-react (mismo path SVG que
+         usa la web en OpenChallengeSlide.jsx/CarouselSlide.jsx/DuetSlide.jsx/
+         etc., ver node_modules/lucide-react/dist/esm/icons/flame.js) — antes
+         el botón "Fire" nativo usaba Icons.Filled.LocalFireDepartment
+         (Material), una silueta de llama DISTINTA a la de la web (bug
+         reportado: "el icono de fire debe ser igual al de la web"). Variante
+         SIN relleno (solo trazo) — mismo convenio que ic_bookmark.xml/
+         ic_vote.xml (fillColor transparente, strokeColor blanco, tintado en
+         tiempo real vía el parámetro `tint` de Icon()). -->
+    <path android:fillColor="#00000000" android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.25" android:strokeLineCap="round" android:strokeLineJoin="round"
+        android:pathData="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>
+</vector>

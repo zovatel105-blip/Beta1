@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Notificaciones push (Android 13+/API 33 exige este permiso en
+         TIEMPO DE EJECUCIÓN, no basta declararlo aquí — ver
+         MainActivity.kt::requestNotificationPermissionIfNeeded). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <application
+        android:allowBackup="true"
+        android:label="Twyk"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:usesCleartextTraffic="true"
+        android:theme="@style/Theme.Twyk">
+
+        <!-- Canal de notificación por defecto — solo aplicaría si algún
+             mensaje llegara con bloque "notification" (ya NO es el caso
+             actual: lib/push.js envía solo "data", ver
+             TwykFirebaseMessagingService.kt), se deja como red de
+             seguridad/valor por defecto. El canal real ("social") se crea
+             en tiempo de ejecución en MainActivity.kt. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="social" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_notification_logo" />
+
+        <service
+            android:name=".push.TwykFirebaseMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <!-- Theme.Twyk.Starting (themes.xml): tema del splash del SISTEMA
+             (Android 12+ lo pinta siempre), leído por installSplashScreen()
+             en MainActivity.kt. Se restaura solo a Theme.Twyk justo después
+             (ver postSplashScreenTheme en themes.xml). -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:screenOrientation="portrait"
+            android:windowSoftInputMode="adjustResize"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:theme="@style/Theme.Twyk.Starting">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
+
