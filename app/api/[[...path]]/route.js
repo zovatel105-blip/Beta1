@@ -4068,23 +4068,20 @@ async function handleAiEditImage(request) {
       console.warn('ai edit image: could not read photo dimensions, using 1:1 ratio', e?.message)
     }
 
-    // Petición del usuario: comparó 2 imágenes reales — la que "se ve IA"
-    // tiene fondo desenfocado tipo "modo retrato" profesional, luz dorada
-    // muy dramática y pose centrada tipo modelo; la que "parece real" tiene
-    // fondo mucho más enfocado, luz plana/natural de día y encuadre/pose
-    // casual. Los 2 intentos anteriores con instrucciones LARGAS llenas de
-    // bloques "CRITICAL — evita X" apenas cambiaron el resultado (probado
-    // en vivo, misma foto+prompt). Investigado en vivo con 3 variantes de
-    // prompt CORTAS y en POSITIVO directamente contra la API de Agnes: las
-    // que evocan un "género" fotográfico concreto ("point-and-shoot",
-    // "disposable camera") en vez de listar negaciones técnicas dieron un
-    // resultado MUY superior (fondo realmente enfocado, luz plana, sin
-    // glow dorado) — instrucciones de negación largas parecen diluirse;
-    // una instrucción corta y directa se sigue mucho mejor. Instrucción
-    // final basada en esa variante ganadora, aplicada sobre el prompt YA
+    // Petición del usuario (última ronda): "que cree la imagen de IA como
+    // si no hubiera foto, pero usando el MISMO rostro de la imagen" — hasta
+    // ahora se le pedía al modelo "editar" la foto adjunta (preservar los
+    // píxeles originales), lo que lo empujaba a comportarse como retoque/
+    // composición en vez de una foto nueva. Probado en vivo un enfoque
+    // distinto: tratar la foto adjunta SOLO como referencia de identidad/
+    // rostro y pedir una foto COMPLETAMENTE NUEVA de esa misma persona (no
+    // una edición) — resultado casi idéntico en calidad a la generación
+    // texto->imagen pura, con el rostro real preservado. Instrucción
+    // reescrita con ese marco, combinada con la variante "cámara
+    // desechable" (ganadora de la ronda anterior) y el prompt YA
     // enriquecido (ver enrichEditPrompt arriba).
     const enrichedScene = await enrichEditPrompt(prompt)
-    const instruction = `Apply this edit to the attached photo, but render the WHOLE result like an ordinary, slightly imperfect disposable-camera or wide-angle phone snapshot taken by a stranger — NOT a professional photoshoot, NOT a glossy/cinematic "AI-generated" look. Keep everything in sharp focus front to back (no blurred/bokeh background, no out-of-focus light orbs), use flat plain daylight (no golden-hour glow, no cinematic color grade, no boosted saturation) unless the instruction explicitly asks for a specific time of day/mood, and keep the framing casual, slightly imperfect and unposed — a real, mundane, low-effort snapshot. Keep the person's exact face, identity, hairstyle and outfit unchanged, with natural, un-airbrushed skin texture (visible pores and subtle imperfections, never plastic-smooth or over-sharpened). Make any added/changed elements physically well integrated (correct scale, perspective, lighting direction, shadows and reflections matching the rest of the photo). When the instruction names a specific, well-known character (e.g., from an anime, movie, game or franchise), render THAT exact character using your own knowledge of their canonical design — correct hairstyle, hair/eye color, outfit, colors and distinguishing features — instead of a generic lookalike.\n\nInstruction: ${enrichedScene}`
+    const instruction = `Use the attached photo ONLY as a reference for this exact person's face and identity (same bone structure, features and hair color/style) — do NOT treat this as editing or retouching the original photo. Instead, generate a BRAND NEW, completely different photorealistic photo of this SAME PERSON in a new scene, as if it were a fresh, separate photoshoot — not a copy-paste composite of the original picture. Render the WHOLE new photo like an ordinary, slightly imperfect disposable-camera or wide-angle phone snapshot taken by a stranger — NOT a professional photoshoot, NOT a glossy/cinematic "AI-generated" look. Keep everything in sharp focus front to back (no blurred/bokeh background, no out-of-focus light orbs), use flat plain daylight (no golden-hour glow, no cinematic color grade, no boosted saturation) unless the instruction explicitly asks for a specific time of day/mood, and keep the framing casual, slightly imperfect and unposed. Keep natural, un-airbrushed skin texture (visible pores and subtle imperfections, never plastic-smooth or over-sharpened) — never alter the person's identity or facial structure. Keep the person's original outfit UNLESS the scene described below implies a different outfit is naturally expected — in that case dress them appropriately for the scene. Make the person physically well integrated into the new scene (correct scale, perspective, lighting direction, shadows and reflections). When the instruction names a specific, well-known character (e.g., from an anime, movie, game or franchise), render THAT exact character using your own knowledge of their canonical design — correct hairstyle, hair/eye color, outfit, colors and distinguishing features — instead of a generic lookalike.\n\nNew scene: ${enrichedScene}`
 
     // 1 reintento con una pequeña pausa (errores transitorios de red/API) —
     // Agnes es ahora el ÚNICO motor (sin modelo de respaldo distinto), así
