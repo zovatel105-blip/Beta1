@@ -1,8 +1,0 @@
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="100dp" android:height="100dp"
-    android:viewportWidth="100" android:viewportHeight="100">
-    <!-- Avatar por defecto (réplica de la web): fondo gris claro + silueta gris. -->
-    <path android:fillColor="#E5E7EB" android:pathData="M0,0 H100 V100 H0 Z"/>
-    <path android:fillColor="#9CA3AF" android:pathData="M34,40 a16,16 0 1,0 32,0 a16,16 0 1,0 -32,0 Z"/>
-    <path android:fillColor="#9CA3AF" android:pathData="M16,100 C16,75 31,62 50,62 S84,75 84,100 Z"/>
-</vector>

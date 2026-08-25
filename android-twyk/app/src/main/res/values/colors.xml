@@ -1,7 +1,0 @@
-<resources>
-    <!-- Fondo del ícono adaptable (Android 8+): blanco, igual que el fondo
-         del logo subido (twyk-auth-logo.png), para que el resplandor
-         morado/azul y el símbolo negro se vean exactamente igual que en el
-         asset original al recortarse con la máscara del sistema. -->
-    <color name="ic_launcher_background">#FFFFFF</color>
-</resources>
