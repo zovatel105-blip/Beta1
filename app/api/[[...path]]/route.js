@@ -4028,7 +4028,14 @@ async function handleAiEditImage(request) {
       console.warn('ai edit image: could not read photo dimensions, using 1:1 ratio', e?.message)
     }
 
-    const instruction = `You are an expert photo editing AI. Apply exactly the requested edit to the attached photo, in high fidelity and high quality — match the level of detail and realism users expect from a top-tier AI image model. Preserve the rest of the image (subject, framing, lighting, style) unless the instruction says otherwise, and make the added/changed elements look realistic and well integrated (correct lighting, shadows, perspective and scale for the scene). When the instruction names a specific, well-known character (e.g., from an anime, movie, game or franchise), render THAT exact character using your own knowledge of their canonical design — correct hairstyle, hair/eye color, outfit, colors and distinguishing features — instead of inventing a generic or approximate lookalike.\n\nInstruction: ${prompt}`
+    // Petición del usuario: "las publicaciones que edite con la cara de una
+    // persona [deben tener] tanto el fondo como la generación realista que
+    // no parezca que esté generado con IA" — instrucción reforzada contra
+    // el "look IA" típico (piel de plástico/demasiado suave, grano/ruido y
+    // balance de blancos distintos entre sujeto y fondo nuevo, sombras poco
+    // creíbles) y salida a mayor resolución (2K en vez de 1K) para conservar
+    // más detalle real de piel/textura en la cara.
+    const instruction = `You are an expert photo editing AI specialized in photorealistic compositing. Apply exactly the requested edit to the attached photo, in the highest fidelity and realism possible — the final result must be indistinguishable from a real, unedited photograph, with NO visible signs of AI generation. Preserve the rest of the image (subject, framing, lighting, style) unless the instruction says otherwise. If a person's face or skin is visible, keep it 100% photorealistic: natural skin texture with visible pores and subtle imperfections, natural color variation, correct micro-shadows — never smooth, waxy, plastic-looking or "airbrushed" skin, and never alter the person's identity, facial structure or proportions. When adding or changing the background/scene, match it seamlessly to the subject: same camera grain/sensor noise level, same dynamic range, white balance and color grading, same depth of field and focus falloff, and physically correct lighting direction, cast shadows, reflections and ambient light bounce between the subject and the new environment, as if both were captured in the same real photograph with the same camera. Make the added/changed elements realistic and well integrated (correct lighting, shadows, perspective and scale for the scene). When the instruction names a specific, well-known character (e.g., from an anime, movie, game or franchise), render THAT exact character using your own knowledge of their canonical design — correct hairstyle, hair/eye color, outfit, colors and distinguishing features — instead of inventing a generic or approximate lookalike.\n\nInstruction: ${prompt}`
 
     // 1 reintento con una pequeña pausa (errores transitorios de red/API) —
     // Agnes es ahora el ÚNICO motor (sin modelo de respaldo distinto), así
@@ -4043,7 +4050,7 @@ async function handleAiEditImage(request) {
           prompt: instruction,
           images: [`data:${type};base64,${base64}`],
           ratio,
-          size: '1K',
+          size: '2K',
         })
         return NextResponse.json({ ok: true, image: `data:${mimeType};base64,${outB64}`, mimeType, provider: 'agnes' })
       } catch (err) {
