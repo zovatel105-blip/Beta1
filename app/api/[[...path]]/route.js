@@ -4028,22 +4028,31 @@ async function handleAiEditImage(request) {
       console.warn('ai edit image: could not read photo dimensions, using 1:1 ratio', e?.message)
     }
 
-    // Petición del usuario: "el fondo aún parece generado con IA, tiene que
-    // parecer que no está generado con IA, realista" — el intento anterior
-    // ya pedía coherencia de luz/grano entre sujeto y fondo, pero el
-    // resultado seguía viéndose "de estudio/render" (composición demasiado
-    // simétrica/perfecta, superficies demasiado limpias, gradientes de
-    // cielo/agua demasiado suaves — los "tells" clásicos de una imagen de
-    // IA). Instrucción reforzada: se le pide explícitamente que el fondo
-    // parezca una foto de MÓVIL real tomada en ese lugar (no un anuncio/
-    // render/foto de estudio), con encuadre ligeramente imperfecto/casual
-    // (no perfectamente centrado ni simétrico), imperfecciones reales del
-    // entorno (desgaste, objetos sueltos, superficies no perfectamente
-    // limpias), y textura/ruido de sensor de cámara real en vez de
-    // superficies y degradados perfectamente lisos.
-    const instruction = `You are an expert photo editing AI specialized in photorealistic compositing. Apply exactly the requested edit to the attached photo, in the highest fidelity and realism possible — the final result must be indistinguishable from a real, unedited photograph, with NO visible signs of AI generation. Preserve the rest of the image (subject, framing, lighting, style) unless the instruction says otherwise. If a person's face or skin is visible, keep it 100% photorealistic: natural skin texture with visible pores and subtle imperfections, natural color variation, correct micro-shadows — never smooth, waxy, plastic-looking or "airbrushed" skin, and never alter the person's identity, facial structure or proportions.
-
-CRITICAL for the background/scene: it must look like an ORDINARY PHONE SNAPSHOT taken by a real person at that real location — NOT a professional photoshoot, magazine ad, 3D render, CGI or typical "AI-generated" image. Concretely: avoid overly symmetric, perfectly centered or "staged" compositions (real snapshots are slightly off-center and imperfectly framed); avoid pristine, glossy, spotless surfaces — add believable real-world imperfections (uneven wear, scuffs, scattered ordinary objects, non-uniform reflections); avoid unnaturally smooth gradients in sky/water/walls — they must show natural, irregular variation and realistic camera sensor noise/grain; avoid overly saturated or "cinematic color grading" look — use natural, slightly imperfect color and exposure like a real phone photo, including very subtle motion blur and realistic depth of field falloff where appropriate. Match the background seamlessly to the subject: same camera grain/sensor noise level, same dynamic range, white balance, and physically correct lighting direction, cast shadows, reflections and ambient light bounce between the subject and the new environment, as if both were captured in the very same real, casual phone photo. Make the added/changed elements realistic and well integrated (correct lighting, shadows, perspective and scale for the scene). When the instruction names a specific, well-known character (e.g., from an anime, movie, game or franchise), render THAT exact character using your own knowledge of their canonical design — correct hairstyle, hair/eye color, outfit, colors and distinguishing features — instead of inventing a generic or approximate lookalike.\n\nInstruction: ${prompt}`
+    // Petición del usuario: comparó 2 imágenes reales — la que "se ve IA"
+    // tiene fondo desenfocado tipo "modo retrato" profesional, luz dorada
+    // muy dramática/cinematográfica, piel con exceso de nitidez/HDR y pose
+    // centrada tipo modelo mirando a cámara; la que "parece real" tiene el
+    // fondo mucho MÁS enfocado (profundidad de campo grande, típica de la
+    // lente principal de un móvil, no de "modo retrato"), luz plana/natural
+    // de día (sin grado dramático), piel más suave/natural, y encuadre/pose
+    // descentrada y casual, como si la foto la hubiera tomado un amigo, no
+    // un fotógrafo. Instrucción reforzada con estos criterios TÉCNICOS
+    // concretos (no solo "que se vea real" en abstracto).
+    // Petición del usuario: comparó 2 imágenes reales — la que "se ve IA"
+    // tiene fondo desenfocado tipo "modo retrato" profesional, luz dorada
+    // muy dramática y pose centrada tipo modelo; la que "parece real" tiene
+    // fondo mucho más enfocado, luz plana/natural de día y encuadre/pose
+    // casual. Los 2 intentos anteriores con instrucciones LARGAS llenas de
+    // bloques "CRITICAL — evita X" apenas cambiaron el resultado (probado
+    // en vivo, misma foto+prompt). Investigado en vivo con 3 variantes de
+    // prompt CORTAS y en POSITIVO directamente contra la API de Agnes: las
+    // que evocan un "género" fotográfico concreto ("point-and-shoot",
+    // "disposable camera") en vez de listar negaciones técnicas dieron un
+    // resultado MUY superior (fondo realmente enfocado, luz plana, sin
+    // glow dorado) — instrucciones de negación largas parecen diluirse;
+    // una instrucción corta y directa se sigue mucho mejor. Instrucción
+    // final basada en esa variante ganadora.
+    const instruction = `Apply this edit to the attached photo, but render the WHOLE result like an ordinary, slightly imperfect disposable-camera or wide-angle phone snapshot taken by a stranger — NOT a professional photoshoot, NOT a glossy/cinematic "AI-generated" look. Keep everything in sharp focus front to back (no blurred/bokeh background, no out-of-focus light orbs), use flat plain daylight (no golden-hour glow, no cinematic color grade, no boosted saturation), and keep the framing casual, slightly imperfect and unposed — a real, mundane, low-effort snapshot. Keep the person's exact face, identity, hairstyle and outfit unchanged, with natural, un-airbrushed skin texture (visible pores and subtle imperfections, never plastic-smooth or over-sharpened). Make any added/changed elements physically well integrated (correct scale, perspective, lighting direction, shadows and reflections matching the rest of the photo). When the instruction names a specific, well-known character (e.g., from an anime, movie, game or franchise), render THAT exact character using your own knowledge of their canonical design — correct hairstyle, hair/eye color, outfit, colors and distinguishing features — instead of a generic lookalike.\n\nInstruction: ${prompt}`
 
     // 1 reintento con una pequeña pausa (errores transitorios de red/API) —
     // Agnes es ahora el ÚNICO motor (sin modelo de respaldo distinto), así
