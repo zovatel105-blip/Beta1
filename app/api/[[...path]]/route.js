@@ -4068,20 +4068,15 @@ async function handleAiEditImage(request) {
       console.warn('ai edit image: could not read photo dimensions, using 1:1 ratio', e?.message)
     }
 
-    // Petición del usuario (última ronda): "que cree la imagen de IA como
-    // si no hubiera foto, pero usando el MISMO rostro de la imagen" — hasta
-    // ahora se le pedía al modelo "editar" la foto adjunta (preservar los
-    // píxeles originales), lo que lo empujaba a comportarse como retoque/
-    // composición en vez de una foto nueva. Probado en vivo un enfoque
-    // distinto: tratar la foto adjunta SOLO como referencia de identidad/
-    // rostro y pedir una foto COMPLETAMENTE NUEVA de esa misma persona (no
-    // una edición) — resultado casi idéntico en calidad a la generación
-    // texto->imagen pura, con el rostro real preservado. Instrucción
-    // reescrita con ese marco, combinada con la variante "cámara
-    // desechable" (ganadora de la ronda anterior) y el prompt YA
-    // enriquecido (ver enrichEditPrompt arriba).
+    // Petición del usuario (aclaración de la ronda anterior): "que se
+    // genere como SI NO hubiera una cara [foto], pero aplicando la cara de
+    // la imagen de referencia" — refuerza aún más la idea: el modelo debe
+    // tener la MISMA libertad creativa que una generación texto->imagen
+    // pura (pose, cuerpo, encuadre, composición 100% libres, sin anclarse
+    // en absoluto a la foto original) y lo ÚNICO que se toma de la imagen
+    // de referencia es la cara/identidad de la persona.
     const enrichedScene = await enrichEditPrompt(prompt)
-    const instruction = `Use the attached photo ONLY as a reference for this exact person's face and identity (same bone structure, features and hair color/style) — do NOT treat this as editing or retouching the original photo. Instead, generate a BRAND NEW, completely different photorealistic photo of this SAME PERSON in a new scene, as if it were a fresh, separate photoshoot — not a copy-paste composite of the original picture. Render the WHOLE new photo like an ordinary, slightly imperfect disposable-camera or wide-angle phone snapshot taken by a stranger — NOT a professional photoshoot, NOT a glossy/cinematic "AI-generated" look. Keep everything in sharp focus front to back (no blurred/bokeh background, no out-of-focus light orbs), use flat plain daylight (no golden-hour glow, no cinematic color grade, no boosted saturation) unless the instruction explicitly asks for a specific time of day/mood, and keep the framing casual, slightly imperfect and unposed. Keep natural, un-airbrushed skin texture (visible pores and subtle imperfections, never plastic-smooth or over-sharpened) — never alter the person's identity or facial structure. Keep the person's original outfit UNLESS the scene described below implies a different outfit is naturally expected — in that case dress them appropriately for the scene. Make the person physically well integrated into the new scene (correct scale, perspective, lighting direction, shadows and reflections). When the instruction names a specific, well-known character (e.g., from an anime, movie, game or franchise), render THAT exact character using your own knowledge of their canonical design — correct hairstyle, hair/eye color, outfit, colors and distinguishing features — instead of a generic lookalike.\n\nNew scene: ${enrichedScene}`
+    const instruction = `Treat this exactly like a pure text-to-image generation with FULL creative freedom for pose, body position, camera angle, framing and composition — imagine there is no original photo constraining any of that at all. The reference image attached is used for ONE thing ONLY: this exact person's face/identity (same bone structure, features, hair color/style) — apply that same face onto the newly generated person. Do NOT copy the pose, body position, framing, camera angle or composition of the reference image; invent a completely new, natural one that fits the scene described below. This must look like a BRAND NEW, separate photo of this person, not an edit/retouch/composite of the original picture. Render the WHOLE new photo like an ordinary, slightly imperfect disposable-camera or wide-angle phone snapshot taken by a stranger — NOT a professional photoshoot, NOT a glossy/cinematic "AI-generated" look. Keep everything in sharp focus front to back (no blurred/bokeh background, no out-of-focus light orbs), use flat plain daylight (no golden-hour glow, no cinematic color grade, no boosted saturation) unless the instruction explicitly asks for a specific time of day/mood, and keep the framing casual, slightly imperfect and unposed. Keep natural, un-airbrushed skin texture (visible pores and subtle imperfections, never plastic-smooth or over-sharpened) — never alter the person's identity or facial structure. Dress the person appropriately for the new scene (their outfit does not need to match the reference image). Make the person physically well integrated into the new scene (correct scale, perspective, lighting direction, shadows and reflections). When the instruction names a specific, well-known character (e.g., from an anime, movie, game or franchise), render THAT exact character using your own knowledge of their canonical design — correct hairstyle, hair/eye color, outfit, colors and distinguishing features — instead of a generic lookalike.\n\nNew scene: ${enrichedScene}`
 
     // 1 reintento con una pequeña pausa (errores transitorios de red/API) —
     // Agnes es ahora el ÚNICO motor (sin modelo de respaldo distinto), así
