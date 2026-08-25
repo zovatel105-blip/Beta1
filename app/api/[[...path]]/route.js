@@ -3981,6 +3981,46 @@ const AI_EDIT_ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
 //   petición explícita del usuario) y devuelve la imagen resultante como
 //   data URL, lista para convertirse en File en el cliente y reemplazar la
 //   foto original.
+// Petición del usuario: comparó un prompt DETALLADO (arquitectura,
+// iluminación, pose específica) pegado en una demo externa de
+// texto->imagen puro (mismo modelo, agnes-image-2.1-flash) contra nuestro
+// editor imagen->imagen con instrucciones CORTAS típicas ("ponme en un
+// yate...") — la demo externa se veía mucho más real. Verificado en vivo:
+// (1) el MISMO modelo en texto->imagen puro con ese prompt detallado dio un
+// resultado excelente; (2) probando el MISMO prompt detallado pero en modo
+// imagen->imagen (con la foto de prueba real) el resultado también mejoró
+// muchísimo respecto a instrucciones cortas — casi al nivel de (1). Causa
+// raíz real: NO es un problema del modo imagen->imagen en sí, es que las
+// instrucciones cortas ("put me on a yacht") le dan al modelo muy poco que
+// seguir, y por defecto cae en su estilo "foto de estudio/anuncio". Los
+// presets de estilo (lib/aiStylePresets.js) y el texto libre del usuario
+// son casi siempre cortos — así que se añade este paso: ANTES de editar,
+// se le pide a un modelo de texto (gemini-2.5-flash, misma EMERGENT_LLM_KEY
+// ya usada en el resto de la app, llamada rápida ~1-2s) que EXPANDA la
+// instrucción corta del usuario en una descripción de escena rica y
+// específica (arquitectura/entorno, iluminación, pose, composición) — SIN
+// describir a la persona (su foto real ya se adjunta aparte). Si esta
+// llamada falla por cualquier motivo, se sigue con la instrucción
+// original del usuario (nunca bloquea poder editar).
+async function enrichEditPrompt(shortPrompt) {
+  try {
+    const apiKey = process.env.EMERGENT_LLM_KEY
+    if (!apiKey) return shortPrompt
+    const chat = new LlmChat(
+      apiKey,
+      `img-edit-enrich-${crypto.randomUUID()}`,
+      'You are an expert AI-photography prompt writer. The user will give you a short photo-editing instruction. Expand it into a rich, specific, photorealistic SCENE description (3-5 sentences): concrete architectural/environmental details, natural realistic lighting (avoid dramatic "golden hour" or cinematic lighting unless the user explicitly asked for a specific time of day/mood), and a natural candid pose/composition. Do NOT describe the person themselves (age, face, hair, ethnicity, outfit) — a real photo of them will be attached separately, only describe the SCENE, environment, pose and lighting around them. Keep it grounded and realistic (not fantastical) unless the instruction is itself fantastical (e.g. anime/fictional character). Respond with ONLY the expanded scene description, no quotes, no preamble, no markdown.'
+    ).withModel('gemini', 'gemini-2.5-flash')
+    const text = await chat.sendMessage(new UserMessage({ text: `Short instruction: "${shortPrompt}"` }))
+    const cleaned = String(text || '').trim()
+    if (cleaned.length >= 20 && cleaned.length <= 1500) return cleaned
+    return shortPrompt
+  } catch (e) {
+    console.warn('ai edit image: prompt enrichment failed, using original prompt', e?.message)
+    return shortPrompt
+  }
+}
+
 async function handleAiEditImage(request) {
   try {
     const currentUser = await getCurrentUser(request)
@@ -4030,16 +4070,6 @@ async function handleAiEditImage(request) {
 
     // Petición del usuario: comparó 2 imágenes reales — la que "se ve IA"
     // tiene fondo desenfocado tipo "modo retrato" profesional, luz dorada
-    // muy dramática/cinematográfica, piel con exceso de nitidez/HDR y pose
-    // centrada tipo modelo mirando a cámara; la que "parece real" tiene el
-    // fondo mucho MÁS enfocado (profundidad de campo grande, típica de la
-    // lente principal de un móvil, no de "modo retrato"), luz plana/natural
-    // de día (sin grado dramático), piel más suave/natural, y encuadre/pose
-    // descentrada y casual, como si la foto la hubiera tomado un amigo, no
-    // un fotógrafo. Instrucción reforzada con estos criterios TÉCNICOS
-    // concretos (no solo "que se vea real" en abstracto).
-    // Petición del usuario: comparó 2 imágenes reales — la que "se ve IA"
-    // tiene fondo desenfocado tipo "modo retrato" profesional, luz dorada
     // muy dramática y pose centrada tipo modelo; la que "parece real" tiene
     // fondo mucho más enfocado, luz plana/natural de día y encuadre/pose
     // casual. Los 2 intentos anteriores con instrucciones LARGAS llenas de
@@ -4051,8 +4081,10 @@ async function handleAiEditImage(request) {
     // resultado MUY superior (fondo realmente enfocado, luz plana, sin
     // glow dorado) — instrucciones de negación largas parecen diluirse;
     // una instrucción corta y directa se sigue mucho mejor. Instrucción
-    // final basada en esa variante ganadora.
-    const instruction = `Apply this edit to the attached photo, but render the WHOLE result like an ordinary, slightly imperfect disposable-camera or wide-angle phone snapshot taken by a stranger — NOT a professional photoshoot, NOT a glossy/cinematic "AI-generated" look. Keep everything in sharp focus front to back (no blurred/bokeh background, no out-of-focus light orbs), use flat plain daylight (no golden-hour glow, no cinematic color grade, no boosted saturation), and keep the framing casual, slightly imperfect and unposed — a real, mundane, low-effort snapshot. Keep the person's exact face, identity, hairstyle and outfit unchanged, with natural, un-airbrushed skin texture (visible pores and subtle imperfections, never plastic-smooth or over-sharpened). Make any added/changed elements physically well integrated (correct scale, perspective, lighting direction, shadows and reflections matching the rest of the photo). When the instruction names a specific, well-known character (e.g., from an anime, movie, game or franchise), render THAT exact character using your own knowledge of their canonical design — correct hairstyle, hair/eye color, outfit, colors and distinguishing features — instead of a generic lookalike.\n\nInstruction: ${prompt}`
+    // final basada en esa variante ganadora, aplicada sobre el prompt YA
+    // enriquecido (ver enrichEditPrompt arriba).
+    const enrichedScene = await enrichEditPrompt(prompt)
+    const instruction = `Apply this edit to the attached photo, but render the WHOLE result like an ordinary, slightly imperfect disposable-camera or wide-angle phone snapshot taken by a stranger — NOT a professional photoshoot, NOT a glossy/cinematic "AI-generated" look. Keep everything in sharp focus front to back (no blurred/bokeh background, no out-of-focus light orbs), use flat plain daylight (no golden-hour glow, no cinematic color grade, no boosted saturation) unless the instruction explicitly asks for a specific time of day/mood, and keep the framing casual, slightly imperfect and unposed — a real, mundane, low-effort snapshot. Keep the person's exact face, identity, hairstyle and outfit unchanged, with natural, un-airbrushed skin texture (visible pores and subtle imperfections, never plastic-smooth or over-sharpened). Make any added/changed elements physically well integrated (correct scale, perspective, lighting direction, shadows and reflections matching the rest of the photo). When the instruction names a specific, well-known character (e.g., from an anime, movie, game or franchise), render THAT exact character using your own knowledge of their canonical design — correct hairstyle, hair/eye color, outfit, colors and distinguishing features — instead of a generic lookalike.\n\nInstruction: ${enrichedScene}`
 
     // 1 reintento con una pequeña pausa (errores transitorios de red/API) —
     // Agnes es ahora el ÚNICO motor (sin modelo de respaldo distinto), así
