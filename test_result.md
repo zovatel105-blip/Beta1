@@ -5311,3 +5311,19 @@ agent_communication:
     -agent: "main"
     -message: "Añadidos 13 estilos nuevos (7 de coches/yates/jets interior+exterior, 6 de lujo/vacaciones) a la galería de IA, total 57. Cada estilo (incluidos los 44 anteriores) ahora tiene una categoría (Luxury/Vehicles/Vacation/Fashion/Fantasy) y se añadió una fila de pestañas para filtrar por categoría, en web y nativo. NO se usó agente de testing (instrucción explícita del usuario) — verificación 100% manual: conteo/distribución de categorías vía Node, fetch real de las 13 URLs nuevas, lint, balance de código nativo."
 
+backend:
+  - task: "Migración del motor de IMAGEN a Agnes AI (agnes-image-2.1-flash), eliminando Nano Banana/Gemini"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js, package.json, .env"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "Usuario proporcionó una API key de Agnes (platform.agnes-ai.com/settings/apiKeys) y pidió: 'Agnes debe ser el motor principal de Todo y quitar nanobanana'. Instrucción explícita del usuario: NO usar el agente de testing en esta ronda."
+        -working: true
+        -agent: "main"
+        -comment: "Verificado ANTES de integrar (preocupación inicial de seguridad por documentación de terceros con fechas inconsistentes): la plataforma platform.agnes-ai.com es real (login/dashboard funcional, empresa SapiensAI); la key del usuario se probó en vivo contra https://apihub.agnes-ai.com/v1/images/generations — texto->imagen (200 OK, imagen real) e imagen->imagen (manzana roja -> verde, composición preservada, 200 OK) confirmados con imagen descargada y revisada visualmente. Implementado: nuevo helper `generateAgnesImage()` (model agnes-image-2.1-flash, ratio elegido automáticamente según dimensiones de la foto de entrada vía paquete `image-size`, salida en base64). Reemplazado en 2 sitios: (1) `handleAiEditImage` (POST /api/ai/edit-image, el editor de fotos con IA de creación de contenido) — se quitó toda la cadena Nano Banana Pro/2/1 + el intento directo de Google Gemini (GoogleGenAI/@google/genai), ahora Agnes es el único motor, con 1 reintento con backoff ante fallos transitorios. (2) `generateMarketingCoverImage` (imagen de portada del Motor de Marketing, admin) — mismo cambio, ratio 9:16. `.env`: añadidas AGNES_API_KEY y AGNES_BASE_URL. VERIFICADO END-TO-END real (login real como admin, subida de foto real vía FormData, llamada real a POST /api/ai/edit-image): 200 OK, provider:'agnes', imagen resultante descargada y revisada visualmente (foto de manzana colocada de forma realista en una cocina, con luz/sombras coherentes). Lint limpio. NO se tocó `lib/aiVideoEditor.js` (editor de VÍDEO con IA) a propósito — depende de un truco muy específico de Gemini (máscara por chroma magenta sobre reproducción pixel-perfecta) que no se puede migrar sin pruebas propias; queda documentado en el código como alcance pendiente si el usuario lo pide. Tampoco se tocó `runLuxuryJudge` (juez de puntuación de Luxury Battle) — usa gemini-2.5-flash para ANALIZAR/puntuar fotos (visión+texto), no para generar imágenes, así que no es 'Nano Banana' en el sentido de esta petición."
+

@@ -95,7 +95,7 @@ import {
 import { rankFeed, recordVote, recordImpressions, recordWatch, recordEngagement, recordSocialAffinity, recordNotInterested, getNotInterestedIds, computeMetrics } from '@/lib/recommender'
 import { registerDeviceToken, unregisterDeviceToken } from '@/lib/push'
 import { LlmChat, UserMessage, ImageContent } from 'emergentintegrations'
-import { GoogleGenAI, Modality } from '@google/genai'
+import { imageSize } from 'image-size'
 import { createVideoEditJob, getVideoEditJob, validateVideoForAiEdit, classifyEditMode, MAX_DURATION_SEC } from '@/lib/aiVideoEditor'
 
 export const runtime = 'nodejs'
@@ -2001,30 +2001,118 @@ async function handleBlockUser(request) {
   }
 }
 
+// ────────────────────────────────────────────────────────────────────────────
+// Agnes AI — motor de generación/edición de imágenes con IA
+// ────────────────────────────────────────────────────────────────────────────
+// Petición explícita del usuario: "Agnes debe ser el motor principal de
+// Todo y quitar nanobanana" — reemplaza a Gemini "Nano Banana" como motor
+// de IMAGEN (generación Y edición) en TODO lo que produce una imagen final
+// (editor de fotos de creación de contenido + imagen de portada del motor
+// de marketing). Plataforma de terceros (platform.agnes-ai.com, compatible
+// con el formato OpenAI) VERIFICADA EN VIVO antes de integrar (no solo
+// documentación): con la key real del usuario, texto->imagen e
+// imagen->imagen ambos devolvieron 200 con una imagen real y de buena
+// calidad (probado: manzana roja generada, luego editada a "verde"
+// preservando composición y forma). Ver
+// https://wiki.agnes-ai.com/en/docs/agnes-image-21-flash para la
+// referencia completa de la API.
+//
+// NOTA (alcance de esta migración): el editor de VÍDEO con IA
+// (lib/aiVideoEditor.js) SIGUE usando Gemini/Nano Banana internamente — NO
+// se tocó a propósito. Esa función depende de un truco muy específico y ya
+// afinado del modelo de Gemini (pintar en magenta puro la silueta exacta de
+// lo añadido, sobre una reproducción pixel-a-pixel idéntica del resto del
+// frame, para poder recortar un "sticker" y componerlo fotograma a
+// fotograma) — migrar eso a Agnes sin poder probarlo a fondo primero podría
+// romper una función delicada que hoy funciona. Si se quiere migrar
+// también, debe hacerse en una ronda aparte con sus propias pruebas.
+const AGNES_BASE_URL = process.env.AGNES_BASE_URL || 'https://apihub.agnes-ai.com/v1'
+const AGNES_MODEL = 'agnes-image-2.1-flash'
+// Ratios soportados por Agnes (ver docs) con su valor ancho/alto, para
+// elegir el más parecido al de la foto de entrada y no deformar/recortar de
+// más la composición original al editar.
+const AGNES_RATIOS = [
+  ['1:1', 1], ['3:4', 3 / 4], ['4:3', 4 / 3], ['16:9', 16 / 9],
+  ['9:16', 9 / 16], ['2:3', 2 / 3], ['3:2', 3 / 2], ['21:9', 21 / 9],
+]
+function pickAgnesRatio(width, height) {
+  if (!width || !height) return '1:1'
+  const target = width / height
+  let best = '1:1'
+  let bestDiff = Infinity
+  for (const [label, value] of AGNES_RATIOS) {
+    const diff = Math.abs(Math.log(value / target))
+    if (diff < bestDiff) { bestDiff = diff; best = label }
+  }
+  return best
+}
+
+// Llama a POST /v1/images/generations de Agnes AI. `images` (opcional):
+// array de Data URIs base64 (edición/composición a partir de foto(s) de
+// entrada); vacío = generación pura texto->imagen. Pide SIEMPRE la salida en
+// base64 (extra_body.response_format: 'b64_json') para no depender de que
+// la URL temporal del CDN de Agnes siga viva más adelante. Devuelve
+// { base64, mimeType } o lanza un Error con el motivo.
+async function generateAgnesImage({ prompt, images = [], ratio = '1:1', size = '1K', timeoutMs = 90000 }) {
+  const apiKey = process.env.AGNES_API_KEY
+  if (!apiKey) throw new Error('agnes_not_configured')
+  const body = {
+    model: AGNES_MODEL,
+    prompt,
+    size,
+    ratio,
+    extra_body: { response_format: 'b64_json' },
+  }
+  if (images.length > 0) body.extra_body.image = images
+
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  let res
+  try {
+    res = await fetch(`${AGNES_BASE_URL}/images/generations`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    })
+  } finally {
+    clearTimeout(timer)
+  }
+  const data = await res.json().catch(() => null)
+  if (!res.ok) {
+    throw new Error(data?.error?.message || `agnes_http_${res.status}`)
+  }
+  const out = data?.data?.[0]
+  if (!out) throw new Error('agnes_no_image_returned')
+  if (out.b64_json) return { base64: out.b64_json, mimeType: 'image/png' }
+  if (out.url) {
+    // Respaldo por si el servidor ignora response_format y devuelve una URL.
+    const imgRes = await fetch(out.url)
+    if (!imgRes.ok) throw new Error('agnes_image_download_failed')
+    const buf = Buffer.from(await imgRes.arrayBuffer())
+    return { base64: buf.toString('base64'), mimeType: imgRes.headers.get('content-type') || 'image/png' }
+  }
+  throw new Error('agnes_no_image_returned')
+}
+
 // ── MOTOR DE MARKETING: generación de imagen de portada ─────────────────────
 // Genera una imagen de portada (texto -> imagen, SIN foto de entrada) para
-// una pieza de marketing, usando el mismo proveedor (Gemini vía
-// emergentintegrations) que el editor de fotos de Luxury Battle — pero en
-// modo generación PURA (no edición, aquí no hay ninguna foto real de un
-// usuario, solo la descripción de una escena). Guarda el archivo en
+// una pieza de marketing, ahora con Agnes AI (ver bloque de arriba). Formato
+// vertical 9:16 (miniatura de vídeo TikTok/Reels). Guarda el archivo en
 // /public/uploads (igual que el resto de medios de la app) y devuelve su
 // URL relativa, o null si falla (nunca bloquea la pieza de texto: sin
 // imagen es mejor que sin nada).
 async function generateMarketingCoverImage(imagePrompt, postId) {
   try {
-    const apiKey = process.env.EMERGENT_LLM_KEY
-    if (!apiKey || !imagePrompt) return null
-    const chat = new LlmChat(
-      apiKey,
-      `marketing-cover-${postId}-${Date.now()}`,
-      'You are an expert photorealistic image generator for social media video thumbnails. Generate a single vivid, high-quality, photorealistic image for the described scene. No text, no captions, no logos or watermarks overlaid on the image.'
-    ).withModel('gemini', 'gemini-2.5-flash-image')
-    const [, images] = await chat.sendMessageMultimodalResponse(new UserMessage({ text: imagePrompt }))
-    if (!images || !images[0]?.data) return null
-    const mimeType = images[0].mime_type || 'image/png'
+    if (!process.env.AGNES_API_KEY || !imagePrompt) return null
+    const { base64, mimeType } = await generateAgnesImage({
+      prompt: `Expert photorealistic image generator for social media video thumbnails. Generate a single vivid, high-quality, photorealistic image for this scene. No text, no captions, no logos or watermarks overlaid on the image. Scene: ${imagePrompt}`,
+      ratio: '9:16',
+      size: '1K',
+    })
     const ext = mimeType.includes('png') ? 'png' : 'jpg'
     const filename = `mkt-${postId}.${ext}`
-    await fs.writeFile(nodePath.join(UPLOAD_DIR, filename), Buffer.from(images[0].data, 'base64'))
+    await fs.writeFile(nodePath.join(UPLOAD_DIR, filename), Buffer.from(base64, 'base64'))
     return `/uploads/${filename}`
   } catch (err) {
     console.error('marketing cover image generation failed', err?.message || err)
@@ -3882,68 +3970,17 @@ async function handleNotInterested(request) {
 // Editor de imágenes con IA (creación de contenido)
 // ────────────────────────────────────────────────────────────────────────────
 
-// MEJORA DE CALIDAD/FIDELIDAD (petición del usuario: "quiero que funcione
-// igual que Gemini en los dispositivos móviles... crea lo que le he dicho,
-// pero el editor de IA que tengo no" + "quiero que si digo un personaje de
-// anime se cree el mismo personaje, no una copia parecida"). Investigado
-// en vivo (script Node directo contra `emergentintegrations`, NO agente de
-// testing, a petición explícita del usuario) qué modelos Gemini de imagen
-// están realmente disponibles con la EMERGENT_LLM_KEY de este proyecto:
-//   - 'gemini-2.5-flash-image' (Nano Banana 1, el que ya usaba esto): SÍ
-//     disponible, ya renderiza bastante bien personajes muy famosos (Goku
-//     probado en vivo: correcto, gi naranja/azul, pelo, símbolo del pecho).
-//   - 'gemini-3.1-flash-image-preview' (Nano Banana 2, más reciente): SÍ
-//     disponible con la clave actual, sin coste/plan adicional — probado en
-//     vivo con la MISMA foto+instrucción: integración de luz/sombra en la
-//     escena real notablemente mejor que el modelo anterior. Se usa este.
-//   - 'gemini-3-pro-image-preview' (Nano Banana Pro, el de más calidad):
-//     probado en vivo -> ERROR 403 "is a heavy model and you don't have
-//     enough credits to use it. Upgrade to Standard or Pro to unlock it."
-//     NO disponible con el plan/presupuesto actual de la clave — si en el
-//     futuro se actualiza el plan de Emergent, este sería el siguiente
-//     salto de calidad a probar (cambiar solo esta constante).
-const AI_EDIT_MODEL = 'gemini-3.1-flash-image-preview' // Gemini "Nano Banana 2" (edición image-to-image)
-// Modelo MÁS POTENTE disponible ("Nano Banana Pro") — petición del usuario:
-// "Elimina flux y usa el modelo más potente de nano banana y cuando se
-// agoten las ediciones bajar un modelo y cuando se vuelvan a restaurar las
-// ediciones volver al modelo más potente". Se intenta SIEMPRE PRIMERO en
-// cada petición (por eso "vuelve solo" al recuperarse: no hay ningún
-// estado guardado que recuerde que falló antes, cada edición nueva vuelve
-// a intentar este modelo desde cero). VERIFICADO EN VIVO (script Node
-// directo, NO agente de testing) que SIGUE sin estar disponible con el
-// plan/presupuesto actual de la Emergent Universal Key: error 403 "is a
-// heavy model and you don't have enough credits to use it. Upgrade to
-// Standard or Pro to unlock it." — esto es un límite del PLAN de la cuenta
-// Emergent (Profile -> Manage plan), no algo que el código pueda destrabar
-// por sí solo. Se deja como PRIMER intento de todos modos (código ya listo
-// para "bajar de nivel" automáticamente mientras no esté disponible, y
-// empezar a usarse solo en cuanto el usuario actualice su plan — sin
-// necesitar ningún cambio de código futuro).
-const AI_EDIT_MODEL_PRO = 'gemini-3-pro-image-preview' // Gemini "Nano Banana Pro"
-// Modelo de RESPALDO automático (petición del usuario: "quiero que el
-// usuario nunca vea este mensaje [AI editing failed], que siempre pueda
-// editar"). MISMA EMERGENT_LLM_KEY, MISMO proveedor (Gemini vía
-// emergentintegrations) — no es una integración nueva ni tiene coste
-// adicional: es el modelo "Nano Banana 1" ya confirmado funcionando de
-// forma estable con esta clave (ver comentario de arriba). Si el modelo
-// principal falla (error transitorio de red/API, respuesta vacía, etc.),
-// se reintenta automáticamente con este antes de mostrar cualquier error al
-// usuario. IMPORTANTE (límite honesto, no ocultado): esto NO puede evitar un
-// fallo si la causa es que el saldo de la clave está agotado por completo
-// (ambos modelos comparten la misma clave/presupuesto) — para eso, la única
-// solución real es activar el auto top-up o añadir saldo manualmente desde
-// el perfil de Emergent.
-const AI_EDIT_FALLBACK_MODEL = 'gemini-2.5-flash-image'
 const AI_EDIT_MAX_BYTES = 15 * 1024 * 1024 // mismo límite que fotos en UploadDialog.jsx
 const AI_EDIT_ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
 
 // POST /api/ai/edit-image
 //   FormData: image (File, foto ya seleccionada por el usuario), prompt (string)
-//   Requiere sesión (misma regla que publicar). Envía la foto + la instrucción
-//   a Gemini 2.5 Flash Image ("Nano Banana") vía LlmChat.sendMessageMultimodalResponse
-//   (rutea por el proxy de Emergent con EMERGENT_LLM_KEY — NO se envía ninguna
-//   clave directa de Google) y devuelve la imagen resultante como data URL,
-//   lista para convertirse en File en el cliente y reemplazar la foto original.
+//   Requiere sesión (misma regla que publicar). Envía la foto + la
+//   instrucción a Agnes AI (agnes-image-2.1-flash, ver bloque
+//   generateAgnesImage más arriba — reemplaza a Gemini "Nano Banana" por
+//   petición explícita del usuario) y devuelve la imagen resultante como
+//   data URL, lista para convertirse en File en el cliente y reemplazar la
+//   foto original.
 async function handleAiEditImage(request) {
   try {
     const currentUser = await getCurrentUser(request)
@@ -3972,127 +4009,56 @@ async function handleAiEditImage(request) {
       return NextResponse.json({ error: 'prompt_too_long', message: 'Keep the instruction under 500 characters' }, { status: 400 })
     }
 
-    const apiKey = process.env.EMERGENT_LLM_KEY
-    if (!apiKey) {
-      console.error('AI edit image: EMERGENT_LLM_KEY missing')
+    if (!process.env.AGNES_API_KEY) {
+      console.error('AI edit image: AGNES_API_KEY missing')
       return NextResponse.json({ error: 'ai_not_configured', message: 'AI editor is not configured' }, { status: 500 })
     }
 
     const bytes = Buffer.from(await image.arrayBuffer())
     const base64 = bytes.toString('base64')
-    const systemMessage = 'You are an expert photo editing AI. Apply exactly the requested edit to the provided photo, in high fidelity and high quality — match the level of detail and realism users expect from a top-tier AI image model. Preserve the rest of the image (subject, framing, lighting, style) unless the instruction says otherwise, and make the added/changed elements look realistic and well integrated (correct lighting, shadows, perspective and scale for the scene). When the instruction names a specific, well-known character (e.g., from an anime, movie, game or franchise), render THAT exact character using your own knowledge of their canonical design — correct hairstyle, hair/eye color, outfit, colors and distinguishing features — instead of inventing a generic or approximate lookalike. Always return the edited image.'
 
-    // INTENTO 0 (petición del usuario: "apliquemos Gemini directo para la
-    // edición de imágenes"): si hay una clave DIRECTA de Google AI Studio
-    // configurada (GOOGLE_GEMINI_API_KEY, distinta de la EMERGENT_LLM_KEY —
-    // esta NO consume saldo de Emergent), se prueba PRIMERO con ella. Si
-    // falla por CUALQUIER motivo (sin facturación activada en el proyecto
-    // de Google -"limit: 0" en modelos de imagen, confirmado en pruebas
-    // reales-, cuota agotada, red, etc.) se sigue exactamente con la cadena
-    // de respaldo de Emergent que ya existía abajo — el usuario nunca deja
-    // de poder editar por esto, solo se pierde la oportunidad de ahorrar
-    // saldo de Emergent en esa edición concreta.
-    const googleApiKey = process.env.GOOGLE_GEMINI_API_KEY
-    if (googleApiKey) {
-      try {
-        const genai = new GoogleGenAI({ apiKey: googleApiKey })
-        const response = await genai.models.generateContent({
-          model: 'gemini-2.5-flash-image',
-          contents: [{
-            role: 'user',
-            parts: [
-              { text: `${systemMessage}\n\nInstruction: ${prompt}` },
-              { inlineData: { mimeType: type, data: base64 } },
-            ],
-          }],
-          config: { responseModalities: [Modality.TEXT, Modality.IMAGE] },
-        })
-        const parts = response?.candidates?.[0]?.content?.parts || []
-        const imagePart = parts.find((p) => p?.inlineData?.data)
-        if (imagePart) {
-          const mimeType = imagePart.inlineData.mimeType || 'image/png'
-          return NextResponse.json({ ok: true, image: `data:${mimeType};base64,${imagePart.inlineData.data}`, mimeType, provider: 'google' })
-        }
-        console.error('AI edit image: Google directo sin imagen en la respuesta, se sigue con Emergent')
-      } catch (err) {
-        console.error('AI edit image: Google directo falló, se sigue con Emergent', err?.message || err)
-      }
+    // Ratio de salida lo más parecido posible al de la foto de entrada
+    // (Agnes exige un `ratio` explícito de una lista fija — sin esto,
+    // fotos verticales de móvil saldrían recortadas/deformadas a 1:1).
+    let ratio = '1:1'
+    try {
+      const dims = imageSize(bytes)
+      ratio = pickAgnesRatio(dims?.width, dims?.height)
+    } catch (e) {
+      console.warn('ai edit image: could not read photo dimensions, using 1:1 ratio', e?.message)
     }
 
-    // Reintentos + modelo de respaldo automático (ver comentario de
-    // AI_EDIT_FALLBACK_MODEL más arriba): hasta 4 intentos en total (2 con
-    // el modelo principal, 2 con el de respaldo) ANTES de mostrar cualquier
-    // error — cubre errores transitorios de red/API y, en algunos casos,
-    // respuestas vacías/bloqueadas de un modelo concreto que el otro modelo
-    // sí resuelve. Solo se devuelve error tras agotar TODOS los intentos.
-    //
-    // BACKOFF ENTRE INTENTOS (petición del usuario: "quiero que los
-    // créditos se restauren sin necesidad de cambiar de cuenta" — tras
-    // investigar, `emergentintegrations` NO envía ningún dato del usuario
-    // de Twyk a Gemini, solo un identificador de la app; cambiar de cuenta
-    // en Twyk no puede afectar la respuesta de Gemini. Lo que en realidad
-    // arreglaba el problema era el TIEMPO que tarda cerrar sesión y volver a
-    // entrar, suficiente para que un límite temporal de velocidad -rate
-    // limit- de Gemini se libere solo. Antes los 4 intentos se hacían sin
-    // pausa, todos en menos de 1 segundo, así que un límite temporal nunca
-    // tenía tiempo de recuperarse dentro de la misma petición). Ahora se
-    // espera un poco ANTES de cada reintento (no antes del primero) para
-    // darle esa misma oportunidad de recuperarse SOLO, sin que el usuario
-    // tenga que cerrar sesión ni esperar manualmente.
-    const AI_EDIT_RETRY_DELAYS_MS = [0, 2000, 3500, 6000]
+    const instruction = `You are an expert photo editing AI. Apply exactly the requested edit to the attached photo, in high fidelity and high quality — match the level of detail and realism users expect from a top-tier AI image model. Preserve the rest of the image (subject, framing, lighting, style) unless the instruction says otherwise, and make the added/changed elements look realistic and well integrated (correct lighting, shadows, perspective and scale for the scene). When the instruction names a specific, well-known character (e.g., from an anime, movie, game or franchise), render THAT exact character using your own knowledge of their canonical design — correct hairstyle, hair/eye color, outfit, colors and distinguishing features — instead of inventing a generic or approximate lookalike.\n\nInstruction: ${prompt}`
+
+    // 1 reintento con una pequeña pausa (errores transitorios de red/API) —
+    // Agnes es ahora el ÚNICO motor (sin modelo de respaldo distinto), así
+    // que un fallo tras esto sí se muestra como error real al usuario.
+    const AI_EDIT_RETRY_DELAYS_MS = [0, 2500]
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
-    // Cadena "bajar de nivel" (petición del usuario): Nano Banana Pro
-    // (el más potente, hoy bloqueado por plan — ver comentario de
-    // AI_EDIT_MODEL_PRO) -> Nano Banana 2 (principal actual, 2 intentos con
-    // backoff) -> Nano Banana 1 (respaldo final). Cada edición NUEVA
-    // vuelve a intentar Pro desde cero, así que en cuanto el plan se
-    // actualice empezará a usarse automáticamente sin más cambios.
-    const attempts = [
-      { model: AI_EDIT_MODEL_PRO },
-      { model: AI_EDIT_MODEL },
-      { model: AI_EDIT_MODEL },
-      { model: AI_EDIT_FALLBACK_MODEL },
-    ]
     let lastErr = null
-    for (let i = 0; i < attempts.length; i++) {
-      const { model } = attempts[i]
-      if (AI_EDIT_RETRY_DELAYS_MS[i]) {
-        await sleep(AI_EDIT_RETRY_DELAYS_MS[i])
-      }
+    for (let i = 0; i < AI_EDIT_RETRY_DELAYS_MS.length; i++) {
+      if (AI_EDIT_RETRY_DELAYS_MS[i]) await sleep(AI_EDIT_RETRY_DELAYS_MS[i])
       try {
-        const chat = new LlmChat(
-          apiKey,
-          `img-edit-${currentUser.id}-${Date.now()}-${i}`,
-          systemMessage
-        ).withModel('gemini', model)
-
-        const [, images] = await chat.sendMessageMultimodalResponse(
-          new UserMessage({
-            text: prompt,
-            file_contents: [new ImageContent(base64)],
-          })
-        )
-
-        if (images && images.length > 0) {
-          const out = images[0]
-          const mimeType = out.mime_type || 'image/png'
-          return NextResponse.json({ ok: true, image: `data:${mimeType};base64,${out.data}`, mimeType })
-        }
-        lastErr = new Error('no_image_returned')
+        const { base64: outB64, mimeType } = await generateAgnesImage({
+          prompt: instruction,
+          images: [`data:${type};base64,${base64}`],
+          ratio,
+          size: '1K',
+        })
+        return NextResponse.json({ ok: true, image: `data:${mimeType};base64,${outB64}`, mimeType, provider: 'agnes' })
       } catch (err) {
         lastErr = err
-        console.error(`ai edit image error (attempt ${i + 1}/${attempts.length}, model=${model})`, err)
+        console.error(`ai edit image error (attempt ${i + 1}/${AI_EDIT_RETRY_DELAYS_MS.length})`, err?.message || err)
       }
     }
 
     // Todos los intentos fallaron. Si el error apunta claramente a falta de
-    // saldo/crédito de la clave, se lo decimos con un mensaje honesto (en
-    // vez de "vuelve a intentarlo", que no ayudaría en ese caso concreto) —
-    // NO hay reintento posible que arregle esto, requiere saldo real.
+    // saldo/crédito, se lo decimos con un mensaje honesto (en vez de "vuelve
+    // a intentarlo", que no ayudaría en ese caso concreto).
     const msg = String(lastErr?.message || '')
     const isBudget = /credit|budget|quota|insufficient|payment|billing/i.test(msg)
     if (isBudget) {
-      console.error('AI edit image: todos los modelos fallaron por presupuesto/crédito insuficiente', msg)
+      console.error('AI edit image: falló por presupuesto/crédito insuficiente', msg)
       return NextResponse.json({ error: 'ai_quota_exceeded', message: 'AI editor is temporarily unavailable, please try again later' }, { status: 503 })
     }
     return NextResponse.json({ error: 'ai_edit_failed', message: 'AI editing failed, please try again' }, { status: 500 })
