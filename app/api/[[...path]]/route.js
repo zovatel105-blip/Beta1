@@ -4028,14 +4028,22 @@ async function handleAiEditImage(request) {
       console.warn('ai edit image: could not read photo dimensions, using 1:1 ratio', e?.message)
     }
 
-    // Petición del usuario: "las publicaciones que edite con la cara de una
-    // persona [deben tener] tanto el fondo como la generación realista que
-    // no parezca que esté generado con IA" — instrucción reforzada contra
-    // el "look IA" típico (piel de plástico/demasiado suave, grano/ruido y
-    // balance de blancos distintos entre sujeto y fondo nuevo, sombras poco
-    // creíbles) y salida a mayor resolución (2K en vez de 1K) para conservar
-    // más detalle real de piel/textura en la cara.
-    const instruction = `You are an expert photo editing AI specialized in photorealistic compositing. Apply exactly the requested edit to the attached photo, in the highest fidelity and realism possible — the final result must be indistinguishable from a real, unedited photograph, with NO visible signs of AI generation. Preserve the rest of the image (subject, framing, lighting, style) unless the instruction says otherwise. If a person's face or skin is visible, keep it 100% photorealistic: natural skin texture with visible pores and subtle imperfections, natural color variation, correct micro-shadows — never smooth, waxy, plastic-looking or "airbrushed" skin, and never alter the person's identity, facial structure or proportions. When adding or changing the background/scene, match it seamlessly to the subject: same camera grain/sensor noise level, same dynamic range, white balance and color grading, same depth of field and focus falloff, and physically correct lighting direction, cast shadows, reflections and ambient light bounce between the subject and the new environment, as if both were captured in the same real photograph with the same camera. Make the added/changed elements realistic and well integrated (correct lighting, shadows, perspective and scale for the scene). When the instruction names a specific, well-known character (e.g., from an anime, movie, game or franchise), render THAT exact character using your own knowledge of their canonical design — correct hairstyle, hair/eye color, outfit, colors and distinguishing features — instead of inventing a generic or approximate lookalike.\n\nInstruction: ${prompt}`
+    // Petición del usuario: "el fondo aún parece generado con IA, tiene que
+    // parecer que no está generado con IA, realista" — el intento anterior
+    // ya pedía coherencia de luz/grano entre sujeto y fondo, pero el
+    // resultado seguía viéndose "de estudio/render" (composición demasiado
+    // simétrica/perfecta, superficies demasiado limpias, gradientes de
+    // cielo/agua demasiado suaves — los "tells" clásicos de una imagen de
+    // IA). Instrucción reforzada: se le pide explícitamente que el fondo
+    // parezca una foto de MÓVIL real tomada en ese lugar (no un anuncio/
+    // render/foto de estudio), con encuadre ligeramente imperfecto/casual
+    // (no perfectamente centrado ni simétrico), imperfecciones reales del
+    // entorno (desgaste, objetos sueltos, superficies no perfectamente
+    // limpias), y textura/ruido de sensor de cámara real en vez de
+    // superficies y degradados perfectamente lisos.
+    const instruction = `You are an expert photo editing AI specialized in photorealistic compositing. Apply exactly the requested edit to the attached photo, in the highest fidelity and realism possible — the final result must be indistinguishable from a real, unedited photograph, with NO visible signs of AI generation. Preserve the rest of the image (subject, framing, lighting, style) unless the instruction says otherwise. If a person's face or skin is visible, keep it 100% photorealistic: natural skin texture with visible pores and subtle imperfections, natural color variation, correct micro-shadows — never smooth, waxy, plastic-looking or "airbrushed" skin, and never alter the person's identity, facial structure or proportions.
+
+CRITICAL for the background/scene: it must look like an ORDINARY PHONE SNAPSHOT taken by a real person at that real location — NOT a professional photoshoot, magazine ad, 3D render, CGI or typical "AI-generated" image. Concretely: avoid overly symmetric, perfectly centered or "staged" compositions (real snapshots are slightly off-center and imperfectly framed); avoid pristine, glossy, spotless surfaces — add believable real-world imperfections (uneven wear, scuffs, scattered ordinary objects, non-uniform reflections); avoid unnaturally smooth gradients in sky/water/walls — they must show natural, irregular variation and realistic camera sensor noise/grain; avoid overly saturated or "cinematic color grading" look — use natural, slightly imperfect color and exposure like a real phone photo, including very subtle motion blur and realistic depth of field falloff where appropriate. Match the background seamlessly to the subject: same camera grain/sensor noise level, same dynamic range, white balance, and physically correct lighting direction, cast shadows, reflections and ambient light bounce between the subject and the new environment, as if both were captured in the very same real, casual phone photo. Make the added/changed elements realistic and well integrated (correct lighting, shadows, perspective and scale for the scene). When the instruction names a specific, well-known character (e.g., from an anime, movie, game or franchise), render THAT exact character using your own knowledge of their canonical design — correct hairstyle, hair/eye color, outfit, colors and distinguishing features — instead of inventing a generic or approximate lookalike.\n\nInstruction: ${prompt}`
 
     // 1 reintento con una pequeña pausa (errores transitorios de red/API) —
     // Agnes es ahora el ÚNICO motor (sin modelo de respaldo distinto), así

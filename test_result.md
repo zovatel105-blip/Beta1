@@ -5332,4 +5332,10 @@ backend:
         -working: true
         -agent: "main"
         -comment: "Reforzada la instruccion enviada a Agnes: pide evitar el look IA (piel plastica/demasiado suave -> textura de piel real, sin alterar identidad/rasgos) y que el fondo nuevo case en grano de camara, balance de blancos, profundidad de campo y luz/sombras/reflejos con el sujeto. Resolucion de salida subida de 1K a 2K. Verificado en vivo end-to-end: foto de prueba de una persona editada con ponme en un yate de lujo al atardecer -> resultado en 23s preserva identidad/ropa 100%, iluminacion de atardecer coherente, piel con textura natural, reflejos de agua realistas. Revisado visualmente antes/despues."
+        -working: "NA"
+        -agent: "user"
+        -comment: "El fondo aun parece generado con IA, tiene que parecer que no esta generado con IA, realista."
+        -working: true
+        -agent: "main"
+        -comment: "2a ronda de ajuste de prompt: identificados los 'tells' clasicos de IA en el resultado anterior (composicion demasiado centrada/simetrica, superficies de barco demasiado limpias, degradado de cielo/agua demasiado perfecto). Instruccion reforzada de nuevo: pide explicitamente que el fondo parezca una FOTO DE MOVIL CASUAL tomada por una persona real en ese lugar (no anuncio/render/foto de estudio) -> encuadre ligeramente descentrado/imperfecto, imperfecciones reales del entorno (desgaste, objetos, reflejos no uniformes), ruido de sensor de camara real en vez de degradados perfectamente lisos, sin sobre-saturacion cinematografica. Verificado en vivo con el MISMO rostro de prueba y MISMO prompt (yate al atardecer) para comparar directamente contra la ronda anterior: resultado v2 con encuadre asimetrico/descentrado (tipico de una foto real tomada por otra persona, no un selfie perfectamente centrado), sol visible fuera de centro con reflejo realista en el agua, detalles de hardware del barco (rejillas, puerta, pasamanos) mas creibles/menos genericos que la version anterior. Identidad preservada 100%. Pendiente confirmacion visual del usuario (subjetivo) o un ejemplo concreto si algo sigue sin convencer."
 
