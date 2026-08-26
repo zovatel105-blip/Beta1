@@ -125,7 +125,17 @@ export default function BottomNav({ onOpenUpload, onOpenInbox, onOpenProfile, on
   return (
     <nav
       ref={navRef}
-      className="fixed bottom-0 left-0 right-0 z-50 bg-black rounded-t-3xl"
+      // Petición del usuario: "los laterales superiores de la barra
+      // también deben tener los lados redondeados" — rounded-t-3xl YA
+      // estaba en el código, pero al ser esta barra negra sobre un fondo
+      // igualmente negro (bg-black del contenedor del feed detrás), la
+      // curva no tenía NINGÚN contraste con el que hacerse visible (un
+      // recorte negro revelando fondo negro se ve igual que una esquina
+      // cuadrada). Se añade un tono levemente más claro que el negro puro
+      // (zinc-950 en vez de black) + un borde superior sutil que traza la
+      // curva — ahora la esquina redondeada es perceptible incluso sobre
+      // fondo oscuro.
+      className="fixed bottom-0 left-0 right-0 z-50 bg-zinc-950 border-t border-white/10 rounded-t-3xl"
       style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 8px)', transform: 'translateY(3px)' }}
     >
       <div className="flex items-center justify-around px-4 py-2.5">
