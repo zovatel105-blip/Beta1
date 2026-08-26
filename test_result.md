@@ -5366,3 +5366,25 @@ backend:
         -comment: "Instruccion reforzada: se le dice explicitamente al modelo que trate esto EXACTAMENTE como una generacion texto->imagen pura con libertad TOTAL de pose/cuerpo/angulo de camara/encuadre/composicion (imaginando que no hay foto original que lo limite), y que la imagen de referencia se usa SOLO para la cara/identidad -> se le dice explicitamente que NO copie la pose/encuadre de la referencia, que invente uno nuevo acorde a la escena. Vestimenta ya no se preserva por defecto, se adapta a la escena. Verificado en vivo con una escena muy distinta al input (foto de referencia: selfie de cara/hombros contra pared blanca -> escena pedida: 'haciendo senderismo en montana con equipo de trekking'): resultado con encuadre de cuerpo completo, angulo de camara totalmente distinto (paisaje panoramico en vez de selfie), pose caminando, ropa de senderismo -> todo generado con libertad creativa total, mientras la cara/identidad se mantiene reconocible e igual a la referencia. Esto confirma que ya NO se ancla a la pose/encuadre original."
         -comment: "4a ronda (enfoque distinto, no solo mas texto): probadas 3 variantes de prompt CORTAS y en POSITIVO directamente contra la API de Agnes (fuera de la app, para iterar rapido) que evocan un GENERO fotografico concreto ('disposable camera', 'point-and-shoot', 'ugly mundane iPhone snapshot') en vez de listar negaciones tecnicas. Resultado muy superior en las 3 variantes: fondo realmente enfocado (edificios/coches/gente legibles), luz plana sin glow dorado, composicion candida. Instruccion final de produccion reescrita con este enfoque (corta, directa, en positivo) manteniendo preservacion de identidad/piel natural/personajes conocidos. Verificado end-to-end a traves del endpoint real de la app (login real, POST /api/ai/edit-image, mismo rostro+prompt de Bentley que en la ronda fallida anterior, salida 2K): resultado con fondo nitido, luz de dia natural, sin el look IA de las rondas 2-3 -> visualmente muy cercano a la foto de referencia real del usuario. Pendiente confirmacion final del usuario."
 
+
+frontend:
+  - task: "Feed: tarjetas terminan en BottomNav (no detras) + 4 esquinas redondeadas"
+    implemented: true
+    working: "NA"
+    file: "components/Feed.jsx, components/BottomNav.jsx, app/globals.css"
+    stuck_count: 1
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "Compartio 2 screenshots del feed: el contenido se muestra por debajo/detras de la barra de navegacion inferior (BottomNav flotaba encima, fixed, tapando su parte baja). Pide que el contenido termine justo donde empieza la barra inferior, y que tenga las esquinas superior e inferior redondeadas."
+        -working: "NA"
+        -agent: "main"
+        -comment: "1er intento: se cambio cada <section>/contenedor de scroll de h-[100dvh] a height: calc(100dvh - GAP) con GAP calculado A MANO (estimacion en px de la altura de BottomNav) + rounded-3xl overflow-hidden en cada <section>. Instruccion explicita del usuario: NO usar el agente de testing nunca. Se intento verificar con capturas de pantalla (screenshot_tool) pero la app tiene un gate mobile-only (detecta user-agent + ancho de viewport, ver app/page.js) que bloqueo 3 intentos distintos de forzar un user-agent de movil via Playwright (siempre mostro la pantalla 'Coming soon, mobile-only') -> no se pudo verificar visualmente este primer intento."
+        -working: false
+        -agent: "user"
+        -comment: "Confirma el fix de altura/esquinas, pero reporta regresion: los botones sociales (fire/comentar/compartir/guardar) y el avatar/nombre/boton de seguir ahora aparecen ARRIBA en vez de ABAJO. Repite: no usar el agente de testing nunca."
+        -working: "NA"
+        -agent: "main"
+        -comment: "Causa raiz mas probable: el GAP calculado a mano en el 1er intento no coincidia con la altura REAL renderizada de BottomNav (safe-area/fuente/redondeo pueden variar) -> la tarjeta quedo mas corta de lo debido, y los overlays de CarouselSlide/DuetSlide con offset FIJO en pixeles desde abajo (bottom:72/70/57, bottom-20) terminaron cerca del borde superior de esa tarjeta encogida. Fix (sin numeros inventados): BottomNav.jsx ahora MIDE su propia altura visual real con getBoundingClientRect() (useLayoutEffect, antes del primer paint) y la publica en la variable CSS global --twyk-bottom-nav-h (se re-mide con ResizeObserver + resize). Feed.jsx ahora solo LEE esa variable (calc(100dvh - var(--twyk-bottom-nav-h, 90px))) en vez de calcularla a mano. app/globals.css: fallback --twyk-bottom-nav-h:90px en :root para el primer frame. NO se pudo verificar con captura de pantalla real (gate mobile-only bloquea Playwright, agente de testing prohibido explicitamente por el usuario) - fix aplicado en base a analisis de codigo (lint limpio, servidor sirviendo /api/feed con 200 OK). Pendiente confirmacion visual del usuario en su propio dispositivo."

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef } from 'react'
 import { Home, Swords, Plus, Inbox, User } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
@@ -88,8 +88,43 @@ export default function BottomNav({ onOpenUpload, onOpenInbox, onOpenProfile, on
   }
   useEffect(() => () => clearTimeout(homeClickRef.current.timer), [])
 
+  // Petición del usuario (Feed.jsx ahora termina justo donde empieza esta
+  // barra, en vez de quedar debajo/detrás de ella a pantalla completa):
+  // MIDE la altura REAL renderizada de esta barra (icon row + safe-area +
+  // su propio translateY) y la publica como variable CSS global
+  // (--twyk-bottom-nav-h) — así Feed.jsx nunca depende de un cálculo a
+  // mano que podía desajustarse (safe-area distinta según el dispositivo,
+  // fuente no cargada aún, etc.) y quedarse corto/largo. useLayoutEffect
+  // (no useEffect) para medir ANTES del primer paint visible -> sin salto.
+  const navRef = useRef(null)
+  useLayoutEffect(() => {
+    const el = navRef.current
+    if (!el || typeof window === 'undefined') return
+    const publish = () => {
+      // rect.top ya incluye el translateY(3px) propio de esta barra (los
+      // transforms sí desplazan el rect devuelto por getBoundingClientRect,
+      // aunque no cambian su `height`) — restar innerHeight - rect.top da
+      // EXACTAMENTE cuánto espacio ocupa la barra desde su borde superior
+      // visual hasta el fondo real de la pantalla, sin ninguna suposición
+      // manual sobre padding/safe-area/transform.
+      const rect = el.getBoundingClientRect()
+      const gap = Math.max(0, window.innerHeight - rect.top)
+      document.documentElement.style.setProperty('--twyk-bottom-nav-h', `${gap}px`)
+    }
+    publish()
+    if (typeof ResizeObserver !== 'undefined') {
+      const ro = new ResizeObserver(publish)
+      ro.observe(el)
+      window.addEventListener('resize', publish)
+      return () => { ro.disconnect(); window.removeEventListener('resize', publish) }
+    }
+    window.addEventListener('resize', publish)
+    return () => window.removeEventListener('resize', publish)
+  }, [])
+
   return (
     <nav
+      ref={navRef}
       className="fixed bottom-0 left-0 right-0 z-50 bg-black rounded-t-3xl"
       style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 8px)', transform: 'translateY(3px)' }}
     >

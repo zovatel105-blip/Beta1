@@ -66,6 +66,31 @@ function warmVideo(url, controllers, full = false) {
 const POSTER_WINDOW = 3
 const slotPoster = (p) => p && (p.posterUrl || p.sideA?.posterUrl || p.thumbnailUrl || null)
 
+// Petición del usuario: "quiero que se muestre a partir de la barra
+// inferior y que el contenido tenga los lados superior y inferior con
+// lados redondeados" — antes cada tarjeta ocupaba 100dvh completo y
+// BottomNav flotaba ENCIMA (fixed, z-50) tapando su parte baja; ahora el
+// scroll y cada tarjeta terminan justo donde EMPIEZA la barra (espacio
+// reservado, sin superposición) y la tarjeta queda con las 4 esquinas
+// redondeadas (mismo radio que el rounded-t-3xl de BottomNav, para que
+// combinen visualmente).
+//
+// BUG FIX (reporte del usuario: "los botones sociales y avatar/nombre/
+// seguir tienen que estar abajo no arriba" tras el primer intento): ese
+// primer intento calculaba el hueco A MANO (una estimación en px de la
+// altura de BottomNav) — cualquier pequeño desajuste entre esa estimación
+// y la altura REAL empujaba la tarjeta a ser mucho más corta de lo debido,
+// y los overlays con posición absoluta por PÍXELES FIJOS desde el fondo
+// (ej. bottom:72 en CarouselSlide/DuetSlide) terminaban cerca del borde
+// SUPERIOR de esa tarjeta encogida en vez de cerca del inferior. Ahora
+// BottomNav.jsx MIDE su propia altura visual real con
+// getBoundingClientRect() y la publica en la variable CSS
+// --twyk-bottom-nav-h (ver BottomNav.jsx) — aquí solo se lee esa variable,
+// sin ningún número inventado. El fallback (90px) solo se usa en el primer
+// frame, antes de que BottomNav haya medido (useLayoutEffect corre antes
+// del paint, así que en la práctica casi nunca se llega a ver el fallback).
+const CARD_HEIGHT_STYLE = { height: 'calc(100dvh - var(--twyk-bottom-nav-h, 90px))' }
+
 /**
  * Feed — motor de scroll vertical de alto rendimiento (nivel TikTok Web) con
  * las tarjetas ricas de SnapTok (CarouselSlide / DuetSlide).
@@ -620,11 +645,14 @@ export default function Feed() {
       ) : (
         <div
           ref={containerRef}
-          // h-[100dvh]: cero saltos al colapsar/expandir la barra de URL móvil.
+          // dvh - BOTTOM_NAV_GAP: el scroll termina justo donde empieza
+          // BottomNav (ya no queda debajo/detrás de ella a pantalla
+          // completa) — ver CARD_HEIGHT_STYLE/BOTTOM_NAV_GAP más arriba.
           // snap-y snap-mandatory: scroll-snap NATIVO (0 JS por frame).
           // [contain:strict]: aísla layout/paint/size del scroll del resto.
           // overscroll-y-contain: bloquea el pull-to-refresh accidental.
-          className="absolute inset-0 h-[100dvh] w-full overflow-y-auto snap-y snap-mandatory no-scrollbar overscroll-y-contain [contain:strict]"
+          className="absolute top-0 left-0 right-0 w-full overflow-y-auto snap-y snap-mandatory no-scrollbar overscroll-y-contain [contain:strict]"
+          style={CARD_HEIGHT_STYLE}
         >
           {posts.map((post, i) => {
             // Regla #1: máximo 3 tarjetas montadas (anterior, activa, siguiente).
@@ -641,7 +669,14 @@ export default function Feed() {
                 key={post.id}
                 data-index={i}
                 ref={(el) => { slotRefs.current[i] = el }}
-                className="h-[100dvh] w-full snap-start snap-always relative"
+                // rounded-3xl + overflow-hidden: las 4 esquinas de la tarjeta
+                // quedan redondeadas (petición del usuario) y recortan
+                // automáticamente el vídeo/imagen y los botones de acción de
+                // dentro (CarouselSlide/DuetSlide/OpenChallengeSlide usan
+                // w-full h-full internamente, se ajustan solos a esta altura
+                // sin tocar esos componentes).
+                className="w-full snap-start snap-always relative rounded-3xl overflow-hidden"
+                style={CARD_HEIGHT_STYLE}
               >
                 {inWindow ? (
                   post.type === 'challenge_open' ? (

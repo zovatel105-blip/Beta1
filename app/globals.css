@@ -208,5 +208,8 @@ html, body, #__next {
     --border: 0 0% 15%;
     --ring: 0 0% 30%;
     --radius: 0.5rem;
+    /* Fallback antes de que BottomNav.jsx mida su altura real (ver
+       BottomNav.jsx/Feed.jsx) — se sobreescribe casi de inmediato. */
+    --twyk-bottom-nav-h: 90px;
   }
 }
