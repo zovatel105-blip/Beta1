@@ -707,7 +707,16 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
         className={cn(
           'absolute z-20 px-4 pointer-events-none',
           infoBottom
-            ? `left-0 right-16 ${showCommentInput ? '' : 'bottom-20'} pt-10`
+            // BUG FIX (reporte del usuario: "los botones/avatar aparecen
+            // arriba, deben estar abajo" tras el fix de altura de la
+            // tarjeta): bottom-20 (80px) estaba pensado para una tarjeta de
+            // 100dvh completo, que necesitaba ese margen para no quedar
+            // tapada por BottomNav (que antes flotaba encima). Ahora la
+            // tarjeta YA termina justo donde empieza la barra (Feed.jsx),
+            // así que ese margen "extra" duplicaba la reserva de espacio y
+            // empujaba todo de más hacia arriba — reducido a bottom-8 (32px,
+            // solo un margen estético, ya no hace falta esquivar la barra).
+            ? `left-0 right-16 ${showCommentInput ? '' : 'bottom-8'} pt-10`
             : 'top-0 left-0 right-0 bg-gradient-to-b from-black/70 to-transparent pb-10'
         )}
         style={
@@ -812,7 +821,7 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
       {/* Columna social derecha — estilo Twyk (abajo) */}
       <div
         className="absolute z-20 right-1 flex flex-col items-center gap-4 pointer-events-auto"
-        style={showCommentInput ? { bottom: `calc(${COMMENT_BAR_RESERVE} + 6px)` } : { bottom: 72 }}
+        style={showCommentInput ? { bottom: `calc(${COMMENT_BAR_RESERVE} + 6px)` } : { bottom: 24 }}
       >
         <button aria-label="votes" onClick={(e) => e.stopPropagation()} className="flex flex-col items-center gap-1 w-14 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
           <span style={{ color: userVote === 'a' ? '#A855F7' : userVote === 'b' ? '#3B82F6' : '#fff', display: 'inline-flex', transition: 'color 200ms' }}>
@@ -898,7 +907,7 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
       {/* Puntitos del carrusel */}
       <div
         className="absolute left-1/2 -translate-x-1/2 z-20 flex items-center gap-1"
-        style={showCommentInput ? { bottom: `calc(${COMMENT_BAR_RESERVE} + 2px)` } : { bottom: 70 }}
+        style={showCommentInput ? { bottom: `calc(${COMMENT_BAR_RESERVE} + 2px)` } : { bottom: 22 }}
       >
         {[0, 1].map((i) => (
           <button
@@ -927,7 +936,7 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
           style={{
             height: 16,
             touchAction: 'none',
-            ...(showCommentInput ? { bottom: `calc(${COMMENT_BAR_RESERVE} - 9px)` } : { bottom: 57 }),
+            ...(showCommentInput ? { bottom: `calc(${COMMENT_BAR_RESERVE} - 9px)` } : { bottom: 10 }),
           }}
           onPointerDown={handleProgressPointerDown}
           onPointerMove={handleProgressPointerMove}

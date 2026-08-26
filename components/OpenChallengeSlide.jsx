@@ -393,7 +393,7 @@ export default function OpenChallengeSlide({
           adicional. Si se abre desde el visor del grid del perfil
           (showCommentInput), se sube para dejar sitio a la barra de abajo. */}
       <div
-        className={`absolute z-20 px-4 left-0 right-16 ${showCommentInput ? '' : 'bottom-20'} pt-10 pointer-events-none`}
+        className={`absolute z-20 px-4 left-0 right-16 ${showCommentInput ? '' : 'bottom-8'} pt-10 pointer-events-none`}
         style={showCommentInput ? { bottom: `calc(${COMMENT_BAR_RESERVE} + 10px)` } : undefined}
       >
         <div className="flex items-center gap-2.5 w-fit max-w-[calc(100%-4rem)] pointer-events-auto">
@@ -424,7 +424,7 @@ export default function OpenChallengeSlide({
           esta publicación solo existe para ser retada). Abre el MISMO
           diálogo de reto que cualquier otra publicación — NO publica nada
           por sí solo. */}
-      <div className="absolute z-20 right-1 flex flex-col items-center gap-4 pointer-events-auto" style={showCommentInput ? { bottom: `calc(${COMMENT_BAR_RESERVE} + 6px)` } : { bottom: 72 }}>
+      <div className="absolute z-20 right-1 flex flex-col items-center gap-4 pointer-events-auto" style={showCommentInput ? { bottom: `calc(${COMMENT_BAR_RESERVE} + 6px)` } : { bottom: 24 }}>
         {/* Fire 🔥 — reacción "like" con el ADN de Twyk. Único botón NUEVO
             pedido por el usuario, se añade SIN quitar ninguno de los ya
             existentes (Retar/Comentarios/Compartir/Guardar/Más). AÑADIR el
