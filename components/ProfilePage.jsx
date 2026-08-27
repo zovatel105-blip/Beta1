@@ -91,7 +91,7 @@ export const GridItem = ({ post, onOpen }) => {
     <button
       type="button"
       onClick={() => onOpen?.(post)}
-      className="group relative aspect-[9/16] overflow-hidden rounded-lg bg-white/[0.04] border border-white/5 cursor-pointer active:scale-[0.98] transition-transform"
+      className="group relative aspect-[9/16] overflow-hidden rounded-3xl bg-white/[0.04] border border-white/5 cursor-pointer active:scale-[0.98] transition-transform"
     >
       {hasTwo ? (
         <div className={`absolute inset-0 flex bg-white/30 ${isRow ? 'flex-row' : 'flex-col'}`} style={{ gap: '1.5px' }}>
@@ -106,7 +106,7 @@ export const GridItem = ({ post, onOpen }) => {
         <img
           src={thumb}
           alt=""
-          className="w-full h-full object-cover rounded-lg"
+          className="w-full h-full object-cover rounded-3xl"
           draggable={false}
           onError={() => setImgFailed(true)}
         />
@@ -117,7 +117,7 @@ export const GridItem = ({ post, onOpen }) => {
           muted
           playsInline
           preload="auto"
-          className="w-full h-full object-cover rounded-lg"
+          className="w-full h-full object-cover rounded-3xl"
         />
       ) : (
         <div className="w-full h-full bg-gradient-to-br from-gray-700 via-gray-800 to-gray-900" />
@@ -148,7 +148,7 @@ export const GridItem = ({ post, onOpen }) => {
 const PendingGridItem = ({ item }) => {
   const isError = item?.status === 'error'
   return (
-    <div className="relative aspect-[9/16] overflow-hidden rounded-lg bg-white/[0.04] border border-white/5">
+    <div className="relative aspect-[9/16] overflow-hidden rounded-3xl bg-white/[0.04] border border-white/5">
       {item?.thumbUrl ? (
         <img
           src={item.thumbUrl}

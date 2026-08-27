@@ -13,6 +13,16 @@ import LuxuryBattleSheet from './LuxuryBattleSheet'
 import { notificationsUnreadCount } from '@/lib/notifications'
 import { subscribeCommentCountChange, patchCommentCountInList } from '@/lib/commentCountBus'
 
+// MARCO fijo con esquinas redondeadas (petición del usuario: "todas las
+// páginas que muestren publicaciones deben tener esquinas redondeadas como
+// en el feed") — mismo patrón que Feed.jsx: el contenedor de las tarjetas
+// termina justo donde empieza BottomNav, leyendo la MISMA variable CSS
+// --twyk-bottom-nav-h que BottomNav.jsx publica globalmente (su altura
+// visual real medida con getBoundingClientRect) — así el recorte redondeado
+// queda SIEMPRE alineado con la curva de BottomNav, sin ningún número
+// inventado a mano.
+const CARD_HEIGHT_STYLE = { height: 'calc(100dvh - var(--twyk-bottom-nav-h, 90px))' }
+
 // Empty state of "Completed challenges" — premium minimalist design.
 const EmptyCompletedState = ({ onOpenUpload, onOpenActive }) => {
   return (
@@ -181,6 +191,10 @@ export default function CompletedBattlesPage({ open, onClose, onOpenActive, onOp
           onOpenActive={onOpenActive}
         />
       ) : (
+        // MARCO fijo (no se mueve durante el swipe) que recorta con
+        // esquinas redondeadas SIEMPRE en la misma posición, alineado con
+        // la curva de BottomNav — ver CARD_HEIGHT_STYLE arriba.
+        <div className="absolute top-0 left-0 right-0 rounded-3xl overflow-hidden" style={CARD_HEIGHT_STYLE}>
         <Swiper
           direction="vertical"
           slidesPerView={1}
@@ -225,6 +239,7 @@ export default function CompletedBattlesPage({ open, onClose, onOpenActive, onOp
             )
           })}
         </Swiper>
+        </div>
       )}
 
       {/* Bottom navigation bar — same as the feed. BUG FIX ("cuando estoy en
