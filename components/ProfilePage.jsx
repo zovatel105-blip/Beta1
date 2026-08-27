@@ -91,7 +91,7 @@ export const GridItem = ({ post, onOpen }) => {
     <button
       type="button"
       onClick={() => onOpen?.(post)}
-      className="group relative aspect-[9/16] overflow-hidden rounded-3xl bg-white/[0.04] border border-white/5 cursor-pointer active:scale-[0.98] transition-transform"
+      className="group relative aspect-[9/16] overflow-hidden rounded-lg bg-white/[0.04] border border-white/5 cursor-pointer active:scale-[0.98] transition-transform"
     >
       {hasTwo ? (
         <div className={`absolute inset-0 flex bg-white/30 ${isRow ? 'flex-row' : 'flex-col'}`} style={{ gap: '1.5px' }}>
@@ -106,7 +106,7 @@ export const GridItem = ({ post, onOpen }) => {
         <img
           src={thumb}
           alt=""
-          className="w-full h-full object-cover rounded-3xl"
+          className="w-full h-full object-cover rounded-lg"
           draggable={false}
           onError={() => setImgFailed(true)}
         />
@@ -117,7 +117,7 @@ export const GridItem = ({ post, onOpen }) => {
           muted
           playsInline
           preload="auto"
-          className="w-full h-full object-cover rounded-3xl"
+          className="w-full h-full object-cover rounded-lg"
         />
       ) : (
         <div className="w-full h-full bg-gradient-to-br from-gray-700 via-gray-800 to-gray-900" />
@@ -148,7 +148,7 @@ export const GridItem = ({ post, onOpen }) => {
 const PendingGridItem = ({ item }) => {
   const isError = item?.status === 'error'
   return (
-    <div className="relative aspect-[9/16] overflow-hidden rounded-3xl bg-white/[0.04] border border-white/5">
+    <div className="relative aspect-[9/16] overflow-hidden rounded-lg bg-white/[0.04] border border-white/5">
       {item?.thumbUrl ? (
         <img
           src={item.thumbUrl}
@@ -280,7 +280,15 @@ export const PostViewer = ({ posts, startId, onClose, onChallenge, onOpenProfile
               <section
                 key={post.id}
                 data-vindex={i}
-                className="h-[100lvh] w-full snap-start snap-always relative"
+                // rounded-3xl + overflow-hidden: petición del usuario ("todas
+                // las páginas que muestren publicaciones deben tener
+                // esquinas redondeadas como en el feed") — este visor se
+                // mantiene a pantalla completa SIN BottomNav visible (a
+                // diferencia del feed), así que aquí las 4 esquinas quedan
+                // redondeadas (arriba Y abajo), revelando el fondo negro del
+                // contenedor padre (fixed inset-0 bg-black) en los recortes,
+                // en vez de terminar solo contra la barra inferior.
+                className="h-[100lvh] w-full snap-start snap-always relative rounded-3xl overflow-hidden"
               >
                 {inWindow ? (
                   <Slide
