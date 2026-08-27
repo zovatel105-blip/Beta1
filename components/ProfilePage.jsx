@@ -945,10 +945,16 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
                   strokeWidth={220}
                   filled={false}
                 />
-                <Heart
-                  className={`absolute inset-0 w-9 h-9 text-white transition-opacity duration-700 ${statRotate === 1 ? 'opacity-100' : 'opacity-0'}`}
-                  strokeWidth={1.4}
-                />
+                {/* Corazón: mismo tamaño/grosor que el icono de Retos (Swords
+                    w-7 h-7 strokeWidth 1.2, ver más abajo) — petición del
+                    usuario. Envuelto en un span propio (en vez de aplicar
+                    w-7 h-7 directo al icono con `absolute inset-0`) para
+                    poder CENTRARLO dentro del mismo hueco w-9 h-9 que ocupa
+                    VoteIcon, sin que quede pegado a la esquina superior
+                    izquierda. */}
+                <span className={`absolute inset-0 flex items-center justify-center transition-opacity duration-700 ${statRotate === 1 ? 'opacity-100' : 'opacity-0'}`}>
+                  <Heart className="w-7 h-7 text-white" strokeWidth={1.2} />
+                </span>
               </span>
               <span className="min-w-0 relative w-14 h-9">
                 <span className={`absolute inset-0 transition-opacity duration-700 ${statRotate === 0 ? 'opacity-100' : 'opacity-0'}`}>

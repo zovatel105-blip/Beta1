@@ -4459,6 +4459,31 @@ async function handleSingleVote(request) {
       return NextResponse.json({ error: 'missing_postId' }, { status: 400 })
     }
     const result = await toggleSingleVote(postId, currentUser.id)
+    // Notificar al autor del reto abierto (petición del usuario: "quiero que
+    // crees notificaciones para el like") — SOLO al DAR el corazón/like
+    // (result.voted === true), nunca al quitarlo, mismo criterio que el
+    // "isNoOp" del voto A/B de versus (createNotification type:'vote' más
+    // arriba en este archivo). `postId` llega como `open_<challengeId>` (ver
+    // getOpenChallengeFeedItems) — se resuelve el reto para saber a quién
+    // notificar. Nunca bloquea/rompe la respuesta del voto si algo falla.
+    if (result?.voted === true) {
+      try {
+        const challengeId = String(postId).startsWith('open_') ? postId.slice(5) : postId
+        const challenges = await readChallenges()
+        const challenge = challenges.find((c) => c.id === challengeId)
+        const recipientId = challenge?.from?.id
+        if (recipientId && recipientId !== currentUser.id) {
+          await createNotification({
+            userId: recipientId,
+            type: 'like',
+            fromUserId: currentUser.id,
+            postId,
+          })
+        }
+      } catch (notifErr) {
+        console.error('single vote notification error', notifErr)
+      }
+    }
     return NextResponse.json({ ok: true, ...result })
   } catch (err) {
     console.error('single vote error', err)

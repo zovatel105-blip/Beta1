@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { Bell, Swords, UserPlus, MessageCircle, Check, ChevronLeft, Send, CornerDownRight, Flame } from 'lucide-react'
+import { Bell, Swords, UserPlus, MessageCircle, Check, ChevronLeft, Send, CornerDownRight, Flame, Heart } from 'lucide-react'
 import VoteIcon from './icons/VoteIcon'
 import Avatar from './Avatar'
 import { useAuth } from '@/contexts/AuthContext'
@@ -37,6 +37,11 @@ const iconFor = (n) => {
   switch (n.type) {
     case 'challenge': return { Icon: Swords, color: '#FFFFFF' }
     case 'vote': return { Icon: VoteIcon, color: n.side === 'b' ? TWYK_B : TWYK_A }
+    // Corazón/like de las publicaciones single (ver OpenChallengeSlide.jsx,
+    // POST /api/single-vote) — petición del usuario: "quiero que crees
+    // notificaciones para el like". Rojo, igual que el botón de la
+    // publicación (nunca la llama/Flame reservada para "Trending Challenge").
+    case 'like': return { Icon: Heart, color: '#EF4444' }
     case 'accepted': return { Icon: Check, color: '#6EE7A8' }
     case 'follow': return { Icon: UserPlus, color: '#7DB7FF' }
     case 'comment': return { Icon: MessageCircle, color: '#FFFFFF' }
@@ -52,7 +57,11 @@ const isReplyable = (n) => (n.type === 'comment' || n.type === 'reply') && n.pos
 const FILTERS = [
   { key: 'all', label: 'All', types: null },
   { key: 'challenge', label: 'Challenges', types: ['challenge', 'accepted'] },
-  { key: 'vote', label: 'Votes', types: ['vote'] },
+  // "Votes" agrupa el voto A/B de versus/1vs1 (type:'vote') Y el corazón/
+  // like de publicaciones single (type:'like', nuevo) — ambos son
+  // "reacciones a mi contenido", mismo criterio ya usado en el ranking del
+  // perfil (ver computeTwykRank/ProfilePage.jsx, votos+fuego = mismo score).
+  { key: 'vote', label: 'Votes', types: ['vote', 'like'] },
   { key: 'follow', label: 'Followers', types: ['follow'] },
   { key: 'comment', label: 'Comments', types: ['comment', 'reply'] },
 ]
