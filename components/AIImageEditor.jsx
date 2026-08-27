@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Sparkles, Loader2, X, Wand2, RotateCcw, Check, Flame, LayoutGrid, ArrowLeft } from 'lucide-react'
+import { Sparkles, Loader2, X, Wand2, RotateCcw, Check, Flame, LayoutGrid, ArrowLeft, Lock, Infinity as InfinityIcon } from 'lucide-react'
 import { AI_STYLE_PRESETS, AI_STYLE_CATEGORIES } from '@/lib/aiStylePresets'
+import AIBillingSheet from './AIBillingSheet'
 
 /**
  * AIImageEditor — controles de edición con IA, 100% EN LÍNEA (sin modal, sin
@@ -85,6 +86,27 @@ export default function AIImageEditor({ imageFile, initialPrompt = '', onClose, 
   // al editor del servidor (mismo patrón que AIVideoEditor.jsx).
   const [notice, setNotice] = useState(null)
 
+  // Motor de edición (petición del usuario: "quiero que agregues Gemini
+  // pero los usuarios tendran que pagar... Agnes gratuita, Gemini pago") —
+  // 'agnes' = gratis/ilimitado (por defecto, comportamiento de siempre);
+  // 'gemini' = de pago, requiere suscripción activa con créditos (ver
+  // GET/POST /api/billing/status, /api/stripe/checkout en route.js).
+  const [engine, setEngine] = useState('agnes')
+  const [billing, setBilling] = useState(null) // { subscription, plans } de /api/billing/status
+  const [billingLoading, setBillingLoading] = useState(false)
+  const [paywallOpen, setPaywallOpen] = useState(false)
+
+  const loadBilling = async () => {
+    setBillingLoading(true)
+    try {
+      const res = await fetch('/api/billing/status', { cache: 'no-store' })
+      if (res.ok) setBilling(await res.json())
+    } catch { /* silencioso: el toggle simplemente se queda sin datos de crédito */ }
+    finally { setBillingLoading(false) }
+  }
+
+  useEffect(() => { loadBilling() }, [])
+
   // Reinicia el formulario y pide sugerencias nuevas cada vez que se entra a
   // editar un archivo distinto. `initialPrompt` (petición del usuario, ver
   // LuxuryBattleSheet.jsx/UploadDialog.jsx): si se entró a esta foto desde
@@ -129,6 +151,13 @@ export default function AIImageEditor({ imageFile, initialPrompt = '', onClose, 
   const generate = async (explicitPrompt) => {
     const trimmed = (explicitPrompt ?? prompt).trim()
     if (trimmed.length < 3 || !imageFile) return
+    // Motor Gemini sin suscripción activa (o sin créditos) -> paywall en vez
+    // de llamar al servidor (evita subir la foto para nada). El backend
+    // también valida esto (402), por si `billing` está desactualizado.
+    if (engine === 'gemini' && !billing?.subscription?.active) {
+      setPaywallOpen(true)
+      return
+    }
     setStage('loading')
     setErrorMsg(null)
     setNotice(null)
@@ -149,14 +178,27 @@ export default function AIImageEditor({ imageFile, initialPrompt = '', onClose, 
       const fd = new FormData()
       fd.append('image', imageFile)
       fd.append('prompt', trimmed)
+      fd.append('engine', engine)
       const res = await fetch('/api/ai/edit-image', { method: 'POST', body: fd })
       const data = await res.json().catch(() => null)
+      if (res.status === 402) {
+        // Créditos agotados / sin suscripción -> paywall (no es un error
+        // real de edición, así que no se muestra como tal).
+        setStage('input')
+        onStatusChange?.(null)
+        setPaywallOpen(true)
+        loadBilling()
+        return
+      }
       if (!res.ok || !data?.image) {
         throw new Error(data?.message || data?.error || 'server_ai_failed')
       }
       setResultUrl(data.image)
       setStage('result')
       onStatusChange?.('result', data.image)
+      // Gemini descontó 1 crédito en el servidor -> refresca el contador
+      // que se muestra en el toggle.
+      if (engine === 'gemini') loadBilling()
     } catch (err) {
       setErrorMsg('The AI could not edit this photo, please try again')
       setStage('error')
@@ -221,6 +263,47 @@ export default function AIImageEditor({ imageFile, initialPrompt = '', onClose, 
           <X size={15} strokeWidth={1.9} />
         </button>
       </div>
+
+      {/* Selector de motor (petición del usuario: "agregar Gemini, de
+          pago... Agnes gratuita") — Agnes siempre gratis/ilimitado; Gemini
+          muestra créditos restantes si hay suscripción activa, o un
+          candado + "PRO" si no. Elegir Gemini sin suscripción NO bloquea
+          nada aquí — el paywall solo aparece al pulsar "Generate". */}
+      {stage !== 'gallery' && (
+        <div className="flex items-center gap-2 rounded-2xl bg-black/45 backdrop-blur-xl border border-white/10 p-1">
+          <button
+            type="button"
+            disabled={stage === 'loading'}
+            onClick={() => setEngine('agnes')}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[12.5px] font-bold transition disabled:opacity-50 ${
+              engine === 'agnes' ? 'bg-white text-black' : 'text-zinc-300 hover:text-white'
+            }`}
+          >
+            Agnes <span className="text-[10px] font-semibold opacity-70">Free</span>
+          </button>
+          <button
+            type="button"
+            disabled={stage === 'loading'}
+            onClick={() => setEngine('gemini')}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[12.5px] font-bold transition disabled:opacity-50 ${
+              engine === 'gemini' ? 'bg-white text-black' : 'text-zinc-300 hover:text-white'
+            }`}
+          >
+            Gemini
+            {billingLoading ? null : billing?.subscription?.active ? (
+              billing.subscription.unlimited ? (
+                <InfinityIcon size={13} strokeWidth={2.5} />
+              ) : (
+                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${engine === 'gemini' ? 'bg-black/10' : 'bg-white/10'}`}>
+                  {billing.subscription.creditsRemaining} left
+                </span>
+              )
+            ) : (
+              <Lock size={11} strokeWidth={2.5} className="opacity-70" />
+            )}
+          </button>
+        </div>
+      )}
 
       {/* STAGE: input / loading — instrucción + sugerencias (mismo estilo que
           la caja de descripción del panel normal, para que se sienta parte
@@ -415,6 +498,13 @@ export default function AIImageEditor({ imageFile, initialPrompt = '', onClose, 
           </button>
         </>
       )}
+
+      <AIBillingSheet
+        open={paywallOpen}
+        onClose={() => { setPaywallOpen(false); loadBilling() }}
+        plans={billing?.plans || []}
+        currentPlan={billing?.subscription?.plan || null}
+      />
     </div>
   )
 }

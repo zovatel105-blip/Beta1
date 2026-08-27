@@ -78,7 +78,15 @@ import {
   deleteMarketingPost,
   getMarketingHistorySummary,
   getMarketingStreak,
+  getUserByStripeCustomerId,
+  setUserStripeCustomerId,
+  applyAiSubscriptionStatus,
+  grantMonthlyAiCredits,
+  consumeAiCredit,
+  refundAiCredit,
+  getAiSubscriptionInfo,
 } from '@/lib/db'
+import { stripe, AI_PLANS, planPriceId, getPlanByKey, getPlanByPriceId } from '@/lib/stripe'
 import { MARKETING_STRATEGY, TWYK_PROJECT_SUMMARY, CONTENT_PILLARS, DAILY_POST_COUNT, pillarForSlot, getIdeaForDate } from '@/lib/marketingPlaybook'
 import {
   getAllPosts,
@@ -819,6 +827,27 @@ async function getEffectiveLuxuryTheme(request) {
 export async function GET(request, { params }) {
   const segs = (params?.path) || []
   const path = '/' + segs.join('/')
+
+  // GET /api/billing/status - estado de la suscripción de IA con Gemini
+  // (plan actual, créditos restantes) para el paywall del editor de fotos.
+  // Agnes sigue gratis siempre, sin relación con esto.
+  if (path === '/billing/status') {
+    const currentUser = await getCurrentUser(request)
+    if (!currentUser) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    }
+    try {
+      const info = await getAiSubscriptionInfo(currentUser.id)
+      return NextResponse.json({
+        ok: true,
+        subscription: info,
+        plans: AI_PLANS.map((p) => ({ key: p.key, label: p.label, amount: p.amount, credits: p.credits })),
+      })
+    } catch (err) {
+      console.error('billing status error', err)
+      return NextResponse.json({ error: 'billing_status_failed' }, { status: 500 })
+    }
+  }
 
   // GET /api/ai/edit-video-status?jobId=... - polling del editor de vídeo con IA.
   if (path === '/ai/edit-video-status') {
@@ -1775,10 +1804,36 @@ export async function POST(request, { params }) {
 
   // POST /api/ai/edit-image - Editor de imágenes con IA (paso de creación de
   // contenido): recibe una foto ya seleccionada + una instrucción en texto
-  // (ej. "añade un jet privado de fondo") y devuelve la imagen editada por
-  // Gemini 2.5 Flash Image ("Nano Banana"), vía la Universal Key de Emergent.
+  // (ej. "añade un jet privado de fondo"). Motor por defecto: Agnes AI
+  // (gratis/ilimitado, ver generateAgnesImage). Con body.engine==='gemini'
+  // (petición del usuario: "agregar Gemini, de pago"), usa Gemini 2.5 Flash
+  // Image ("Nano Banana") vía la Universal Key de Emergent — SOLO si el
+  // usuario tiene una suscripción activa con créditos (ver
+  // consumeAiCredit/lib/stripe.js), si no devuelve 402 para mostrar el
+  // paywall en el frontend.
   if (path === '/ai/edit-image') {
     return handleAiEditImage(request)
+  }
+
+  // POST /api/stripe/checkout - crea una sesión de Stripe Checkout
+  // (suscripción mensual) para uno de los 3 planes del editor con Gemini
+  // (starter/pro/unlimited, ver AI_PLANS en lib/stripe.js).
+  if (path === '/stripe/checkout') {
+    return handleStripeCheckout(request)
+  }
+
+  // POST /api/stripe/portal - sesión del Customer Portal de Stripe (gestionar/
+  // cancelar la suscripción de IA) para el usuario actual.
+  if (path === '/stripe/portal') {
+    return handleStripePortal(request)
+  }
+
+  // POST /api/stripe/webhook - Stripe notifica aquí los eventos de la
+  // suscripción (pago confirmado, renovación, cancelación...). Firma
+  // verificada con STRIPE_WEBHOOK_SECRET; la cuota de créditos SOLO se
+  // otorga en un `invoice.paid` real (ver grantMonthlyAiCredits/lib/db.js).
+  if (path === '/stripe/webhook') {
+    return handleStripeWebhook(request)
   }
 
   // POST /api/ai/suggest-edits - Sugerencias de edición RELEVANTES a la foto
@@ -4027,6 +4082,181 @@ async function enrichEditPrompt(shortPrompt) {
   }
 }
 
+// ────────────────────────────────────────────────────────────────────────────
+// STRIPE — suscripción de pago para el editor de fotos con GEMINI (ver
+// lib/stripe.js para los 3 planes). Agnes (motor gratis) no usa nada de esto.
+// ────────────────────────────────────────────────────────────────────────────
+
+// POST /api/stripe/checkout  body: { plan: 'starter'|'pro'|'unlimited' }
+async function handleStripeCheckout(request) {
+  try {
+    if (!stripe) {
+      return NextResponse.json({ error: 'stripe_not_configured' }, { status: 500 })
+    }
+    const currentUser = await getCurrentUser(request)
+    if (!currentUser) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    }
+    const body = await request.json().catch(() => ({}))
+    const plan = getPlanByKey(String(body?.plan || ''))
+    const priceId = plan ? planPriceId(plan) : null
+    if (!plan || !priceId) {
+      return NextResponse.json({ error: 'invalid_plan' }, { status: 400 })
+    }
+
+    // Reutiliza el customer de Stripe ya existente (si lo hay) en vez de
+    // crear uno nuevo en cada suscripción/cambio de plan.
+    let customerId = currentUser.stripeCustomerId || null
+    if (!customerId) {
+      const customer = await stripe.customers.create({
+        email: currentUser.email || undefined,
+        metadata: { userId: currentUser.id, username: currentUser.username },
+      })
+      customerId = customer.id
+      await setUserStripeCustomerId(currentUser.id, customerId)
+    }
+
+    const base = (process.env.NEXT_PUBLIC_BASE_URL || '').replace(/\/$/, '')
+    const session = await stripe.checkout.sessions.create({
+      mode: 'subscription',
+      customer: customerId,
+      line_items: [{ price: priceId, quantity: 1 }],
+      success_url: `${base}/?ai_billing=success`,
+      cancel_url: `${base}/?ai_billing=cancelled`,
+      metadata: { userId: currentUser.id, planKey: plan.key },
+      subscription_data: { metadata: { userId: currentUser.id, planKey: plan.key } },
+      // Esta cuenta de Stripe tiene "Managed Payments" activo por defecto,
+      // que exige un tax_code por producto (no aplica a nuestra suscripción
+      // digital simple) — se desactiva explícitamente para esta sesión.
+      managed_payments: { enabled: false },
+    })
+    return NextResponse.json({ ok: true, url: session.url })
+  } catch (err) {
+    console.error('stripe checkout error', err?.message || err)
+    return NextResponse.json({ error: 'checkout_failed' }, { status: 500 })
+  }
+}
+
+// POST /api/stripe/portal - sesión del Customer Portal (gestionar/cancelar).
+async function handleStripePortal(request) {
+  try {
+    if (!stripe) {
+      return NextResponse.json({ error: 'stripe_not_configured' }, { status: 500 })
+    }
+    const currentUser = await getCurrentUser(request)
+    if (!currentUser) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    }
+    if (!currentUser.stripeCustomerId) {
+      return NextResponse.json({ error: 'no_billing_account' }, { status: 400 })
+    }
+    const base = (process.env.NEXT_PUBLIC_BASE_URL || '').replace(/\/$/, '')
+    const session = await stripe.billingPortal.sessions.create({
+      customer: currentUser.stripeCustomerId,
+      return_url: `${base}/`,
+    })
+    return NextResponse.json({ ok: true, url: session.url })
+  } catch (err) {
+    console.error('stripe portal error', err?.message || err)
+    return NextResponse.json({ error: 'portal_failed' }, { status: 500 })
+  }
+}
+
+// POST /api/stripe/webhook - eventos de Stripe. IMPORTANTE: se lee el
+// cuerpo como texto CRUDO (request.text()) ANTES de cualquier parseo, para
+// poder verificar la firma exactamente como Stripe la calculó.
+async function handleStripeWebhook(request) {
+  if (!stripe || !process.env.STRIPE_WEBHOOK_SECRET) {
+    return NextResponse.json({ error: 'stripe_not_configured' }, { status: 500 })
+  }
+  const raw = await request.text()
+  const signature = request.headers.get('stripe-signature')
+  let event
+  try {
+    event = stripe.webhooks.constructEvent(raw, signature, process.env.STRIPE_WEBHOOK_SECRET)
+  } catch (err) {
+    console.error('stripe webhook: invalid signature', err?.message || err)
+    return NextResponse.json({ error: 'invalid_signature' }, { status: 400 })
+  }
+
+  try {
+    const obj = event.data.object
+    switch (event.type) {
+      case 'checkout.session.completed': {
+        // El customer/subscription ya se guardan en customer.subscription.*;
+        // aquí solo nos asegura de que el customerId quedó asociado al user
+        // (por si el checkout se creó sin stripeCustomerId previo guardado).
+        const userId = obj?.metadata?.userId
+        if (userId && obj?.customer) {
+          await setUserStripeCustomerId(userId, String(obj.customer))
+        }
+        break
+      }
+      case 'customer.subscription.created':
+      case 'customer.subscription.updated': {
+        const item = obj?.items?.data?.[0]
+        const priceId = item?.price?.id
+        const plan = getPlanByPriceId(priceId)
+        // Stripe reestructuró `current_period_end`: en cuentas/API version
+        // nuevas ya no vive en el objeto Subscription (queda `undefined`),
+        // se movió DENTRO de cada item (`items.data[0].current_period_end`)
+        // para soportar suscripciones multi-item con distintos ciclos —
+        // se prueban ambas rutas por si la cuenta usa la API vieja.
+        const periodEndUnix = obj.current_period_end ?? item?.current_period_end ?? null
+        await applyAiSubscriptionStatus(String(obj.customer), {
+          subscriptionId: obj.id,
+          planKey: plan?.key || null,
+          status: obj.status,
+          currentPeriodEnd: periodEndUnix ? new Date(periodEndUnix * 1000) : null,
+        })
+        break
+      }
+      case 'customer.subscription.deleted': {
+        await applyAiSubscriptionStatus(String(obj.customer), {
+          subscriptionId: obj.id,
+          planKey: null,
+          status: 'canceled',
+          currentPeriodEnd: null,
+        })
+        break
+      }
+      case 'invoice.paid': {
+        // Único momento en que se otorga la cuota MENSUAL completa — un
+        // pago real ya confirmado por Stripe (nunca desde el redirect de
+        // éxito del checkout, que no es prueba de pago).
+        const customerId = String(obj.customer || '')
+        const line = obj?.lines?.data?.[0]
+        // Mismo motivo que arriba: en la API nueva el price id de la línea
+        // de factura vive en `pricing.price_details.price`, no en
+        // `line.price.id` (que queda `undefined`) — se prueban ambas rutas.
+        const priceId = line?.price?.id || line?.pricing?.price_details?.price
+        const plan = getPlanByPriceId(priceId)
+        if (customerId && plan) {
+          await grantMonthlyAiCredits(customerId, plan.credits)
+        } else {
+          console.error('stripe webhook invoice.paid: no matching plan for priceId', priceId)
+        }
+        break
+      }
+      case 'invoice.payment_failed': {
+        const customerId = String(obj.customer || '')
+        if (customerId) {
+          await applyAiSubscriptionStatus(customerId, { status: 'past_due' })
+        }
+        break
+      }
+      default:
+        break
+    }
+  } catch (err) {
+    console.error('stripe webhook handling error', event?.type, err?.message || err)
+    // Devolvemos 200 igualmente: Stripe reintentaría indefinidamente un
+    // fallo nuestro, y ya se registró en logs para investigar a mano.
+  }
+
+  return NextResponse.json({ received: true })
+}
+
 async function handleAiEditImage(request) {
   try {
     const currentUser = await getCurrentUser(request)
@@ -4037,6 +4267,12 @@ async function handleAiEditImage(request) {
     const formData = await request.formData()
     const image = formData.get('image')
     const prompt = (formData.get('prompt') || '').toString().trim()
+    // Motor elegido por el usuario en el frontend (AIImageEditor.jsx):
+    // 'agnes' (gratis/ilimitado, por defecto) o 'gemini' (de pago — petición
+    // del usuario: "quiero que agregues Gemini pero los usuarios tendran
+    // que pagar... Agnes gratuita, Gemini pago"). Cualquier otro valor cae
+    // a Agnes por seguridad.
+    const engine = (formData.get('engine') || 'agnes').toString().trim().toLowerCase() === 'gemini' ? 'gemini' : 'agnes'
 
     if (!image || typeof image === 'string') {
       return NextResponse.json({ error: 'missing_image', message: 'Select a photo first' }, { status: 400 })
@@ -4055,13 +4291,55 @@ async function handleAiEditImage(request) {
       return NextResponse.json({ error: 'prompt_too_long', message: 'Keep the instruction under 500 characters' }, { status: 400 })
     }
 
+    const bytes = Buffer.from(await image.arrayBuffer())
+    const base64 = bytes.toString('base64')
+
+    // Petición del usuario (aclaración de la ronda anterior): "que se
+    // genere como SI NO hubiera una cara [foto], pero aplicando la cara de
+    // la imagen de referencia" — refuerza aún más la idea: el modelo debe
+    // tener la MISMA libertad creativa que una generación texto->imagen
+    // pura (pose, cuerpo, encuadre, composición 100% libres, sin anclarse
+    // en absoluto a la foto original) y lo ÚNICO que se toma de la imagen
+    // de referencia es la cara/identidad de la persona.
+    const enrichedScene = await enrichEditPrompt(prompt)
+    const instruction = `Treat this exactly like a pure text-to-image generation with FULL creative freedom for pose, body position, camera angle, framing and composition — imagine there is no original photo constraining any of that at all. The reference image attached is used for ONE thing ONLY: this exact person's face/identity (same bone structure, features, hair color/style) — apply that same face onto the newly generated person. Do NOT copy the pose, body position, framing, camera angle or composition of the reference image; invent a completely new, natural one that fits the scene described below. This must look like a BRAND NEW, separate photo of this person, not an edit/retouch/composite of the original picture. Render the WHOLE new photo like an ordinary, slightly imperfect disposable-camera or wide-angle phone snapshot taken by a stranger — NOT a professional photoshoot, NOT a glossy/cinematic "AI-generated" look. Keep everything in sharp focus front to back (no blurred/bokeh background, no out-of-focus light orbs), use flat plain daylight (no golden-hour glow, no cinematic color grade, no boosted saturation) unless the instruction explicitly asks for a specific time of day/mood, and keep the framing casual, slightly imperfect and unposed. Keep natural, un-airbrushed skin texture (visible pores and subtle imperfections, never plastic-smooth or over-sharpened) — never alter the person's identity or facial structure. Dress the person appropriately for the new scene (their outfit does not need to match the reference image). Make the person physically well integrated into the new scene (correct scale, perspective, lighting direction, shadows and reflections). When the instruction names a specific, well-known character (e.g., from an anime, movie, game or franchise), render THAT exact character using your own knowledge of their canonical design — correct hairstyle, hair/eye color, outfit, colors and distinguishing features — instead of a generic lookalike.\n\nNew scene: ${enrichedScene}`
+
+    // ── Motor GEMINI (de pago) ─────────────────────────────────────────
+    if (engine === 'gemini') {
+      if (!process.env.EMERGENT_LLM_KEY) {
+        console.error('AI edit image (gemini): EMERGENT_LLM_KEY missing')
+        return NextResponse.json({ error: 'ai_not_configured', message: 'Gemini editor is not configured' }, { status: 500 })
+      }
+      // Descuenta 1 crédito ANTES de llamar al modelo (atómico, evita doble
+      // gasto con peticiones simultáneas). 402 = sin suscripción activa o
+      // sin créditos -> el frontend muestra el paywall con los 3 planes.
+      const credit = await consumeAiCredit(currentUser.id)
+      if (!credit.ok) {
+        return NextResponse.json({
+          error: 'subscription_required',
+          reason: credit.reason,
+          message: credit.reason === 'no_credits'
+            ? "You've used all your Gemini edits this month"
+            : 'Subscribe to use the Gemini editor',
+        }, { status: 402 })
+      }
+      try {
+        const { base64: outB64, mimeType } = await generateGeminiEditedImage({ instruction, imageBase64: base64 })
+        return NextResponse.json({ ok: true, image: `data:${mimeType};base64,${outB64}`, mimeType, provider: 'gemini' })
+      } catch (err) {
+        console.error('ai edit image (gemini) error', err?.message || err)
+        // El intento falló DESPUÉS de cobrar el crédito -> se devuelve, el
+        // usuario no debe perder cuota por un edit que nunca se completó.
+        if (!credit.unlimited) await refundAiCredit(currentUser.id).catch(() => {})
+        return NextResponse.json({ error: 'ai_edit_failed', message: 'AI editing failed, please try again' }, { status: 500 })
+      }
+    }
+
+    // ── Motor AGNES (gratis/ilimitado, comportamiento existente) ────────
     if (!process.env.AGNES_API_KEY) {
       console.error('AI edit image: AGNES_API_KEY missing')
       return NextResponse.json({ error: 'ai_not_configured', message: 'AI editor is not configured' }, { status: 500 })
     }
-
-    const bytes = Buffer.from(await image.arrayBuffer())
-    const base64 = bytes.toString('base64')
 
     // Ratio de salida lo más parecido posible al de la foto de entrada
     // (Agnes exige un `ratio` explícito de una lista fija — sin esto,
@@ -4074,19 +4352,9 @@ async function handleAiEditImage(request) {
       console.warn('ai edit image: could not read photo dimensions, using 1:1 ratio', e?.message)
     }
 
-    // Petición del usuario (aclaración de la ronda anterior): "que se
-    // genere como SI NO hubiera una cara [foto], pero aplicando la cara de
-    // la imagen de referencia" — refuerza aún más la idea: el modelo debe
-    // tener la MISMA libertad creativa que una generación texto->imagen
-    // pura (pose, cuerpo, encuadre, composición 100% libres, sin anclarse
-    // en absoluto a la foto original) y lo ÚNICO que se toma de la imagen
-    // de referencia es la cara/identidad de la persona.
-    const enrichedScene = await enrichEditPrompt(prompt)
-    const instruction = `Treat this exactly like a pure text-to-image generation with FULL creative freedom for pose, body position, camera angle, framing and composition — imagine there is no original photo constraining any of that at all. The reference image attached is used for ONE thing ONLY: this exact person's face/identity (same bone structure, features, hair color/style) — apply that same face onto the newly generated person. Do NOT copy the pose, body position, framing, camera angle or composition of the reference image; invent a completely new, natural one that fits the scene described below. This must look like a BRAND NEW, separate photo of this person, not an edit/retouch/composite of the original picture. Render the WHOLE new photo like an ordinary, slightly imperfect disposable-camera or wide-angle phone snapshot taken by a stranger — NOT a professional photoshoot, NOT a glossy/cinematic "AI-generated" look. Keep everything in sharp focus front to back (no blurred/bokeh background, no out-of-focus light orbs), use flat plain daylight (no golden-hour glow, no cinematic color grade, no boosted saturation) unless the instruction explicitly asks for a specific time of day/mood, and keep the framing casual, slightly imperfect and unposed. Keep natural, un-airbrushed skin texture (visible pores and subtle imperfections, never plastic-smooth or over-sharpened) — never alter the person's identity or facial structure. Dress the person appropriately for the new scene (their outfit does not need to match the reference image). Make the person physically well integrated into the new scene (correct scale, perspective, lighting direction, shadows and reflections). When the instruction names a specific, well-known character (e.g., from an anime, movie, game or franchise), render THAT exact character using your own knowledge of their canonical design — correct hairstyle, hair/eye color, outfit, colors and distinguishing features — instead of a generic lookalike.\n\nNew scene: ${enrichedScene}`
-
     // 1 reintento con una pequeña pausa (errores transitorios de red/API) —
-    // Agnes es ahora el ÚNICO motor (sin modelo de respaldo distinto), así
-    // que un fallo tras esto sí se muestra como error real al usuario.
+    // Agnes es ahora el ÚNICO motor gratis (sin modelo de respaldo distinto),
+    // así que un fallo tras esto sí se muestra como error real al usuario.
     const AI_EDIT_RETRY_DELAYS_MS = [0, 2500]
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
     let lastErr = null
@@ -4120,6 +4388,25 @@ async function handleAiEditImage(request) {
     console.error('ai edit image error', err)
     return NextResponse.json({ error: 'ai_edit_failed', message: 'AI editing failed, please try again' }, { status: 500 })
   }
+}
+
+// Llama a Gemini 2.5 Flash Image ("Nano Banana") vía la Universal Key de
+// Emergent, para el editor de fotos DE PAGO (petición del usuario). Mismo
+// patrón ya probado y en uso en lib/aiVideoEditor.js (LlmChat + UserMessage
+// + ImageContent) — `imageBase64` es base64 CRUDO (sin prefijo data:URI,
+// ImageContent lo espera así). Devuelve { base64, mimeType } o lanza Error.
+async function generateGeminiEditedImage({ instruction, imageBase64 }) {
+  const apiKey = process.env.EMERGENT_LLM_KEY
+  if (!apiKey) throw new Error('gemini_not_configured')
+  const chat = new LlmChat(apiKey, `photo-edit-gemini-${crypto.randomUUID()}`,
+    'You are an expert photo editing AI. Preserve everything else in the photo exactly as it is. Always return the edited image.'
+  ).withModel('gemini', 'gemini-2.5-flash-image')
+  const [, images] = await chat.sendMessageMultimodalResponse(new UserMessage({
+    text: instruction,
+    file_contents: [new ImageContent(imageBase64)],
+  }))
+  if (!images || !images.length) throw new Error('gemini_no_image_returned')
+  return { base64: images[0].data, mimeType: 'image/png' }
 }
 
 // POST /api/ai/suggest-edits

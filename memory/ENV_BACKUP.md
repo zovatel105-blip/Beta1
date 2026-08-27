@@ -87,9 +87,6 @@ Verificado con llamada real (node fetch, sin curl): POST /api/auth/login
 (twyk) -> 200. Config.kt (Android) NO se tocó en esta sesión — revisar si
 sigue apuntando a esta misma URL antes de recompilar el APK.
 
-## Sesión anterior (URL emergent-editor-key.preview.emergentagent.com, key
-sk-emergent-00a15Ec3eF73c94655) reemplazada por la de arriba.)
-
 ## ⚠️ ESTADO ACTUAL (esta sesión): FIREBASE_CLIENT_EMAIL / FIREBASE_PRIVATE_KEY RESTAURADOS
 El usuario volvió a subir el JSON de la cuenta de servicio de Firebase
 (twyk-6d691-firebase-adminsdk-fbsvc-...json) — FIREBASE_CLIENT_EMAIL y
@@ -160,3 +157,64 @@ node /app/scripts/seed-core-users.mjs
 Esto crea (si no existen ya) twykadmin (admin), lucia, marcos y laura con las
 credenciales documentadas en memory/test_credentials.md, y las relaciones de
 "follow" básicas entre ellos.
+
+## AGNES_API_KEY (editor de fotos con IA — motor GRATIS/ilimitado)
+`platform.agnes-ai.com` (modelo `agnes-image-2.1-flash`, ver
+generateAgnesImage/route.js). Si `/app/.env` vuelve a perderse, el editor
+falla con "AGNES_API_KEY missing" en los logs — pedir al usuario esta key de
+nuevo (la tiene guardada, ya la ha compartido 2 veces en distintas
+sesiones). NUNCA usar la Universal Key de Emergent para Agnes — es una
+plataforma de terceros totalmente distinta.
+
+## STRIPE (suscripción de pago para el editor con GEMINI — Agnes sigue gratis)
+Petición del usuario: "Gemini... pero los usuarios tendran que pagar...
+como larpgpt... Agnes gratuita, Gemini pago". 3 planes mensuales (ver
+AI_PLANS en lib/stripe.js): Starter €5/5 ediciones, Pro €10/20 ediciones,
+Unlimited €20/ilimitado. Variables en `.env`: STRIPE_SECRET_KEY,
+STRIPE_WEBHOOK_SECRET, STRIPE_PRICE_STARTER/PRO/UNLIMITED. Los planes+precios
+YA existen en la cuenta de Stripe del usuario (creados con
+`scripts/stripe-setup.mjs`, no hace falta re-crearlos si `.env` se pierde —
+solo hay que volver a pedir la STRIPE_SECRET_KEY y regenerar el webhook
+apuntando a la URL actual, ver siguiente sección). Créditos por usuario
+guardados en el propio documento de `users` (aiPlan/aiSubscriptionStatus/
+aiCreditsRemaining/aiMonthlyQuota/aiCurrentPeriodEnd/aiSubscriptionId/
+stripeCustomerId) — NUNCA se otorgan créditos salvo en un webhook
+`invoice.paid` real (ver grantMonthlyAiCredits/lib/db.js).
+
+NOTA IMPORTANTE (bug real encontrado y corregido en esta sesión): la cuenta
+de Stripe del usuario usa una versión de API donde `subscription.
+current_period_end` y `invoice.lines.data[0].price` YA NO EXISTEN en esas
+rutas — se movieron a `subscription.items.data[0].current_period_end` y
+`invoice.lines.data[0].pricing.price_details.price` respectivamente. El
+webhook (handleStripeWebhook/route.js) ya prueba AMBAS rutas (fallback), no
+tocar esa lógica sin volver a verificar con una suscripción de prueba real
+(ver también la guarda de eventos fuera de orden en
+applyAiSubscriptionStatus/lib/db.js — un `subscription.deleted` de una
+suscripción VIEJA ya reemplazada por otra nueva no debe pisar el estado
+activo actual).
+
+Si el webhook deja de recibir eventos tras un cambio de URL de preview,
+recrearlo con la URL nueva (la key secreta NO cambia, solo hace falta un
+webhook nuevo + su whsec_ nuevo):
+```js
+const stripe = new (require('stripe'))(process.env.STRIPE_SECRET_KEY)
+await stripe.webhookEndpoints.create({
+  url: `${NEXT_PUBLIC_BASE_URL}/api/stripe/webhook`,
+  enabled_events: ['checkout.session.completed','customer.subscription.created','customer.subscription.updated','customer.subscription.deleted','invoice.paid','invoice.payment_failed'],
+})
+```
+
+## ⚠️ BUG PROPIO CORREGIDO EN ESTA SESIÓN: NEXT_PUBLIC_BASE_URL desincronizado
+Antes de esta corrección, `/app/.env` tenía `NEXT_PUBLIC_BASE_URL` apuntando
+a una URL de preview VIEJA (`heart-reaction-swap...`) mientras
+`CORS_ORIGINS` y el `APP_URL` real de supervisor ya apuntaban a la URL
+ACTUAL (`3743efab-7ae3-4276-8da1-a72779cb59e6...`) — causado por copiar mal
+la referencia histórica de este mismo archivo al recrear `.env` tras una
+pérdida. Esto rompía silenciosamente cualquier URL absoluta generada con
+`NEXT_PUBLIC_BASE_URL` (imágenes de push notifications vía toAbsoluteUrl en
+lib/push.js, Y el webhook de Stripe recién creado apuntaba a un dominio
+equivocado). Corregido: ambas variables ahora coinciden. **Si en el futuro
+`.env` se vuelve a recrear a mano, verificar SIEMPRE que
+`NEXT_PUBLIC_BASE_URL` y `CORS_ORIGINS` sean EXACTAMENTE la misma URL** (la
+real, tomada de `APP_URL` en `/etc/supervisor/conf.d/*.conf`), nunca copiar
+una URL de una sesión anterior sin comparar contra la actual.
