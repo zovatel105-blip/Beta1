@@ -923,7 +923,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
                   filled={false}
                 />
                 <Heart
-                  className={`absolute inset-0 w-9 h-9 text-red-500 transition-opacity duration-700 ${statRotate === 1 ? 'opacity-100' : 'opacity-0'}`}
+                  className={`absolute inset-0 w-9 h-9 text-white transition-opacity duration-700 ${statRotate === 1 ? 'opacity-100' : 'opacity-0'}`}
                   strokeWidth={1.4}
                 />
               </span>
