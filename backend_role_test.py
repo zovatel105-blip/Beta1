@@ -16,7 +16,7 @@ import sys
 import os
 
 # Get base URL from environment
-BASE_URL = os.getenv('NEXT_PUBLIC_BASE_URL', 'https://emergent-editor-key.preview.emergentagent.com')
+BASE_URL = os.getenv('NEXT_PUBLIC_BASE_URL', 'https://heart-reaction-swap.preview.emergentagent.com')
 API_URL = f"{BASE_URL}/api"
 
 print(f"Testing backend role field at: {API_URL}")

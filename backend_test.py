@@ -9,7 +9,7 @@ import json
 import sys
 
 # Base URL from .env
-BASE_URL = "https://emergent-editor-key.preview.emergentagent.com/api"
+BASE_URL = "https://heart-reaction-swap.preview.emergentagent.com/api"
 
 # Test credentials
 TEST_USERS = [

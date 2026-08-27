@@ -16,8 +16,8 @@ scripts/seed-core-users.mjs y memory/test_credentials.md).
 ```
 MONGO_URL=mongodb://localhost:27017/twyk
 ADMIN_EMAILS=twyk.apk@gmail.com
-NEXT_PUBLIC_BASE_URL=https://emergent-editor-key.preview.emergentagent.com
-CORS_ORIGINS=https://emergent-editor-key.preview.emergentagent.com
+NEXT_PUBLIC_BASE_URL=https://heart-reaction-swap.preview.emergentagent.com
+CORS_ORIGINS=https://heart-reaction-swap.preview.emergentagent.com
 FIREBASE_PROJECT_ID=
 FIREBASE_CLIENT_EMAIL=
 FIREBASE_PRIVATE_KEY=
@@ -59,7 +59,22 @@ después de que Next.js haga su propio "Reload env: .env" (log de supervisor),
 o preguntar al usuario cuál es la URL que ve en su navegador.
 
 ## Última URL usada (actualizada automáticamente al restaurar)
-NEXT_PUBLIC_BASE_URL=https://fadd5931-a624-4815-a602-ca0bf44b4f58.preview.emergentagent.com
+NEXT_PUBLIC_BASE_URL=https://3743efab-7ae3-4276-8da1-a72779cb59e6.preview.emergentagent.com
+(.env RECREADO otra vez en esta nueva sesión — mismo patrón recurrente: /app/.env
+no existía [MONGO_URL undefined, login daba 500], se recreó con MONGO_URL/
+ADMIN_EMAILS/CORS_ORIGINS apuntando a la URL de arriba [tomada de APP_URL en
+/etc/supervisor/conf.d/*.conf, confirmada correcta tras "Reload env: .env" y
+login real 200]. FIREBASE_CLIENT_EMAIL/FIREBASE_PRIVATE_KEY quedaron vacíos
+[el usuario debe volver a subir el JSON de la cuenta de servicio si necesita
+push]. EMERGENT_LLM_KEY renovada vía emergent_integrations_manager:
+sk-emergent-995A47159038fB20d9. TAVILY_API_KEY restaurada igual que antes.
+Base de datos re-sembrada con node scripts/seed-core-users.mjs (twyk/lucia/
+marcos/laura + follows) y scripts/seed-test-open-challenge.mjs (post single
+de lucia, para verificar visualmente el nuevo botón de corazón ❤️ — antes
+🔥 Fire — en OpenChallengeSlide.jsx). memory/test_credentials.md recreado.
+
+## Sesión anterior (URL heart-reaction-swap.preview.emergentagent.com)
+NEXT_PUBLIC_BASE_URL=https://heart-reaction-swap.preview.emergentagent.com
 (.env RECREADO en esta nueva sesión, tras un reinicio de pod que dejó /app/.env
 inexistente y MongoDB vacía — misma causa raíz recurrente de siempre.
 MONGO_URL/ADMIN_EMAILS/CORS_ORIGINS con esta misma URL nueva; FIREBASE_* vacíos

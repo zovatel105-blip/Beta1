@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Swords, Play, MessageCircle, Bookmark, MoreVertical, Music, Flame } from 'lucide-react'
+import { Swords, Play, MessageCircle, Bookmark, MoreVertical, Music, Heart } from 'lucide-react'
 import ShareIcon from './icons/ShareIcon'
 import Avatar from './Avatar'
 import CaptionText from './CaptionText'
@@ -11,7 +11,7 @@ import OptionsModal from './OptionsModal'
 import AuthModal from './AuthModal'
 import QuickCommentInput from './QuickCommentInput'
 import CommentOrViewsBar from './CommentOrViewsBar'
-import FireBurstEffect from './FireBurstEffect'
+import HeartBurstEffect from './HeartBurstEffect'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
 
@@ -353,22 +353,13 @@ export default function OpenChallengeSlide({
         )}
       </div>
 
-      {/* Pista de descubribilidad del gesto (mismo estilo/posición que el
-          aviso "double-tap to vote" de CarouselSlide.jsx) — solo mientras no
-          se le ha dado fuego todavía a esta publicación. */}
-      {!hasFire && (
-        <div className="absolute top-12 left-1/2 -translate-x-1/2 z-20 pointer-events-none bg-black/45 backdrop-blur text-white text-[10px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap">
-          Double-tap to 🔥
-        </div>
-      )}
-
       {paused && !isImage && (
         <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
           <Play size={72} className="text-white drop-shadow-lg" fill="white" />
         </div>
       )}
 
-      {/* Burst del icono de fuego al doble-tocar — aparece justo DONDE se
+      {/* Burst del icono de corazón al doble-tocar — aparece justo DONDE se
           tocó (un poco por encima); sin coords -> centrado. Mismo patrón que
           voteBursts en CarouselSlide.jsx. */}
       {fireBursts.map((fb) => (
@@ -378,11 +369,11 @@ export default function OpenChallengeSlide({
             className="absolute z-30 pointer-events-none"
             style={{ left: fb.x, top: fb.y, transform: 'translate(-50%, -60px)' }}
           >
-            <FireBurstEffect />
+            <HeartBurstEffect />
           </div>
         ) : (
           <div key={fb.id} className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none">
-            <FireBurstEffect />
+            <HeartBurstEffect />
           </div>
         )
       ))}
@@ -425,16 +416,16 @@ export default function OpenChallengeSlide({
           diálogo de reto que cualquier otra publicación — NO publica nada
           por sí solo. */}
       <div className="absolute z-20 right-1 flex flex-col items-center gap-4 pointer-events-auto" style={showCommentInput ? { bottom: `calc(${COMMENT_BAR_RESERVE} + 6px)` } : { bottom: 24 }}>
-        {/* Fire 🔥 — reacción "like" con el ADN de Twyk. Único botón NUEVO
-            pedido por el usuario, se añade SIN quitar ninguno de los ya
-            existentes (Retar/Comentarios/Compartir/Guardar/Más). AÑADIR el
-            fuego se hace con DOBLE-toque sobre el vídeo/foto (ver
-            onMediaPointerUp/addFire, mismo "ADN"/gesto que el voto en
-            CarouselSlide.jsx); tocar este icono es lo que lo QUITA
-            (removeFire) — petición explícita del usuario. */}
-        <button aria-label="fire" onClick={removeFire} className="flex flex-col items-center gap-1 w-14 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
-          <Flame className={cn('w-[30px] h-[30px] transition-all duration-200', hasFire ? 'fill-current text-orange-500' : 'text-white')} strokeWidth={1.25} />
-          <span className={`${fireCount > 0 ? 'text-[9px] font-semibold' : 'text-[8px] font-bold'} max-w-[30px] overflow-hidden text-white leading-none text-center whitespace-nowrap`}>{countLabel(fireCount, 'Fire')}</span>
+        {/* Corazón ❤️ — reacción "like". Único botón NUEVO pedido por el
+            usuario, se añade SIN quitar ninguno de los ya existentes
+            (Retar/Comentarios/Compartir/Guardar/Más). AÑADIR el like se hace
+            con DOBLE-toque sobre el vídeo/foto (ver onMediaPointerUp/addFire,
+            mismo "ADN"/gesto que el voto en CarouselSlide.jsx); tocar este
+            icono es lo que lo QUITA (removeFire) — petición explícita del
+            usuario. */}
+        <button aria-label="like" onClick={removeFire} className="flex flex-col items-center gap-1 w-14 hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
+          <Heart className={cn('w-[30px] h-[30px] transition-all duration-200', hasFire ? 'fill-current text-red-500' : 'text-white')} strokeWidth={1.25} />
+          <span className={`${fireCount > 0 ? 'text-[9px] font-semibold' : 'text-[8px] font-bold'} max-w-[30px] overflow-hidden text-white leading-none text-center whitespace-nowrap`}>{countLabel(fireCount, 'Like')}</span>
         </button>
         {!isOwnChallenge && (
           <button

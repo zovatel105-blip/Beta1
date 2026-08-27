@@ -13,7 +13,7 @@ import requests
 import sys
 
 # Base URL from .env
-BASE_URL = "https://emergent-editor-key.preview.emergentagent.com/api"
+BASE_URL = "https://heart-reaction-swap.preview.emergentagent.com/api"
 
 def test_login():
     """Test 1: POST /api/auth/login with lucia/Test12345"""
