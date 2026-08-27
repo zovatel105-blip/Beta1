@@ -386,16 +386,22 @@ async function getOpenChallengeFeedItems(currentUser, followingSet) {
 //      (dorado/ámbar #FCD34D->#F97316, la MISMA píldora "🔥 Trending" que ya
 //      se muestra en CarouselSlide.jsx/DuetSlide.jsx) — en vez de palabras
 //      inventadas sin relación con Twyk (antes: LEGEND/CHAMPION/ELITE...).
+// (petición del usuario: "debe mostrar iconos no emojis" — antes cada tier
+// llevaba un emoji Unicode (🔥/🏆/🗳️/⚔️/📈/🆕), que se renderiza distinto
+// según el dispositivo/OS y no siempre se ve bien junto a los iconos lucide
+// del resto de la app. Ahora cada tier expone una clave `icon` (string) que
+// el frontend (ProfilePage.jsx) mapea a un componente de icono real
+// (lucide-react / VoteIcon), nunca un carácter emoji.
 const TWYK_RANK_TIERS = [
-  { pct: 0.01, name: 'TRENDING', emoji: '🔥', from: '#FCD34D', to: '#F59E0B' },
-  { pct: 0.05, name: 'VS CHAMPION', emoji: '🏆', from: '#F472B6', to: '#A855F7' },
-  { pct: 0.15, name: 'TOP VOTED', emoji: '🗳️', from: '#A855F7', to: '#7C3AED' },
-  { pct: 0.35, name: 'ON FIRE', emoji: '🔥', from: '#FB923C', to: '#EA580C' },
-  { pct: 0.65, name: 'CONTENDER', emoji: '⚔️', from: '#3B82F6', to: '#2563EB' },
-  { pct: 0.90, name: 'RISING', emoji: '📈', from: '#A1A1AA', to: '#71717A' },
-  { pct: 1.01, name: 'ROOKIE', emoji: '🆕', from: '#71717A', to: '#52525B' },
+  { pct: 0.01, name: 'TRENDING', icon: 'flame', from: '#FCD34D', to: '#F59E0B' },
+  { pct: 0.05, name: 'VS CHAMPION', icon: 'trophy', from: '#F472B6', to: '#A855F7' },
+  { pct: 0.15, name: 'TOP VOTED', icon: 'vote', from: '#A855F7', to: '#7C3AED' },
+  { pct: 0.35, name: 'ON FIRE', icon: 'flame', from: '#FB923C', to: '#EA580C' },
+  { pct: 0.65, name: 'CONTENDER', icon: 'swords', from: '#3B82F6', to: '#2563EB' },
+  { pct: 0.90, name: 'RISING', icon: 'trending-up', from: '#A1A1AA', to: '#71717A' },
+  { pct: 1.01, name: 'ROOKIE', icon: 'sparkles', from: '#71717A', to: '#52525B' },
 ]
-const TWYK_ICON_TIER = { name: 'TWYK ICON', emoji: '🔥', from: '#FCD34D', to: '#F97316' }
+const TWYK_ICON_TIER = { name: 'TWYK ICON', icon: 'flame', from: '#FCD34D', to: '#F97316' }
 
 function tierForPercentile(pct) {
   for (const t of TWYK_RANK_TIERS) {

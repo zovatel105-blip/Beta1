@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Menu, Bookmark, Swords, Users, UserPlus, ArrowLeft, LogOut, Camera, Loader2, X, ShieldAlert, LogIn, CircleUserRound, Activity, ChevronRight, AlertCircle, Play, Flame, Heart, Megaphone } from 'lucide-react'
+import { Menu, Bookmark, Swords, Users, UserPlus, ArrowLeft, LogOut, Camera, Loader2, X, ShieldAlert, LogIn, CircleUserRound, Activity, ChevronRight, AlertCircle, Play, Flame, Heart, Trophy, TrendingUp, Sparkles, Megaphone } from 'lucide-react'
 import VoteIcon from './icons/VoteIcon'
 import ShareIcon from './icons/ShareIcon'
 import { useAuth } from '@/contexts/AuthContext'
@@ -15,6 +15,21 @@ import CircularCrop from './CircularCrop'
 
 // El perfil se deriva del usuario autenticado (useAuth) dentro del componente.
 // El avatar usa el componente compartido <Avatar> -> idéntico al del feed.
+
+// Mapa de icono real (lucide-react / VoteIcon) por cada tier de ranking del
+// backend (ver TWYK_RANK_TIERS/TWYK_ICON_TIER en route.js) — petición del
+// usuario: "debe mostrar iconos no emojis" en la insignia del perfil.
+// Antes el backend enviaba un emoji Unicode (`tier.emoji`, ej. 🔥/🏆/🗳️);
+// ahora envía una clave `tier.icon` (string) que se traduce aquí a un
+// componente real, para que se vea igual en cualquier dispositivo/OS.
+const RANK_TIER_ICONS = {
+  flame: Flame,
+  trophy: Trophy,
+  vote: VoteIcon,
+  swords: Swords,
+  'trending-up': TrendingUp,
+  sparkles: Sparkles,
+}
 
 const formatNumber = (num) => {
   const n = Number(num)
@@ -1010,7 +1025,10 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
                 color: me.rank.tier.from,
               }}
             >
-              <span>{me.rank.tier.emoji}</span>
+              {(() => {
+                const TierIcon = RANK_TIER_ICONS[me.rank.tier.icon] || Flame
+                return <TierIcon className="w-3.5 h-3.5 shrink-0" strokeWidth={2.4} />
+              })()}
               <span>{me.rank.tier.name}</span>
               <span className="text-white/40 font-semibold">· #{me.rank.rank}</span>
             </div>
