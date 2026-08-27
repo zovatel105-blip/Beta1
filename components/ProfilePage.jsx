@@ -989,7 +989,38 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
               </div>
             </div>
             <div />
+          </div>
 
+          {/* Insignia de RANKING — petición del usuario: "la pastilla de
+              twyk icon etc debe estar debajo del avatar" — movida de su
+              posición anterior (debajo de la bio) a justo aquí, entre el
+              avatar y las estadísticas de Followers/Following. Píldora con
+              el ADN de Twyk: puntaje = votos/fuego reales recibidos,
+              insignia por PERCENTIL global (no por conteo absoluto como
+              LarpGPT, ver computeTwykRank en route.js). Solo se muestra si
+              el backend ya devolvió el rank (nunca bloquea ni rompe el
+              resto del perfil si falla). */}
+          {me.rank && (
+            <div className="flex justify-center mt-3">
+              <div
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[11.5px] font-bold tracking-wide"
+                style={{
+                  background: `linear-gradient(135deg, ${me.rank.tier.from}26, ${me.rank.tier.to}26)`,
+                  border: `1px solid ${me.rank.tier.from}66`,
+                  color: me.rank.tier.from,
+                }}
+              >
+                {(() => {
+                  const TierIcon = RANK_TIER_ICONS[me.rank.tier.icon] || Flame
+                  return <TierIcon className="w-3.5 h-3.5 shrink-0" strokeWidth={2.4} />
+                })()}
+                <span>{me.rank.tier.name}</span>
+                <span className="text-white/40 font-semibold">· #{me.rank.rank}</span>
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-3 items-center mt-7">
             {/* Followers - inferior izquierda */}
             <button onClick={() => openFollowList('followers')} className="flex items-center gap-2 text-left active:opacity-60 transition">
               <span className="shrink-0 flex items-center justify-center">
@@ -1022,32 +1053,6 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
             <p className="text-[13px] text-zinc-300 leading-snug max-w-[300px] mx-auto pt-1.5 whitespace-pre-line">{me.bio}</p>
           )}
         </div>
-
-        {/* Insignia de RANKING (petición del usuario: "un sistema de
-            ranking como LarpGPT en el perfil") — píldora con el ADN de Twyk:
-            puntaje = votos/fuego reales recibidos, insignia por PERCENTIL
-            global (no por conteo absoluto como LarpGPT, ver computeTwykRank
-            en route.js). Solo se muestra si el backend ya devolvió el rank
-            (nunca bloquea ni rompe el resto del perfil si falla). */}
-        {me.rank && (
-          <div className="flex justify-center mt-3">
-            <div
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[11.5px] font-bold tracking-wide"
-              style={{
-                background: `linear-gradient(135deg, ${me.rank.tier.from}26, ${me.rank.tier.to}26)`,
-                border: `1px solid ${me.rank.tier.from}66`,
-                color: me.rank.tier.from,
-              }}
-            >
-              {(() => {
-                const TierIcon = RANK_TIER_ICONS[me.rank.tier.icon] || Flame
-                return <TierIcon className="w-3.5 h-3.5 shrink-0" strokeWidth={2.4} />
-              })()}
-              <span>{me.rank.tier.name}</span>
-              <span className="text-white/40 font-semibold">· #{me.rank.rank}</span>
-            </div>
-          </div>
-        )}
 
         {/* Botones de acción - propios vs ajenos */}
         <div className="mt-5 flex items-center justify-center gap-2">
