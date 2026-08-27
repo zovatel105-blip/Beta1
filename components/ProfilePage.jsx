@@ -1003,7 +1003,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
           {me.rank && (
             <div className="flex justify-center mt-3">
               <div
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[11.5px] font-bold tracking-wide"
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[9.5px] font-bold tracking-wide"
                 style={{
                   background: `linear-gradient(135deg, ${me.rank.tier.from}26, ${me.rank.tier.to}26)`,
                   border: `1px solid ${me.rank.tier.from}66`,
@@ -1012,7 +1012,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
               >
                 {(() => {
                   const TierIcon = RANK_TIER_ICONS[me.rank.tier.icon] || Flame
-                  return <TierIcon className="w-3.5 h-3.5 shrink-0" strokeWidth={2.4} />
+                  return <TierIcon className="w-2.5 h-2.5 shrink-0" strokeWidth={2.4} />
                 })()}
                 <span>{me.rank.tier.name}</span>
                 <span className="text-white/40 font-semibold">· #{me.rank.rank}</span>
