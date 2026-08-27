@@ -644,15 +644,29 @@ export default function Feed() {
         </div>
       ) : (
         <div
+          // MARCO fijo (no se desplaza con el scroll) que recorta con
+          // esquinas redondeadas SIEMPRE en la misma posición — arregla el
+          // reporte del usuario ("cuando hago scroll aparece una línea
+          // recta, no se curvan las esquinas"): antes SOLO cada tarjeta
+          // <section> tenía rounded-3xl (se mueve junto con el scroll), así
+          // que a mitad de un gesto de scroll/drag (antes de que encaje en
+          // el snap-point) lo que se ve junto al borde de BottomNav es el
+          // cuerpo INTERIOR (recto) de la tarjeta entrante/saliente, no su
+          // esquina redondeada real (que en ese instante está más arriba o
+          // más abajo, fuera de esa franja). Este marco exterior, en cambio,
+          // NUNCA se mueve (misma posición/tamaño que antes tenía el propio
+          // scroller) y recorta cualquier contenido a esta forma redondeada
+          // en TODO momento, incluso a mitad de gesto — así la franja junto
+          // a BottomNav siempre queda curva, nunca recta.
+          className="absolute top-0 left-0 right-0 rounded-3xl overflow-hidden"
+          style={CARD_HEIGHT_STYLE}
+        >
+        <div
           ref={containerRef}
-          // dvh - BOTTOM_NAV_GAP: el scroll termina justo donde empieza
-          // BottomNav (ya no queda debajo/detrás de ella a pantalla
-          // completa) — ver CARD_HEIGHT_STYLE/BOTTOM_NAV_GAP más arriba.
           // snap-y snap-mandatory: scroll-snap NATIVO (0 JS por frame).
           // [contain:strict]: aísla layout/paint/size del scroll del resto.
           // overscroll-y-contain: bloquea el pull-to-refresh accidental.
-          className="absolute top-0 left-0 right-0 w-full overflow-y-auto snap-y snap-mandatory no-scrollbar overscroll-y-contain [contain:strict]"
-          style={CARD_HEIGHT_STYLE}
+          className="w-full h-full overflow-y-auto snap-y snap-mandatory no-scrollbar overscroll-y-contain [contain:strict]"
         >
           {posts.map((post, i) => {
             // Regla #1: máximo 3 tarjetas montadas (anterior, activa, siguiente).
@@ -736,6 +750,7 @@ export default function Feed() {
               </section>
             )
           })}
+        </div>
         </div>
       )}
       {!postViewerOpen && (

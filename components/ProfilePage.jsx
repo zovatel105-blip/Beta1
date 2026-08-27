@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Menu, Bookmark, Swords, Users, UserPlus, ArrowLeft, LogOut, Camera, Loader2, X, ShieldAlert, LogIn, CircleUserRound, Activity, ChevronRight, AlertCircle, Play, Flame, Megaphone } from 'lucide-react'
+import { Menu, Bookmark, Swords, Users, UserPlus, ArrowLeft, LogOut, Camera, Loader2, X, ShieldAlert, LogIn, CircleUserRound, Activity, ChevronRight, AlertCircle, Play, Flame, Heart, Megaphone } from 'lucide-react'
 import VoteIcon from './icons/VoteIcon'
 import ShareIcon from './icons/ShareIcon'
 import { useAuth } from '@/contexts/AuthContext'
@@ -653,7 +653,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
   // Votos y Fire (ambos son "reacciones a mis publicaciones", el mismo
   // ADN que ahora combina el ranking Twyk) — petición explícita del
   // usuario. Crossfade suave, sin depender de ninguna librería nueva.
-  const [statRotate, setStatRotate] = useState(0) // 0 = Votes, 1 = Fire
+  const [statRotate, setStatRotate] = useState(0) // 0 = Votes, 1 = Likes (corazón)
   useEffect(() => {
     const t = setInterval(() => setStatRotate((v) => (v === 0 ? 1 : 0)), 2800)
     return () => clearInterval(t)
@@ -911,9 +911,10 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
         <div className="relative mx-auto w-full max-w-[360px]">
           <div className="grid grid-cols-3 items-center gap-y-7">
 
-            {/* Votos/Fire (rotan) - superior izquierda — petición del usuario:
+            {/* Votos/Likes (rotan) - superior izquierda — petición del usuario:
                 "el icono de votos tiene que rotar entre votos y fire de las
-                publicaciones" — crossfade cada ~2.8s (ver statRotate). */}
+                publicaciones" (ahora corazón/like en vez de fuego, ver
+                OpenChallengeSlide.jsx) — crossfade cada ~2.8s (ver statRotate). */}
             <button className="flex items-center gap-2 text-left active:opacity-60 transition">
               <span className="shrink-0 relative w-9 h-9 flex items-center justify-center">
                 <VoteIcon
@@ -921,8 +922,8 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
                   strokeWidth={220}
                   filled={false}
                 />
-                <Flame
-                  className={`absolute inset-0 w-9 h-9 text-orange-500 transition-opacity duration-700 ${statRotate === 1 ? 'opacity-100' : 'opacity-0'}`}
+                <Heart
+                  className={`absolute inset-0 w-9 h-9 text-red-500 transition-opacity duration-700 ${statRotate === 1 ? 'opacity-100' : 'opacity-0'}`}
                   strokeWidth={1.4}
                 />
               </span>
@@ -933,7 +934,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
                 </span>
                 <span className={`absolute inset-0 transition-opacity duration-700 ${statRotate === 1 ? 'opacity-100' : 'opacity-0'}`}>
                   <p className="text-[17px] font-bold text-white leading-none tabular-nums">{formatNumber(stats.fuego)}</p>
-                  <p className="text-[11px] text-zinc-400 mt-1 font-medium">Fire</p>
+                  <p className="text-[11px] text-zinc-400 mt-1 font-medium">Likes</p>
                 </span>
               </span>
             </button>
