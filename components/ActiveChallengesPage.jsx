@@ -170,7 +170,7 @@ const ChallengeSlide = ({ c, active, busy, onAccept, onReject, muted, showNextHi
   }, [active, idx, aUrl, responseUrl, aIsImage, responseIsImage])
 
   return (
-    <div className="relative w-full h-full bg-black overflow-hidden">
+    <div className="relative w-full h-full bg-black overflow-hidden rounded-3xl">
       <input ref={fileRef} type="file" accept={requiredAccept} className="hidden" onChange={onFileChange} />
 
       {/* "Luxury Battle" — si este reto trae un tema adjunto (ver
