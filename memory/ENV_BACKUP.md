@@ -59,6 +59,24 @@ después de que Next.js haga su propio "Reload env: .env" (log de supervisor),
 o preguntar al usuario cuál es la URL que ve en su navegador.
 
 ## Última URL usada (actualizada automáticamente al restaurar)
+NEXT_PUBLIC_BASE_URL=https://05ae20bb-ce37-461f-ba9e-75d1d598da69.preview.emergentagent.com
+(.env RECREADO en esta nueva sesión — esta vez la pérdida fue TOTAL: todo
+`/app` había vuelto al último commit de git vía `git reset --hard HEAD`
+[el working tree estaba vacío salvo `.git`, con TODOS los archivos
+aparecían "staged for deletion" — se restauraron con éxito]. .env no existía
+[era gitignored, como siempre]. Recreado con MONGO_URL/ADMIN_EMAILS/
+CORS_ORIGINS apuntando a la URL de arriba [tomada de APP_URL en
+/etc/supervisor/conf.d/*.conf, confirmada con "Reload env: .env" + login
+real 200 (twyk/Admin12345)]. EMERGENT_LLM_KEY renovada vía
+emergent_integrations_manager: sk-emergent-2AcAaC781Ae5f265c6. TAVILY_API_KEY
+restaurada igual que antes (valor conocido, no secreto perdido). FIREBASE_*,
+AGNES_API_KEY y STRIPE_* quedaron VACÍOS — son secretos que no persisten en
+ningún lado fuera de la sesión donde el usuario los compartió, así que hay
+que pedírselos de nuevo si los necesita. Base de datos re-sembrada con
+node scripts/seed-core-users.mjs (twyk/lucia/marcos/laura + follows básicos).
+memory/test_credentials.md recreado.
+
+## Sesión anterior
 NEXT_PUBLIC_BASE_URL=https://3743efab-7ae3-4276-8da1-a72779cb59e6.preview.emergentagent.com
 (.env RECREADO otra vez en esta nueva sesión — mismo patrón recurrente: /app/.env
 no existía [MONGO_URL undefined, login daba 500], se recreó con MONGO_URL/
