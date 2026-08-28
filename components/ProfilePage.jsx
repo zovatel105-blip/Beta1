@@ -701,7 +701,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
               onClick={() => setGuestMenuOpen(true)}
               className="p-2 -mr-2 text-white active:scale-90 transition"
             >
-              <Menu strokeWidth={1.9} className="w-[24px] h-[24px]" />
+              <Menu strokeWidth={1.9} className="w-[27px] h-[27px]" />
             </button>
           </div>
         </div>
@@ -913,7 +913,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
                 onClick={() => setMenuOpen(true)}
                 className="p-2 -mr-2 text-white active:scale-90 transition"
               >
-                <Menu strokeWidth={1.9} className="w-[24px] h-[24px]" />
+                <Menu strokeWidth={1.9} className="w-[27px] h-[27px]" />
               </button>
             )}
           </div>
