@@ -2,7 +2,7 @@
 /* eslint-disable react-hooks/set-state-in-effect -- setState en efectos de carga/reset async; falso positivo de la regla experimental. */
 
 import { useEffect, useRef, useState } from 'react'
-import { ChevronRight, Loader2, Film, Swords, Users, Rows2, Columns2, ArrowLeft, X, Search, Music, Sparkles, RefreshCw, Globe } from 'lucide-react'
+import { ChevronRight, Loader2, Film, Swords, Users, Rows2, Columns2, ArrowLeft, X, Search, Music, Sparkles, RefreshCw, Globe, Camera } from 'lucide-react'
 import Avatar from './Avatar'
 import MusicPicker from './MusicPicker'
 import AIImageEditor from './AIImageEditor'
@@ -28,6 +28,15 @@ const fileKind = (f) => {
 export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, onUploaded, onChallengeCreated }) {
   const inputRef = useRef(null)
   const inputBRef = useRef(null)
+  // Inputs SEPARADOS para la cámara (petición del usuario: "solo existe
+  // subir desde galería, no hay opción de hacer foto/grabar desde el
+  // dispositivo"). Mismo <input type="file"> de siempre pero con
+  // `capture="environment"` — en navegadores móviles reales (Chrome/Safari,
+  // que es donde el usuario confirmó que prueba la app) esto abre la cámara
+  // nativa DIRECTAMENTE (foto o vídeo, el propio selector de cámara del
+  // sistema deja elegir el modo) en vez del selector de archivos/galería.
+  const cameraInputRef = useRef(null)
+  const cameraInputBRef = useRef(null)
   const versusTouchX = useRef(0)
   const [step, setStep] = useState('mode') // mode | layout | target | file
   const [mode, setMode] = useState(null) // 'versus' | 'duet' | 'challenge'
@@ -120,6 +129,8 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
 
   const pickFile = () => inputRef.current?.click()
   const pickFileB = () => inputBRef.current?.click()
+  const pickCamera = () => cameraInputRef.current?.click()
+  const pickCameraB = () => cameraInputBRef.current?.click()
 
   // Versus: cambiar entre vídeo A / B deslizando (un toque sin movimiento abre el selector).
   const onVersusTouchStart = (e) => { versusTouchX.current = e.touches[0]?.clientX ?? 0 }
@@ -529,6 +540,8 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
           <div className="fixed inset-0 z-30 bg-black flex flex-col">
             <input ref={inputRef} type="file" accept="video/*,image/*" className="hidden" onChange={handleFileChange('a')} />
             <input ref={inputBRef} type="file" accept="video/*,image/*" className="hidden" onChange={handleFileChange('b')} />
+            <input ref={cameraInputRef} type="file" accept="video/*,image/*" capture="environment" className="hidden" onChange={handleFileChange('a')} />
+            <input ref={cameraInputBRef} type="file" accept="video/*,image/*" capture="environment" className="hidden" onChange={handleFileChange('b')} />
 
             {/* "Luxury Battle" — banner del tema activo (petición del
                 usuario, ver LuxuryBattleSheet.jsx) — SOLO en retos
@@ -586,13 +599,26 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
                         <video key={label + displayUrl} src={displayUrl} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" />
                       )
                     ) : (
-                      <button onClick={pick} className="absolute inset-0 w-full h-full flex flex-col items-center justify-center gap-2 bg-white/[0.02] active:bg-white/[0.06] transition">
-                        <div className="w-12 h-12 rounded-xl border border-white/10 bg-white/[0.05] flex items-center justify-center">
-                          <Film size={22} strokeWidth={1.5} className="text-zinc-300" />
-                        </div>
-                        <span className="text-[13px] font-medium text-zinc-200">Upload photo or video</span>
-                        <span className="text-[10px] text-zinc-500">Video (max 80MB) · Photo (max 15MB)</span>
-                      </button>
+                      <>
+                        <button onClick={pick} className="absolute inset-0 w-full h-full flex flex-col items-center justify-center gap-2 bg-white/[0.02] active:bg-white/[0.06] transition">
+                          <div className="w-12 h-12 rounded-xl border border-white/10 bg-white/[0.05] flex items-center justify-center">
+                            <Film size={22} strokeWidth={1.5} className="text-zinc-300" />
+                          </div>
+                          <span className="text-[13px] font-medium text-zinc-200">Upload photo or video</span>
+                          <span className="text-[10px] text-zinc-500">Video (max 80MB) · Photo (max 15MB)</span>
+                        </button>
+                        {/* Botón de cámara — abre la cámara del dispositivo
+                            DIRECTAMENTE (foto o vídeo), separado del botón de
+                            galería de arriba (petición del usuario). */}
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); (idx === 0 ? pickCamera : pickCameraB)() }}
+                          aria-label="Take photo or record video"
+                          className="absolute z-10 bottom-3 right-3 w-11 h-11 rounded-full bg-white text-black flex items-center justify-center shadow-lg active:scale-90 transition"
+                        >
+                          <Camera size={19} strokeWidth={2} />
+                        </button>
+                      </>
                     )}
                     {isGenerating && (
                       <div className="absolute inset-0 bg-black/55 backdrop-blur-[1px] flex flex-col items-center justify-center gap-2 pointer-events-none">
@@ -671,13 +697,29 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
                           )
                         })()
                       ) : (
-                        <button onClick={pickFile} className="w-full h-full flex flex-col items-center justify-center gap-3 bg-white/[0.02] active:bg-white/[0.05] transition">
-                          <div className="w-16 h-16 rounded-2xl border border-white/10 bg-white/[0.05] flex items-center justify-center">
-                            <Film size={28} strokeWidth={1.5} className="text-zinc-300" />
-                          </div>
-                          <span className="text-[15px] font-medium text-zinc-200">Tap to upload your photo or video</span>
-                          <span className="text-[11px] text-zinc-500">Video (max 80MB) · Photo (max 15MB)</span>
-                        </button>
+                        <>
+                          <button onClick={pickFile} className="w-full h-full flex flex-col items-center justify-center gap-3 bg-white/[0.02] active:bg-white/[0.05] transition">
+                            <div className="w-16 h-16 rounded-2xl border border-white/10 bg-white/[0.05] flex items-center justify-center">
+                              <Film size={28} strokeWidth={1.5} className="text-zinc-300" />
+                            </div>
+                            <span className="text-[15px] font-medium text-zinc-200">Tap to upload your photo or video</span>
+                            <span className="text-[11px] text-zinc-500">Video (max 80MB) · Photo (max 15MB)</span>
+                          </button>
+                          {/* Botón de cámara — abre la cámara del dispositivo
+                              DIRECTAMENTE (foto o vídeo) en vez del selector
+                              de galería (petición del usuario: "no hay
+                              función de hacer foto/grabar desde el
+                              dispositivo"), estilo TikTok/Instagram: botón
+                              circular prominente sobre el área de subida. */}
+                          <button
+                            type="button"
+                            onClick={pickCamera}
+                            aria-label="Take photo or record video"
+                            className="absolute z-10 bottom-6 right-6 w-16 h-16 rounded-full bg-white text-black flex items-center justify-center shadow-xl active:scale-90 transition"
+                          >
+                            <Camera size={26} strokeWidth={2} />
+                          </button>
+                        </>
                       )}
                       {aiEditorSlot === 0 && aiOverride?.status === 'loading' && (
                         <div className="absolute inset-0 bg-black/55 backdrop-blur-[1px] flex flex-col items-center justify-center gap-2 pointer-events-none">
