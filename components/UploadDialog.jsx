@@ -1,8 +1,8 @@
 'use client'
 /* eslint-disable react-hooks/set-state-in-effect -- setState en efectos de carga/reset async; falso positivo de la regla experimental. */
 
-import { useEffect, useRef, useState } from 'react'
-import { ChevronRight, Loader2, Film, Swords, Users, Rows2, Columns2, ArrowLeft, X, Search, Music, Sparkles, RefreshCw, Globe, Camera, Images } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { ChevronRight, Loader2, Film, Swords, Users, Rows2, Columns2, ArrowLeft, X, Search, Music, Sparkles, RefreshCw, Globe, Camera, Images, SwitchCamera } from 'lucide-react'
 import Avatar from './Avatar'
 import MusicPicker from './MusicPicker'
 import AIImageEditor from './AIImageEditor'
@@ -44,6 +44,24 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
   // parte superior que cambie de cámara a modo sin cámara" — un único
   // interruptor global (no por slot), visible en el header del paso 'file'.
   const [galleryMode, setGalleryMode] = useState(false)
+  // Cámara EN VIVO (petición del usuario: "cuando estoy en modo cámara
+  // porque no se muestra la cámara" — el enfoque anterior [input file con
+  // capture, que abre la app de cámara nativa por separado] no mostraba una
+  // vista previa dentro de la propia pantalla, a diferencia de Instagram/
+  // TikTok. Ahora en "modo cámara" (solo/challenge, sin galería) se pide
+  // acceso real a la cámara del dispositivo (getUserMedia) y se muestra el
+  // vídeo en vivo a pantalla completa; el botón centrado abajo es el
+  // disparador: TOQUE = foto, MANTENER PULSADO = grabar vídeo (suelta para
+  // terminar) — mismo gesto que Instagram Stories/TikTok.
+  const videoPreviewRef = useRef(null)
+  const cameraStreamRef = useRef(null)
+  const mediaRecorderRef = useRef(null)
+  const recordedChunksRef = useRef([])
+  const shutterTimerRef = useRef(null)
+  const isHoldingRef = useRef(false)
+  const [facingMode, setFacingMode] = useState('environment') // 'environment' (trasera) | 'user' (frontal)
+  const [recording, setRecording] = useState(false)
+  const [cameraError, setCameraError] = useState(null)
   const versusTouchX = useRef(0)
   const [step, setStep] = useState('mode') // mode | layout | target | file
   const [mode, setMode] = useState(null) // 'versus' | 'duet' | 'challenge'
@@ -99,7 +117,99 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
     setStep('mode'); setMode(null); setLayout('horizontal'); setTarget(null); setUsers([])
     setFile(null); setFileB(null); setDescription(''); setError(null); setPublishing(false)
     setSelected('solo'); setVersusIdx(0); setMusic(null); setMusicOpen(false); setAiEditorSlot(null); setAiOverride(null); setAllowChallenge(true); setGalleryMode(false)
+    setFacingMode('environment'); setRecording(false); setCameraError(null)
   }
+
+  // Libera la cámara (importantísimo: si no se paran los tracks, el
+  // indicador de "cámara en uso" del navegador/SO se queda encendido y la
+  // cámara queda ocupada para el resto de la app/sistema).
+  const stopCameraStream = useCallback(() => {
+    if (cameraStreamRef.current) {
+      cameraStreamRef.current.getTracks().forEach((t) => { try { t.stop() } catch { /* ignore */ } })
+      cameraStreamRef.current = null
+    }
+  }, [])
+
+  // Pide acceso a la cámara SOLO cuando: estamos en el paso 'file', en
+  // "modo cámara" (no galería), sin archivo todavía elegido, y en un modo de
+  // un solo slot (solo/challenge — Versus/1vs1 siguen usando el enfoque de
+  // input con `capture`, ver renderSlot, para no requerir 2 cámaras a la vez).
+  useEffect(() => {
+    const shouldRun = step === 'file' && !galleryMode && !file && (mode === 'solo' || mode === 'challenge')
+    if (!shouldRun) {
+      stopCameraStream()
+      return
+    }
+    let cancelled = false
+    setCameraError(null)
+    navigator.mediaDevices?.getUserMedia?.({ video: { facingMode }, audio: true })
+      .then((stream) => {
+        if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return }
+        stopCameraStream()
+        cameraStreamRef.current = stream
+        if (videoPreviewRef.current) videoPreviewRef.current.srcObject = stream
+      })
+      .catch(() => {
+        if (!cancelled) setCameraError('Camera access denied. Use the gallery button above instead.')
+      })
+    return () => { cancelled = true; stopCameraStream() }
+  }, [step, galleryMode, file, mode, facingMode, stopCameraStream])
+
+  // Captura una FOTO del frame actual del vídeo en vivo (dibujado en un
+  // <canvas> oculto, convertido a File — mismo tipo de objeto que produce el
+  // <input type="file">, así que el resto del flujo -recorte/IA/publicar- no
+  // necesita saber de dónde vino).
+  const capturePhoto = useCallback(() => {
+    const video = videoPreviewRef.current
+    if (!video || !video.videoWidth) return
+    const canvas = document.createElement('canvas')
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+    const ctx = canvas.getContext('2d')
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+    canvas.toBlob((blob) => {
+      if (!blob) return
+      setFile(new File([blob], `photo_${Date.now()}.jpg`, { type: 'image/jpeg' }))
+    }, 'image/jpeg', 0.92)
+  }, [])
+
+  const startRecording = useCallback(() => {
+    const stream = cameraStreamRef.current
+    if (!stream) return
+    recordedChunksRef.current = []
+    let mr
+    try { mr = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp8,opus' }) }
+    catch { try { mr = new MediaRecorder(stream) } catch { return } }
+    mr.ondataavailable = (e) => { if (e.data && e.data.size > 0) recordedChunksRef.current.push(e.data) }
+    mr.onstop = () => {
+      const blob = new Blob(recordedChunksRef.current, { type: mr.mimeType || 'video/webm' })
+      setFile(new File([blob], `video_${Date.now()}.webm`, { type: blob.type }))
+      setRecording(false)
+    }
+    mediaRecorderRef.current = mr
+    mr.start()
+    setRecording(true)
+  }, [])
+
+  const stopRecording = useCallback(() => {
+    try { mediaRecorderRef.current?.stop() } catch { /* ignore */ }
+  }, [])
+
+  // Gesto del disparador: TOQUE breve = foto; MANTENER PULSADO (>320ms) =
+  // empieza a grabar vídeo, se detiene al soltar. Mismo patrón que Instagram
+  // Stories/TikTok.
+  const handleShutterDown = useCallback(() => {
+    isHoldingRef.current = false
+    shutterTimerRef.current = setTimeout(() => {
+      isHoldingRef.current = true
+      startRecording()
+    }, 320)
+  }, [startRecording])
+  const handleShutterUp = useCallback(() => {
+    clearTimeout(shutterTimerRef.current)
+    if (isHoldingRef.current) stopRecording()
+    else capturePhoto()
+  }, [stopRecording, capturePhoto])
 
   useEffect(() => {
     if (!open) { reset(); return }
@@ -708,14 +818,47 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
                           <span className="text-[11px] text-zinc-500">Video (max 80MB) · Photo (max 15MB)</span>
                         </button>
                       ) : (
-                        <button
-                          type="button"
-                          onClick={pickCamera}
-                          aria-label="Take photo or record video"
-                          className="absolute left-1/2 -translate-x-1/2 bottom-8 z-10 w-[72px] h-[72px] rounded-full bg-white text-black flex items-center justify-center shadow-xl active:scale-90 transition"
-                        >
-                          <Camera size={30} strokeWidth={2} />
-                        </button>
+                        <>
+                          <video
+                            ref={videoPreviewRef}
+                            autoPlay
+                            muted
+                            playsInline
+                            className="absolute inset-0 w-full h-full object-cover"
+                          />
+                          {cameraError && (
+                            <div className="absolute inset-0 flex items-center justify-center px-8 bg-black/70">
+                              <p className="text-white/85 text-center text-[13px] font-medium">{cameraError}</p>
+                            </div>
+                          )}
+                          {/* Cambiar cámara frontal/trasera */}
+                          <button
+                            type="button"
+                            onClick={() => setFacingMode((m) => (m === 'environment' ? 'user' : 'environment'))}
+                            aria-label="Flip camera"
+                            className="absolute z-10 top-3 right-3 w-9 h-9 rounded-full flex items-center justify-center bg-black/35 backdrop-blur hover:bg-black/55 active:scale-90 transition text-white"
+                          >
+                            <SwitchCamera size={18} strokeWidth={1.9} />
+                          </button>
+                          {recording && (
+                            <span className="absolute z-10 top-3 left-1/2 -translate-x-1/2 inline-flex items-center gap-1.5 text-white text-[12px] font-semibold bg-red-500 px-2.5 py-1 rounded-full">
+                              <span className="w-2 h-2 rounded-full bg-white animate-pulse" /> REC
+                            </span>
+                          )}
+                          {/* Disparador: toque = foto; mantener pulsado = grabar
+                              vídeo (mismo gesto que Instagram Stories/TikTok). */}
+                          <button
+                            type="button"
+                            onPointerDown={handleShutterDown}
+                            onPointerUp={handleShutterUp}
+                            onPointerLeave={() => { if (isHoldingRef.current) handleShutterUp() }}
+                            aria-label="Take photo (tap) or record video (hold)"
+                            className={`absolute left-1/2 -translate-x-1/2 bottom-8 z-10 w-[72px] h-[72px] rounded-full flex items-center justify-center shadow-xl active:scale-90 transition border-4 ${recording ? 'bg-red-500 border-white/70' : 'bg-white border-white/40'}`}
+                          >
+                            {!recording && <Camera size={28} strokeWidth={2} className="text-black" />}
+                            {recording && <span className="w-6 h-6 rounded-md bg-white" />}
+                          </button>
+                        </>
                       )}
                       {aiEditorSlot === 0 && aiOverride?.status === 'loading' && (
                         <div className="absolute inset-0 bg-black/55 backdrop-blur-[1px] flex flex-col items-center justify-center gap-2 pointer-events-none">
@@ -838,91 +981,103 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
                       )
                     ) : (
                       <>
-                        {/* Versus: puntitos del carrusel — más finos (3px, igual
-                            que los puntos del feed en CarouselSlide.jsx), antes 6px. */}
-                        {mode === 'versus' && (
-                          <div className="flex items-center justify-center gap-1.5">
-                            {[0, 1].map((i) => (
-                              <button
-                                key={i}
-                                aria-label={`video ${i === 0 ? 'A' : 'B'}`}
-                                onClick={() => setVersusIdx(i)}
-                                className={`rounded-full transition-all duration-200 ${versusIdx === i ? 'w-5 h-[3px] bg-white' : 'w-1.5 h-[3px] bg-white/40'}`}
-                              />
-                            ))}
-                          </div>
-                        )}
                         {error && <div className="text-xs text-rose-300">{error}</div>}
-                        <div className="rounded-2xl bg-black/45 backdrop-blur-xl border border-white/10 px-4 py-3">
-                          <textarea
-                            value={description}
-                            onChange={(e) => setDescription(e.target.value)}
-                            placeholder={mode === 'duet' ? 'Who wins? 🥊 #1vs1' : mode === 'challenge' ? 'Challenge 🔥 Do you accept?' : mode === 'solo' ? 'Share something…' : 'Which do you prefer? 🅰️🆚🅱️'}
-                            rows={1}
-                            className="w-full bg-transparent text-[15px] text-zinc-100 placeholder:text-zinc-400 focus:outline-none resize-none"
-                          />
-                        </div>
-                        {/* "Allow challenge" — solo en publicaciones tipo
-                            "Your post" (petición del usuario: poder
-                            activar/desactivar el botón de retar). Por
-                            defecto activado. También editable después de
-                            publicada desde el menú "⋮" (ver
-                            OpenChallengeSlide.jsx). */}
-                        {mode === 'solo' && (
-                          <div className="flex items-center gap-3 rounded-2xl bg-black/45 backdrop-blur-xl border border-white/10 px-4 py-3">
-                            <Swords size={18} className="text-white/80 shrink-0" strokeWidth={1.75} />
-                            <div className="min-w-0 flex-1">
-                              <p className="text-white text-[14px] font-semibold leading-tight">Allow challenges</p>
-                              <p className="text-zinc-400 text-[11.5px] leading-tight">Let others challenge you from this post</p>
-                            </div>
-                            <button
-                              type="button"
-                              role="switch"
-                              aria-checked={allowChallenge}
-                              aria-label="Allow challenges"
-                              onClick={() => setAllowChallenge((v) => !v)}
-                              className={`relative w-11 h-6 rounded-full shrink-0 transition-colors duration-200 ${allowChallenge ? 'bg-emerald-500' : 'bg-white/20'}`}
-                            >
-                              <span
-                                className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200 ${allowChallenge ? 'translate-x-5' : ''}`}
+                        {/* Petición del usuario: "cuando abro la cámara siguen
+                            apareciendo la barra de texto, música, active
+                            challenge, publicar" — estos controles (puntos del
+                            carrusel/descripción/"Allow challenges"/música/
+                            publicar) ahora solo aparecen DESPUÉS de que haya
+                            al menos un archivo elegido (`file`, lado A); antes
+                            de eso (pantalla de cámara/galería vacía) el panel
+                            queda vacío salvo el mensaje de error si lo hay. */}
+                        {file && (
+                          <>
+                            {/* Versus: puntitos del carrusel — más finos (3px, igual
+                                que los puntos del feed en CarouselSlide.jsx), antes 6px. */}
+                            {mode === 'versus' && (
+                              <div className="flex items-center justify-center gap-1.5">
+                                {[0, 1].map((i) => (
+                                  <button
+                                    key={i}
+                                    aria-label={`video ${i === 0 ? 'A' : 'B'}`}
+                                    onClick={() => setVersusIdx(i)}
+                                    className={`rounded-full transition-all duration-200 ${versusIdx === i ? 'w-5 h-[3px] bg-white' : 'w-1.5 h-[3px] bg-white/40'}`}
+                                  />
+                                ))}
+                              </div>
+                            )}
+                            <div className="rounded-2xl bg-black/45 backdrop-blur-xl border border-white/10 px-4 py-3">
+                              <textarea
+                                value={description}
+                                onChange={(e) => setDescription(e.target.value)}
+                                placeholder={mode === 'duet' ? 'Who wins? 🥊 #1vs1' : mode === 'challenge' ? 'Challenge 🔥 Do you accept?' : mode === 'solo' ? 'Share something…' : 'Which do you prefer? 🅰️🆚🅱️'}
+                                rows={1}
+                                className="w-full bg-transparent text-[15px] text-zinc-100 placeholder:text-zinc-400 focus:outline-none resize-none"
                               />
-                            </button>
-                          </div>
-                        )}
-                        {/* Añadir música (iTunes) */}
-                        {music ? (
-                          <div className="flex items-center gap-3 rounded-2xl bg-black/45 backdrop-blur-xl border border-white/10 px-3 py-2.5">
-                            <div className="w-10 h-10 rounded-lg overflow-hidden bg-zinc-800 shrink-0">
-                              {music.artwork ? <img src={music.artwork} alt="" className="w-full h-full object-cover" /> : <Music size={18} className="text-zinc-400 m-auto mt-2.5" />}
                             </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="text-white text-[13px] font-semibold truncate">{music.title}</p>
-                              <p className="text-zinc-400 text-[11.5px] truncate">{music.artist}</p>
-                            </div>
-                            <button onClick={() => setMusicOpen(true)} className="text-[12px] font-semibold text-white/80 hover:text-white px-2 shrink-0">Change</button>
-                            <button onClick={() => setMusic(null)} aria-label="Remove music" className="text-zinc-400 hover:text-white shrink-0 p-1">
-                              <X size={16} />
+                            {/* "Allow challenge" — solo en publicaciones tipo
+                                "Your post" (petición del usuario: poder
+                                activar/desactivar el botón de retar). Por
+                                defecto activado. También editable después de
+                                publicada desde el menú "⋮" (ver
+                                OpenChallengeSlide.jsx). */}
+                            {mode === 'solo' && (
+                              <div className="flex items-center gap-3 rounded-2xl bg-black/45 backdrop-blur-xl border border-white/10 px-4 py-3">
+                                <Swords size={18} className="text-white/80 shrink-0" strokeWidth={1.75} />
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-white text-[14px] font-semibold leading-tight">Allow challenges</p>
+                                  <p className="text-zinc-400 text-[11.5px] leading-tight">Let others challenge you from this post</p>
+                                </div>
+                                <button
+                                  type="button"
+                                  role="switch"
+                                  aria-checked={allowChallenge}
+                                  aria-label="Allow challenges"
+                                  onClick={() => setAllowChallenge((v) => !v)}
+                                  className={`relative w-11 h-6 rounded-full shrink-0 transition-colors duration-200 ${allowChallenge ? 'bg-emerald-500' : 'bg-white/20'}`}
+                                >
+                                  <span
+                                    className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200 ${allowChallenge ? 'translate-x-5' : ''}`}
+                                  />
+                                </button>
+                              </div>
+                            )}
+                            {/* Añadir música (iTunes) */}
+                            {music ? (
+                              <div className="flex items-center gap-3 rounded-2xl bg-black/45 backdrop-blur-xl border border-white/10 px-3 py-2.5">
+                                <div className="w-10 h-10 rounded-lg overflow-hidden bg-zinc-800 shrink-0">
+                                  {music.artwork ? <img src={music.artwork} alt="" className="w-full h-full object-cover" /> : <Music size={18} className="text-zinc-400 m-auto mt-2.5" />}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-white text-[13px] font-semibold truncate">{music.title}</p>
+                                  <p className="text-zinc-400 text-[11.5px] truncate">{music.artist}</p>
+                                </div>
+                                <button onClick={() => setMusicOpen(true)} className="text-[12px] font-semibold text-white/80 hover:text-white px-2 shrink-0">Change</button>
+                                <button onClick={() => setMusic(null)} aria-label="Remove music" className="text-zinc-400 hover:text-white shrink-0 p-1">
+                                  <X size={16} />
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => setMusicOpen(true)}
+                                className="w-full flex items-center justify-center gap-2 rounded-2xl bg-black/45 backdrop-blur-xl border border-white/10 px-4 py-3 text-[14px] font-semibold text-white hover:bg-black/60 active:scale-[0.99] transition"
+                              >
+                                <Music size={17} strokeWidth={2} /> Add music
+                              </button>
+                            )}
+                            <button
+                              onClick={() => (mode === 'challenge' ? goToTarget() : doUpload())}
+                              disabled={publishing || (isAB ? (!file || !fileB) : !file)}
+                              className="w-full py-3.5 rounded-full bg-white text-black font-bold text-[16px] disabled:bg-white/20 disabled:text-white/40 active:scale-[0.99] transition flex items-center justify-center gap-2"
+                            >
+                              {publishing && mode !== 'challenge' ? (
+                                <><Loader2 size={17} className="animate-spin" /> Publishing…</>
+                              ) : (
+                                mode === 'duet' ? 'Publish 1vs1' : mode === 'challenge' ? 'Choose who to challenge' : mode === 'solo' ? 'Publish' : 'Publish versus'
+                              )}
                             </button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => setMusicOpen(true)}
-                            className="w-full flex items-center justify-center gap-2 rounded-2xl bg-black/45 backdrop-blur-xl border border-white/10 px-4 py-3 text-[14px] font-semibold text-white hover:bg-black/60 active:scale-[0.99] transition"
-                          >
-                            <Music size={17} strokeWidth={2} /> Add music
-                          </button>
+                          </>
                         )}
-                        <button
-                          onClick={() => (mode === 'challenge' ? goToTarget() : doUpload())}
-                          disabled={publishing || (isAB ? (!file || !fileB) : !file)}
-                          className="w-full py-3.5 rounded-full bg-white text-black font-bold text-[16px] disabled:bg-white/20 disabled:text-white/40 active:scale-[0.99] transition flex items-center justify-center gap-2"
-                        >
-                          {publishing && mode !== 'challenge' ? (
-                            <><Loader2 size={17} className="animate-spin" /> Publishing…</>
-                          ) : (
-                            mode === 'duet' ? 'Publish 1vs1' : mode === 'challenge' ? 'Choose who to challenge' : mode === 'solo' ? 'Publish' : 'Publish versus'
-                          )}
-                        </button>
                       </>
                     )}
                   </div>
