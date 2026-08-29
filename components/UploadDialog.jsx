@@ -2,7 +2,7 @@
 /* eslint-disable react-hooks/set-state-in-effect -- setState en efectos de carga/reset async; falso positivo de la regla experimental. */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ChevronRight, Loader2, Film, Swords, Users, Rows2, Columns2, ArrowLeft, X, Search, Music, Sparkles, RefreshCw, Globe, Camera, Images, SwitchCamera } from 'lucide-react'
+import { ChevronRight, Loader2, Film, Swords, Users, Rows2, Columns2, ArrowLeft, X, Search, Music, Sparkles, RefreshCw, Globe, Images, SwitchCamera } from 'lucide-react'
 import Avatar from './Avatar'
 import MusicPicker from './MusicPicker'
 import AIImageEditor from './AIImageEditor'
@@ -37,13 +37,18 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
   // sistema deja elegir el modo) en vez del selector de archivos/galería.
   const cameraInputRef = useRef(null)
   const cameraInputBRef = useRef(null)
-  // Alterna entre "modo cámara" (por defecto: un solo botón de cámara,
-  // centrado abajo, que abre la cámara del dispositivo directamente) y
-  // "modo sin cámara" (galería: el área de subida clásica que abre el
-  // selector de archivos/galería). Petición del usuario: "un botón en la
-  // parte superior que cambie de cámara a modo sin cámara" — un único
-  // interruptor global (no por slot), visible en el header del paso 'file'.
-  const [galleryMode, setGalleryMode] = useState(false)
+  // Cámara EN VIVO (petición del usuario: "cuando estoy en modo cámara
+  // porque no se muestra la cámara" — el enfoque anterior [input file con
+  // capture, que abre la app de cámara nativa por separado] no mostraba una
+  // vista previa dentro de la propia pantalla, a diferencia de Instagram/
+  // TikTok. Ahora al llegar al paso 'file' (solo/challenge) se pide acceso
+  // real a la cámara del dispositivo (getUserMedia) y se muestra el vídeo
+  // en vivo a pantalla completa SIEMPRE (petición del usuario: "quita el
+  // botón que cambia a cámara y galería" — ya no hay un modo separado, la
+  // cámara es la vista por defecto y la galería es un botón secundario
+  // pequeño a la izquierda del disparador). El botón centrado abajo es el
+  // disparador: TOQUE = foto, MANTENER PULSADO = grabar vídeo (suelta para
+  // terminar) — mismo gesto que Instagram Stories/TikTok.
   // Cámara EN VIVO (petición del usuario: "cuando estoy en modo cámara
   // porque no se muestra la cámara" — el enfoque anterior [input file con
   // capture, que abre la app de cámara nativa por separado] no mostraba una
@@ -116,7 +121,7 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
   const reset = () => {
     setStep('mode'); setMode(null); setLayout('horizontal'); setTarget(null); setUsers([])
     setFile(null); setFileB(null); setDescription(''); setError(null); setPublishing(false)
-    setSelected('solo'); setVersusIdx(0); setMusic(null); setMusicOpen(false); setAiEditorSlot(null); setAiOverride(null); setAllowChallenge(true); setGalleryMode(false)
+    setSelected('solo'); setVersusIdx(0); setMusic(null); setMusicOpen(false); setAiEditorSlot(null); setAiOverride(null); setAllowChallenge(true)
     setFacingMode('environment'); setRecording(false); setCameraError(null)
   }
 
@@ -135,7 +140,7 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
   // un solo slot (solo/challenge — Versus/1vs1 siguen usando el enfoque de
   // input con `capture`, ver renderSlot, para no requerir 2 cámaras a la vez).
   useEffect(() => {
-    const shouldRun = step === 'file' && !galleryMode && !file && (mode === 'solo' || mode === 'challenge')
+    const shouldRun = step === 'file' && !file && (mode === 'solo' || mode === 'challenge')
     if (!shouldRun) {
       stopCameraStream()
       return
@@ -150,10 +155,10 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
         if (videoPreviewRef.current) videoPreviewRef.current.srcObject = stream
       })
       .catch(() => {
-        if (!cancelled) setCameraError('Camera access denied. Use the gallery button above instead.')
+        if (!cancelled) setCameraError('Camera access denied. Use the gallery button below instead.')
       })
     return () => { cancelled = true; stopCameraStream() }
-  }, [step, galleryMode, file, mode, facingMode, stopCameraStream])
+  }, [step, file, mode, facingMode, stopCameraStream])
 
   // Captura una FOTO del frame actual del vídeo en vivo (dibujado en un
   // <canvas> oculto, convertido a File — mismo tipo de objeto que produce el
@@ -715,23 +720,24 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
                       ) : (
                         <video key={label + displayUrl} src={displayUrl} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" />
                       )
-                    ) : galleryMode ? (
-                      <button onClick={pick} className="absolute inset-0 w-full h-full flex flex-col items-center justify-center gap-2 bg-white/[0.02] active:bg-white/[0.06] transition">
-                        <div className="w-12 h-12 rounded-xl border border-white/10 bg-white/[0.05] flex items-center justify-center">
-                          <Film size={22} strokeWidth={1.5} className="text-zinc-300" />
-                        </div>
-                        <span className="text-[13px] font-medium text-zinc-200">Upload photo or video</span>
-                        <span className="text-[10px] text-zinc-500">Video (max 80MB) · Photo (max 15MB)</span>
-                      </button>
                     ) : (
-                      <button
-                        type="button"
-                        onClick={idx === 0 ? pickCamera : pickCameraB}
-                        aria-label="Take photo or record video"
-                        className="absolute left-1/2 -translate-x-1/2 bottom-4 z-10 w-14 h-14 rounded-full bg-white text-black flex items-center justify-center shadow-lg active:scale-90 transition"
-                      >
-                        <Camera size={22} strokeWidth={2} />
-                      </button>
+                      <div className="absolute inset-x-0 bottom-4 z-10 flex items-center justify-center gap-3">
+                        <button
+                          type="button"
+                          onClick={pick}
+                          aria-label="Choose from gallery"
+                          className="w-9 h-9 rounded-full flex items-center justify-center bg-black/35 backdrop-blur hover:bg-black/55 active:scale-90 transition text-white"
+                        >
+                          <Images size={16} strokeWidth={1.9} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={idx === 0 ? pickCamera : pickCameraB}
+                          aria-label="Take photo or record video"
+                          className="w-14 h-14 rounded-full bg-white border-4 border-white/40 shadow-lg active:scale-90 transition"
+                        />
+                        <span className="w-9 h-9" aria-hidden />
+                      </div>
                     )}
                     {isGenerating && (
                       <div className="absolute inset-0 bg-black/55 backdrop-blur-[1px] flex flex-col items-center justify-center gap-2 pointer-events-none">
@@ -809,14 +815,6 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
                             <video key={singleDisplayUrl} src={singleDisplayUrl} autoPlay loop muted playsInline className="w-full h-full object-cover" />
                           )
                         })()
-                      ) : galleryMode ? (
-                        <button onClick={pickFile} className="w-full h-full flex flex-col items-center justify-center gap-3 bg-white/[0.02] active:bg-white/[0.05] transition">
-                          <div className="w-16 h-16 rounded-2xl border border-white/10 bg-white/[0.05] flex items-center justify-center">
-                            <Film size={28} strokeWidth={1.5} className="text-zinc-300" />
-                          </div>
-                          <span className="text-[15px] font-medium text-zinc-200">Tap to upload your photo or video</span>
-                          <span className="text-[11px] text-zinc-500">Video (max 80MB) · Photo (max 15MB)</span>
-                        </button>
                       ) : (
                         <>
                           <video
@@ -845,19 +843,33 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
                               <span className="w-2 h-2 rounded-full bg-white animate-pulse" /> REC
                             </span>
                           )}
-                          {/* Disparador: toque = foto; mantener pulsado = grabar
-                              vídeo (mismo gesto que Instagram Stories/TikTok). */}
-                          <button
-                            type="button"
-                            onPointerDown={handleShutterDown}
-                            onPointerUp={handleShutterUp}
-                            onPointerLeave={() => { if (isHoldingRef.current) handleShutterUp() }}
-                            aria-label="Take photo (tap) or record video (hold)"
-                            className={`absolute left-1/2 -translate-x-1/2 bottom-8 z-10 w-[72px] h-[72px] rounded-full flex items-center justify-center shadow-xl active:scale-90 transition border-4 ${recording ? 'bg-red-500 border-white/70' : 'bg-white border-white/40'}`}
-                          >
-                            {!recording && <Camera size={28} strokeWidth={2} className="text-black" />}
-                            {recording && <span className="w-6 h-6 rounded-md bg-white" />}
-                          </button>
+                          {/* Fila inferior: galería (izquierda) + disparador
+                              (centro, SIN icono dentro — petición del usuario,
+                              queda como un círculo simple tipo cámara real) +
+                              hueco simétrico a la derecha para mantenerlo
+                              centrado. Reemplaza al antiguo botón de arriba
+                              que alternaba cámara<->galería (eliminado). */}
+                          <div className="absolute inset-x-0 bottom-8 z-10 flex items-center justify-center gap-6">
+                            <button
+                              type="button"
+                              onClick={pickFile}
+                              aria-label="Choose from gallery"
+                              className="w-11 h-11 rounded-full flex items-center justify-center bg-black/35 backdrop-blur hover:bg-black/55 active:scale-90 transition text-white"
+                            >
+                              <Images size={19} strokeWidth={1.9} />
+                            </button>
+                            <button
+                              type="button"
+                              onPointerDown={handleShutterDown}
+                              onPointerUp={handleShutterUp}
+                              onPointerLeave={() => { if (isHoldingRef.current) handleShutterUp() }}
+                              aria-label="Take photo (tap) or record video (hold)"
+                              className={`w-[72px] h-[72px] rounded-full flex items-center justify-center shadow-xl active:scale-90 transition border-4 ${recording ? 'bg-red-500 border-white/70' : 'bg-white border-white/40'}`}
+                            >
+                              {recording && <span className="w-6 h-6 rounded-md bg-white" />}
+                            </button>
+                            <span className="w-11 h-11" aria-hidden />
+                          </div>
                         </>
                       )}
                       {aiEditorSlot === 0 && aiOverride?.status === 'loading' && (
@@ -905,36 +917,24 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
                     <button onClick={goBack} aria-label="Back" className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center bg-black/35 backdrop-blur hover:bg-black/55 active:scale-90 transition">
                       <ArrowLeft size={20} strokeWidth={1.75} />
                     </button>
-                    <div className="flex items-center gap-2">
-                      {mode === 'duet' && (
-                        <div className="inline-flex p-1 rounded-full bg-black/45 backdrop-blur border border-white/10">
-                          <button
-                            onClick={() => setLayout('horizontal')}
-                            className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[13px] font-semibold transition ${layout === 'horizontal' ? 'bg-white text-black' : 'text-white/85'}`}
-                          >
-                            <Rows2 size={14} /> Horizontal
-                          </button>
-                          <button
-                            onClick={() => setLayout('vertical')}
-                            className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[13px] font-semibold transition ${layout === 'vertical' ? 'bg-white text-black' : 'text-white/85'}`}
-                          >
-                            <Columns2 size={14} /> Vertical
-                          </button>
-                        </div>
-                      )}
-                      {/* Alterna cámara <-> galería (petición del usuario:
-                          "un botón en la parte superior que cambie de cámara
-                          a modo sin cámara"). El icono muestra el modo AL QUE
-                          se cambiará al tocarlo. */}
-                      <button
-                        type="button"
-                        onClick={() => setGalleryMode((v) => !v)}
-                        aria-label={galleryMode ? 'Switch to camera' : 'Switch to gallery'}
-                        className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center bg-black/35 backdrop-blur hover:bg-black/55 active:scale-90 transition text-white"
-                      >
-                        {galleryMode ? <Camera size={18} strokeWidth={1.9} /> : <Images size={18} strokeWidth={1.9} />}
-                      </button>
-                    </div>
+                    {mode === 'duet' ? (
+                      <div className="inline-flex p-1 rounded-full bg-black/45 backdrop-blur border border-white/10">
+                        <button
+                          onClick={() => setLayout('horizontal')}
+                          className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[13px] font-semibold transition ${layout === 'horizontal' ? 'bg-white text-black' : 'text-white/85'}`}
+                        >
+                          <Rows2 size={14} /> Horizontal
+                        </button>
+                        <button
+                          onClick={() => setLayout('vertical')}
+                          className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[13px] font-semibold transition ${layout === 'vertical' ? 'bg-white text-black' : 'text-white/85'}`}
+                        >
+                          <Columns2 size={14} /> Vertical
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="w-9" />
+                    )}
                     <button onClick={onClose} aria-label="Close" className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center bg-black/35 backdrop-blur hover:bg-black/55 active:scale-90 transition text-zinc-200">
                       <X size={20} strokeWidth={1.75} />
                     </button>

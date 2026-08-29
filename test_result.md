@@ -5569,3 +5569,20 @@ test_plan:
 agent_communication:
     -agent: "main"
     -message: "Fix de moneda/créditos/admin (ver status_history) verificado exhaustivamente por backend con llamadas reales (login real, sin curl). NO se usó el agente de testing (instrucción explícita y repetida del usuario, respetada sin excepción en toda esta sesión) — queda pendiente ÚNICAMENTE la confirmación visual manual del propio usuario en su navegador móvil."
+
+
+frontend:
+  - task: "Rediseño del disparador de cámara: quitar botón de alternancia cámara/galería, cámara siempre visible, disparador sin icono, galería a su izquierda"
+    implemented: true
+    working: "NA"
+    file: "components/UploadDialog.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "En la página de creación de contenido, el botón que cambia a cámara y galería quítalo y solo mantén el botón en su posición sin el icono y el botón de galería a la izquierda de él."
+        -working: "NA"
+        -agent: "main"
+        -comment: "Implementado en components/UploadDialog.jsx: (1) Eliminado el botón del header (icono Images/Camera, arriba a la derecha junto a 'X') que alternaba `galleryMode` — junto con todo el estado `galleryMode` y sus condicionales (ya no existe un 'modo galería' separado). (2) La cámara en vivo (slot único 'Your post'/'Challenge') ahora se muestra SIEMPRE al llegar al paso 'file' sin archivo elegido (antes solo si `!galleryMode`); ya no depende de ningún toggle. (3) El botón disparador (centro-abajo, 72px) ya NO tiene el icono de cámara dentro — queda como un círculo blanco simple con borde (igual que una app de cámara real); sigue funcionando igual (toque=foto, mantener pulsado=grabar vídeo). (4) Nuevo botón pequeño de galería (icono Images, 44px) A LA IZQUIERDA del disparador, en la misma fila inferior, que abre el selector de archivos/galería directamente (pickFile) — con un hueco simétrico a la derecha del disparador para mantenerlo centrado. (5) Aplicado el mismo patrón (sin alternancia, galería a la izquierda del botón de cámara, sin icono dentro del círculo) también en los slots A/B de Versus/1vs1 (renderSlot), donde antes también dependían de `galleryMode`. Lint limpio (mismos 2 warnings/errores pre-existentes sin relación, incluyendo la eliminación del import `Camera` de lucide-react que quedó sin uso). Servidor reiniciado y compilando sin errores. NO se usó el agente de testing (instrucción explícita y repetida del usuario) — pendiente confirmación visual manual del propio usuario en su navegador móvil."
