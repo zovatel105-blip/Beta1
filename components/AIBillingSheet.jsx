@@ -104,7 +104,7 @@ export default function AIBillingSheet({ open, onClose, plans = [], currentPlan 
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <span className="text-white font-bold text-[17px]">
-                    €{p.amount}<span className="text-zinc-400 text-[12px] font-medium">/mo</span>
+                    ${p.amount}<span className="text-zinc-400 text-[12px] font-medium">/mo</span>
                   </span>
                   {busyKey === p.key ? (
                     <Loader2 size={16} className="animate-spin text-white" />

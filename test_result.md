@@ -5537,3 +5537,35 @@ backend:
         -agent: "main"
         -comment: "Restauradas ambas claves en /app/.env. Para Stripe: localizados (sin crear duplicados) los 3 precios YA existentes en la cuenta que coinciden con AI_PLANS del código actual (Starter €5/Pro €10/Unlimited €20, créditos 5/20/ilimitado) — se detectó que la cuenta tiene un 2do set de precios más reciente con más créditos (50/120/300) de una sesión anterior cuyo cambio de código no está en este checkout de git, documentado en memory/ENV_BACKUP.md para no confundir en el futuro. Creado un webhook NUEVO de Stripe apuntando a la URL actual del preview (los 2 webhooks viejos de sesiones anteriores se dejaron intactos, no reciben tráfico). Verificado end-to-end con llamadas reales (login real de un usuario, sin curl, script borrado tras verificar): (1) POST /api/ai/edit-image engine=agnes con una foto real -> 200 OK, provider=agnes, imagen editada devuelta (el intento inicial con una imagen de prueba de 1x1px falló con 500 'internal error' del lado de Agnes -no relacionado con la key-, confirmado probando directamente contra la API de Agnes con la misma imagen trivial; con una foto real de tamaño normal funcionó a la primera, 200 OK); (2) POST /api/ai/edit-image engine=gemini SIN suscripción -> 402 subscription_required, mensaje 'Subscribe to use the Gemini editor' (paywall correcto, Gemini NO es gratis); (3) POST /api/stripe/checkout plan=starter -> 200 con una URL real de Stripe Checkout (cs_test_...), confirmando que el flujo de pago está correctamente conectado (no se completó un pago real de prueba, solo se verificó que la sesión se crea). memory/ENV_BACKUP.md y este archivo actualizados con el detalle completo."
 
+
+  - task: "Paywall Gemini: moneda USD + créditos correctos (50/120/300) + admin excluido del pago"
+    implemented: true
+    working: "NA"
+    file: "lib/stripe.js, app/api/[[...path]]/route.js, components/AIBillingSheet.jsx, .env"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: false
+        -agent: "user"
+        -comment: "Compartió captura del paywall 'Gemini AI Editor': mostraba los mismos 3 planes de antes (Starter 5 edits/€5, Pro 20 edits/€10, Unlimited edits/€20) — 'me aparecen los mismos títulos sin créditos [los nuevos] y tiene que ser en dólares'. Tras aclaración: (1) mantener los mismos montos numéricos pero en USD ($5/$10/$20); (2) créditos correctos: 50/120/300 (confirmado); (3) el plan más caro pasa de 'Unlimited' a 'Premium' con tope de 300 créditos/mes (confirmado, ya no ilimitado); (4) info adicional: 'el admin debe ser el único excluido' — el admin debe poder usar Gemini gratis, sin pagar ni necesitar créditos."
+        -working: "NA"
+        -agent: "main"
+        -comment: "Implementado: (1) Creados 3 precios NUEVOS en Stripe en USD (currency='usd', los antiguos eran EUR y Stripe no permite cambiar la moneda de un precio existente) — $5/$10/$20 mensual, guardados en STRIPE_PRICE_STARTER/PRO/PREMIUM en .env (los 3 precios EUR anteriores se dejan sin usar en el dashboard, no se borran). (2) lib/stripe.js: AI_PLANS actualizado — starter credits 5->50, pro credits 20->120, plan 'unlimited' (credits:null) renombrado a 'premium' con credits:300 (ya no ilimitado de verdad). (3) components/AIBillingSheet.jsx: símbolo de moneda € -> $ (el resto del texto, 'edits/month', ya usaba los datos dinámicos de `plans`, no hacía falta tocar nada más ahí). (4) Admin excluido del pago (petición nueva): en handleAiEditImage (route.js), si `isAdmin(currentUser)` es true, se omite por completo consumeAiCredit/refundAiCredit para engine='gemini' (bypassCredits=true, tratado como {ok:true, unlimited:true}) — el admin usa Gemini gratis e ilimitado. En GET /api/billing/status, el admin recibe una respuesta sintética {active:true, unlimited:true, plan:'admin'} SIN tocar Mongo/Stripe, para que el frontend (AIImageEditor.jsx ya comprueba `billing.subscription.active` antes de mostrar el paywall) nunca le muestre el paywall al admin. Verificado end-to-end con llamadas reales (login real de 2 usuarios -admin twyk y user lucia-, sin curl, script borrado tras verificar): plans devuelve correctamente amount 5/10/20 y credits 50/120/300; billing/status del admin -> active+unlimited; billing/status de lucia -> sin suscripción activa (como antes); POST /api/ai/edit-image engine=gemini con el admin -> 200 OK provider=gemini SIN consumir crédito; el mismo endpoint con lucia (usuario normal) -> sigue devolviendo 402 (no se rompió el paywall para el resto); POST /api/stripe/checkout plan=starter -> 200 con URL de Stripe Checkout válida (ahora en USD). Lint limpio en los 3 archivos, servidor reiniciado sin errores. NO se usó ni se usará el agente de testing (instrucción explícita y repetida del usuario) — pendiente confirmación visual manual del propio usuario en la hoja 'Gemini AI Editor' (debe ver '$5/mo · 50 edits / month', '$10/mo · 120 edits / month', '$20/mo · 300 edits / month')."
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 2
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "Paywall Gemini: moneda USD + créditos correctos (50/120/300) + admin excluido del pago"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    -agent: "main"
+    -message: "Fix de moneda/créditos/admin (ver status_history) verificado exhaustivamente por backend con llamadas reales (login real, sin curl). NO se usó el agente de testing (instrucción explícita y repetida del usuario, respetada sin excepción en toda esta sesión) — queda pendiente ÚNICAMENTE la confirmación visual manual del propio usuario en su navegador móvil."

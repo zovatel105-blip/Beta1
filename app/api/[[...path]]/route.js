@@ -843,7 +843,13 @@ export async function GET(request, { params }) {
       return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
     }
     try {
-      const info = await getAiSubscriptionInfo(currentUser.id)
+      // El admin nunca ve el paywall (petición del usuario: "el admin debe
+      // ser el único excluido") — se le reporta como si tuviera una
+      // suscripción activa e ilimitada, sin tocar Stripe ni la colección de
+      // usuarios. Ver también el bypass equivalente en handleAiEditImage.
+      const info = isAdmin(currentUser)
+        ? { plan: 'admin', status: 'active', active: true, unlimited: true, creditsRemaining: null, monthlyQuota: null, currentPeriodEnd: null }
+        : await getAiSubscriptionInfo(currentUser.id)
       return NextResponse.json({
         ok: true,
         subscription: info,
@@ -4366,7 +4372,11 @@ async function handleAiEditImage(request) {
       // Descuenta 1 crédito ANTES de llamar al modelo (atómico, evita doble
       // gasto con peticiones simultáneas). 402 = sin suscripción activa o
       // sin créditos -> el frontend muestra el paywall con los 3 planes.
-      const credit = await consumeAiCredit(currentUser.id)
+      // EXCEPCIÓN (petición del usuario: "el admin debe ser el único
+      // excluido" del pago): el admin usa Gemini gratis/ilimitado, sin
+      // consumir ni requerir créditos — ver también GET /billing/status.
+      const bypassCredits = isAdmin(currentUser)
+      const credit = bypassCredits ? { ok: true, unlimited: true } : await consumeAiCredit(currentUser.id)
       if (!credit.ok) {
         return NextResponse.json({
           error: 'subscription_required',
@@ -4383,7 +4393,7 @@ async function handleAiEditImage(request) {
         console.error('ai edit image (gemini) error', err?.message || err)
         // El intento falló DESPUÉS de cobrar el crédito -> se devuelve, el
         // usuario no debe perder cuota por un edit que nunca se completó.
-        if (!credit.unlimited) await refundAiCredit(currentUser.id).catch(() => {})
+        if (!bypassCredits && !credit.unlimited) await refundAiCredit(currentUser.id).catch(() => {})
         return NextResponse.json({ error: 'ai_edit_failed', message: 'AI editing failed, please try again' }, { status: 500 })
       }
     }
