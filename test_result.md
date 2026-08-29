@@ -5610,3 +5610,20 @@ frontend:
         -working: "NA"
         -agent: "main"
         -comment: "Aumentado el espaciado de la fila inferior (galería/disparador/girar cámara): gap-6 (24px) -> gap-12 (48px). Lint limpio, servidor reiniciado (verificado con curl real -> 200 OK). NO se usó el agente de testing — pendiente confirmación visual manual del usuario."
+
+
+frontend:
+  - task: "Cámara en vivo también en el diálogo de 'Retar' (ChallengeDialog.jsx), no solo subir desde galería"
+    implemented: true
+    working: "NA"
+    file: "components/ChallengeDialog.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "Compartió captura del modal 'Challenge @twyk' (ChallengeDialog.jsx, se abre al retar una publicación existente): la tarjeta 'You' solo mostraba 'Upload your photo' (icono de subida, abre galería) — 'ahora cuando reto solo aparece subir contenido pero también tendría que tener la opción de usar la cámara'."
+        -working: "NA"
+        -agent: "main"
+        -comment: "Implementada cámara EN VIVO en la tarjeta 'You' de ChallengeDialog.jsx (mismo enfoque getUserMedia+MediaRecorder que UploadDialog.jsx, adaptado al tamaño pequeño de esta tarjeta -aspect 4:5- en vez de pantalla completa). Se pide la cámara automáticamente al abrir el modal (si aún no hay archivo elegido) y se libera al elegir/capturar uno o cerrar el modal. El disparador se ADAPTA al tipo de media que exige el reto (`hasTargetMedia`/`targetIsImage`, lógica ya existente en el componente): si el reto no tiene tipo fijo (reto abierto/de mención) -> toque=foto, mantener pulsado=grabar vídeo (igual que UploadDialog); si el reto exige FOTO -> un solo toque siempre captura foto; si el reto exige VÍDEO -> un toque inicia grabación, otro toque la detiene (evita que el usuario capture por accidente el tipo equivocado). Fila inferior de la tarjeta: galería (icono pequeño, izquierda) — disparador (centro) — girar cámara frontal/trasera (derecha), replicando el patrón ya validado en UploadDialog.jsx. Si el usuario deniega el permiso de cámara, cae automáticamente al placeholder clásico de 'Upload your photo/video' (sigue funcionando igual que antes, sin romper nada). Lint limpio (solo el warning pre-existente sin relación). Servidor reiniciado y verificado con curl real -> 200 OK, sirviendo tráfico de usuarios reales. NO se usó el agente de testing (instrucción explícita y repetida del usuario, respetada en toda la sesión) — pendiente confirmación visual manual del propio usuario en su navegador móvil."
