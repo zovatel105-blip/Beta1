@@ -599,26 +599,14 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
                         <video key={label + displayUrl} src={displayUrl} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" />
                       )
                     ) : (
-                      <>
-                        <button onClick={pick} className="absolute inset-0 w-full h-full flex flex-col items-center justify-center gap-2 bg-white/[0.02] active:bg-white/[0.06] transition">
-                          <div className="w-12 h-12 rounded-xl border border-white/10 bg-white/[0.05] flex items-center justify-center">
-                            <Film size={22} strokeWidth={1.5} className="text-zinc-300" />
-                          </div>
-                          <span className="text-[13px] font-medium text-zinc-200">Upload photo or video</span>
-                          <span className="text-[10px] text-zinc-500">Video (max 80MB) · Photo (max 15MB)</span>
-                        </button>
-                        {/* Botón de cámara — abre la cámara del dispositivo
-                            DIRECTAMENTE (foto o vídeo), separado del botón de
-                            galería de arriba (petición del usuario). */}
-                        <button
-                          type="button"
-                          onClick={(e) => { e.stopPropagation(); (idx === 0 ? pickCamera : pickCameraB)() }}
-                          aria-label="Take photo or record video"
-                          className="absolute z-10 bottom-3 right-3 w-11 h-11 rounded-full bg-white text-black flex items-center justify-center shadow-lg active:scale-90 transition"
-                        >
-                          <Camera size={19} strokeWidth={2} />
-                        </button>
-                      </>
+                      <button
+                        type="button"
+                        onClick={idx === 0 ? pickCamera : pickCameraB}
+                        aria-label="Take photo or record video"
+                        className="absolute left-1/2 -translate-x-1/2 bottom-4 z-10 w-14 h-14 rounded-full bg-white text-black flex items-center justify-center shadow-lg active:scale-90 transition"
+                      >
+                        <Camera size={22} strokeWidth={2} />
+                      </button>
                     )}
                     {isGenerating && (
                       <div className="absolute inset-0 bg-black/55 backdrop-blur-[1px] flex flex-col items-center justify-center gap-2 pointer-events-none">
@@ -697,29 +685,14 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
                           )
                         })()
                       ) : (
-                        <>
-                          <button onClick={pickFile} className="w-full h-full flex flex-col items-center justify-center gap-3 bg-white/[0.02] active:bg-white/[0.05] transition">
-                            <div className="w-16 h-16 rounded-2xl border border-white/10 bg-white/[0.05] flex items-center justify-center">
-                              <Film size={28} strokeWidth={1.5} className="text-zinc-300" />
-                            </div>
-                            <span className="text-[15px] font-medium text-zinc-200">Tap to upload your photo or video</span>
-                            <span className="text-[11px] text-zinc-500">Video (max 80MB) · Photo (max 15MB)</span>
-                          </button>
-                          {/* Botón de cámara — abre la cámara del dispositivo
-                              DIRECTAMENTE (foto o vídeo) en vez del selector
-                              de galería (petición del usuario: "no hay
-                              función de hacer foto/grabar desde el
-                              dispositivo"), estilo TikTok/Instagram: botón
-                              circular prominente sobre el área de subida. */}
-                          <button
-                            type="button"
-                            onClick={pickCamera}
-                            aria-label="Take photo or record video"
-                            className="absolute z-10 bottom-6 right-6 w-16 h-16 rounded-full bg-white text-black flex items-center justify-center shadow-xl active:scale-90 transition"
-                          >
-                            <Camera size={26} strokeWidth={2} />
-                          </button>
-                        </>
+                        <button
+                          type="button"
+                          onClick={pickCamera}
+                          aria-label="Take photo or record video"
+                          className="absolute left-1/2 -translate-x-1/2 bottom-8 z-10 w-[72px] h-[72px] rounded-full bg-white text-black flex items-center justify-center shadow-xl active:scale-90 transition"
+                        >
+                          <Camera size={30} strokeWidth={2} />
+                        </button>
                       )}
                       {aiEditorSlot === 0 && aiOverride?.status === 'loading' && (
                         <div className="absolute inset-0 bg-black/55 backdrop-blur-[1px] flex flex-col items-center justify-center gap-2 pointer-events-none">
