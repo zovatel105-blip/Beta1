@@ -834,42 +834,36 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
                               <span className="w-2 h-2 rounded-full bg-white animate-pulse" /> REC
                             </span>
                           )}
-                          {/* Fila inferior: galería (izquierda) + disparador
-                              (centro, SIN icono dentro — petición del usuario,
-                              queda como un círculo simple tipo cámara real) +
-                              girar cámara frontal/trasera (derecha). Reemplaza
-                              al antiguo botón de arriba que alternaba
-                              cámara<->galería, y al botón de girar cámara que
-                              antes estaba arriba a la derecha (ambos
-                              eliminados). */}
-                          <div className="absolute inset-x-0 bottom-8 z-10 flex items-center justify-center gap-6">
-                            <button
-                              type="button"
-                              onClick={pickFile}
-                              aria-label="Choose from gallery"
-                              className="w-11 h-11 rounded-full flex items-center justify-center bg-black/35 backdrop-blur hover:bg-black/55 active:scale-90 transition text-white"
-                            >
-                              <Images size={19} strokeWidth={1.9} />
-                            </button>
-                            <button
-                              type="button"
-                              onPointerDown={handleShutterDown}
-                              onPointerUp={handleShutterUp}
-                              onPointerLeave={() => { if (isHoldingRef.current) handleShutterUp() }}
-                              aria-label="Take photo (tap) or record video (hold)"
-                              className={`w-[72px] h-[72px] rounded-full flex items-center justify-center shadow-xl active:scale-90 transition border-4 ${recording ? 'bg-red-500 border-white/70' : 'bg-white border-white/40'}`}
-                            >
-                              {recording && <span className="w-6 h-6 rounded-md bg-white" />}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setFacingMode((m) => (m === 'environment' ? 'user' : 'environment'))}
-                              aria-label="Flip camera"
-                              className="w-11 h-11 rounded-full flex items-center justify-center bg-black/35 backdrop-blur hover:bg-black/55 active:scale-90 transition text-white"
-                            >
-                              <SwitchCamera size={19} strokeWidth={1.9} />
-                            </button>
-                          </div>
+                          {/* Galería — centrado verticalmente, borde izquierdo. */}
+                          <button
+                            type="button"
+                            onClick={pickFile}
+                            aria-label="Choose from gallery"
+                            className="absolute z-10 left-3 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full flex items-center justify-center bg-black/35 backdrop-blur hover:bg-black/55 active:scale-90 transition text-white"
+                          >
+                            <Images size={19} strokeWidth={1.9} />
+                          </button>
+                          {/* Girar cámara frontal/trasera — centrado verticalmente, borde derecho. */}
+                          <button
+                            type="button"
+                            onClick={() => setFacingMode((m) => (m === 'environment' ? 'user' : 'environment'))}
+                            aria-label="Flip camera"
+                            className="absolute z-10 right-3 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full flex items-center justify-center bg-black/35 backdrop-blur hover:bg-black/55 active:scale-90 transition text-white"
+                          >
+                            <SwitchCamera size={19} strokeWidth={1.9} />
+                          </button>
+                          {/* Disparador — solo, centrado, en la fila inferior
+                              (SIN icono dentro, círculo simple tipo cámara real). */}
+                          <button
+                            type="button"
+                            onPointerDown={handleShutterDown}
+                            onPointerUp={handleShutterUp}
+                            onPointerLeave={() => { if (isHoldingRef.current) handleShutterUp() }}
+                            aria-label="Take photo (tap) or record video (hold)"
+                            className={`absolute z-10 left-1/2 -translate-x-1/2 bottom-8 w-[72px] h-[72px] rounded-full flex items-center justify-center shadow-xl active:scale-90 transition border-4 ${recording ? 'bg-red-500 border-white/70' : 'bg-white border-white/40'}`}
+                          >
+                            {recording && <span className="w-6 h-6 rounded-md bg-white" />}
+                          </button>
                         </>
                       )}
                       {aiEditorSlot === 0 && aiOverride?.status === 'loading' && (
