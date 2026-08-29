@@ -838,7 +838,7 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
                               disparador): galería a la izquierda del centro,
                               disparador en el centro (SIN icono dentro),
                               girar cámara a la derecha del centro. */}
-                          <div className="absolute inset-x-0 bottom-8 z-10 flex items-center justify-center gap-6">
+                          <div className="absolute inset-x-0 bottom-8 z-10 flex items-center justify-center gap-12">
                             <button
                               type="button"
                               onClick={pickFile}
