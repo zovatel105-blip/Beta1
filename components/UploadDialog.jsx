@@ -2,7 +2,7 @@
 /* eslint-disable react-hooks/set-state-in-effect -- setState en efectos de carga/reset async; falso positivo de la regla experimental. */
 
 import { useEffect, useRef, useState } from 'react'
-import { ChevronRight, Loader2, Film, Swords, Users, Rows2, Columns2, ArrowLeft, X, Search, Music, Sparkles, RefreshCw, Globe, Camera } from 'lucide-react'
+import { ChevronRight, Loader2, Film, Swords, Users, Rows2, Columns2, ArrowLeft, X, Search, Music, Sparkles, RefreshCw, Globe, Camera, Images } from 'lucide-react'
 import Avatar from './Avatar'
 import MusicPicker from './MusicPicker'
 import AIImageEditor from './AIImageEditor'
@@ -37,6 +37,13 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
   // sistema deja elegir el modo) en vez del selector de archivos/galería.
   const cameraInputRef = useRef(null)
   const cameraInputBRef = useRef(null)
+  // Alterna entre "modo cámara" (por defecto: un solo botón de cámara,
+  // centrado abajo, que abre la cámara del dispositivo directamente) y
+  // "modo sin cámara" (galería: el área de subida clásica que abre el
+  // selector de archivos/galería). Petición del usuario: "un botón en la
+  // parte superior que cambie de cámara a modo sin cámara" — un único
+  // interruptor global (no por slot), visible en el header del paso 'file'.
+  const [galleryMode, setGalleryMode] = useState(false)
   const versusTouchX = useRef(0)
   const [step, setStep] = useState('mode') // mode | layout | target | file
   const [mode, setMode] = useState(null) // 'versus' | 'duet' | 'challenge'
@@ -91,7 +98,7 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
   const reset = () => {
     setStep('mode'); setMode(null); setLayout('horizontal'); setTarget(null); setUsers([])
     setFile(null); setFileB(null); setDescription(''); setError(null); setPublishing(false)
-    setSelected('solo'); setVersusIdx(0); setMusic(null); setMusicOpen(false); setAiEditorSlot(null); setAiOverride(null); setAllowChallenge(true)
+    setSelected('solo'); setVersusIdx(0); setMusic(null); setMusicOpen(false); setAiEditorSlot(null); setAiOverride(null); setAllowChallenge(true); setGalleryMode(false)
   }
 
   useEffect(() => {
@@ -598,6 +605,14 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
                       ) : (
                         <video key={label + displayUrl} src={displayUrl} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" />
                       )
+                    ) : galleryMode ? (
+                      <button onClick={pick} className="absolute inset-0 w-full h-full flex flex-col items-center justify-center gap-2 bg-white/[0.02] active:bg-white/[0.06] transition">
+                        <div className="w-12 h-12 rounded-xl border border-white/10 bg-white/[0.05] flex items-center justify-center">
+                          <Film size={22} strokeWidth={1.5} className="text-zinc-300" />
+                        </div>
+                        <span className="text-[13px] font-medium text-zinc-200">Upload photo or video</span>
+                        <span className="text-[10px] text-zinc-500">Video (max 80MB) · Photo (max 15MB)</span>
+                      </button>
                     ) : (
                       <button
                         type="button"
@@ -684,6 +699,14 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
                             <video key={singleDisplayUrl} src={singleDisplayUrl} autoPlay loop muted playsInline className="w-full h-full object-cover" />
                           )
                         })()
+                      ) : galleryMode ? (
+                        <button onClick={pickFile} className="w-full h-full flex flex-col items-center justify-center gap-3 bg-white/[0.02] active:bg-white/[0.05] transition">
+                          <div className="w-16 h-16 rounded-2xl border border-white/10 bg-white/[0.05] flex items-center justify-center">
+                            <Film size={28} strokeWidth={1.5} className="text-zinc-300" />
+                          </div>
+                          <span className="text-[15px] font-medium text-zinc-200">Tap to upload your photo or video</span>
+                          <span className="text-[11px] text-zinc-500">Video (max 80MB) · Photo (max 15MB)</span>
+                        </button>
                       ) : (
                         <button
                           type="button"
@@ -739,24 +762,36 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
                     <button onClick={goBack} aria-label="Back" className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center bg-black/35 backdrop-blur hover:bg-black/55 active:scale-90 transition">
                       <ArrowLeft size={20} strokeWidth={1.75} />
                     </button>
-                    {mode === 'duet' ? (
-                      <div className="inline-flex p-1 rounded-full bg-black/45 backdrop-blur border border-white/10">
-                        <button
-                          onClick={() => setLayout('horizontal')}
-                          className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[13px] font-semibold transition ${layout === 'horizontal' ? 'bg-white text-black' : 'text-white/85'}`}
-                        >
-                          <Rows2 size={14} /> Horizontal
-                        </button>
-                        <button
-                          onClick={() => setLayout('vertical')}
-                          className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[13px] font-semibold transition ${layout === 'vertical' ? 'bg-white text-black' : 'text-white/85'}`}
-                        >
-                          <Columns2 size={14} /> Vertical
-                        </button>
-                      </div>
-                    ) : (
-                      <span className="w-9" />
-                    )}
+                    <div className="flex items-center gap-2">
+                      {mode === 'duet' && (
+                        <div className="inline-flex p-1 rounded-full bg-black/45 backdrop-blur border border-white/10">
+                          <button
+                            onClick={() => setLayout('horizontal')}
+                            className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[13px] font-semibold transition ${layout === 'horizontal' ? 'bg-white text-black' : 'text-white/85'}`}
+                          >
+                            <Rows2 size={14} /> Horizontal
+                          </button>
+                          <button
+                            onClick={() => setLayout('vertical')}
+                            className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[13px] font-semibold transition ${layout === 'vertical' ? 'bg-white text-black' : 'text-white/85'}`}
+                          >
+                            <Columns2 size={14} /> Vertical
+                          </button>
+                        </div>
+                      )}
+                      {/* Alterna cámara <-> galería (petición del usuario:
+                          "un botón en la parte superior que cambie de cámara
+                          a modo sin cámara"). El icono muestra el modo AL QUE
+                          se cambiará al tocarlo. */}
+                      <button
+                        type="button"
+                        onClick={() => setGalleryMode((v) => !v)}
+                        aria-label={galleryMode ? 'Switch to camera' : 'Switch to gallery'}
+                        className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center bg-black/35 backdrop-blur hover:bg-black/55 active:scale-90 transition text-white"
+                      >
+                        {galleryMode ? <Camera size={18} strokeWidth={1.9} /> : <Images size={18} strokeWidth={1.9} />}
+                      </button>
+                    </div>
                     <button onClick={onClose} aria-label="Close" className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center bg-black/35 backdrop-blur hover:bg-black/55 active:scale-90 transition text-zinc-200">
                       <X size={20} strokeWidth={1.75} />
                     </button>
