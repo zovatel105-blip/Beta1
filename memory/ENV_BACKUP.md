@@ -193,9 +193,14 @@ credenciales documentadas en memory/test_credentials.md, y las relaciones de
 `platform.agnes-ai.com` (modelo `agnes-image-2.1-flash`, ver
 generateAgnesImage/route.js). Si `/app/.env` vuelve a perderse, el editor
 falla con "AGNES_API_KEY missing" en los logs — pedir al usuario esta key de
-nuevo (la tiene guardada, ya la ha compartido 2 veces en distintas
+nuevo (la tiene guardada, ya la ha compartido varias veces en distintas
 sesiones). NUNCA usar la Universal Key de Emergent para Agnes — es una
 plataforma de terceros totalmente distinta.
+RESTAURADA de nuevo en esta sesión: sk-EuMIognaqzJHkqzPuoGt9pYTztegnTWu29Dgz9Tp45nWdIZ0
+(verificada con una edición real end-to-end vía POST /api/ai/edit-image,
+engine=agnes -> 200 OK, provider=agnes. Nota de esta sesión: un 1x1 px de
+prueba hace que Agnes devuelva 500 "internal error" -no es un problema de la
+key-, hay que probar siempre con una foto real de tamaño normal).
 
 ## STRIPE (suscripción de pago para el editor con GEMINI — Agnes sigue gratis)
 Petición del usuario: "Gemini... pero los usuarios tendran que pagar...
@@ -212,7 +217,33 @@ aiCreditsRemaining/aiMonthlyQuota/aiCurrentPeriodEnd/aiSubscriptionId/
 stripeCustomerId) — NUNCA se otorgan créditos salvo en un webhook
 `invoice.paid` real (ver grantMonthlyAiCredits/lib/db.js).
 
-NOTA IMPORTANTE (bug real encontrado y corregido en esta sesión): la cuenta
+RESTAURADA de nuevo en esta sesión (STRIPE_SECRET_KEY sk_test_51U93y6...,
+compartida de nuevo por el usuario). IMPORTANTE — descubierto en esta sesión:
+la cuenta de Stripe tiene DOS sets de precios "Twyk AI Editor" (uno viejo sin
+conteo de créditos en el nombre -Starter/Pro/Unlimited, 500/1000/2000 centavos,
+coincide con AI_PLANS actual del código- y otro más nuevo con conteo en el
+nombre -"Starter (50 credits/mo)"/"Pro (120 credits/mo)"/"Premium (300
+credits/mo)"-, de una sesión anterior que subió los créditos pero cuyo cambio
+correspondiente en lib/stripe.js no está en este checkout de git). Se usó el
+set que SÍ coincide con el código actual (5/20/ilimitado créditos):
+STRIPE_PRICE_STARTER=price_1U94E4JN5FEXBU033nFHPYip
+STRIPE_PRICE_PRO=price_1U94E4JN5FEXBU03c4Kq8wim
+STRIPE_PRICE_UNLIMITED=price_1U94E4JN5FEXBU030WoePOIs
+Si el usuario esperaba los créditos más altos (50/120/300), avisarle de este
+desajuste histórico antes de asumir cuál usar. Webhook NUEVO creado apuntando
+a la URL actual (we_1U9f9GJN5FEXBU03b8ifHU3k,
+STRIPE_WEBHOOK_SECRET=whsec_bJFIlmITiHbDVaJCiQb6ZNqNJJx1HdgR) — los 2
+webhooks viejos (URLs de sesiones anteriores, ya caídas) se dejaron intactos
+en el dashboard de Stripe, no afectan nada al no recibir tráfico real.
+Verificado end-to-end real: (1) POST /api/ai/edit-image engine=gemini SIN
+suscripción -> 402 subscription_required (paywall correcto); (2) POST
+/api/stripe/checkout plan=starter -> 200 con una URL real de Stripe Checkout
+(cs_test_...) — el usuario podría completar el pago ahí mismo con una tarjeta
+de prueba de Stripe para verificar el webhook/otorgamiento de créditos, no
+probado en esta sesión (requeriría completar un pago real, aunque sea de
+prueba).
+
+NOTA IMPORTANTE (bug real encontrado y corregido en una sesión anterior): la cuenta
 de Stripe del usuario usa una versión de API donde `subscription.
 current_period_end` y `invoice.lines.data[0].price` YA NO EXISTEN en esas
 rutas — se movieron a `subscription.items.data[0].current_period_end` y

@@ -5516,3 +5516,24 @@ test_plan:
 agent_communication:
     -agent: "main"
     -message: "ACTUALIZACIÓN: el usuario, tras el bug del panel inferior (ya corregido, ver status_history), pidió explícitamente y de forma repetida/enfática NO usar el agente de testing (además de una queja sobre créditos, respondida directamente al usuario). Se respeta esa instrucción explícita del usuario por encima de la verificación automática habitual para bugs: NO se invocó deep_testing_frontend_nextjs en esta ronda. En su lugar se implementó una cámara EN VIVO real (getUserMedia + MediaRecorder) para reemplazar el enfoque anterior de <input capture> (que el usuario reportó como 'no se muestra la cámara' — solo abría la app nativa por separado, sin vista previa en pantalla). Ver detalle completo en el último status_history de la tarea 'Botón de cámara...'. Pendiente: confirmación manual del propio usuario en su navegador móvil (no del agente de testing)."
+
+
+backend:
+  - task: "Restaurar 'Agnes gratis + Gemini con créditos' (editor de fotos con IA) tras pérdida de claves en el reinicio del entorno"
+    implemented: true
+    working: true
+    file: ".env, app/api/[[...path]]/route.js, lib/stripe.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "En el editor con IA, Agnes mantener gratis pero Gemini debe tener créditos."
+        -working: "NA"
+        -agent: "main"
+        -comment: "Revisado el código: esta lógica YA estaba completamente implementada (handleAiEditImage en route.js ya distingue engine='agnes' -gratis, sin límite- de engine='gemini' -descuenta 1 crédito con consumeAiCredit, 402 subscription_required si no hay suscripción/créditos-). El problema real era que AGNES_API_KEY y las variables de STRIPE_* se perdieron en la recuperación del entorno de esta sesión (secretos que nunca persisten en git). Pedidas ambas claves al usuario (AGNES_API_KEY y STRIPE_SECRET_KEY) antes de tocar nada, según protocolo de integraciones de terceros."
+        -working: true
+        -agent: "main"
+        -comment: "Restauradas ambas claves en /app/.env. Para Stripe: localizados (sin crear duplicados) los 3 precios YA existentes en la cuenta que coinciden con AI_PLANS del código actual (Starter €5/Pro €10/Unlimited €20, créditos 5/20/ilimitado) — se detectó que la cuenta tiene un 2do set de precios más reciente con más créditos (50/120/300) de una sesión anterior cuyo cambio de código no está en este checkout de git, documentado en memory/ENV_BACKUP.md para no confundir en el futuro. Creado un webhook NUEVO de Stripe apuntando a la URL actual del preview (los 2 webhooks viejos de sesiones anteriores se dejaron intactos, no reciben tráfico). Verificado end-to-end con llamadas reales (login real de un usuario, sin curl, script borrado tras verificar): (1) POST /api/ai/edit-image engine=agnes con una foto real -> 200 OK, provider=agnes, imagen editada devuelta (el intento inicial con una imagen de prueba de 1x1px falló con 500 'internal error' del lado de Agnes -no relacionado con la key-, confirmado probando directamente contra la API de Agnes con la misma imagen trivial; con una foto real de tamaño normal funcionó a la primera, 200 OK); (2) POST /api/ai/edit-image engine=gemini SIN suscripción -> 402 subscription_required, mensaje 'Subscribe to use the Gemini editor' (paywall correcto, Gemini NO es gratis); (3) POST /api/stripe/checkout plan=starter -> 200 con una URL real de Stripe Checkout (cs_test_...), confirmando que el flujo de pago está correctamente conectado (no se completó un pago real de prueba, solo se verificó que la sesión se crea). memory/ENV_BACKUP.md y este archivo actualizados con el detalle completo."
+
