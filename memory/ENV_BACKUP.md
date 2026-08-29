@@ -59,6 +59,19 @@ después de que Next.js haga su propio "Reload env: .env" (log de supervisor),
 o preguntar al usuario cuál es la URL que ve en su navegador.
 
 ## Última URL usada (actualizada automáticamente al restaurar)
+NEXT_PUBLIC_BASE_URL=https://d46745bb-c1d2-4238-b7f2-a5edcd883f63.preview.emergentagent.com
+(.env RECREADO otra vez en esta nueva sesión — mismo patrón recurrente: /app
+había perdido TODO salvo .git [`git reset --hard origin/main` restauró el
+working tree]. .env no existía [gitignored, como siempre]. Recreado con
+MONGO_URL/ADMIN_EMAILS/CORS_ORIGINS apuntando a la URL de arriba [tomada de
+APP_URL en /etc/supervisor/conf.d/*.conf]. EMERGENT_LLM_KEY renovada vía
+emergent_integrations_manager: sk-emergent-60549C8C65bD3036dE. TAVILY_API_KEY
+restaurada igual que antes. FIREBASE_*, AGNES_API_KEY y STRIPE_* quedaron
+VACÍOS otra vez (secretos que no persisten). Base de datos re-sembrada con
+node scripts/seed-core-users.mjs. memory/test_credentials.md recreado.
+Verificado con login real (POST /api/auth/login, twyk/Admin12345) -> 200 OK.
+
+## Sesión anterior
 NEXT_PUBLIC_BASE_URL=https://05ae20bb-ce37-461f-ba9e-75d1d598da69.preview.emergentagent.com
 (.env RECREADO en esta nueva sesión — esta vez la pérdida fue TOTAL: todo
 `/app` había vuelto al último commit de git vía `git reset --hard HEAD`

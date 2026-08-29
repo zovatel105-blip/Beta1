@@ -41,6 +41,12 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
   const [description, setDescription] = useState('')
   const [error, setError] = useState(null)
   const [selected, setSelected] = useState('solo')
+  // "Allow challenge" (petición del usuario: poder activar/desactivar el
+  // botón de retar en las publicaciones tipo "Your post"). Solo aplica al
+  // modo 'solo' (reto abierto) — por defecto ACTIVADO, mismo comportamiento
+  // que la app tuvo siempre antes de esta opción. También editable después
+  // de publicada (ver OpenChallengeSlide.jsx/OptionsModal.jsx).
+  const [allowChallenge, setAllowChallenge] = useState(true)
   const [music, setMusic] = useState(null) // track de iTunes seleccionado
   const [musicOpen, setMusicOpen] = useState(false)
   const [previewA, setPreviewA] = useState(null)
@@ -76,7 +82,7 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
   const reset = () => {
     setStep('mode'); setMode(null); setLayout('horizontal'); setTarget(null); setUsers([])
     setFile(null); setFileB(null); setDescription(''); setError(null); setPublishing(false)
-    setSelected('solo'); setVersusIdx(0); setMusic(null); setMusicOpen(false); setAiEditorSlot(null); setAiOverride(null)
+    setSelected('solo'); setVersusIdx(0); setMusic(null); setMusicOpen(false); setAiEditorSlot(null); setAiOverride(null); setAllowChallenge(true)
   }
 
   useEffect(() => {
@@ -229,6 +235,7 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
         fd.append('file', file)
         fd.append('openChallenge', '1')
         fd.append('message', description || '')
+        fd.append('allowChallenge', allowChallenge ? '1' : '0')
       } else if (mode === 'challenge') {
         xhr.open('POST', '/api/challenges')
         fd.append('file', file)
@@ -293,6 +300,7 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
               music: c.musicTitle ? `${c.musicTitle} · ${c.musicArtist}` : 'Open challenge',
               stats: { likes: 0, comments: 0, shares: 0, saves: 0 },
               createdAtMs: c.createdAt ? new Date(c.createdAt).getTime() : Date.now(),
+              allowChallenge: c.allowChallenge !== false,
             })
           }
         }
@@ -804,6 +812,33 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
                             className="w-full bg-transparent text-[15px] text-zinc-100 placeholder:text-zinc-400 focus:outline-none resize-none"
                           />
                         </div>
+                        {/* "Allow challenge" — solo en publicaciones tipo
+                            "Your post" (petición del usuario: poder
+                            activar/desactivar el botón de retar). Por
+                            defecto activado. También editable después de
+                            publicada desde el menú "⋮" (ver
+                            OpenChallengeSlide.jsx). */}
+                        {mode === 'solo' && (
+                          <div className="flex items-center gap-3 rounded-2xl bg-black/45 backdrop-blur-xl border border-white/10 px-4 py-3">
+                            <Swords size={18} className="text-white/80 shrink-0" strokeWidth={1.75} />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-white text-[14px] font-semibold leading-tight">Allow challenges</p>
+                              <p className="text-zinc-400 text-[11.5px] leading-tight">Let others challenge you from this post</p>
+                            </div>
+                            <button
+                              type="button"
+                              role="switch"
+                              aria-checked={allowChallenge}
+                              aria-label="Allow challenges"
+                              onClick={() => setAllowChallenge((v) => !v)}
+                              className={`relative w-11 h-6 rounded-full shrink-0 transition-colors duration-200 ${allowChallenge ? 'bg-emerald-500' : 'bg-white/20'}`}
+                            >
+                              <span
+                                className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200 ${allowChallenge ? 'translate-x-5' : ''}`}
+                              />
+                            </button>
+                          </div>
+                        )}
                         {/* Añadir música (iTunes) */}
                         {music ? (
                           <div className="flex items-center gap-3 rounded-2xl bg-black/45 backdrop-blur-xl border border-white/10 px-3 py-2.5">

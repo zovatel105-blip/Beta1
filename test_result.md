@@ -5418,3 +5418,44 @@ frontend:
         -working: true
         -agent: "main"
         -comment: "rounded-t-3xl YA estaba en el codigo de BottomNav.jsx desde antes -> confirmado con analyze_file_tool sobre la captura real del usuario que las esquinas se ven CUADRADAS visualmente. Causa: la barra es bg-black sobre un fondo detras tambien negro (bg-black del contenedor del feed) -> un recorte redondeado negro revelando fondo negro es indistinguible de una esquina cuadrada (cero contraste). Fix: bg-black -> bg-zinc-950 (tono ligeramente distinto del negro puro) + border-t border-white/10 (traza la curva con una linea sutil) en BottomNav.jsx mismo rounded-t-3xl. Lint limpio, servidor reiniciado sin errores. NO se pudo verificar con captura propia (gate mobile-only + agente de testing prohibido explicitamente por el usuario)."
+
+backend:
+  - task: "Recuperación de entorno tras pérdida total de /app (solo quedaba .git)"
+    implemented: true
+    working: true
+    file: ".env, memory/test_credentials.md, memory/ENV_BACKUP.md, scripts/seed-core-users.mjs"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "main"
+        -comment: "Mismo patrón recurrente documentado en memory/ENV_BACKUP.md: /app había vuelto a perder TODO salvo .git. Restaurado con `git reset --hard origin/main`. .env recreado (MONGO_URL/ADMIN_EMAILS/NEXT_PUBLIC_BASE_URL/CORS_ORIGINS con la URL actual, EMERGENT_LLM_KEY renovada vía emergent_integrations_manager, TAVILY_API_KEY restaurada). FIREBASE_*/AGNES_API_KEY/STRIPE_* quedaron vacíos (secretos que no persisten, pendientes de pedir al usuario si los necesita). Base de datos re-sembrada con node scripts/seed-core-users.mjs. memory/test_credentials.md recreado. Verificado con login real (POST /api/auth/login, twyk/Admin12345) -> 200 OK."
+
+  - task: "Activar/desactivar el botón de retar (Swords) en publicaciones tipo 'Your post'"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js, lib/stores.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "En las publicaciones tipo post el usuario debe poder activar o desactivar el botón de retar. Confirmó alcance: se refiere a las publicaciones 'Your post' (reto abierto, botón de espadas ⚔️ 'Be 1st'); quiere el interruptor TANTO al crear la publicación COMO editable después de publicada (menú '⋮ Más opciones' de la propia publicación); cuando está desactivado, el espacio del botón simplemente queda vacío. Pidió explícitamente NO usar el agente de testing."
+        -working: true
+        -agent: "main"
+        -comment: "Implementado: (1) lib/stores.js: nueva función setChallengeAllowChallenge(id, ownerId, allow) — actualiza atómicamente con filtro { id, open: true, 'from.id': ownerId }, así que solo el dueño puede cambiarlo (verificación de propiedad dentro del propio filtro de Mongo, no en un paso aparte). (2) route.js: handleCreateChallenge ahora lee formData 'allowChallenge' (solo aplica si openChallenge=1, default true) y lo guarda en el documento challenge. (3) getOpenChallengeFeedItems expone `allowChallenge: c.allowChallenge !== false` en cada item del feed. (4) Nuevo endpoint POST /api/challenges/:id/allow-toggle (body {allow: boolean}) — requiere sesión, usa setChallengeAllowChallenge, devuelve 404 si el reto no existe o el usuario no es el dueño. Verificado con un script de prueba real (node, sin curl, sin testing agent, borrado tras verificar): login real de 2 usuarios (twyk/lucia) -> (a) crear post con allowChallenge=false persiste y se ve en /api/feed; (b) crear con allowChallenge=true, luego el dueño lo desactiva DESPUÉS de publicado vía el nuevo endpoint -> se refleja en el feed; (c) un usuario NO dueño (lucia) intenta cambiarlo -> 404 (rechazado correctamente); (d) el dueño lo reactiva -> OK. Los 7 checks del script pasaron. Datos de prueba borrados de Mongo tras la verificación."
+
+frontend:
+  - task: "Switch 'Allow challenges' al crear + editable después (menú ⋮) en publicaciones 'Your post'"
+    implemented: true
+    working: "NA"
+    file: "components/UploadDialog.jsx, components/OpenChallengeSlide.jsx, components/OptionsModal.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "Implementado: (1) UploadDialog.jsx: switch 'Allow challenges' (por defecto activado) visible solo en el paso de composición del modo 'solo' (Your post), justo debajo del textarea de descripción; se envía como allowChallenge=1|0 al publicar y se refleja al instante en el objeto local insertado en el grid del perfil. (2) OpenChallengeSlide.jsx: el botón de espadas ⚔️ ('Be 1st') ahora solo se muestra si `allowChallenge` (hidratado desde post.allowChallenge, sincronizado con post.id/post.allowChallenge) es true Y no es la publicación propia — si está desactivado, el hueco queda vacío (petición explícita del usuario, sin otro elemento en su lugar). El botón '⋮ Más opciones' ahora también se muestra en las publicaciones PROPIAS (antes solo en las ajenas) y abre el mismo OptionsModal pero con isOwner=true + showDeleteForOwner=false (el borrado NO está soportado para este tipo de publicación en el backend, así que se omite esa fila para no exponer una acción rota) + challengeToggle={{checked: allowChallenge, onChange: handleToggleAllowChallenge}} — este último llama de forma optimista a POST /api/challenges/:challengeId/allow-toggle (revierte si falla). (3) OptionsModal.jsx: nueva fila de switch reutilizable (solo se renderiza si se pasa `challengeToggle`), no afecta a los demás llamadores existentes (CarouselSlide.jsx/DuetSlide.jsx siguen igual, sin este prop). Lint limpio en los 3 archivos, servidor reiniciado sin errores. NO se pudo verificar visualmente con captura de pantalla: la app tiene un gate mobile-only (user-agent + ancho de viewport, ver app/page.js) que bloqueó 2 intentos distintos de forzar un viewport/user-agent móvil vía el screenshot_tool (el harness siempre re-forzó 1920x1080 pese a set_viewport_size), y el usuario pidió explícitamente NO usar el agente de testing en esta tarea. Backend verificado exhaustivamente vía script de prueba real (ver tarea de backend). Pendiente confirmación visual del usuario en su propio dispositivo."

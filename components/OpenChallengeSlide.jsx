@@ -163,10 +163,38 @@ export default function OpenChallengeSlide({
     setFireCount(post.voteCount || 0)
   }, [post.id, post.hasVoted, post.voteCount])
 
+  // "Allow challenge" (petición del usuario: poder activar/desactivar el
+  // botón de retar ⚔️ en las publicaciones tipo "Your post") — hidratado por
+  // el servidor (post.allowChallenge, ver getOpenChallengeFeedItems) y
+  // editable después de publicada por el propio dueño desde el menú "⋮"
+  // (ver challengeToggle más abajo). Por defecto true.
+  const [allowChallenge, setAllowChallenge] = useState(post.allowChallenge !== false)
+  useEffect(() => { setAllowChallenge(post.allowChallenge !== false) }, [post.id, post.allowChallenge])
+
   const isImage = post.mediaType === 'image'
   const mediaUrl = isImage ? post.imageUrl : post.videoUrl
   const headAuthor = post.author || {}
   const isOwnChallenge = !!user?.username && user.username === headAuthor?.username
+
+  // Llama al backend para persistir el cambio (POST /api/challenges/:id/
+  // allow-toggle, ver route.js) — optimista, revierte si falla. `post.
+  // challengeId` es el id REAL del reto en la colección `challenges` (el id
+  // de la tarjeta, `post.id`, es el sintético `open_<challengeId>`).
+  const handleToggleAllowChallenge = useCallback(async (next) => {
+    setAllowChallenge(next)
+    try {
+      const res = await fetch(`/api/challenges/${encodeURIComponent(post.challengeId)}/allow-toggle`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ allow: next }),
+      })
+      if (!res.ok) throw new Error('failed')
+      const d = await res.json().catch(() => null)
+      if (d && typeof d.allowChallenge === 'boolean') setAllowChallenge(d.allowChallenge)
+    } catch {
+      setAllowChallenge(!next)
+    }
+  }, [post.challengeId])
 
   // Acquire/release del decoder — mismo principio que el resto del feed
   // (Regla #2): solo la tarjeta activa (o la siguiente, en WARM) retiene un
@@ -427,7 +455,7 @@ export default function OpenChallengeSlide({
           <Heart className={cn('w-[30px] h-[30px] transition-all duration-200', hasFire ? 'fill-current text-red-500' : 'text-white')} strokeWidth={1.25} />
           <span className={`${fireCount > 0 ? 'text-[9px] font-semibold' : 'text-[8px] font-bold'} max-w-[30px] overflow-hidden text-white leading-none text-center whitespace-nowrap`}>{countLabel(fireCount, 'Like')}</span>
         </button>
-        {!isOwnChallenge && (
+        {!isOwnChallenge && allowChallenge && (
           <button
             aria-label="challenge"
             onClick={handleChallengeClick}
@@ -452,6 +480,15 @@ export default function OpenChallengeSlide({
         </button>
         {!isOwnChallenge && (
           <button aria-label="mas-opciones" onClick={(e) => { e.stopPropagation(); setMenuOpen(true) }} className="flex flex-col items-center hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
+            <MoreVertical className="w-[18px] h-[18px] text-white" strokeWidth={1.25} fill="currentColor" />
+          </button>
+        )}
+        {/* Publicación PROPIA: mismo botón "⋮", pero abre el switch de
+            "Allow challenges" (ver challengeToggle más abajo) en vez de
+            reportar/bloquear — petición del usuario: poder desactivar el
+            botón de retar también DESPUÉS de publicada. */}
+        {isOwnChallenge && (
+          <button aria-label="mas-opciones-propia" onClick={(e) => { e.stopPropagation(); setMenuOpen(true) }} className="flex flex-col items-center hover:scale-110 transition-all duration-200" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))' }}>
             <MoreVertical className="w-[18px] h-[18px] text-white" strokeWidth={1.25} fill="currentColor" />
           </button>
         )}
@@ -511,7 +548,9 @@ export default function OpenChallengeSlide({
         open={menuOpen}
         postId={post.id}
         author={headAuthor}
-        isOwner={false}
+        isOwner={isOwnChallenge}
+        showDeleteForOwner={false}
+        challengeToggle={isOwnChallenge ? { checked: allowChallenge, onChange: handleToggleAllowChallenge } : null}
         onClose={() => setMenuOpen(false)}
         onNotInterested={onNotInterested}
       />

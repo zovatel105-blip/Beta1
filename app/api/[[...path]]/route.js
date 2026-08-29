@@ -97,6 +97,7 @@ import {
   getAllChallenges,
   insertChallenge,
   deleteChallenge,
+  setChallengeAllowChallenge,
   getAllBuiltinVotes,
   incrementBuiltinVote,
 } from '@/lib/stores'
@@ -363,6 +364,11 @@ async function getOpenChallengeFeedItems(currentUser, followingSet) {
         stats: { likes: 0, comments: commentCounts[id] || 0, shares: 0, saves: 0, views: viewCounts[id] || 0 },
         voteCount: voteCounts[id] || 0,
         hasVoted: votedByMe.has(id),
+        // "Allow challenge" (petición del usuario: poder activar/desactivar el
+        // botón de retar en las publicaciones tipo "Your post"). Por defecto
+        // true (mismo comportamiento de siempre) si el reto es de antes de
+        // añadir este campo o no lo trae explícitamente.
+        allowChallenge: c.allowChallenge !== false,
         createdAtMs: c.createdAt ? new Date(c.createdAt).getTime() : Date.now(),
       }
     })
@@ -1942,6 +1948,11 @@ export async function POST(request, { params }) {
   if (segs[0] === 'challenges' && segs[2] === 'reject') {
     return handleRejectChallenge(segs[1])
   }
+  // Activar/desactivar el botón de "Retar" de una publicación propia tipo
+  // "Your post" (reto abierto). POST /api/challenges/:id/allow-toggle
+  if (segs[0] === 'challenges' && segs[2] === 'allow-toggle') {
+    return handleToggleAllowChallenge(segs[1], request)
+  }
 
   // Seguir / dejar de seguir a un usuario (persistente). POST /api/users/:username/follow
   if (segs[0] === 'users' && segs[2] === 'follow') {
@@ -2951,6 +2962,15 @@ async function handleCreateChallenge(request) {
     // flujo de aceptar/rechazar de siempre. Este reto original NUNCA se cierra
     // por sí solo -> puede recibir varias solicitudes independientes.
     const openChallenge = (formData.get('openChallenge') || '').toString() === '1'
+    // "Allow challenge" (petición del usuario: poder activar/desactivar el
+    // botón de retar en las publicaciones tipo "Your post"). Solo aplica a
+    // retos ABIERTOS (openChallenge) — los dirigidos (mode 'challenge') no
+    // muestran ese botón en absoluto, así que siempre quedan en `true`. Por
+    // defecto activado (mismo comportamiento que la app tuvo siempre antes
+    // de esta opción) salvo que el frontend envíe explícitamente '0'.
+    const allowChallenge = openChallenge
+      ? (formData.get('allowChallenge') || '1').toString() !== '0'
+      : true
 
     if (!file || typeof file === 'string') {
       return NextResponse.json({ error: 'no_file' }, { status: 400 })
@@ -3028,6 +3048,7 @@ async function handleCreateChallenge(request) {
       // reta y este se acepta — ver handleAcceptChallenge más abajo.
       luxuryThemeId: openChallenge ? null : luxuryThemeId,
       ...(luxuryThemeSnapshot ? { luxuryTheme: { id: luxuryThemeSnapshot.id, title: luxuryThemeSnapshot.title, promptHint: luxuryThemeSnapshot.promptHint || '' } } : {}),
+      allowChallenge,
       ...readMusicFields(formData),
       createdAt: new Date().toISOString(),
     }
@@ -3220,6 +3241,38 @@ async function handleRejectChallenge(cid) {
     return NextResponse.json({ ok: true })
   } catch (err) {
     return NextResponse.json({ error: 'reject_failed', detail: String(err?.message || err) }, { status: 500 })
+  }
+}
+
+// POST /api/challenges/{id}/allow-toggle — activa/desactiva el botón de
+// "Retar" (Swords) de una publicación tipo "Your post" (reto abierto)
+// PROPIA. body: { allow: boolean }. Petición del usuario: "el usuario debe
+// poder activar o desactivar el botón de retar" — editable en cualquier
+// momento después de publicada (no solo al crearla), desde el menú "⋮ Más
+// opciones" de la propia publicación (ver OpenChallengeSlide.jsx). La
+// verificación de propiedad ('from.id' === currentUser.id) va dentro del
+// propio filtro de MongoDB (ver setChallengeAllowChallenge/lib/stores.js),
+// así que un usuario no puede cambiar el reto abierto de otro aunque
+// adivine su id.
+async function handleToggleAllowChallenge(cid, request) {
+  try {
+    const currentUser = await getCurrentUser(request)
+    if (!currentUser) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    }
+    if (!cid) {
+      return NextResponse.json({ error: 'missing_id' }, { status: 400 })
+    }
+    const body = await request.json().catch(() => null)
+    const allow = !!body?.allow
+    const updated = await setChallengeAllowChallenge(cid, currentUser.id, allow)
+    if (!updated) {
+      return NextResponse.json({ error: 'not_found_or_forbidden' }, { status: 404 })
+    }
+    return NextResponse.json({ ok: true, allowChallenge: updated.allowChallenge !== false })
+  } catch (err) {
+    console.error('toggle allow-challenge error', err)
+    return NextResponse.json({ error: 'toggle_failed', detail: String(err?.message || err) }, { status: 500 })
   }
 }
 

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { EyeOff, Flag, Ban, ChevronDown, ChevronLeft, Loader2, Trash2 } from 'lucide-react'
+import { EyeOff, Flag, Ban, ChevronDown, ChevronLeft, Loader2, Trash2, Swords } from 'lucide-react'
 import BottomSheet from './BottomSheet'
 import { useAuth } from '@/contexts/AuthContext'
 
@@ -35,11 +35,12 @@ function authHeaders() {
   }
 }
 
-export default function OptionsModal({ open, postId, author, isOwner = false, onClose, onDeleted, onNotInterested }) {
+export default function OptionsModal({ open, postId, author, isOwner = false, onClose, onDeleted, onNotInterested, challengeToggle = null, showDeleteForOwner = true }) {
   const { user } = useAuth()
   const [view, setView] = useState('menu') // 'menu' | 'report'
   const [busy, setBusy] = useState(false)
   const [done, setDone] = useState('') // mensaje de confirmación
+  const [toggleBusy, setToggleBusy] = useState(false)
 
   // Reiniciar estado cada vez que se abre.
   useEffect(() => {
@@ -47,8 +48,24 @@ export default function OptionsModal({ open, postId, author, isOwner = false, on
       setView('menu')
       setBusy(false)
       setDone('')
+      setToggleBusy(false)
     }
   }, [open])
+
+  // "Allow challenge" (petición del usuario: poder activar/desactivar el
+  // botón de retar en las publicaciones tipo "Your post") — switch en el
+  // propio menú, no navega a otra vista ni cierra el modal, cambia al
+  // instante (optimista) y llama a `challengeToggle.onChange`, que en
+  // OpenChallengeSlide.jsx hace la llamada real al backend y revierte si falla.
+  const handleToggleAllowChallenge = async () => {
+    if (!challengeToggle || toggleBusy) return
+    setToggleBusy(true)
+    try {
+      await challengeToggle.onChange(!challengeToggle.checked)
+    } finally {
+      setToggleBusy(false)
+    }
+  }
 
   // "No me interesa" — feedback negativo explícito para el TWYK Engine (ver
   // POST /api/feed/not-interested). Fire-and-forget: la tarjeta se quita del
@@ -148,9 +165,13 @@ export default function OptionsModal({ open, postId, author, isOwner = false, on
 
   // Menú del DUEÑO de la publicación (estilo Instagram/TikTok): acciones sobre
   // la propia publicación, no de "reportar/bloquear" como en una ajena.
-  const ownerRows = [
-    { key: 'delete', label: 'Delete', icon: <Trash2 className="w-[22px] h-[22px] text-red-600" strokeWidth={1.7} />, onClick: () => { setDone(''); setView('confirmDelete') }, danger: true },
-  ]
+  // `showDeleteForOwner=false` (usado por OpenChallengeSlide.jsx para las
+  // publicaciones tipo "Your post", que aún no soportan borrado desde aquí)
+  // deja el menú SOLO con el switch de `challengeToggle` (renderizado abajo,
+  // fuera de este array), sin la fila de "Delete".
+  const ownerRows = showDeleteForOwner
+    ? [{ key: 'delete', label: 'Delete', icon: <Trash2 className="w-[22px] h-[22px] text-red-600" strokeWidth={1.7} />, onClick: () => { setDone(''); setView('confirmDelete') }, danger: true }]
+    : []
 
   const menuRows = isOwner ? ownerRows : rows
 
@@ -180,6 +201,23 @@ export default function OptionsModal({ open, postId, author, isOwner = false, on
         </div>
       ) : view === 'menu' ? (
         <div className="px-2 pb-2">
+          {challengeToggle && (
+            <div className="w-full flex items-center gap-4 px-5 py-4">
+              <Swords className="w-[22px] h-[22px] text-zinc-700 shrink-0" strokeWidth={1.7} />
+              <span className="flex-1 text-[15px] font-medium text-zinc-900">Allow challenges</span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={challengeToggle.checked}
+                aria-label="Allow challenges"
+                disabled={toggleBusy}
+                onClick={handleToggleAllowChallenge}
+                className={`relative w-11 h-6 rounded-full shrink-0 transition-colors duration-200 disabled:opacity-50 ${challengeToggle.checked ? 'bg-emerald-500' : 'bg-zinc-300'}`}
+              >
+                <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200 ${challengeToggle.checked ? 'translate-x-5' : ''}`} />
+              </button>
+            </div>
+          )}
           {menuRows.map((r) => (
             <button
               key={r.key}
