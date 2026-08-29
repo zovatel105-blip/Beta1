@@ -829,15 +829,6 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
                               <p className="text-white/85 text-center text-[13px] font-medium">{cameraError}</p>
                             </div>
                           )}
-                          {/* Cambiar cámara frontal/trasera */}
-                          <button
-                            type="button"
-                            onClick={() => setFacingMode((m) => (m === 'environment' ? 'user' : 'environment'))}
-                            aria-label="Flip camera"
-                            className="absolute z-10 top-3 right-3 w-9 h-9 rounded-full flex items-center justify-center bg-black/35 backdrop-blur hover:bg-black/55 active:scale-90 transition text-white"
-                          >
-                            <SwitchCamera size={18} strokeWidth={1.9} />
-                          </button>
                           {recording && (
                             <span className="absolute z-10 top-3 left-1/2 -translate-x-1/2 inline-flex items-center gap-1.5 text-white text-[12px] font-semibold bg-red-500 px-2.5 py-1 rounded-full">
                               <span className="w-2 h-2 rounded-full bg-white animate-pulse" /> REC
@@ -846,9 +837,11 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
                           {/* Fila inferior: galería (izquierda) + disparador
                               (centro, SIN icono dentro — petición del usuario,
                               queda como un círculo simple tipo cámara real) +
-                              hueco simétrico a la derecha para mantenerlo
-                              centrado. Reemplaza al antiguo botón de arriba
-                              que alternaba cámara<->galería (eliminado). */}
+                              girar cámara frontal/trasera (derecha). Reemplaza
+                              al antiguo botón de arriba que alternaba
+                              cámara<->galería, y al botón de girar cámara que
+                              antes estaba arriba a la derecha (ambos
+                              eliminados). */}
                           <div className="absolute inset-x-0 bottom-8 z-10 flex items-center justify-center gap-6">
                             <button
                               type="button"
@@ -868,7 +861,14 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
                             >
                               {recording && <span className="w-6 h-6 rounded-md bg-white" />}
                             </button>
-                            <span className="w-11 h-11" aria-hidden />
+                            <button
+                              type="button"
+                              onClick={() => setFacingMode((m) => (m === 'environment' ? 'user' : 'environment'))}
+                              aria-label="Flip camera"
+                              className="w-11 h-11 rounded-full flex items-center justify-center bg-black/35 backdrop-blur hover:bg-black/55 active:scale-90 transition text-white"
+                            >
+                              <SwitchCamera size={19} strokeWidth={1.9} />
+                            </button>
                           </div>
                         </>
                       )}
