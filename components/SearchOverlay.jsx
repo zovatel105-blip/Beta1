@@ -8,16 +8,19 @@ import Avatar from './Avatar'
 // feed. Busca en vivo (debounce) contra GET /api/users?q=... y al tocar un
 // resultado abre el perfil de ese usuario.
 //
-// "Trending Challenge" (petición del usuario, tras 2 correcciones en esta
-// misma sesión: 1º una píldora que abría una hoja aparte -descartado-, 2º
-// una fila de tarjetas con miniatura/votos -descartado-, 3º LA DEFINITIVA:
-// "Debe mostrar solo el nombre del challenge (son los challenge en
-// tendencia) y al hacer click te dirige a las publicaciones en ESE
-// challenge"). Aquí se muestra SOLO el nombre del tema activo (ej. "Yacht
-// Life", GET /api/luxury-battles/active) como una fila simple; al tocarlo
-// se llama a `onOpenTrendingChallenge(themeId)`, que el padre (Feed.jsx)
-// usa para cerrar este buscador y abrir TrendingChallengePostsPage.jsx (un
-// vídeo deslizable con TODAS las publicaciones reales de ese challenge).
+// "Trending Challenge" (petición del usuario, tras varias correcciones en
+// sesiones anteriores): se muestra SOLO el nombre del tema (ej. "Yacht
+// Life") como una fila simple; al tocarlo se llama a
+// `onOpenTrendingChallenge(themeId)`, que el padre (Feed.jsx) usa para
+// cerrar este buscador y abrir TrendingChallengePostsPage.jsx (un vídeo
+// deslizable con TODAS las publicaciones reales de ese challenge).
+//
+// Petición del usuario: "en la página de búsqueda deben aparecer 3
+// trending challenge" — antes, sin ninguna búsqueda escrita, solo se
+// mostraba 1 fila fija (el tema OFICIAL activo). Ahora se muestran hasta 3:
+// el oficial activo primero (si existe) + los más recientes creados por la
+// COMUNIDAD (GET /api/luxury-battles/community, sin `q`) hasta completar 3.
+const DEFAULT_TRENDING_COUNT = 3
 export default function SearchOverlay({ open, onClose, onOpenProfile, onOpenTrendingChallenge }) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState([])
@@ -25,12 +28,15 @@ export default function SearchOverlay({ open, onClose, onOpenProfile, onOpenTren
   const inputRef = useRef(null)
   const debounceRef = useRef(null)
   const [trendingTheme, setTrendingTheme] = useState(null)
+  // Hasta 3 Trending Challenges mostrados por defecto (sin búsqueda escrita):
+  // el oficial activo + los más recientes de la comunidad, ver comentario
+  // arriba. Se recalcula cada vez que `trendingTheme` cambia (llega async).
+  const [defaultTrending, setDefaultTrending] = useState([])
   // Resultados de Trending Challenges que coinciden con lo escrito
   // (petición del usuario: "el buscador debe buscar trendings y
   // usuarios") — incluye el oficial (si su título coincide) + los de la
   // COMUNIDAD (GET /api/luxury-battles/community?q=...). Vacío cuando no
-  // hay texto (en ese caso se sigue mostrando solo la fila fija de arriba,
-  // comportamiento de siempre).
+  // hay texto (en ese caso se muestra `defaultTrending`, ver arriba).
   const [trendingResults, setTrendingResults] = useState([])
   useEffect(() => {
     if (!open) return
@@ -41,6 +47,32 @@ export default function SearchOverlay({ open, onClose, onOpenProfile, onOpenTren
       .catch(() => { if (!cancelled) setTrendingTheme(null) })
     return () => { cancelled = true }
   }, [open])
+
+  // Construye la lista de hasta 3 Trending Challenges por defecto: oficial
+  // activo primero (si existe) + los N más recientes de la comunidad hasta
+  // llegar a 3 (fetch sin `q`, devuelve los más recientes primero, ver
+  // listCommunityLuxuryThemes en lib/db.js).
+  useEffect(() => {
+    if (!open) return
+    let cancelled = false
+    fetch('/api/luxury-battles/community', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d) => {
+        if (cancelled) return
+        const community = Array.isArray(d?.themes) ? d.themes : []
+        const seen = new Set()
+        const merged = []
+        for (const t of [trendingTheme, ...community]) {
+          if (!t?.id || seen.has(t.id)) continue
+          seen.add(t.id)
+          merged.push(t)
+          if (merged.length >= DEFAULT_TRENDING_COUNT) break
+        }
+        setDefaultTrending(merged)
+      })
+      .catch(() => { if (!cancelled) setDefaultTrending(trendingTheme ? [trendingTheme] : []) })
+    return () => { cancelled = true }
+  }, [open, trendingTheme])
 
   // Autofocus al abrir; limpiar al cerrar.
   useEffect(() => {
@@ -161,27 +193,31 @@ export default function SearchOverlay({ open, onClose, onOpenProfile, onOpenTren
         </div>
       </div>
 
-      {/* "Trending Challenge" — fila fija con SOLO el nombre del tema
-          OFICIAL activo (ej. "Yacht Life"), visible mientras no se esté
-          buscando nada en concreto (petición del usuario: "el buscador
-          debe buscar trendings y usuarios" — al escribir, esta fila fija
-          se sustituye por la sección "Trending" de resultados, más abajo,
-          que YA incluye este mismo tema si coincide con lo escrito). */}
-      {trendingTheme && !query.trim() && (
-        <button
-          onClick={() => handleOpenTrendingResult(trendingTheme)}
-          className="flex items-center gap-2.5 px-4 py-3 border-b border-white/10 active:bg-white/5 transition text-left"
-        >
-          <div className="w-9 h-9 rounded-full shrink-0 flex items-center justify-center"
-               style={{ background: 'linear-gradient(135deg, rgba(252,211,77,0.18), rgba(245,158,11,0.18))', border: '1px solid rgba(252,211,77,0.35)' }}>
-            <Flame size={16} className="fill-current text-amber-300" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-amber-300 text-[10px] font-bold uppercase tracking-wide">Trending Challenge</p>
-            <p className="text-white text-[15px] font-semibold truncate">{trendingTheme.title}</p>
-          </div>
-          <ChevronRight size={18} className="text-white/30 shrink-0" />
-        </button>
+      {/* "Trending Challenges" — hasta 3 filas (oficial activo + comunidad),
+          visibles mientras no se esté buscando nada en concreto (petición
+          del usuario: "en la página de búsqueda deben aparecer 3 trending
+          challenge"). Al escribir, esta lista fija se sustituye por la
+          sección "Trending challenges" de resultados, más abajo. */}
+      {defaultTrending.length > 0 && !query.trim() && (
+        <div className="border-b border-white/10">
+          {defaultTrending.map((t, i) => (
+            <button
+              key={t.id}
+              onClick={() => handleOpenTrendingResult(t)}
+              className={`w-full flex items-center gap-2.5 px-4 py-3 active:bg-white/5 transition text-left ${i > 0 ? 'border-t border-white/5' : ''}`}
+            >
+              <div className="w-9 h-9 rounded-full shrink-0 flex items-center justify-center"
+                   style={{ background: 'linear-gradient(135deg, rgba(252,211,77,0.18), rgba(245,158,11,0.18))', border: '1px solid rgba(252,211,77,0.35)' }}>
+                <Flame size={16} className="fill-current text-amber-300" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-amber-300 text-[10px] font-bold uppercase tracking-wide">Trending Challenge</p>
+                <p className="text-white text-[15px] font-semibold truncate">{t.title}</p>
+              </div>
+              <ChevronRight size={18} className="text-white/30 shrink-0" />
+            </button>
+          ))}
+        </div>
       )}
 
       {/* Resultados */}
