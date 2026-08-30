@@ -11,6 +11,38 @@ FIX permanente: cada vez que .env falte, restaurar exactamente este contenido
 en /app/.env y volver a sembrar los usuarios de prueba (ver
 scripts/seed-core-users.mjs y memory/test_credentials.md).
 
+## ⚠️ ESTADO ACTUAL (sesión más reciente): STRIPE_SECRET_KEY + AGNES_API_KEY restaurados, URL sincronizada
+El usuario compartió de nuevo `STRIPE_SECRET_KEY` (sk_test_51U93y6...) y `AGNES_API_KEY`
+(sk-EuMIognaqzJHkqzPuoGt9pYTztegnTWu29Dgz9Tp45nWdIZ0) directamente en el chat. Además se detectó
+y corrigió el BUG recurrente de "NEXT_PUBLIC_BASE_URL desincronizado" (ver nota más abajo en este
+archivo): Next.js había auto-corregido `NEXT_PUBLIC_BASE_URL` a la URL real actual
+(`env-installer-1.preview.emergentagent.com`, distinta de `APP_URL` en supervisord.conf, que seguía
+desactualizada) pero `CORS_ORIGINS` se había quedado con la URL vieja — corregido para que ambas
+coincidan.
+
+Para los price IDs del editor de IA (AI_PLANS en lib/stripe.js espera USD, 50/120/300 créditos,
+env vars STRIPE_PRICE_STARTER/PRO/PREMIUM): en vez de crear precios NUEVOS (que duplicarían los ya
+existentes en la cuenta), se listaron los precios reales de Stripe (`stripe.prices.list`) y se
+encontraron los que YA coinciden exactamente con el código actual:
+STRIPE_PRICE_STARTER=price_1U9jpQJN5FEXBU03uJ3ixuFv   ($5/mo, 50 credits, USD)
+STRIPE_PRICE_PRO=price_1U9jpQJN5FEXBU036Bn3bVWt       ($10/mo, 120 credits, USD)
+STRIPE_PRICE_PREMIUM=price_1U9jpQJN5FEXBU03HPRG3HOS   ($20/mo, 300 credits, USD)
+(NOTA: la cuenta tiene VARIOS sets antiguos duplicados de sesiones anteriores —EUR, USD con otros
+nombres, "Unlimited" viejo— que ya NO coinciden con el código actual; no tocarlos, solo ignorarlos.)
+
+Webhook NUEVO creado apuntando a la URL actual (we_1UAFVEJN5FEXBU03esXTnQN8,
+STRIPE_WEBHOOK_SECRET=whsec_8CfDFG1PIjwmCWNAqGXaph4ElKH8N7zO) — los 4 webhooks viejos de sesiones
+anteriores se dejaron intactos en el dashboard de Stripe (URLs muertas, sin tráfico).
+
+VERIFICADO end-to-end con llamadas reales (Node/fetch, sin curl, sin agente de testing): (1) login
+real (lucia) -> 200; (2) GET /api/billing/status -> 200, plans con amount 5/10/20 y credits
+50/120/300 correctos; (3) POST /api/stripe/checkout plan=starter -> 200 con URL real de Stripe
+Checkout; (4) POST /api/wallet/checkout packageKey=small -> 200 con URL real de Stripe Checkout;
+(5) POST /api/ai/edit-image engine=agnes con una foto real -> 200 OK, provider=agnes, imagen
+editada devuelta — confirma AGNES_API_KEY válida. No probado (requeriría completar un pago real):
+que el webhook nuevo otorgue créditos tras un checkout completado de verdad.
+
+
 ## Contenido de referencia de /app/.env
 
 ```
