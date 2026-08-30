@@ -131,28 +131,33 @@ export default function WalletSheet({ open, onClose }) {
 
   return (
     <div className="fixed inset-0 z-[95] bg-[#0a0a0b] flex flex-col text-white">
-      {/* Glow superior sutil (mismo estilo que NotificationsInbox.jsx) */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-44"
-           style={{ background: 'radial-gradient(60% 100% at 50% 0%, rgba(168,85,247,0.10), transparent 70%)' }} />
-
-      {/* Header */}
-      <div className="relative z-10 flex items-center gap-1 px-2 pb-3"
+      {/* Header — mismo patrón que los drawers/menús del perfil (sticky,
+          fondo translúcido + blur, borde inferior sutil white/[0.06]), sin
+          el glow decorativo que no existe en ningún encabezado del perfil. */}
+      <div className="sticky top-0 z-10 bg-[#0a0a0b]/80 backdrop-blur-xl border-b border-white/[0.06]"
            style={{ paddingTop: 'max(env(safe-area-inset-top), 14px)' }}>
-        <button onClick={onClose} aria-label="Back" className="w-9 h-9 -ml-1.5 rounded-full flex items-center justify-center hover:bg-white/5 active:scale-90 transition text-white">
-          <ChevronLeft size={22} strokeWidth={1.75} />
-        </button>
-        <h1 className="text-[17px] font-semibold tracking-tight">Wallet</h1>
+        <div className="flex items-center gap-1 px-2 pb-3">
+          <button onClick={onClose} aria-label="Back" className="w-9 h-9 -ml-1.5 rounded-full flex items-center justify-center hover:bg-white/5 active:scale-90 transition text-white">
+            <ChevronLeft size={22} strokeWidth={1.75} />
+          </button>
+          <h1 className="text-[17px] font-semibold tracking-tight">Wallet</h1>
+        </div>
       </div>
 
-      <div className="relative z-10 flex-1 overflow-y-auto px-4 pb-8 space-y-5">
+      <div className="flex-1 overflow-y-auto px-4 pt-5 pb-8 space-y-5">
         {loading ? (
+          // Mismo spinner exacto que usa ProfilePage.jsx en sus estados de carga
+          // (grid, seguidores/siguiendo), en vez del icono Loader2 genérico.
           <div className="flex justify-center py-16">
-            <Loader2 size={22} className="animate-spin text-white/70" />
+            <div className="w-8 h-8 rounded-full border-2 border-white/10 border-t-white animate-spin" />
           </div>
         ) : (
           <>
-            {/* Saldo */}
-            <div className="rounded-2xl p-5 text-center max-w-md mx-auto w-full" style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.16), rgba(59,130,246,0.16))', border: '1px solid rgba(255,255,255,0.08)' }}>
+            {/* Saldo — 100% monocromático (petición del usuario), misma
+                superficie que el resto de tarjetas del perfil
+                (bg-white/[0.04], border-white/[0.07]), sin ningún degradado
+                de marca. */}
+            <div className="rounded-2xl p-5 text-center max-w-md mx-auto w-full bg-white/[0.04] border border-white/[0.07]">
               <p className="text-zinc-400 text-[12px] font-medium uppercase tracking-wide">Your balance</p>
               <div className="flex items-center justify-center gap-2 mt-1">
                 <CreditIcon size={30} />
@@ -161,7 +166,8 @@ export default function WalletSheet({ open, onClose }) {
               <p className="text-zinc-400 text-[12.5px] mt-0.5">credits</p>
             </div>
 
-            {/* Paquetes para comprar */}
+            {/* Paquetes para comprar — mismas superficies que el resto del
+                perfil (bg-white/[0.04], border-white/[0.07], rounded-2xl). */}
             <div className="max-w-md mx-auto w-full">
               <p className="text-zinc-400 text-[12px] font-semibold uppercase tracking-wide mb-2">Buy credits</p>
               <div className="grid grid-cols-2 gap-2.5">
@@ -171,14 +177,14 @@ export default function WalletSheet({ open, onClose }) {
                     type="button"
                     onClick={() => buy(p.key)}
                     disabled={!!busyKey}
-                    className="flex flex-col items-center justify-center gap-1 px-3 py-4 rounded-2xl border border-white/10 bg-white/[0.04] hover:border-white/25 active:scale-[0.98] transition disabled:opacity-60"
+                    className="flex flex-col items-center justify-center gap-1 px-3 py-4 rounded-2xl border border-white/[0.07] bg-white/[0.04] hover:border-white/20 active:scale-[0.98] transition disabled:opacity-60"
                   >
                     <div className="flex items-center gap-1.5">
                       <CreditIcon size={16} />
                       <span className="text-white font-bold text-[16px] tabular-nums">{p.credits.toLocaleString()}</span>
                     </div>
                     <span className="text-zinc-500 text-[11px]">credits</span>
-                    <span className="mt-1 text-[13px] font-bold" style={{ color: '#A855F7' }}>
+                    <span className="mt-1 text-[13px] font-bold text-white">
                       {busyKey === p.key ? <Loader2 size={14} className="animate-spin inline text-white" /> : `$${(p.amount / 100).toFixed(2)}`}
                     </span>
                   </button>
@@ -186,32 +192,42 @@ export default function WalletSheet({ open, onClose }) {
               </div>
             </div>
 
-            {error && <p className="text-rose-400 text-[12.5px] text-center">{error}</p>}
+            {/* Error — mismo rojo (red-400) que usa el perfil para sus
+                mensajes de error y filas "danger" (Logout/Delete account). */}
+            {error && <p className="text-red-400 text-[12.5px] text-center">{error}</p>}
 
-            {/* Historial */}
+            {/* Historial — misma tarjeta con lista dividida (bg-white/[0.04],
+                border-white/[0.07], divide-white/[0.06]) que usa el drawer de
+                invitado del perfil para Terms/Privacy/DMCA; iconos en círculo
+                tenue bg-white/[0.06] text-zinc-300 (mismo tono "default" de
+                SettingsRow) — sin verde/rojo financiero, solo blanco/zinc. */}
             <div className="max-w-md mx-auto w-full">
               <p className="text-zinc-400 text-[12px] font-semibold uppercase tracking-wide mb-2">Activity</p>
               {transactions.length === 0 ? (
                 <div className="text-center py-6">
-                  <Gift size={22} className="text-zinc-600 mx-auto mb-1.5" strokeWidth={1.5} />
+                  <span className="w-11 h-11 rounded-full bg-white/[0.06] text-zinc-300 flex items-center justify-center mx-auto mb-2">
+                    <Gift size={18} strokeWidth={1.7} />
+                  </span>
                   <p className="text-zinc-500 text-[12.5px]">No activity yet</p>
                 </div>
               ) : (
-                <div className="space-y-1">
+                <div className="rounded-2xl bg-white/[0.04] border border-white/[0.07] divide-y divide-white/[0.06] overflow-hidden">
                   {transactions.map((tx) => {
                     const positive = tx.amount > 0
                     return (
-                      <div key={tx.id} className="flex items-center gap-2.5 py-2">
-                        {positive ? (
-                          <ArrowDownCircle size={18} className="text-emerald-400 shrink-0" strokeWidth={1.8} />
-                        ) : (
-                          <ArrowUpCircle size={18} className="text-zinc-400 shrink-0" strokeWidth={1.8} />
-                        )}
+                      <div key={tx.id} className="flex items-center gap-3 px-4 py-3">
+                        <span className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-white/[0.06] text-zinc-300">
+                          {positive ? (
+                            <ArrowDownCircle size={16} strokeWidth={1.8} />
+                          ) : (
+                            <ArrowUpCircle size={16} strokeWidth={1.8} />
+                          )}
+                        </span>
                         <div className="flex-1 min-w-0">
-                          <p className="text-white text-[13px] font-medium truncate">{formatTxLabel(tx)}</p>
-                          <p className="text-zinc-500 text-[11px]">{formatTxTime(tx.createdAt)}</p>
+                          <p className="text-white text-[14px] font-medium truncate">{formatTxLabel(tx)}</p>
+                          <p className="text-zinc-500 text-[11.5px]">{formatTxTime(tx.createdAt)}</p>
                         </div>
-                        <span className={`flex items-center gap-1 text-[13px] font-bold tabular-nums shrink-0 ${positive ? 'text-emerald-400' : 'text-zinc-300'}`}>
+                        <span className="flex items-center gap-1 text-[13px] font-bold tabular-nums text-white shrink-0">
                           {positive ? '+' : ''}{tx.amount.toLocaleString()}
                           <CreditIcon size={13} />
                         </span>

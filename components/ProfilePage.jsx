@@ -483,11 +483,15 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
   // abierto/cerrado, para que oculte la barra de navegación inferior mientras
   // se ve el vídeo a pantalla completa (estilo inmersivo, igual que TikTok) —
   // en su lugar se muestra la barra de "Añadir comentario" (QuickCommentInput).
+  // También se oculta mientras la Cartera (WalletSheet) está abierta (petición
+  // del usuario: "la página de wallet no debe tener la barra de navegación
+  // inferior") — es una hoja a pantalla completa, la barra no debe competir
+  // con su propio botón de cerrar/contenido.
   useEffect(() => {
-    onPostViewerChange?.(!!openPost)
+    onPostViewerChange?.(!!openPost || walletOpen)
     return () => { onPostViewerChange?.(false) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [openPost])
+  }, [openPost, walletOpen])
 
   // Al eliminar una publicación (desde el menú de "tres puntos" del visor),
   // se emite el evento global 'twyk:postDeleted'. Aquí la quitamos del listado

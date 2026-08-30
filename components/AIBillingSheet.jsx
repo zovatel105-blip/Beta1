@@ -69,7 +69,7 @@ export default function AIBillingSheet({ open, onClose, plans = [], currentPlan 
       <div className="w-full sm:max-w-sm bg-[#0f0f11] border border-white/10 rounded-t-3xl sm:rounded-3xl p-5 space-y-4 max-h-[85vh] overflow-y-auto">
         <div className="flex items-center justify-between">
           <h2 className="text-white text-[17px] font-bold flex items-center gap-1.5">
-            <Sparkles size={16} className="text-white/80" /> Gemini AI Editor
+            <Sparkles size={16} className="text-white/80" /> Nexxa Pro AI Editor
           </h2>
           <button
             onClick={onClose}
@@ -80,7 +80,7 @@ export default function AIBillingSheet({ open, onClose, plans = [], currentPlan 
           </button>
         </div>
         <p className="text-zinc-400 text-[13px] leading-snug">
-          Subscribe to edit your photos with Google Gemini (Nano Banana). Agnes stays free and unlimited either way.
+          Subscribe to edit your photos with Nexxa Pro. Nexxa stays free and unlimited either way.
         </p>
 
         <div className="space-y-2.5">

@@ -279,7 +279,7 @@ export default function AIImageEditor({ imageFile, initialPrompt = '', onClose, 
               engine === 'agnes' ? 'bg-white text-black' : 'text-zinc-300 hover:text-white'
             }`}
           >
-            Agnes <span className="text-[10px] font-semibold opacity-70">Free</span>
+            Nexxa <span className="text-[10px] font-semibold opacity-70">Free</span>
           </button>
           <button
             type="button"
@@ -289,7 +289,7 @@ export default function AIImageEditor({ imageFile, initialPrompt = '', onClose, 
               engine === 'gemini' ? 'bg-white text-black' : 'text-zinc-300 hover:text-white'
             }`}
           >
-            Gemini
+            Nexxa Pro
             {billingLoading ? null : billing?.subscription?.active ? (
               billing.subscription.unlimited ? (
                 <InfinityIcon size={13} strokeWidth={2.5} />

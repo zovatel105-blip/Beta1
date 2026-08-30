@@ -4538,7 +4538,7 @@ async function handleAiEditImage(request) {
     if (engine === 'gemini') {
       if (!process.env.EMERGENT_LLM_KEY) {
         console.error('AI edit image (gemini): EMERGENT_LLM_KEY missing')
-        return NextResponse.json({ error: 'ai_not_configured', message: 'Gemini editor is not configured' }, { status: 500 })
+        return NextResponse.json({ error: 'ai_not_configured', message: 'Nexxa Pro editor is not configured' }, { status: 500 })
       }
       // Descuenta 1 crédito ANTES de llamar al modelo (atómico, evita doble
       // gasto con peticiones simultáneas). 402 = sin suscripción activa o
@@ -4553,8 +4553,8 @@ async function handleAiEditImage(request) {
           error: 'subscription_required',
           reason: credit.reason,
           message: credit.reason === 'no_credits'
-            ? "You've used all your Gemini edits this month"
-            : 'Subscribe to use the Gemini editor',
+            ? "You've used all your Nexxa Pro edits this month"
+            : 'Subscribe to use the Nexxa Pro editor',
         }, { status: 402 })
       }
       try {
