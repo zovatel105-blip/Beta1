@@ -5808,3 +5808,21 @@ frontend:
         -agent: "main"
         -comment: "Antes, sin ninguna búsqueda escrita, SearchOverlay.jsx solo mostraba 1 fila fija (el tema OFICIAL activo, GET /api/luxury-battles/active). IMPLEMENTADO: nuevo estado `defaultTrending` (hasta 3 items) — se combina el oficial activo (si existe) + los más recientes creados por la COMUNIDAD (GET /api/luxury-battles/community, sin `q`, ya devuelve los más recientes primero) hasta completar 3, sin cambios de backend (ambos endpoints ya existían y ya devuelven exactamente lo necesario). Reemplazada la fila fija única por un `.map()` de hasta 3 filas con el mismo estilo visual. VERIFICADO CON LLAMADAS REALES (Node/fetch, sin curl, SIN agente de testing — instrucción explícita y repetida del usuario 'No usar el testing agent'): no había ningún tema (ni oficial ni de comunidad, base de datos recién sembrada) — se generó 1 oficial vía POST /api/admin/luxury-battles/auto-generate (admin) y 2 de comunidad vía POST /api/luxury-battles/community/create (lucia, marcos) para poder verificar visualmente; tras esto, GET /api/luxury-battles/active devuelve 'Niko Busy Challenge' y GET /api/luxury-battles/community devuelve los otros 2 -> los 3 juntos completan exactamente `defaultTrending`. Lint limpio; servidor compilando y sirviendo tráfico real sin errores. Si en el futuro hay menos de 3 temas disponibles (0 oficial + 0-2 comunidad), se muestran los que existan (nunca rompe con menos de 3)."
 
+
+  - task: "FEATURE: pago EMBEBIDO en un modal de la app (Stripe Payment Element) — sin redirigir a una página hospedada de Stripe. Aplica a Wallet (pago único) y a las suscripciones del editor de IA 'Nexxa Pro'"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js, components/StripePaymentModal.jsx, components/WalletSheet.jsx, components/AIBillingSheet.jsx, package.json, .env, memory/ENV_BACKUP.md"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'Puedes hacer que el pago se efectúe desde un modal desde la red social sin abrir una página de Stripe'."
+        -working: "NA"
+        -agent: "main"
+        -comment: "Consultado integration_playbook_expert_v2 (Stripe Payment Element embebido en Next.js). Pedida y obtenida la Stripe Publishable Key (pk_test_..., segura en el navegador) — la secreta ya la tenía de una ronda anterior."
+        -working: true
+        -agent: "main"
+        -comment: "IMPLEMENTADO: (1) Backend — nuevo POST /api/wallet/payment-intent (crea un PaymentIntent para un paquete de créditos) y POST /api/stripe/subscription (crea una Subscription con payment_behavior:'default_incomplete' para un plan de IA), ambos devuelven un clientSecret; el webhook existente se amplió con el evento payment_intent.succeeded (fulfillment de la Wallet, misma idempotencia que antes vía hasWalletTransactionForSession) — los eventos de suscripción (customer.subscription.*/invoice.paid) no necesitaron cambios. Solo se ofrece 'card' como método de pago (nunca redirige), cumpliendo 'sin abrir una página de Stripe'. (2) Frontend — nuevo components/StripePaymentModal.jsx (Stripe Elements/PaymentElement, tema oscuro a juego con la app, @stripe/stripe-js + @stripe/react-stripe-js añadidos a package.json); WalletSheet.jsx y AIBillingSheet.jsx ya NO redirigen (window.location.href) — abren este modal, y al confirmar el pago muestran una confirmación breve y refrescan sus datos (saldo/plan) unos segundos después (tiempo del webhook). Los endpoints antiguos de Checkout se dejaron sin usar, sin romper nada. VERIFICADO END-TO-END con el SDK real de Stripe (tarjeta de prueba pm_card_visa, confirmación server-side simulando exactamente lo que hace el navegador con stripe.confirmPayment): Wallet -> PaymentIntent creado y confirmado (succeeded), webhook otorgó 150 créditos automáticamente en ~4s (datos de prueba limpiados después); Suscripción starter -> Subscription creada (incomplete), PaymentIntent confirmado (succeeded), webhook activó el plan (50 créditos, status:active) automáticamente (suscripción de prueba cancelada después). Lint limpio en los 4 archivos JS tocados; servidor compilando y sirviendo tráfico real sin errores."

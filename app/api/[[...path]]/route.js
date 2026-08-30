@@ -1873,6 +1873,19 @@ export async function POST(request, { params }) {
     return handleStripeCheckout(request)
   }
 
+  // POST /api/stripe/subscription body:{plan} - petición del usuario ("que
+  // el pago se efectúe desde un modal de la app, sin abrir una página de
+  // Stripe"): crea la Subscription DIRECTAMENTE (payment_behavior:
+  // 'default_incomplete') en vez de una Checkout Session con redirect —
+  // devuelve un `clientSecret` para confirmar la tarjeta con Stripe
+  // Elements (Payment Element) dentro de un modal embebido. El webhook
+  // (`customer.subscription.created/updated`, `invoice.paid`) es EXACTAMENTE
+  // el mismo que ya procesaba las suscripciones creadas por Checkout — no
+  // le importa cómo se creó la suscripción, solo reacciona a sus eventos.
+  if (path === '/stripe/subscription') {
+    return handleCreateStripeSubscription(request)
+  }
+
   // POST /api/stripe/portal - sesión del Customer Portal de Stripe (gestionar/
   // cancelar la suscripción de IA) para el usuario actual.
   if (path === '/stripe/portal') {
@@ -1884,6 +1897,15 @@ export async function POST(request, { params }) {
   // 4 paquetes de créditos de la Cartera (ver WALLET_PACKAGES/lib/stripe.js).
   if (path === '/wallet/checkout') {
     return handleWalletCheckout(request)
+  }
+
+  // POST /api/wallet/payment-intent body:{packageKey} - misma idea que
+  // /stripe/subscription pero para el pago ÚNICO de la Cartera: crea un
+  // PaymentIntent y devuelve su `clientSecret` para confirmarlo con Stripe
+  // Elements en un modal embebido, sin salir de la app. El crédito real se
+  // otorga en el webhook (`payment_intent.succeeded`), nunca aquí.
+  if (path === '/wallet/payment-intent') {
+    return handleWalletPaymentIntent(request)
   }
 
   // POST /api/wallet/tip body:{toUsername, amount} - envía una propina en
@@ -4248,6 +4270,66 @@ async function handleStripeCheckout(request) {
   }
 }
 
+// POST /api/stripe/subscription  body: { plan: 'starter'|'pro'|'premium' }
+// Petición del usuario: "que el pago se efectúe desde un modal de la app,
+// sin abrir una página de Stripe" — crea la Subscription DIRECTAMENTE
+// (payment_behavior:'default_incomplete', sin cobrar todavía) y devuelve
+// el `clientSecret` de su primera factura para confirmar la tarjeta con
+// Stripe Elements (Payment Element) en un modal embebido. Se prueban 2
+// rutas para el client secret (`latest_invoice.payment_intent` y el más
+// reciente `latest_invoice.confirmation_secret`) porque Stripe reestructuró
+// esto entre versiones de API — igual que ya se hace con `current_period_end`
+// en el webhook más abajo.
+async function handleCreateStripeSubscription(request) {
+  try {
+    if (!stripe) {
+      return NextResponse.json({ error: 'stripe_not_configured' }, { status: 500 })
+    }
+    const currentUser = await getCurrentUser(request)
+    if (!currentUser) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    }
+    const body = await request.json().catch(() => ({}))
+    const plan = getPlanByKey(String(body?.plan || ''))
+    const priceId = plan ? planPriceId(plan) : null
+    if (!plan || !priceId) {
+      return NextResponse.json({ error: 'invalid_plan' }, { status: 400 })
+    }
+
+    let customerId = currentUser.stripeCustomerId || null
+    if (!customerId) {
+      const customer = await stripe.customers.create({
+        email: currentUser.email || undefined,
+        metadata: { userId: currentUser.id, username: currentUser.username },
+      })
+      customerId = customer.id
+      await setUserStripeCustomerId(currentUser.id, customerId)
+    }
+
+    const subscription = await stripe.subscriptions.create({
+      customer: customerId,
+      items: [{ price: priceId, quantity: 1 }],
+      payment_behavior: 'default_incomplete',
+      // Solo 'card' (nunca redirige) — garantiza que el usuario NUNCA sale
+      // de la app a completar el pago, tal como pidió explícitamente.
+      payment_settings: { payment_method_types: ['card'], save_default_payment_method: 'on_subscription' },
+      metadata: { userId: currentUser.id, planKey: plan.key },
+      expand: ['latest_invoice.payment_intent', 'latest_invoice.confirmation_secret'],
+    })
+
+    const invoice = subscription.latest_invoice
+    const clientSecret = invoice?.payment_intent?.client_secret || invoice?.confirmation_secret?.client_secret || null
+    if (!clientSecret) {
+      console.error('stripe subscription: sin client secret en latest_invoice', subscription.id)
+      return NextResponse.json({ error: 'no_client_secret' }, { status: 500 })
+    }
+    return NextResponse.json({ ok: true, clientSecret, subscriptionId: subscription.id })
+  } catch (err) {
+    console.error('stripe subscription error', err?.message || err)
+    return NextResponse.json({ error: 'subscription_failed' }, { status: 500 })
+  }
+}
+
 // POST /api/stripe/portal - sesión del Customer Portal (gestionar/cancelar).
 async function handleStripePortal(request) {
   try {
@@ -4317,6 +4399,57 @@ async function handleWalletCheckout(request) {
   } catch (err) {
     console.error('wallet checkout error', err?.message || err)
     return NextResponse.json({ error: 'checkout_failed' }, { status: 500 })
+  }
+}
+
+// POST /api/wallet/payment-intent  body: { packageKey }
+// Misma idea que /stripe/subscription pero para el pago ÚNICO de la
+// Cartera: crea un PaymentIntent (sin cobrar todavía) y devuelve su
+// `clientSecret` para confirmarlo con Stripe Elements en un modal embebido
+// dentro de la app. El crédito real se otorga en el webhook
+// (`payment_intent.succeeded`), NUNCA aquí (esto solo prepara el pago,
+// antes de que el usuario introduzca la tarjeta).
+async function handleWalletPaymentIntent(request) {
+  try {
+    if (!stripe) {
+      return NextResponse.json({ error: 'stripe_not_configured' }, { status: 500 })
+    }
+    const currentUser = await getCurrentUser(request)
+    if (!currentUser) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    }
+    const body = await request.json().catch(() => ({}))
+    const pkg = getWalletPackageByKey(String(body?.packageKey || ''))
+    if (!pkg) {
+      return NextResponse.json({ error: 'invalid_package' }, { status: 400 })
+    }
+
+    let customerId = currentUser.stripeCustomerId || null
+    if (!customerId) {
+      const customer = await stripe.customers.create({
+        email: currentUser.email || undefined,
+        metadata: { userId: currentUser.id, username: currentUser.username },
+      })
+      customerId = customer.id
+      await setUserStripeCustomerId(currentUser.id, customerId)
+    }
+
+    const intent = await stripe.paymentIntents.create({
+      amount: pkg.amount,
+      currency: 'usd',
+      customer: customerId,
+      // Solo 'card' (nunca redirige) — el usuario nunca sale de la app.
+      payment_method_types: ['card'],
+      metadata: { userId: currentUser.id, type: 'wallet_topup', packageKey: pkg.key },
+    })
+    return NextResponse.json({
+      ok: true,
+      clientSecret: intent.client_secret,
+      package: { key: pkg.key, label: pkg.label, amount: pkg.amount, credits: pkg.credits },
+    })
+  } catch (err) {
+    console.error('wallet payment-intent error', err?.message || err)
+    return NextResponse.json({ error: 'payment_intent_failed' }, { status: 500 })
   }
 }
 
@@ -4472,6 +4605,27 @@ async function handleStripeWebhook(request) {
         const customerId = String(obj.customer || '')
         if (customerId) {
           await applyAiSubscriptionStatus(customerId, { status: 'past_due' })
+        }
+        break
+      }
+      // payment_intent.succeeded — fulfillment de la Cartera (Wallet) cuando
+      // el pago se confirmó desde el modal embebido de Stripe Elements (ver
+      // handleWalletPaymentIntent), en vez de una Checkout Session. Misma
+      // idempotencia que el caso 'checkout.session.completed' de arriba
+      // (hasWalletTransactionForSession), reutilizando el mismo campo
+      // `meta.sessionId` con el id del PaymentIntent en vez del de la sesión.
+      case 'payment_intent.succeeded': {
+        const userId = obj?.metadata?.userId
+        if (userId && obj?.metadata?.type === 'wallet_topup') {
+          const pkg = getWalletPackageByKey(obj?.metadata?.packageKey || '')
+          if (pkg) {
+            const already = await hasWalletTransactionForSession(obj.id)
+            if (!already) {
+              await addWalletCredits(userId, pkg.credits, { type: 'purchase', meta: { sessionId: obj.id, packageKey: pkg.key } })
+            }
+          } else {
+            console.error('stripe webhook payment_intent.succeeded: no matching package for key', obj?.metadata?.packageKey)
+          }
         }
         break
       }

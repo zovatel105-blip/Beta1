@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { X, Sparkles, Check, Loader2, Settings } from 'lucide-react'
+import StripePaymentModal from './StripePaymentModal'
 
 /**
  * AIBillingSheet — paywall del editor de fotos con GEMINI (petición del
@@ -11,39 +12,32 @@ import { X, Sparkles, Check, Loader2, Settings } from 'lucide-react'
  * lib/stripe.js: Starter/Pro/Unlimited), igual que LarpGPT. Agnes sigue
  * gratis/ilimitado siempre, sin relación con esta hoja.
  *
+ * Petición del usuario: "que el pago se efectúe desde un modal de la app,
+ * sin abrir una página de Stripe" — la tarjeta se introduce en
+ * StripePaymentModal.jsx (Stripe Elements embebido), NUNCA se redirige a
+ * una Checkout Session hospedada.
+ *
  * Props:
  *  - open, onClose
  *  - plans: [{ key, label, amount, credits }] (viene de GET /api/billing/status)
  *  - currentPlan: string|null — plan activo actual (resalta esa tarjeta)
  */
 export default function AIBillingSheet({ open, onClose, plans = [], currentPlan = null }) {
-  const [busyKey, setBusyKey] = useState(null)
   const [portalBusy, setPortalBusy] = useState(false)
-  const [error, setError] = useState(null)
+  // Plan actualmente en pago (abre el modal embebido de Stripe Elements).
+  const [subscribingPlan, setSubscribingPlan] = useState(null)
+  const [justSubscribed, setJustSubscribed] = useState(false)
 
   if (!open) return null
 
-  const subscribe = async (planKey) => {
-    if (busyKey) return
-    setBusyKey(planKey)
-    setError(null)
-    try {
-      const res = await fetch('/api/stripe/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan: planKey }),
-      })
-      const data = await res.json().catch(() => null)
-      if (res.ok && data?.url) {
-        window.location.href = data.url
-        return
-      }
-      setError('Could not start checkout, please try again')
-    } catch {
-      setError('Could not start checkout, please try again')
-    } finally {
-      setBusyKey(null)
-    }
+  // El pago se confirma DENTRO del modal — la suscripción real la activa el
+  // webhook (customer.subscription.created + invoice.paid). Cerramos el
+  // modal, mostramos una confirmación breve y avisamos al padre (que
+  // refresca /api/billing/status) tras un pequeño margen para el webhook.
+  const handleSubscribeSuccess = () => {
+    setSubscribingPlan(null)
+    setJustSubscribed(true)
+    setTimeout(() => { setJustSubscribed(false); onClose?.() }, 1800)
   }
 
   const openPortal = async () => {
@@ -90,8 +84,8 @@ export default function AIBillingSheet({ open, onClose, plans = [], currentPlan 
               <button
                 key={p.key}
                 type="button"
-                onClick={() => subscribe(p.key)}
-                disabled={!!busyKey || isCurrent}
+                onClick={() => setSubscribingPlan(p)}
+                disabled={isCurrent}
                 className={`w-full flex items-center justify-between px-4 py-3.5 rounded-2xl border transition active:scale-[0.99] disabled:active:scale-100 ${
                   isCurrent ? 'border-emerald-400/50 bg-emerald-400/10' : 'border-white/10 bg-white/[0.04] hover:border-white/25'
                 } disabled:opacity-70`}
@@ -106,18 +100,18 @@ export default function AIBillingSheet({ open, onClose, plans = [], currentPlan 
                   <span className="text-white font-bold text-[17px]">
                     ${p.amount}<span className="text-zinc-400 text-[12px] font-medium">/mo</span>
                   </span>
-                  {busyKey === p.key ? (
-                    <Loader2 size={16} className="animate-spin text-white" />
-                  ) : isCurrent ? (
-                    <Check size={16} className="text-emerald-400" strokeWidth={2.5} />
-                  ) : null}
+                  {isCurrent ? <Check size={16} className="text-emerald-400" strokeWidth={2.5} /> : null}
                 </div>
               </button>
             )
           })}
         </div>
 
-        {error && <p className="text-rose-400 text-[12.5px] text-center">{error}</p>}
+        {justSubscribed && (
+          <p className="flex items-center justify-center gap-1.5 text-emerald-400 text-[12.5px] font-medium">
+            <Check size={14} strokeWidth={2.4} /> Payment successful — activating your plan
+          </p>
+        )}
 
         {currentPlan && (
           <button
@@ -130,6 +124,16 @@ export default function AIBillingSheet({ open, onClose, plans = [], currentPlan 
           </button>
         )}
       </div>
+
+      <StripePaymentModal
+        open={!!subscribingPlan}
+        onClose={() => setSubscribingPlan(null)}
+        endpoint="/api/stripe/subscription"
+        body={{ plan: subscribingPlan?.key }}
+        title={subscribingPlan ? `${subscribingPlan.label} — $${subscribingPlan.amount}/mo` : ''}
+        submitLabel={subscribingPlan ? `Subscribe for $${subscribingPlan.amount}/mo` : 'Subscribe'}
+        onSuccess={handleSubscribeSuccess}
+      />
     </div>
   )
 }

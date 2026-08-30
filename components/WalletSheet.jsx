@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ChevronLeft, Loader2, ArrowDownCircle, ArrowUpCircle, Gift } from 'lucide-react'
+import { ChevronLeft, ArrowDownCircle, ArrowUpCircle, Gift, Check } from 'lucide-react'
+import StripePaymentModal from './StripePaymentModal'
 
 /**
  * WalletSheet — Cartera de créditos (moneda virtual NUEVA, separada de los
@@ -79,18 +80,18 @@ export default function WalletSheet({ open, onClose }) {
   const [balance, setBalance] = useState(0)
   const [transactions, setTransactions] = useState([])
   const [packages, setPackages] = useState([])
-  const [busyKey, setBusyKey] = useState(null)
   const [error, setError] = useState(null)
+  // Paquete actualmente en pago (abre el modal embebido de Stripe Elements,
+  // ver StripePaymentModal.jsx) — petición del usuario: "que el pago se
+  // efectúe desde un modal de la app, sin abrir una página de Stripe".
+  const [payingPackage, setPayingPackage] = useState(null)
+  const [justPurchased, setJustPurchased] = useState(false)
 
-  useEffect(() => {
-    if (!open) return
-    let cancelled = false
-    setLoading(true)
+  const loadWallet = () => {
     setError(null)
-    fetch('/api/wallet', { headers: authHeaders(), cache: 'no-store' })
+    return fetch('/api/wallet', { headers: authHeaders(), cache: 'no-store' })
       .then((r) => r.json())
       .then((data) => {
-        if (cancelled) return
         if (data?.ok) {
           setBalance(data.balance || 0)
           setTransactions(Array.isArray(data.transactions) ? data.transactions : [])
@@ -99,34 +100,27 @@ export default function WalletSheet({ open, onClose }) {
           setError('Could not load your wallet')
         }
       })
-      .catch(() => { if (!cancelled) setError('Could not load your wallet') })
-      .finally(() => { if (!cancelled) setLoading(false) })
-    return () => { cancelled = true }
+      .catch(() => setError('Could not load your wallet'))
+  }
+
+  useEffect(() => {
+    if (!open) return
+    setLoading(true)
+    loadWallet().finally(() => setLoading(false))
   }, [open])
 
   if (!open) return null
 
-  const buy = async (packageKey) => {
-    if (busyKey) return
-    setBusyKey(packageKey)
-    setError(null)
-    try {
-      const res = await fetch('/api/wallet/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...authHeaders() },
-        body: JSON.stringify({ packageKey }),
-      })
-      const data = await res.json().catch(() => null)
-      if (res.ok && data?.url) {
-        window.location.href = data.url
-        return
-      }
-      setError('Could not start checkout, please try again')
-    } catch {
-      setError('Could not start checkout, please try again')
-    } finally {
-      setBusyKey(null)
-    }
+  // El pago se confirma DENTRO del modal (Stripe Elements) — el crédito
+  // real lo otorga el webhook (payment_intent.succeeded), así que aquí solo
+  // cerramos el modal, mostramos una confirmación breve y refrescamos el
+  // saldo/historial poco después (el webhook suele tardar <2s en test mode).
+  const handlePaymentSuccess = () => {
+    setPayingPackage(null)
+    setJustPurchased(true)
+    setTimeout(() => setJustPurchased(false), 2500)
+    loadWallet()
+    setTimeout(loadWallet, 2000)
   }
 
   return (
@@ -166,6 +160,15 @@ export default function WalletSheet({ open, onClose }) {
               <p className="text-zinc-400 text-[12.5px] mt-0.5">credits</p>
             </div>
 
+            {/* Confirmación breve tras un pago exitoso (el saldo de arriba se
+                refresca solo unos segundos después, cuando el webhook ya
+                otorgó los créditos). */}
+            {justPurchased && (
+              <div className="flex items-center justify-center gap-1.5 text-emerald-400 text-[12.5px] font-medium max-w-md mx-auto w-full">
+                <Check size={14} strokeWidth={2.4} /> Payment successful — credits on their way
+              </div>
+            )}
+
             {/* Paquetes para comprar — mismas superficies que el resto del
                 perfil (bg-white/[0.04], border-white/[0.07], rounded-2xl). */}
             <div className="max-w-md mx-auto w-full">
@@ -175,9 +178,8 @@ export default function WalletSheet({ open, onClose }) {
                   <button
                     key={p.key}
                     type="button"
-                    onClick={() => buy(p.key)}
-                    disabled={!!busyKey}
-                    className="flex flex-col items-center justify-center gap-1 px-3 py-4 rounded-2xl border border-white/[0.07] bg-white/[0.04] hover:border-white/20 active:scale-[0.98] transition disabled:opacity-60"
+                    onClick={() => setPayingPackage(p)}
+                    className="flex flex-col items-center justify-center gap-1 px-3 py-4 rounded-2xl border border-white/[0.07] bg-white/[0.04] hover:border-white/20 active:scale-[0.98] transition"
                   >
                     <div className="flex items-center gap-1.5">
                       <CreditIcon size={16} />
@@ -185,7 +187,7 @@ export default function WalletSheet({ open, onClose }) {
                     </div>
                     <span className="text-zinc-500 text-[11px]">credits</span>
                     <span className="mt-1 text-[13px] font-bold text-white">
-                      {busyKey === p.key ? <Loader2 size={14} className="animate-spin inline text-white" /> : `$${(p.amount / 100).toFixed(2)}`}
+                      ${(p.amount / 100).toFixed(2)}
                     </span>
                   </button>
                 ))}
@@ -240,6 +242,16 @@ export default function WalletSheet({ open, onClose }) {
           </>
         )}
       </div>
+
+      <StripePaymentModal
+        open={!!payingPackage}
+        onClose={() => setPayingPackage(null)}
+        endpoint="/api/wallet/payment-intent"
+        body={{ packageKey: payingPackage?.key }}
+        title={payingPackage ? `${payingPackage.credits.toLocaleString()} credits — $${(payingPackage.amount / 100).toFixed(2)}` : ''}
+        submitLabel={payingPackage ? `Pay $${(payingPackage.amount / 100).toFixed(2)}` : 'Pay now'}
+        onSuccess={handlePaymentSuccess}
+      />
     </div>
   )
 }

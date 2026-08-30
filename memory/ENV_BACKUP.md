@@ -55,6 +55,30 @@ FIREBASE_CLIENT_EMAIL=
 FIREBASE_PRIVATE_KEY=
 ```
 
+## STRIPE — pago EMBEBIDO (Payment Element, sin redirigir a stripe.com)
+Petición del usuario: "que el pago se efectúe desde un modal de la red social sin abrir una
+página de Stripe". Se reemplazó el flujo de Checkout Session (redirect) por Stripe Elements
+(Payment Element) en un modal propio (`components/StripePaymentModal.jsx`), usado tanto por la
+Cartera (Wallet, pago único) como por el editor de IA "Nexxa Pro" (suscripción mensual). Requiere
+`NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` (pk_test_..., NO secreta, segura en el navegador) además de
+`STRIPE_SECRET_KEY` — el usuario la compartió junto a la secreta. Si `.env` se pierde, pedir esta
+clave de nuevo (Stripe Dashboard -> Developers -> API keys -> Publishable key).
+Nuevos endpoints backend: `POST /api/wallet/payment-intent` (PaymentIntent para créditos) y
+`POST /api/stripe/subscription` (Subscription con `payment_behavior:'default_incomplete'` para
+los planes de IA) — ambos devuelven un `clientSecret` que el frontend confirma con
+`stripe.confirmPayment()` SIN redirigir (solo se ofrece 'card', que nunca requiere salir de la
+app). El webhook (mismo endpoint de siempre) se amplió con el evento `payment_intent.succeeded`
+(fulfillment de la Wallet) — los eventos de suscripción (`customer.subscription.*`,
+`invoice.paid`) NO necesitaron cambios, ya reaccionan igual sin importar cómo se creó la
+suscripción. VERIFICADO end-to-end con el SDK real de Stripe (tarjeta de prueba `pm_card_visa`,
+confirmación server-side simulando lo que hace el navegador): (1) Wallet — PaymentIntent creado,
+confirmado -> `succeeded`, webhook otorgó 150 créditos automáticamente a los ~4s (datos de prueba
+limpiados después); (2) Suscripción "starter" — Subscription creada `incomplete`, PaymentIntent
+confirmado -> `succeeded`, webhook activó el plan (50 créditos, `status:'active'`) automáticamente
+(suscripción de prueba cancelada después para no seguir cobrando mensualmente). Los endpoints
+antiguos de Checkout (`/api/stripe/checkout`, `/api/wallet/checkout`) se DEJARON en el código (sin
+usarse desde el frontend) por si se necesitan de respaldo, no rompen nada al coexistir.
+
 ## STRIPE — CARTERA (Wallet de créditos, moneda virtual NUEVA — sesión
 ## "770f54fd", petición del usuario "cartera con creditos en el menu de los
 ## ajustes del perfil"). Pago ÚNICO (mode:'payment'), separado por completo
