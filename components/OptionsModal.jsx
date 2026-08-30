@@ -165,10 +165,8 @@ export default function OptionsModal({ open, postId, author, isOwner = false, on
 
   // Menú del DUEÑO de la publicación (estilo Instagram/TikTok): acciones sobre
   // la propia publicación, no de "reportar/bloquear" como en una ajena.
-  // `showDeleteForOwner=false` (usado por OpenChallengeSlide.jsx para las
-  // publicaciones tipo "Your post", que aún no soportan borrado desde aquí)
-  // deja el menú SOLO con el switch de `challengeToggle` (renderizado abajo,
-  // fuera de este array), sin la fila de "Delete".
+  // `showDeleteForOwner=false` (por defecto true) permite ocultar la fila
+  // "Delete" en casos puntuales donde el borrado aún no esté soportado.
   const ownerRows = showDeleteForOwner
     ? [{ key: 'delete', label: 'Delete', icon: <Trash2 className="w-[22px] h-[22px] text-red-600" strokeWidth={1.7} />, onClick: () => { setDone(''); setView('confirmDelete') }, danger: true }]
     : []

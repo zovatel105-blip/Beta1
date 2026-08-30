@@ -5741,3 +5741,53 @@ frontend:
         -working: "NA"
         -agent: "main"
         -comment: "Implementada cámara EN VIVO en la tarjeta 'You' de ChallengeDialog.jsx (mismo enfoque getUserMedia+MediaRecorder que UploadDialog.jsx, adaptado al tamaño pequeño de esta tarjeta -aspect 4:5- en vez de pantalla completa). Se pide la cámara automáticamente al abrir el modal (si aún no hay archivo elegido) y se libera al elegir/capturar uno o cerrar el modal. El disparador se ADAPTA al tipo de media que exige el reto (`hasTargetMedia`/`targetIsImage`, lógica ya existente en el componente): si el reto no tiene tipo fijo (reto abierto/de mención) -> toque=foto, mantener pulsado=grabar vídeo (igual que UploadDialog); si el reto exige FOTO -> un solo toque siempre captura foto; si el reto exige VÍDEO -> un toque inicia grabación, otro toque la detiene (evita que el usuario capture por accidente el tipo equivocado). Fila inferior de la tarjeta: galería (icono pequeño, izquierda) — disparador (centro) — girar cámara frontal/trasera (derecha), replicando el patrón ya validado en UploadDialog.jsx. Si el usuario deniega el permiso de cámara, cae automáticamente al placeholder clásico de 'Upload your photo/video' (sigue funcionando igual que antes, sin romper nada). Lint limpio (solo el warning pre-existente sin relación). Servidor reiniciado y verificado con curl real -> 200 OK, sirviendo tráfico de usuarios reales. NO se usó el agente de testing (instrucción explícita y repetida del usuario, respetada en toda la sesión) — pendiente confirmación visual manual del propio usuario en su navegador móvil."
+
+  - task: "BUG: en publicaciones tipo Single/reto abierto (OpenChallengeSlide.jsx), el menú de 'tres puntitos' del DUEÑO no mostraba la opción 'Delete' (Eliminar publicación) — sí existía en Versus/1vs1"
+    implemented: true
+    working: "NA"
+    file: "components/OpenChallengeSlide.jsx, components/OptionsModal.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: false
+        -agent: "user"
+        -comment: "'En las publicaciones post single cuando hago click en el boton tres puntitos no tiene eliminar publicacion'."
+        -working: "NA"
+        -agent: "main"
+        -comment: "CAUSA RAÍZ encontrada: OptionsModal.jsx (compartido por los 3 tipos de publicación) tiene un prop `showDeleteForOwner` (default true) que controla si aparece la fila 'Delete' cuando `isOwner=true`. CarouselSlide.jsx/DuetSlide.jsx (Versus/1vs1) NO lo sobrescriben (usan el default true, por eso sí tienen 'Delete'). OpenChallengeSlide.jsx (Single/reto abierto) pasaba explícitamente `showDeleteForOwner={false}` — deshabilitando la fila a propósito en una sesión anterior con el comentario 'aún no soportan borrado desde aquí', pero el backend (`DELETE /api/posts/{id}` -> `deletePostById()` en lib/stores.js) es 100% GENÉRICO por `id`+`author.id`/`userId` — YA soporta borrar cualquier tipo de publicación (versus/duet/solo) sin ningún cambio, así que la restricción del frontend era innecesaria/obsoleta. FIX: eliminada la línea `showDeleteForOwner={false}` en OpenChallengeSlide.jsx (vuelve al default `true`, mismo comportamiento que Carousel/Duet) + comentario desactualizado corregido en OptionsModal.jsx. Sin cambios de backend (ya soportaba el caso). Lint limpio en ambos archivos; servidor recompilado sin errores."
+        -working: "NA"
+        -agent: "user"
+        -comment: "'Nunca usar El testing' (instrucción explícita, en el mismo mensaje de un bug distinto) — NO se invocó el agente de testing para este fix, verificado únicamente por revisión de código (el endpoint backend ya era genérico, sin cambios) + lint + servidor compilando sin errores."
+
+  - task: "BUG: la barra de navegación inferior seguía visible/detrás al abrir la hoja de Propina (TipSheet.jsx) — con captura mostrando BottomNav bajo el modal 'Tip @twyk'"
+    implemented: true
+    working: "NA"
+    file: "components/ProfilePage.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: false
+        -agent: "user"
+        -comment: "'Nunca usar el testing, no debe aparecer la barra de navegación inferior cuando se abre este modal' + captura mostrando el modal 'Tip @twyk' con BottomNav visible justo debajo/detrás."
+        -working: true
+        -agent: "main"
+        -comment: "Mismo mecanismo ya usado para WalletSheet: el efecto de ProfilePage.jsx que avisa a Feed.jsx (`onPostViewerChange`) para desmontar `<BottomNav>` ahora también depende de `tipOpen` (antes solo `openPost`/`walletOpen`). TipSheet.jsx es `fixed inset-0 z-[95]` (debería quedar por encima de BottomNav z-50 solo por z-index), pero el usuario confirmó con captura que BottomNav seguía visible — en vez de depender de z-index/stacking context, se aplica la solución ya validada: BottomNav deja de montarse en el DOM por completo mientras `tipOpen=true`. NO se usó el agente de testing (instrucción explícita del usuario en este mismo mensaje) — verificado por lint limpio + servidor recompilando sin errores; pendiente confirmación visual del usuario en su móvil."
+
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 3
+  run_ui: false
+
+test_plan:
+  current_focus: []
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    -agent: "main"
+    -message: "2 bug fixes en esta ronda, AMBOS a petición explícita del usuario ('Nunca usar el testing') sin invocar el agente de testing: (1) Delete post ausente en el menú de tres puntitos de publicaciones Single/reto abierto (OpenChallengeSlide.jsx) — corregido quitando showDeleteForOwner={false}; backend ya era genérico, sin cambios. (2) BottomNav visible detrás del modal TipSheet (propina) — corregido añadiendo tipOpen a la condición que desmonta BottomNav en ProfilePage.jsx (mismo patrón ya usado para WalletSheet). Ambos verificados solo por lint + compilación sin errores, sin testing agent ni curl, por instrucción explícita y repetida del usuario."

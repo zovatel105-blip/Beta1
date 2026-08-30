@@ -633,7 +633,6 @@ export default function OpenChallengeSlide({
         postId={post.id}
         author={headAuthor}
         isOwner={isOwnChallenge}
-        showDeleteForOwner={false}
         challengeToggle={isOwnChallenge ? { checked: allowChallenge, onChange: handleToggleAllowChallenge } : null}
         onClose={() => setMenuOpen(false)}
         onNotInterested={onNotInterested}
