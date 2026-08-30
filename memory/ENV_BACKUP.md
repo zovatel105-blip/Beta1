@@ -85,6 +85,21 @@ después de que Next.js haga su propio "Reload env: .env" (log de supervisor),
 o preguntar al usuario cuál es la URL que ve en su navegador.
 
 ## Última URL usada (actualizada automáticamente al restaurar)
+NEXT_PUBLIC_BASE_URL=https://439a7632-7297-4f25-a23c-33d2e7b45979.preview.emergentagent.com
+(.env RECREADO en esta nueva sesión — mismo patrón recurrente de siempre: /app había perdido
+TODO salvo .git [restaurado con `git reset --hard origin/main`, ya que `refs/heads/master` local
+no tenía commits pero `refs/heads/main`/`origin/main` sí]. `.env` no existía [gitignored].
+`node_modules` también estaba vacío -> `yarn install` ejecutado. Recreado con MONGO_URL/
+ADMIN_EMAILS/CORS_ORIGINS apuntando a la URL de arriba [tomada de APP_URL en
+/etc/supervisor/conf.d/supervisord.conf]. EMERGENT_LLM_KEY renovada vía
+emergent_integrations_manager: sk-emergent-bEdD4C6CfF07221200. TAVILY_API_KEY restaurada igual
+que antes. FIREBASE_*, AGNES_API_KEY y STRIPE_* quedaron VACÍOS otra vez (secretos que no
+persisten fuera de sesión) — pedir al usuario si los necesita de nuevo. Base de datos re-sembrada
+con `node scripts/seed-core-users.mjs`. `memory/test_credentials.md` recreado. Verificado con
+login real (POST /api/auth/login, twyk/Admin12345) -> 200 OK y GET /api/feed -> 200 OK. A
+petición explícita del usuario, NO se invocó el agente de testing en esta ronda.
+
+## Sesión anterior
 NEXT_PUBLIC_BASE_URL=https://challenge-card-ai.preview.emergentagent.com
 (.env RECREADO otra vez en esta nueva sesión — mismo patrón recurrente: /app
 había perdido TODO salvo .git [`git reset --hard origin/main` restauró el
