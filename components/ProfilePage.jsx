@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Menu, Bookmark, Swords, Users, UserPlus, ArrowLeft, LogOut, Camera, Loader2, X, ShieldAlert, LogIn, CircleUserRound, Activity, ChevronRight, AlertCircle, Play, Flame, Heart, Trophy, TrendingUp, Sparkles, Megaphone } from 'lucide-react'
+import { Menu, Bookmark, Swords, Users, UserPlus, ArrowLeft, LogOut, Camera, Loader2, X, ShieldAlert, LogIn, CircleUserRound, Activity, ChevronRight, AlertCircle, Play, Flame, Heart, Trophy, TrendingUp, Sparkles, Megaphone, Wallet } from 'lucide-react'
 import VoteIcon from './icons/VoteIcon'
 import ShareIcon from './icons/ShareIcon'
 import { useAuth } from '@/contexts/AuthContext'
@@ -12,6 +12,8 @@ import OpenChallengeSlide from './OpenChallengeSlide'
 import { getUploadQueue, subscribeUploadQueue } from '@/lib/uploadQueue'
 import { subscribeCommentCountChange, patchCommentCountInList } from '@/lib/commentCountBus'
 import CircularCrop from './CircularCrop'
+import WalletSheet, { CreditIcon } from './WalletSheet'
+import TipSheet from './TipSheet'
 
 // El perfil se deriva del usuario autenticado (useAuth) dentro del componente.
 // El avatar usa el componente compartido <Avatar> -> idéntico al del feed.
@@ -346,6 +348,11 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
   const [editOpen, setEditOpen] = useState(false)   // modal de editar perfil
   const [menuOpen, setMenuOpen] = useState(false)    // menú (cerrar sesión)
   const [guestMenuOpen, setGuestMenuOpen] = useState(false) // menú lateral para invitados
+  // Cartera de créditos (Wallet) — petición del usuario: "cartera con
+  // creditos en el menu de los ajustes del perfil" (saldo propio, ver
+  // WalletSheet.jsx) y propina a OTROS creadores (ver TipSheet.jsx).
+  const [walletOpen, setWalletOpen] = useState(false)
+  const [tipOpen, setTipOpen] = useState(false)
   // Subidas EN CURSO (placeholder con progreso en el grid, ver lib/uploadQueue.js).
   const [pendingUploads, setPendingUploads] = useState(() => getUploadQueue())
 
@@ -896,6 +903,14 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
                   <Swords className="w-[15px] h-[15px]" strokeWidth={2} />
                 </button>
                 <button
+                  onClick={() => setTipOpen(true)}
+                  aria-label="Send tip"
+                  style={{ opacity: revealP, pointerEvents: revealP > 0.5 ? 'auto' : 'none' }}
+                  className="h-7 w-7 rounded-full border border-white/20 text-white flex items-center justify-center active:scale-95 transition-transform"
+                >
+                  <CreditIcon size={15} />
+                </button>
+                <button
                   onClick={handleToggleFollow}
                   disabled={followBusy}
                   style={{ opacity: revealP, pointerEvents: revealP > 0.5 ? 'auto' : 'none' }}
@@ -1085,6 +1100,13 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
                 <Swords className="w-[15px] h-[15px]" strokeWidth={2} />
                 Challenge
               </button>
+              <button
+                onClick={() => setTipOpen(true)}
+                aria-label="Send tip"
+                className="h-9 w-9 rounded-full border border-white/15 hover:bg-white/[0.06] text-white flex items-center justify-center active:scale-[0.97] transition-all"
+              >
+                <CreditIcon size={16} />
+              </button>
             </>
           )}
         </div>
@@ -1168,6 +1190,21 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
           onClose={() => setMenuOpen(false)}
           onLogout={handleLogout}
           isAdmin={user?.role === 'admin'}
+          onOpenWallet={() => { setMenuOpen(false); setWalletOpen(true) }}
+        />
+      )}
+
+      {/* Cartera de créditos — abierta desde Ajustes (propio perfil) o desde
+          "Enviar propina" (perfil ajeno, ver TipSheet más abajo). */}
+      <WalletSheet open={walletOpen} onClose={() => setWalletOpen(false)} />
+
+      {/* Enviar propina — solo tiene sentido en un perfil AJENO. */}
+      {!isOwn && (
+        <TipSheet
+          open={tipOpen}
+          onClose={() => setTipOpen(false)}
+          toUsername={me?.username}
+          onNeedCredits={() => { setTipOpen(false); setWalletOpen(true) }}
         />
       )}
     </div>
@@ -1271,7 +1308,7 @@ const SettingsRow = ({ icon: Icon, label, onClick, href, tone = 'default' }) => 
 // mientras el desplazamiento no supera el umbral, el toque se comporta como un
 // click normal; solo al superarlo se activa el arrastre y el panel sigue al dedo.
 // Permanece montado para poder animar la entrada y la salida con translateX.
-const SettingsDrawer = ({ open, onClose, onLogout, isAdmin }) => {
+const SettingsDrawer = ({ open, onClose, onLogout, isAdmin, onOpenWallet }) => {
   const panelRef = useRef(null)
   const dragStartRef = useRef(null)
   const draggingRef = useRef(false)
@@ -1356,6 +1393,16 @@ const SettingsDrawer = ({ open, onClose, onLogout, isAdmin }) => {
 
         {/* Opciones */}
         <div className="relative z-10 flex-1 flex flex-col overflow-y-auto px-5 pb-6" style={{ touchAction: 'pan-y' }}>
+          {/* Cartera de créditos — petición del usuario: "cartera con
+              creditos en el menu de los ajustes del perfil". Visible para
+              cualquier usuario con perfil propio (no solo admin). */}
+          <div className="pt-5">
+            <p className="pb-1 text-[11px] font-semibold uppercase tracking-[0.09em] text-zinc-500">Account</p>
+            <div className="divide-y divide-white/[0.05]">
+              <SettingsRow icon={Wallet} label="Wallet" onClick={onOpenWallet} />
+            </div>
+          </div>
+
           {isAdmin && (
             <div className="pt-5">
               <p className="pb-1 text-[11px] font-semibold uppercase tracking-[0.09em] text-zinc-500">Administration</p>

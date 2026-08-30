@@ -79,6 +79,7 @@ export default function OpenChallengeSlide({
   const { user } = useAuth()
   const videoRef = useRef(null)
   const overlayRef = useRef(null)
+  const rafRef = useRef(0)
   // Doble-toque (mismo patrón EXACTO que CarouselSlide/DuetSlide para votar):
   // aquí se usa para dar/quitar "Fire" 🔥 sobre el propio vídeo/foto — el
   // botón de la columna social es SOLO indicador visual (igual que el icono
@@ -100,6 +101,14 @@ export default function OpenChallengeSlide({
   // de scroll del usuario justo en las tarjetas de este tipo.
   const downRef = useRef({ x: 0, y: 0 })
   const [paused, setPaused] = useState(false)
+  // Barra de progreso del vídeo (petición del usuario: "la linea de
+  // progreso del publicaciones con video tiene que estar abajo") — antes
+  // esta tarjeta (a diferencia de CarouselSlide.jsx/DuetSlide.jsx) no
+  // tenía ninguna. Mismo mecanismo EXACTO que esas 2 (requestAnimationFrame
+  // sobre videoRef.current mientras isActive, tocar/arrastrar para
+  // adelantar/retroceder), posicionada abajo igual que en ellas.
+  const [progress, setProgress] = useState(0)
+  const [scrubbing, setScrubbing] = useState(false)
   const [following, setFollowing] = useState(!!post.author?.isFollowing)
   const [commentCount, setCommentCount] = useState(post.stats?.comments || 0)
   const [shareCount, setShareCount] = useState(post.stats?.shares || 0)
@@ -228,6 +237,49 @@ export default function OpenChallengeSlide({
     if (!el || isImage) return
     if (el.paused) el.play().catch(() => {}); else el.pause()
   }, [isImage])
+
+  // Actualiza la barra de progreso en cada frame mientras esta tarjeta está
+  // activa (mismo patrón que CarouselSlide.jsx/DuetSlide.jsx).
+  useEffect(() => {
+    if (!isActive || isImage) { cancelAnimationFrame(rafRef.current); return }
+    const tick = () => {
+      const el = videoRef.current
+      if (el && el.duration > 0) setProgress((el.currentTime / el.duration) * 100)
+      rafRef.current = requestAnimationFrame(tick)
+    }
+    rafRef.current = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(rafRef.current)
+  }, [isActive, isImage])
+
+  // Arrastrar/tocar la barra de progreso para adelantar/retroceder — mismo
+  // mecanismo EXACTO que CarouselSlide.jsx/DuetSlide.jsx.
+  const seekFromClientX = useCallback((clientX, el) => {
+    const video = videoRef.current
+    if (!video || !video.duration) return
+    const rect = el.getBoundingClientRect()
+    const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width))
+    try { video.currentTime = ratio * video.duration } catch { /* ignore */ }
+    setProgress(ratio * 100)
+  }, [])
+
+  const handleProgressPointerDown = useCallback((e) => {
+    e.stopPropagation()
+    setScrubbing(true)
+    try { e.currentTarget.setPointerCapture(e.pointerId) } catch { /* ignore */ }
+    seekFromClientX(e.clientX, e.currentTarget)
+  }, [seekFromClientX])
+
+  const handleProgressPointerMove = useCallback((e) => {
+    if (!scrubbing) return
+    e.stopPropagation()
+    seekFromClientX(e.clientX, e.currentTarget)
+  }, [scrubbing, seekFromClientX])
+
+  const handleProgressPointerEnd = useCallback((e) => {
+    e.stopPropagation()
+    setScrubbing(false)
+    try { e.currentTarget.releasePointerCapture(e.pointerId) } catch { /* ignore */ }
+  }, [])
 
   // Burst del icono de fuego — aparece justo DONDE se hizo doble-toque (mismo
   // patrón que spawnVoteBurst en CarouselSlide.jsx). Sin coords -> centrado.
@@ -384,6 +436,38 @@ export default function OpenChallengeSlide({
       {paused && !isImage && (
         <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
           <Play size={72} className="text-white drop-shadow-lg" fill="white" />
+        </div>
+      )}
+
+      {/* Barra de progreso del vídeo — línea FINA en reposo (1px) que se
+          engrosa (2px) mientras se toca/arrastra para adelantar o
+          retroceder. Petición REITERADA varias veces por el usuario ("tiene
+          que estar abajo" / "abajo del todo" / "debajo de todo" / "Debe
+          estar debajo del todo" / "debajo del todo de la publicacion") — la
+          línea se alinea AL BORDE INFERIOR del hit-area (`items-end` — antes
+          `items-center` la centraba verticalmente, dejando ~7px de hueco
+          visual incluso con bottom:0, causa raíz real confirmada con una
+          captura de pantalla del usuario) y el hit-area pegado al borde 0
+          real de la publicación, sin ningún margen de diseño (a diferencia
+          de CarouselSlide.jsx/DuetSlide.jsx, que originalmente sí dejaban
+          10px — ya corregidos igual, ver esos archivos). Solo si hay un
+          vídeo real que reproducir (nunca en publicaciones tipo foto). */}
+      {!isImage && mediaUrl && (
+        <div
+          className="absolute left-0 right-0 z-30 flex items-end cursor-pointer"
+          style={{
+            height: 16,
+            touchAction: 'none',
+            bottom: 0,
+          }}
+          onPointerDown={handleProgressPointerDown}
+          onPointerMove={handleProgressPointerMove}
+          onPointerUp={handleProgressPointerEnd}
+          onPointerCancel={handleProgressPointerEnd}
+        >
+          <div className={cn('w-full bg-white/15 transition-[height] duration-150', scrubbing ? 'h-[2px]' : 'h-[1px]')}>
+            <div className="h-full bg-white/80" style={{ width: `${progress}%`, transform: 'translateZ(0)' }} />
+          </div>
         </div>
       )}
 

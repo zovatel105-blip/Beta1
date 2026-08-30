@@ -10,7 +10,7 @@ import sys
 import time
 
 # Base URL from environment
-BASE_URL = os.getenv('NEXT_PUBLIC_BASE_URL', 'https://heart-reaction-swap.preview.emergentagent.com')
+BASE_URL = os.getenv('NEXT_PUBLIC_BASE_URL', 'https://challenge-card-ai.preview.emergentagent.com')
 API_URL = f"{BASE_URL}/api"
 
 # Test credentials

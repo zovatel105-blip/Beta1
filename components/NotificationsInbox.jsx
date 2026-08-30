@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { Bell, Swords, UserPlus, MessageCircle, Check, ChevronLeft, Send, CornerDownRight, Flame, Heart } from 'lucide-react'
+import { CreditIcon } from './WalletSheet'
 import VoteIcon from './icons/VoteIcon'
 import Avatar from './Avatar'
 import { useAuth } from '@/contexts/AuthContext'
@@ -326,7 +327,11 @@ export default function NotificationsInbox({ open, onClose }) {
                     <div className="relative shrink-0">
                       <Avatar src={n.user?.avatarUrl} alt="" className="w-11 h-11 rounded-full ring-1 ring-white/10" />
                       <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center bg-zinc-900 border border-white/10">
-                        <Icon className="w-[12px] h-[12px]" style={{ color }} />
+                        {n.type === 'tip_received' ? (
+                          <CreditIcon size={13} />
+                        ) : (
+                          <Icon className="w-[12px] h-[12px]" style={{ color }} />
+                        )}
                       </span>
                     </div>
                     <div className="flex-1 min-w-0">

@@ -1002,7 +1002,11 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
           engrosa al grosor "actual" pedido por el usuario (2px) mientras se
           toca/arrastra para adelantar o retroceder. El hit-area (16px) es
           más alta que la línea visible para que sea fácil de agarrar con el
-          dedo sin desplazar la posición visual de la línea.
+          dedo; la línea se alinea AL BORDE INFERIOR de ese hit-area
+          (`items-end`, petición reiterada del usuario "debajo del todo" —
+          antes `items-center` la centraba verticalmente, dejando ~7px de
+          hueco visual incluso con bottom:0) y el propio hit-area pegado al
+          borde 0 real de la publicación (antes bottom:10).
           BUG reportado ("no debe aparecer en publicaciones con imágenes"):
           antes comprobaba `post.mediaType` (el campo de nivel superior, que
           en un dueto solo refleja el lado A) en vez del lado que REALMENTE
@@ -1012,11 +1016,11 @@ function DuetSlide({ post, isActive, isNear, isAdjacent, warm = false, muted: gl
           queda `undefined` en algún post). */}
       {(audibleSide === 'b' ? sideB : sideA).mediaType !== 'image' && (audibleSide === 'b' ? sideB : sideA).videoUrl && (
         <div
-          className="absolute left-0 right-0 z-20 flex items-center cursor-pointer"
+          className="absolute left-0 right-0 z-30 flex items-end cursor-pointer"
           style={{
             height: 16,
             touchAction: 'none',
-            ...(showCommentInput ? { bottom: `calc(${COMMENT_BAR_RESERVE} - 9px)` } : { bottom: 10 }),
+            bottom: 0,
           }}
           onPointerDown={handleProgressPointerDown}
           onPointerMove={handleProgressPointerMove}

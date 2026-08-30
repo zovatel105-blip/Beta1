@@ -16,12 +16,38 @@ scripts/seed-core-users.mjs y memory/test_credentials.md).
 ```
 MONGO_URL=mongodb://localhost:27017/twyk
 ADMIN_EMAILS=twyk.apk@gmail.com
-NEXT_PUBLIC_BASE_URL=https://heart-reaction-swap.preview.emergentagent.com
-CORS_ORIGINS=https://heart-reaction-swap.preview.emergentagent.com
+NEXT_PUBLIC_BASE_URL=https://challenge-card-ai.preview.emergentagent.com
+CORS_ORIGINS=https://challenge-card-ai.preview.emergentagent.com
 FIREBASE_PROJECT_ID=
 FIREBASE_CLIENT_EMAIL=
 FIREBASE_PRIVATE_KEY=
 ```
+
+## STRIPE — CARTERA (Wallet de créditos, moneda virtual NUEVA — sesión
+## "770f54fd", petición del usuario "cartera con creditos en el menu de los
+## ajustes del perfil"). Pago ÚNICO (mode:'payment'), separado por completo
+## de los planes de suscripción del editor de IA (AI_PLANS/STRIPE_PRICE_
+## STARTER|PRO|PREMIUM, ver sección STRIPE más abajo en este archivo).
+STRIPE_PRICE_WALLET_SMALL=price_1UA8SwJN5FEXBU03MxQRPkhe   (150 credits, $0.99)
+STRIPE_PRICE_WALLET_MEDIUM=price_1UA8SwJN5FEXBU03GWMYwOlm  (800 credits, $4.99)
+STRIPE_PRICE_WALLET_LARGE=price_1UA8SwJN5FEXBU03F2VJabUJ   (2000 credits, $9.99)
+STRIPE_PRICE_WALLET_MEGA=price_1UA8SwJN5FEXBU03njH9NJGn    (5000 credits, $19.99)
+Creados con scripts/stripe-wallet-setup.mjs (re-ejecutable sin duplicar si
+estas variables se pierden — vuelve a crear 4 precios NUEVOS en Stripe, no
+reutiliza los de arriba; solo hace falta si de verdad no quedó ningún
+registro de estos 4 IDs). Si `.env` se pierde pero estos 4 IDs siguen aquí,
+NO hace falta re-ejecutar el script — solo pegarlos de vuelta.
+
+STRIPE_WEBHOOK_SECRET (de ESTA sesión, distinto del de la sección STRIPE
+más abajo si la URL de preview cambió — un webhook nuevo por URL nueva):
+STRIPE_WEBHOOK_SECRET=whsec_VmvkIhVhztxmJvD11bw6MobwY5HLA6az
+Apunta a `we_1UA8THJN5FEXBU03YIu9TYZs` -> `<NEXT_PUBLIC_BASE_URL de esta
+sesión>/api/stripe/webhook`, mismos `enabled_events` que el webhook de IA
+(un único endpoint de Stripe recibe TODO: suscripciones de IA Y compras de
+la Cartera — handleStripeWebhook/route.js distingue por
+`metadata.type==='wallet_topup'` vs el resto). Si la URL de preview cambia,
+hay que crear un webhook NUEVO (ver snippet en la sección STRIPE de abajo)
+y actualizar este secret.
 
 NOTA (push notifications, ver lib/push.js): las 3 variables FIREBASE_* son
 necesarias para que el backend pueda ENVIAR notificaciones push (Firebase
@@ -59,7 +85,7 @@ después de que Next.js haga su propio "Reload env: .env" (log de supervisor),
 o preguntar al usuario cuál es la URL que ve en su navegador.
 
 ## Última URL usada (actualizada automáticamente al restaurar)
-NEXT_PUBLIC_BASE_URL=https://d46745bb-c1d2-4238-b7f2-a5edcd883f63.preview.emergentagent.com
+NEXT_PUBLIC_BASE_URL=https://challenge-card-ai.preview.emergentagent.com
 (.env RECREADO otra vez en esta nueva sesión — mismo patrón recurrente: /app
 había perdido TODO salvo .git [`git reset --hard origin/main` restauró el
 working tree]. .env no existía [gitignored, como siempre]. Recreado con
@@ -72,7 +98,7 @@ node scripts/seed-core-users.mjs. memory/test_credentials.md recreado.
 Verificado con login real (POST /api/auth/login, twyk/Admin12345) -> 200 OK.
 
 ## Sesión anterior
-NEXT_PUBLIC_BASE_URL=https://05ae20bb-ce37-461f-ba9e-75d1d598da69.preview.emergentagent.com
+NEXT_PUBLIC_BASE_URL=https://challenge-card-ai.preview.emergentagent.com
 (.env RECREADO en esta nueva sesión — esta vez la pérdida fue TOTAL: todo
 `/app` había vuelto al último commit de git vía `git reset --hard HEAD`
 [el working tree estaba vacío salvo `.git`, con TODOS los archivos
@@ -90,7 +116,7 @@ node scripts/seed-core-users.mjs (twyk/lucia/marcos/laura + follows básicos).
 memory/test_credentials.md recreado.
 
 ## Sesión anterior
-NEXT_PUBLIC_BASE_URL=https://3743efab-7ae3-4276-8da1-a72779cb59e6.preview.emergentagent.com
+NEXT_PUBLIC_BASE_URL=https://challenge-card-ai.preview.emergentagent.com
 (.env RECREADO otra vez en esta nueva sesión — mismo patrón recurrente: /app/.env
 no existía [MONGO_URL undefined, login daba 500], se recreó con MONGO_URL/
 ADMIN_EMAILS/CORS_ORIGINS apuntando a la URL de arriba [tomada de APP_URL en
@@ -105,7 +131,7 @@ de lucia, para verificar visualmente el nuevo botón de corazón ❤️ — ante
 🔥 Fire — en OpenChallengeSlide.jsx). memory/test_credentials.md recreado.
 
 ## Sesión anterior (URL heart-reaction-swap.preview.emergentagent.com)
-NEXT_PUBLIC_BASE_URL=https://heart-reaction-swap.preview.emergentagent.com
+NEXT_PUBLIC_BASE_URL=https://challenge-card-ai.preview.emergentagent.com
 (.env RECREADO en esta nueva sesión, tras un reinicio de pod que dejó /app/.env
 inexistente y MongoDB vacía — misma causa raíz recurrente de siempre.
 MONGO_URL/ADMIN_EMAILS/CORS_ORIGINS con esta misma URL nueva; FIREBASE_* vacíos

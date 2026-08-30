@@ -85,8 +85,14 @@ import {
   consumeAiCredit,
   refundAiCredit,
   getAiSubscriptionInfo,
+  getWalletBalance,
+  addWalletCredits,
+  deductWalletCredits,
+  hasWalletTransactionForSession,
+  listWalletTransactions,
+  sendWalletTip,
 } from '@/lib/db'
-import { stripe, AI_PLANS, planPriceId, getPlanByKey, getPlanByPriceId } from '@/lib/stripe'
+import { stripe, AI_PLANS, planPriceId, getPlanByKey, getPlanByPriceId, WALLET_PACKAGES, walletPackagePriceId, getWalletPackageByKey } from '@/lib/stripe'
 import { MARKETING_STRATEGY, TWYK_PROJECT_SUMMARY, CONTENT_PILLARS, DAILY_POST_COUNT, pillarForSlot, getIdeaForDate } from '@/lib/marketingPlaybook'
 import {
   getAllPosts,
@@ -858,6 +864,39 @@ export async function GET(request, { params }) {
     } catch (err) {
       console.error('billing status error', err)
       return NextResponse.json({ error: 'billing_status_failed' }, { status: 500 })
+    }
+  }
+
+  // GET /api/wallet - saldo actual + historial de movimientos + paquetes
+  // disponibles para comprar (Cartera de créditos, NUEVA y separada de los
+  // créditos del editor de IA de arriba). Petición del usuario: "cartera
+  // con creditos en el menu de los ajustes del perfil".
+  if (path === '/wallet') {
+    const currentUser = await getCurrentUser(request)
+    if (!currentUser) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    }
+    try {
+      const [balance, transactions] = await Promise.all([
+        getWalletBalance(currentUser.id),
+        listWalletTransactions(currentUser.id, 30),
+      ])
+      return NextResponse.json({
+        ok: true,
+        balance,
+        transactions: transactions.map((t) => ({
+          id: t.id,
+          type: t.type,
+          amount: t.amount,
+          balanceAfter: t.balanceAfter,
+          counterpartyUsername: t.counterpartyUsername,
+          createdAt: t.createdAt,
+        })),
+        packages: WALLET_PACKAGES.map((p) => ({ key: p.key, label: p.label, amount: p.amount, credits: p.credits })),
+      })
+    } catch (err) {
+      console.error('wallet status error', err)
+      return NextResponse.json({ error: 'wallet_status_failed' }, { status: 500 })
     }
   }
 
@@ -1838,6 +1877,19 @@ export async function POST(request, { params }) {
   // cancelar la suscripción de IA) para el usuario actual.
   if (path === '/stripe/portal') {
     return handleStripePortal(request)
+  }
+
+  // POST /api/wallet/checkout body:{packageKey} - crea una sesión de Stripe
+  // Checkout de PAGO ÚNICO (mode:'payment', no suscripción) para uno de los
+  // 4 paquetes de créditos de la Cartera (ver WALLET_PACKAGES/lib/stripe.js).
+  if (path === '/wallet/checkout') {
+    return handleWalletCheckout(request)
+  }
+
+  // POST /api/wallet/tip body:{toUsername, amount} - envía una propina en
+  // créditos a otro creador (resta del emisor, suma al receptor).
+  if (path === '/wallet/tip') {
+    return handleWalletTip(request)
   }
 
   // POST /api/stripe/webhook - Stripe notifica aquí los eventos de la
@@ -4221,6 +4273,106 @@ async function handleStripePortal(request) {
   }
 }
 
+// POST /api/wallet/checkout body:{packageKey} - sesión de Stripe Checkout
+// de PAGO ÚNICO (mode:'payment') para comprar créditos de la Cartera. El
+// crédito real se otorga en el webhook (checkout.session.completed), NUNCA
+// aquí (esto solo crea la URL de pago, antes de que el usuario pague).
+async function handleWalletCheckout(request) {
+  try {
+    if (!stripe) {
+      return NextResponse.json({ error: 'stripe_not_configured' }, { status: 500 })
+    }
+    const currentUser = await getCurrentUser(request)
+    if (!currentUser) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    }
+    const body = await request.json().catch(() => ({}))
+    const pkg = getWalletPackageByKey(String(body?.packageKey || ''))
+    const priceId = pkg ? walletPackagePriceId(pkg) : null
+    if (!pkg || !priceId) {
+      return NextResponse.json({ error: 'invalid_package' }, { status: 400 })
+    }
+
+    let customerId = currentUser.stripeCustomerId || null
+    if (!customerId) {
+      const customer = await stripe.customers.create({
+        email: currentUser.email || undefined,
+        metadata: { userId: currentUser.id, username: currentUser.username },
+      })
+      customerId = customer.id
+      await setUserStripeCustomerId(currentUser.id, customerId)
+    }
+
+    const base = (process.env.NEXT_PUBLIC_BASE_URL || '').replace(/\/$/, '')
+    const session = await stripe.checkout.sessions.create({
+      mode: 'payment',
+      customer: customerId,
+      line_items: [{ price: priceId, quantity: 1 }],
+      success_url: `${base}/?wallet=success`,
+      cancel_url: `${base}/?wallet=cancelled`,
+      metadata: { userId: currentUser.id, type: 'wallet_topup', packageKey: pkg.key },
+      managed_payments: { enabled: false },
+    })
+    return NextResponse.json({ ok: true, url: session.url })
+  } catch (err) {
+    console.error('wallet checkout error', err?.message || err)
+    return NextResponse.json({ error: 'checkout_failed' }, { status: 500 })
+  }
+}
+
+// POST /api/wallet/tip body:{toUsername, amount} - propina en créditos a
+// otro creador.
+async function handleWalletTip(request) {
+  try {
+    const currentUser = await getCurrentUser(request)
+    if (!currentUser) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    }
+    const body = await request.json().catch(() => ({}))
+    const toUsername = String(body?.toUsername || '').trim()
+    const amount = Math.floor(Number(body?.amount))
+    if (!toUsername) {
+      return NextResponse.json({ error: 'missing_recipient' }, { status: 400 })
+    }
+    if (!(amount > 0)) {
+      return NextResponse.json({ error: 'invalid_amount', message: 'Enter a valid amount of credits' }, { status: 400 })
+    }
+    if (toUsername.toLowerCase() === currentUser.username.toLowerCase()) {
+      return NextResponse.json({ error: 'cannot_tip_self', message: "You can't tip yourself" }, { status: 400 })
+    }
+    const recipient = await getUserByUsername(toUsername)
+    if (!recipient) {
+      return NextResponse.json({ error: 'recipient_not_found', message: 'User not found' }, { status: 404 })
+    }
+    const result = await sendWalletTip({
+      fromUserId: currentUser.id,
+      fromUsername: currentUser.username,
+      toUserId: recipient.id,
+      toUsername: recipient.username,
+      amount,
+    })
+    if (!result.ok) {
+      const message = result.reason === 'insufficient_funds'
+        ? "You don't have enough credits for this tip"
+        : 'Could not send tip'
+      return NextResponse.json({ error: result.reason || 'tip_failed', message }, { status: result.reason === 'insufficient_funds' ? 402 : 400 })
+    }
+    // Notificación (mismo patrón/esquema que el resto de la app —
+    // createNotification espera fromUserId, no fromUsername/avatarUrl) —
+    // no bloqueante.
+    createNotification({
+      userId: recipient.id,
+      type: 'tip_received',
+      fromUserId: currentUser.id,
+      text: `sent you ${amount} credit${amount === 1 ? '' : 's'} as a tip`,
+    }).catch(() => {})
+    return NextResponse.json({ ok: true, balance: result.balance })
+  } catch (err) {
+    console.error('wallet tip error', err?.message || err)
+    return NextResponse.json({ error: 'tip_failed' }, { status: 500 })
+  }
+}
+
 // POST /api/stripe/webhook - eventos de Stripe. IMPORTANTE: se lee el
 // cuerpo como texto CRUDO (request.text()) ANTES de cualquier parseo, para
 // poder verificar la firma exactamente como Stripe la calculó.
@@ -4248,6 +4400,25 @@ async function handleStripeWebhook(request) {
         const userId = obj?.metadata?.userId
         if (userId && obj?.customer) {
           await setUserStripeCustomerId(userId, String(obj.customer))
+        }
+        // Cartera (Wallet) — pago ÚNICO (mode:'payment'), a diferencia de
+        // los planes de IA (mode:'subscription', que otorgan crédito en
+        // `invoice.paid`, ver más abajo). Un pago único ya está confirmado
+        // en ESTE mismo evento (payment_status==='paid') — se otorga aquí.
+        // IDEMPOTENCIA: Stripe puede reenviar el mismo evento más de una
+        // vez -> se comprueba antes si ya existe un movimiento con este
+        // sessionId (ver hasWalletTransactionForSession) para no acreditar
+        // el mismo pago 2 veces.
+        if (userId && obj?.metadata?.type === 'wallet_topup' && obj?.payment_status === 'paid') {
+          const pkg = getWalletPackageByKey(obj?.metadata?.packageKey || '')
+          if (pkg) {
+            const already = await hasWalletTransactionForSession(obj.id)
+            if (!already) {
+              await addWalletCredits(userId, pkg.credits, { type: 'purchase', meta: { sessionId: obj.id, packageKey: pkg.key } })
+            }
+          } else {
+            console.error('stripe webhook wallet_topup: no matching package for key', obj?.metadata?.packageKey)
+          }
         }
         break
       }
