@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { X, Loader2, Check } from 'lucide-react'
+import { Loader2, Check, ChevronDown } from 'lucide-react'
 import { CreditIcon } from './WalletSheet'
 
 /**
@@ -78,19 +78,22 @@ export default function TipSheet({ open, onClose, toUsername, onSent, onNeedCred
       className="fixed inset-0 z-[95] bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center"
       onClick={(e) => { if (e.target === e.currentTarget) onClose?.() }}
     >
-      <div className="w-full sm:max-w-sm bg-[#0f0f11] border border-white/10 rounded-t-3xl sm:rounded-3xl p-5 space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-white text-[17px] font-bold flex items-center gap-1.5">
-            <CreditIcon size={16} /> Tip @{toUsername}
-          </h2>
-          <button
-            onClick={onClose}
-            aria-label="Close"
-            className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-white/10 active:scale-90 transition text-zinc-400 hover:text-white"
-          >
-            <X size={16} strokeWidth={1.9} />
-          </button>
-        </div>
+      <div className="w-full sm:max-w-sm bg-[#0f0f11] border border-white/10 rounded-t-3xl sm:rounded-3xl overflow-hidden">
+        {/* Cerrar: flecha hacia abajo centrada (mismo patrón que el resto de
+            hojas de la app), en vez de una X arriba a la derecha. */}
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close"
+          className="w-full flex justify-center items-center pt-3 pb-1 active:scale-90 transition"
+        >
+          <ChevronDown size={20} className="text-zinc-500" strokeWidth={2.2} />
+        </button>
+
+        <div className="px-5 pb-5 space-y-4">
+        <h2 className="text-white text-[17px] font-bold flex items-center gap-1.5">
+          <CreditIcon size={16} /> Tip @{toUsername}
+        </h2>
 
         {sent ? (
           <div className="py-8 flex flex-col items-center gap-2.5">
@@ -142,7 +145,7 @@ export default function TipSheet({ open, onClose, toUsername, onSent, onNeedCred
                 Not enough credits — tap to add more
               </button>
             )}
-            {error && <p className="text-rose-400 text-[12.5px] text-center">{error}</p>}
+            {error && <p className="text-red-400 text-[12.5px] text-center">{error}</p>}
 
             <button
               onClick={send}
@@ -154,6 +157,7 @@ export default function TipSheet({ open, onClose, toUsername, onSent, onNeedCred
             </button>
           </>
         )}
+        </div>
       </div>
     </div>
   )
