@@ -711,10 +711,13 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
     // active challenges" de Retos, ahora "Log in" / "Sign up").
     return (
       <div className={`fixed inset-0 ${guestMenuOpen ? 'z-[90]' : 'z-40'} bg-[#0a0a0b] flex flex-col text-white overflow-hidden`}>
-        {/* Header: título "Perfil" centrado + menú */}
+        {/* Header: título "Perfil" centrado + menú — MISMA altura/padding que la
+            barra sticky del perfil YA logueado (h-11, paddingTop 6px, ver barRef
+            más abajo en este archivo) para que el icono ☰ quede exactamente en la
+            misma posición en ambos estados (petición explícita del usuario). */}
         <div className="sticky top-0 z-20 bg-[#0a0a0b]/70 backdrop-blur-xl"
-             style={{ paddingTop: 'max(env(safe-area-inset-top), 8px)' }}>
-          <div className="flex items-center justify-between px-2 sm:px-4 h-14 max-w-md mx-auto w-full">
+             style={{ paddingTop: 'max(env(safe-area-inset-top), 6px)' }}>
+          <div className="flex items-center justify-between px-2 sm:px-4 h-11 max-w-md mx-auto w-full">
             <span className="w-9" />
             <span className="text-white font-bold text-[18px] tracking-tight">Profile</span>
             <button
@@ -1233,6 +1236,13 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
 
 // Drawer lateral para INVITADOS: acceso a iniciar sesión y enlaces legales.
 // Mismo patrón visual que SettingsDrawer (se desliza desde la derecha).
+// Rediseñado con EXACTAMENTE el mismo lenguaje visual que la página de Retos
+// (ver header de CompletedBattlesPage.jsx / TrendingChallengePostsPage.jsx):
+// botón de cerrar CIRCULAR (w-9 h-9, bg-white/[0.06], borde blanco/10,
+// backdrop-blur), glow radial superior muy sutil (idéntico al de
+// EmptyCompletedState), y CTA primario blanco/negro (mismo botón "Create a
+// challenge" de Retos) en vez del degradado morado-azul anterior — petición
+// explícita del usuario ("rediseña el menú como la página de retos").
 const GuestMenuDrawer = ({ open, onClose, onLogin }) => {
   return (
     <div className={`fixed inset-0 z-[85] ${open ? '' : 'pointer-events-none'}`}>
@@ -1243,29 +1253,36 @@ const GuestMenuDrawer = ({ open, onClose, onLogin }) => {
         }`}
       />
       <div
-        className={`absolute top-0 right-0 h-full w-[82%] max-w-sm bg-[#121214] border-l border-white/[0.08] shadow-2xl flex flex-col text-white transition-transform duration-300 ease-out ${
+        className={`absolute top-0 right-0 h-full w-[82%] max-w-sm bg-[#0a0a0b] border-l border-white/[0.08] shadow-2xl flex flex-col text-white transition-transform duration-300 ease-out overflow-hidden ${
           open ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
-        <div className="border-b border-white/[0.06]" style={{ paddingTop: 'max(env(safe-area-inset-top), 8px)' }}>
-          <div className="flex items-center px-3 h-14 w-full">
-            {/* Flecha "atrás" en vez de "X" — mismo icono/estilo que el resto de
-                cabeceras con botón de cierre de la app (ej. FollowListModal,
-                barra "atrás" del perfil ajeno), petición explícita del usuario. */}
-            <button aria-label="close" onClick={onClose} className="p-2 -ml-1 text-white active:scale-90 transition">
-              <ArrowLeft strokeWidth={1.9} className="w-[22px] h-[22px]" />
+        {/* Glow radial superior muy sutil — idéntico al de EmptyCompletedState (Retos) */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-64"
+             style={{ background: 'radial-gradient(60% 100% at 50% 0%, rgba(255,255,255,0.10), transparent 70%)' }} />
+
+        <div className="relative z-10" style={{ paddingTop: 'max(env(safe-area-inset-top), 14px)' }}>
+          <div className="flex items-center gap-2.5 px-4 h-14 w-full">
+            {/* Botón circular de cerrar — mismo estilo que los botones de la
+                cabecera de Retos (ej. "User suggestions"/"Add challenge" en
+                CompletedBattlesPage.jsx, o el "Volver" de TrendingChallengePostsPage.jsx). */}
+            <button
+              aria-label="close"
+              onClick={onClose}
+              className="shrink-0 w-9 h-9 rounded-full bg-white/[0.06] border border-white/10 backdrop-blur-md text-white flex items-center justify-center hover:bg-white/10 active:scale-95 transition"
+            >
+              <ArrowLeft className="w-[18px] h-[18px]" strokeWidth={2} />
             </button>
-            <span className="text-white font-semibold text-[15px] ml-1">Menu</span>
+            <span className="text-white font-semibold text-[16px] tracking-tight">Menu</span>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
+        <div className="relative z-10 flex-1 overflow-y-auto px-4 pb-6 space-y-3">
           <button
             onClick={onLogin}
-            className="w-full flex items-center justify-center gap-2 h-12 rounded-2xl text-white font-bold text-[15px] active:scale-[0.98] transition"
-            style={{ background: 'linear-gradient(90deg, #A855F7 0%, #3B82F6 100%)' }}
+            className="w-full h-12 rounded-full bg-white text-black font-semibold text-[15px] flex items-center justify-center gap-2 hover:bg-zinc-100 active:scale-[0.99] transition"
           >
-            <LogIn className="w-[18px] h-[18px]" strokeWidth={2.1} />
+            <LogIn className="w-[18px] h-[18px]" strokeWidth={2.4} />
             Log in
           </button>
 
