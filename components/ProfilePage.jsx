@@ -1235,49 +1235,98 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
 }
 
 // Drawer lateral para INVITADOS: acceso a iniciar sesión y enlaces legales.
-// Mismo patrón visual que SettingsDrawer (se desliza desde la derecha).
-// Rediseñado con EXACTAMENTE el mismo lenguaje visual que la página de Retos
-// (ver header de CompletedBattlesPage.jsx / TrendingChallengePostsPage.jsx):
-// botón de cerrar CIRCULAR (w-9 h-9, bg-white/[0.06], borde blanco/10,
-// backdrop-blur), glow radial superior muy sutil (idéntico al de
-// EmptyCompletedState), y CTA primario blanco/negro (mismo botón "Create a
-// challenge" de Retos) en vez del degradado morado-azul anterior — petición
-// explícita del usuario ("rediseña el menú como la página de retos").
+// AHORA 100% CONSISTENTE con SettingsDrawer (el menú del perfil YA logueado):
+// mismo mecanismo de arrastre para cerrar (sin botón "X"/flecha en la
+// cabecera), y el mismo indicador decorativo ">" (ChevronRight) centrado
+// verticalmente en el borde izquierdo del panel — petición explícita del
+// usuario ("en el menu de perfil logueado... la flecha es asi > y esta en
+// el medio"). Glow radial superior sutil + CTA primario blanco/negro se
+// mantienen (mismo lenguaje visual de la página de Retos, ya confirmado).
 const GuestMenuDrawer = ({ open, onClose, onLogin }) => {
+  const panelRef = useRef(null)
+  const dragStartRef = useRef(null)
+  const draggingRef = useRef(false)
+  const panelWidthRef = useRef(0)
+  const [dragX, setDragX] = useState(0)
+
+  const handlePointerDown = (e) => {
+    dragStartRef.current = { x: e.clientX, y: e.clientY }
+    draggingRef.current = false
+    if (panelRef.current) panelWidthRef.current = panelRef.current.offsetWidth
+  }
+
+  const handlePointerMove = (e) => {
+    if (!dragStartRef.current) return
+    const dx = e.clientX - dragStartRef.current.x
+    const dy = e.clientY - dragStartRef.current.y
+    if (!draggingRef.current) {
+      // Solo se activa el arrastre si el gesto es claramente horizontal hacia la
+      // derecha (cerrar); igual que en SettingsDrawer.
+      if (dx > 12 && Math.abs(dx) > Math.abs(dy) * 1.4) {
+        draggingRef.current = true
+        try { e.target.setPointerCapture?.(e.pointerId) } catch (_err) { /* noop: navegadores sin setPointerCapture */ }
+      } else {
+        return
+      }
+    }
+    e.preventDefault()
+    const max = panelWidthRef.current || 320
+    setDragX(Math.max(0, Math.min(dx, max)))
+  }
+
+  const handlePointerUp = () => {
+    if (draggingRef.current) {
+      const max = panelWidthRef.current || 320
+      if (dragX > max * 0.28) {
+        onClose()
+      }
+    }
+    draggingRef.current = false
+    dragStartRef.current = null
+    setDragX(0)
+  }
+
   return (
     <div className={`fixed inset-0 z-[85] ${open ? '' : 'pointer-events-none'}`}>
+      {/* Fondo (decorativo, no cierra al tocarlo: el cierre es solo deslizando el panel — igual que SettingsDrawer) */}
       <div
-        onClick={onClose}
-        className={`absolute inset-0 bg-black/50 backdrop-blur-[2px] transition-opacity duration-300 ${
+        aria-hidden
+        className={`absolute inset-0 bg-black/60 backdrop-blur-[3px] transition-opacity duration-300 ${
           open ? 'opacity-100' : 'opacity-0'
         }`}
       />
       <div
-        className={`absolute top-0 right-0 h-full w-[82%] max-w-sm bg-[#0a0a0b] border-l border-white/[0.08] shadow-2xl flex flex-col text-white transition-transform duration-300 ease-out overflow-hidden ${
+        ref={panelRef}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        style={{
+          touchAction: 'pan-y',
+          transform: dragX ? `translateX(${dragX}px)` : undefined,
+          transition: draggingRef.current ? 'none' : undefined,
+        }}
+        className={`absolute top-0 right-0 h-full w-[82%] max-w-sm bg-[#0a0a0b] border-l border-white/[0.06] shadow-2xl flex flex-col text-white transition-transform duration-300 ease-out overflow-hidden ${
           open ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
+        {/* Indicador de arrastre: flecha ">" en el borde izquierdo del panel — MISMA posición/estilo exacto que SettingsDrawer */}
+        <div aria-hidden className="absolute left-1 top-1/2 -translate-y-1/2 pointer-events-none text-white/25">
+          <ChevronRight className="w-4 h-4" strokeWidth={2.4} />
+        </div>
+
         {/* Glow radial superior muy sutil — idéntico al de EmptyCompletedState (Retos) */}
         <div className="pointer-events-none absolute inset-x-0 top-0 h-64"
              style={{ background: 'radial-gradient(60% 100% at 50% 0%, rgba(255,255,255,0.10), transparent 70%)' }} />
 
+        {/* Header: sin botón de cierre — el panel se cierra deslizando, igual que SettingsDrawer */}
         <div className="relative z-10" style={{ paddingTop: 'max(env(safe-area-inset-top), 14px)' }}>
-          <div className="flex items-center gap-2.5 px-4 h-14 w-full">
-            {/* Botón circular de cerrar — mismo estilo que los botones de la
-                cabecera de Retos (ej. "User suggestions"/"Add challenge" en
-                CompletedBattlesPage.jsx, o el "Volver" de TrendingChallengePostsPage.jsx). */}
-            <button
-              aria-label="close"
-              onClick={onClose}
-              className="shrink-0 w-9 h-9 rounded-full bg-white/[0.06] border border-white/10 backdrop-blur-md text-white flex items-center justify-center hover:bg-white/10 active:scale-95 transition"
-            >
-              <ArrowLeft className="w-[18px] h-[18px]" strokeWidth={2} />
-            </button>
-            <span className="text-white font-semibold text-[16px] tracking-tight">Menu</span>
+          <div className="flex items-center px-5 h-14 w-full">
+            <span className="text-white font-semibold text-[19px] tracking-tight">Menu</span>
           </div>
         </div>
 
-        <div className="relative z-10 flex-1 overflow-y-auto px-4 pb-6 space-y-3">
+        <div className="relative z-10 flex-1 overflow-y-auto px-5 pb-6 space-y-3" style={{ touchAction: 'pan-y' }}>
           <button
             onClick={onLogin}
             className="w-full h-12 rounded-full bg-white text-black font-semibold text-[15px] flex items-center justify-center gap-2 hover:bg-zinc-100 active:scale-[0.99] transition"
