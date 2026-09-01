@@ -203,7 +203,7 @@ export default function SearchOverlay({ open, onClose, onOpenProfile, onOpenTren
           subtítulo, sin chevron) — petición explícita del usuario. */}
       {defaultTrending.length > 0 && !query.trim() && (
         <>
-          <p className="px-4 pt-4 pb-1 text-white/40 text-[13px] font-medium">Trending challenges</p>
+          <p className="px-4 pt-4 pb-1 text-amber-300/90 text-[13px] font-medium">Trending challenges</p>
           <ul className="py-1">
             {defaultTrending.map((t) => (
               <li key={t.id}>
@@ -258,7 +258,7 @@ export default function SearchOverlay({ open, onClose, onOpenProfile, onOpenTren
                 coinciden con lo escrito. Solo aparece con búsqueda activa. */}
             {trendingResults.length > 0 && (
               <>
-                <p className="px-4 pt-3 pb-1 text-white/40 text-[13px] font-medium">Trending challenges</p>
+                <p className="px-4 pt-3 pb-1 text-amber-300/90 text-[13px] font-medium">Trending challenges</p>
                 <ul className="py-1">
                   {trendingResults.map((t) => (
                     <li key={t.id}>
