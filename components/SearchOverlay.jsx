@@ -163,7 +163,7 @@ export default function SearchOverlay({ open, onClose, onOpenProfile, onOpenTren
         style={{ paddingTop: 'max(env(safe-area-inset-top), 12px)' }}
       >
         <button
-          aria-label="cerrar búsqueda"
+          aria-label="close search"
           onClick={onClose}
           className="w-9 h-9 shrink-0 rounded-full flex items-center justify-center text-white/80 hover:bg-white/10 active:scale-95 transition"
         >
@@ -175,7 +175,7 @@ export default function SearchOverlay({ open, onClose, onOpenProfile, onOpenTren
             ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar usuarios o trending challenges"
+            placeholder="Search users or trending challenges"
             className="flex-1 bg-transparent outline-none text-white text-[15px] placeholder:text-white/40"
             autoComplete="off"
             autoCorrect="off"
@@ -183,7 +183,7 @@ export default function SearchOverlay({ open, onClose, onOpenProfile, onOpenTren
           />
           {query && (
             <button
-              aria-label="borrar"
+              aria-label="clear"
               onClick={() => { setQuery(''); inputRef.current?.focus() }}
               className="w-5 h-5 shrink-0 rounded-full bg-white/20 flex items-center justify-center text-white/80"
             >
@@ -223,7 +223,7 @@ export default function SearchOverlay({ open, onClose, onOpenProfile, onOpenTren
       {/* Resultados */}
       <div className="flex-1 overflow-y-auto no-scrollbar">
         {!query.trim() && (
-          <p className="px-4 pt-4 pb-1 text-white/40 text-[13px] font-medium">Sugerencias</p>
+          <p className="px-4 pt-4 pb-1 text-white/40 text-[13px] font-medium">Suggestions</p>
         )}
 
         {loading && results.length === 0 && trendingResults.length === 0 ? (
@@ -236,10 +236,10 @@ export default function SearchOverlay({ open, onClose, onOpenProfile, onOpenTren
               <Search size={24} className="text-white/30" />
             </div>
             <p className="text-white/70 text-[15px] font-semibold">
-              {query.trim() ? 'Sin resultados' : 'No hay usuarios todavía'}
+              {query.trim() ? 'No results' : 'No users yet'}
             </p>
             {query.trim() && (
-              <p className="text-white/40 text-[13px] mt-1">Prueba con otro nombre o challenge</p>
+              <p className="text-white/40 text-[13px] mt-1">Try another name or challenge</p>
             )}
           </div>
         ) : (
