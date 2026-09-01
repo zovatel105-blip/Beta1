@@ -141,7 +141,37 @@ después de que Next.js haga su propio "Reload env: .env" (log de supervisor),
 o preguntar al usuario cuál es la URL que ve en su navegador.
 
 ## Última URL usada (actualizada automáticamente al restaurar)
-NEXT_PUBLIC_BASE_URL=https://ed3f47d7-6881-4caf-8013-0af8d697f875.preview.emergentagent.com
+NEXT_PUBLIC_BASE_URL=https://config-install.preview.emergentagent.com
+(Sesión posterior: el usuario compartió AGNES_API_KEY -sk-EuMIognaqzJHkqzPuoGt9pYTztegnTWu29Dgz9Tp45nWdIZ0, igual
+a la de sesiones anteriores- y NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY -pk_test_51U93y6...-, ambas añadidas a
+`.env` y verificadas: AGNES probado end-to-end con una foto real -> 200 OK, provider=agnes. También se
+detectó y corrigió el bug recurrente "NEXT_PUBLIC_BASE_URL desincronizado": Next.js había autocorregido
+NEXT_PUBLIC_BASE_URL a la URL real actual -config-install.preview.emergentagent.com- pero CORS_ORIGINS
+seguía con la URL de la sesión anterior -corregido para que coincidan-. Restaurados también los 7 price
+IDs de Stripe conocidos -STARTER/PRO/PREMIUM del editor de IA + WALLET_SMALL/MEDIUM/LARGE/MEGA de la
+Cartera, ver más abajo en este archivo, son estables/no secretos-. FALTA: STRIPE_SECRET_KEY -el usuario
+solo compartió la PUBLISHABLE, pk_test_..., que es pública/segura en el navegador pero NO sirve para el
+backend- y STRIPE_WEBHOOK_SECRET -se creará un webhook nuevo apuntando a esta URL en cuanto llegue la
+secret key-. Sin la secret key, Stripe Checkout/PaymentIntent/Wallet siguen sin funcionar (el resto de la
+app -login, feed, editor Agnes- funciona con normalidad).
+
+## ✅ ACTUALIZACIÓN (misma sesión): STRIPE_SECRET_KEY recibida, Stripe 100% operativo
+El usuario compartió STRIPE_SECRET_KEY (sk_test_51U93y6JN5FEXBU03xLz5F...). Verificados los 7 price IDs
+restaurados de memoria (arriba) contra la cuenta real -> los 7 siguen activos con los montos correctos
+(STARTER $5/50cr, PRO $10/120cr, PREMIUM $20/300cr, WALLET SMALL $0.99/150cr, MEDIUM $4.99/800cr, LARGE
+$9.99/2000cr, MEGA $19.99/5000cr). Webhook NUEVO creado apuntando a la URL actual
+(we_1UAy4VJN5FEXBU03VsLsKwC7 -> config-install.preview.emergentagent.com/api/stripe/webhook,
+STRIPE_WEBHOOK_SECRET=whsec_BsyGkU6GpsR5Y3fx8GWJpAzRsVjoOq7Q) — los webhooks viejos de sesiones
+anteriores se dejaron intactos (URLs muertas, sin tráfico). VERIFICADO END-TO-END con llamadas reales
+(Node/fetch, sin curl, sin agente de testing): GET /api/billing/status -> 200 con los 3 planes
+correctos; POST /api/stripe/checkout plan=starter -> 200 con URL real de Stripe Checkout; POST
+/api/wallet/checkout packageKey=small -> 200 con URL real de Stripe Checkout; GET /api/wallet -> 200
+con balance/paquetes; POST /api/wallet/payment-intent packageKey=small -> 200 con clientSecret real
+(flujo embebido de la Cartera); POST /api/stripe/subscription plan=starter -> 200 con clientSecret real
+y subscriptionId (flujo embebido del editor de IA) — esa suscripción de prueba se CANCELÓ inmediatamente
+después (`stripe.subscriptions.cancel`) para no seguir cobrando mensualmente. AGNES_API_KEY también
+verificada con una edición real end-to-end (POST /api/ai/edit-image engine=agnes con foto real -> 200
+OK, provider=agnes). Pendiente (solo si el usuario lo pide): FIREBASE_* (push) siguen vacíos.
 (.env RECREADO en esta nueva sesión — mismo patrón recurrente de siempre: /app había perdido
 TODO salvo .git [restaurado con `git reset --hard HEAD`, todos los archivos estaban "staged for
 deletion", working tree vacío salvo .git]. .env no existía [gitignored, como siempre]. node_modules
