@@ -55,7 +55,7 @@ export default function TrendingChallengePostsPage({ open, themeId, onClose, onO
            style={{ paddingTop: 'max(env(safe-area-inset-top), 14px)' }}>
         <button
           onClick={onClose}
-          aria-label="Volver"
+          aria-label="Back"
           className="shrink-0 w-9 h-9 rounded-full bg-white/[0.06] border border-white/10 text-white flex items-center justify-center hover:bg-white/10 active:scale-95 transition"
         >
           <ArrowLeft size={18} strokeWidth={2} />
@@ -79,9 +79,9 @@ export default function TrendingChallengePostsPage({ open, themeId, onClose, onO
             <Flame className="w-7 h-7" strokeWidth={1.25} style={{ color: '#FCD34D' }} />
           </div>
           <div className="space-y-1">
-            <h3 className="text-base font-semibold text-white">No publicaciones todavía</h3>
+            <h3 className="text-base font-semibold text-white">No posts yet</h3>
             <p className="text-zinc-500 text-sm">
-              Cuando alguien participe en {theme?.title ? `"${theme.title}"` : 'este challenge'}, aparecerán aquí.
+              When someone joins {theme?.title ? `"${theme.title}"` : 'this challenge'}, they&apos;ll appear here.
             </p>
           </div>
         </div>
