@@ -1306,7 +1306,7 @@ const GuestMenuDrawer = ({ open, onClose, onLogin }) => {
           transform: dragX ? `translateX(${dragX}px)` : undefined,
           transition: draggingRef.current ? 'none' : undefined,
         }}
-        className={`absolute top-0 right-0 h-full w-[82%] max-w-sm bg-[#0a0a0b] border-l border-white/[0.06] shadow-2xl flex flex-col text-white transition-transform duration-300 ease-out overflow-hidden ${
+        className={`absolute top-0 right-0 h-full w-[82%] max-w-sm rounded-l-3xl bg-[#0a0a0b] border-l border-white/[0.06] shadow-2xl flex flex-col text-white transition-transform duration-300 ease-out overflow-hidden ${
           open ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
@@ -1463,7 +1463,7 @@ const SettingsDrawer = ({ open, onClose, onLogout, isAdmin, onOpenWallet }) => {
           transform: dragX ? `translateX(${dragX}px)` : undefined,
           transition: draggingRef.current ? 'none' : undefined,
         }}
-        className={`absolute top-0 right-0 h-full w-[82%] max-w-sm bg-[#0a0a0b] border-l border-white/[0.06] shadow-2xl flex flex-col text-white transition-transform duration-300 ease-out overflow-hidden ${
+        className={`absolute top-0 right-0 h-full w-[82%] max-w-sm rounded-l-3xl bg-[#0a0a0b] border-l border-white/[0.06] shadow-2xl flex flex-col text-white transition-transform duration-300 ease-out overflow-hidden ${
           open ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
