@@ -159,7 +159,7 @@ export default function SearchOverlay({ open, onClose, onOpenProfile, onOpenTren
     <div className="fixed inset-0 z-[80] bg-[#0a0a0b] flex flex-col">
       {/* Cabecera: volver + input + limpiar */}
       <div
-        className="flex items-center gap-2 px-3 pb-3 border-b border-white/10"
+        className="flex items-center gap-2 px-3 pb-3"
         style={{ paddingTop: 'max(env(safe-area-inset-top), 12px)' }}
       >
         <button
@@ -199,7 +199,7 @@ export default function SearchOverlay({ open, onClose, onOpenProfile, onOpenTren
           challenge"). Al escribir, esta lista fija se sustituye por la
           sección "Trending challenges" de resultados, más abajo. */}
       {defaultTrending.length > 0 && !query.trim() && (
-        <div className="border-b border-white/10">
+        <div>
           {defaultTrending.map((t, i) => (
             <button
               key={t.id}
