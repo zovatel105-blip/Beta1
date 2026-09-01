@@ -700,8 +700,17 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
   // Cuando es "mi perfil" (sin username) pero no hay sesión, mostramos un estado
   // de "no has iniciado sesión" al estilo Twyk (tema oscuro + acento de marca).
   if (isOwn && !user) {
+    // Rediseñado para usar EXACTAMENTE el mismo lenguaje visual "premium
+    // minimalist" que el estado vacío de la página de Retos (ver
+    // EmptyCompletedState en CompletedBattlesPage.jsx) — petición explícita
+    // del usuario ("rediseña esta página como la página de retos"): glow
+    // radial superior muy sutil, icono en círculo con borde + bg tenue +
+    // sombra difusa, título grande con tracking-tight, párrafo de
+    // descripción en zinc-400, botón primario blanco sólido con icono y
+    // botón secundario con borde (mismo par "Create a challenge" / "See
+    // active challenges" de Retos, ahora "Log in" / "Sign up").
     return (
-      <div className={`fixed inset-0 ${guestMenuOpen ? 'z-[90]' : 'z-40'} bg-[#0a0a0b] flex flex-col text-white`}>
+      <div className={`fixed inset-0 ${guestMenuOpen ? 'z-[90]' : 'z-40'} bg-[#0a0a0b] flex flex-col text-white overflow-hidden`}>
         {/* Header: título "Perfil" centrado + menú */}
         <div className="sticky top-0 z-20 bg-[#0a0a0b]/70 backdrop-blur-xl"
              style={{ paddingTop: 'max(env(safe-area-inset-top), 8px)' }}>
@@ -718,34 +727,40 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
           </div>
         </div>
 
-        {/* Contenido centrado */}
-        <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-8 pb-24 -mt-6">
-          <div className="w-[120px] h-[120px] rounded-full flex items-center justify-center mb-6">
-            <CircleUserRound className="w-[112px] h-[112px] text-zinc-600" strokeWidth={1} />
+        {/* Glow radial superior muy sutil — idéntico al de EmptyCompletedState (Retos) */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-80"
+             style={{ background: 'radial-gradient(60% 100% at 50% 0%, rgba(255,255,255,0.10), transparent 70%)' }} />
+
+        {/* Contenido centrado — mismo hero (icono + título + descripción + 2 botones) que Retos */}
+        <div className="relative z-10 flex-1 flex flex-col items-center justify-center text-center px-6 pb-24 -mt-6 max-w-md mx-auto w-full">
+          <div
+            className="w-20 h-20 rounded-full border border-white/10 bg-white/[0.03] flex items-center justify-center mb-6"
+            style={{ boxShadow: '0 0 48px -14px rgba(255,255,255,0.45)' }}
+          >
+            <CircleUserRound className="w-9 h-9" strokeWidth={1.25} style={{ color: '#FFFFFF' }} />
           </div>
 
-          <p className="text-zinc-300 text-[16px] font-medium mb-7 text-center">
-            Log in to your Twyk account
+          <h1 className="text-white text-[26px] font-semibold tracking-tight leading-snug">
+            Log in to your account
+          </h1>
+          <p className="text-zinc-400 text-[15px] mt-3 leading-relaxed max-w-[18rem]">
+            Sign in to your Twyk account to see your profile, your challenges and everything you&apos;ve posted.
           </p>
 
           <button
             onClick={() => (onRequireLogin || onRequireAuth)?.()}
-            className="w-full max-w-[360px] h-[52px] rounded-full text-white font-bold text-[16px] tracking-tight flex items-center justify-center gap-2 active:scale-[0.98] transition-transform shadow-[0_10px_30px_-8px_rgba(168,85,247,0.6)]"
-            style={{ background: 'linear-gradient(90deg, #A855F7 0%, #3B82F6 100%)' }}
+            className="mt-8 w-full h-12 rounded-full bg-white text-black font-semibold text-[15px] flex items-center justify-center gap-2 hover:bg-zinc-100 active:scale-[0.99] transition"
           >
-            <LogIn className="w-5 h-5" strokeWidth={2.2} />
+            <LogIn className="w-[18px] h-[18px]" strokeWidth={2.5} />
             Log in
           </button>
-
-          <p className="text-zinc-500 text-[13px] mt-5 text-center">
-            Don&apos;t have an account?{' '}
-            <button
-              onClick={() => onRequireAuth?.()}
-              className="text-white font-semibold underline-offset-2 hover:underline"
-            >
-              Sign up
-            </button>
-          </p>
+          <button
+            onClick={() => onRequireAuth?.()}
+            className="mt-3 w-full h-12 rounded-full border border-white/15 text-white font-medium text-[15px] flex items-center justify-center gap-2 hover:bg-white/[0.04] active:scale-[0.99] transition"
+          >
+            <UserPlus className="w-[18px] h-[18px]" strokeWidth={1.75} />
+            Sign up
+          </button>
         </div>
 
         {/* Menú lateral para invitados: acceso e información legal */}
@@ -1234,8 +1249,11 @@ const GuestMenuDrawer = ({ open, onClose, onLogin }) => {
       >
         <div className="border-b border-white/[0.06]" style={{ paddingTop: 'max(env(safe-area-inset-top), 8px)' }}>
           <div className="flex items-center px-3 h-14 w-full">
+            {/* Flecha "atrás" en vez de "X" — mismo icono/estilo que el resto de
+                cabeceras con botón de cierre de la app (ej. FollowListModal,
+                barra "atrás" del perfil ajeno), petición explícita del usuario. */}
             <button aria-label="close" onClick={onClose} className="p-2 -ml-1 text-white active:scale-90 transition">
-              <X strokeWidth={1.9} className="w-[22px] h-[22px]" />
+              <ArrowLeft strokeWidth={1.9} className="w-[22px] h-[22px]" />
             </button>
             <span className="text-white font-semibold text-[15px] ml-1">Menu</span>
           </div>
