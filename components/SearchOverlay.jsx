@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Search, X, ArrowLeft, BadgeCheck, Flame, ChevronRight } from 'lucide-react'
+import { Search, X, ArrowLeft, BadgeCheck, Flame } from 'lucide-react'
 import Avatar from './Avatar'
 
 // Overlay de búsqueda de USUARIOS (estilo TikTok). Se abre desde la lupa del
@@ -197,27 +197,37 @@ export default function SearchOverlay({ open, onClose, onOpenProfile, onOpenTren
           visibles mientras no se esté buscando nada en concreto (petición
           del usuario: "en la página de búsqueda deben aparecer 3 trending
           challenge"). Al escribir, esta lista fija se sustituye por la
-          sección "Trending challenges" de resultados, más abajo. */}
+          sección "Trending challenges" de resultados, más abajo. Título de
+          sección con el MISMO estilo que "Suggestions", y filas con el
+          MISMO formato que las de usuarios (icono circular 44px + título +
+          subtítulo, sin chevron) — petición explícita del usuario. */}
       {defaultTrending.length > 0 && !query.trim() && (
-        <div>
-          {defaultTrending.map((t, i) => (
-            <button
-              key={t.id}
-              onClick={() => handleOpenTrendingResult(t)}
-              className={`w-full flex items-center gap-2.5 px-4 py-3 active:bg-white/5 transition text-left ${i > 0 ? 'border-t border-white/5' : ''}`}
-            >
-              <div className="w-9 h-9 rounded-full shrink-0 flex items-center justify-center"
-                   style={{ background: 'linear-gradient(135deg, rgba(252,211,77,0.18), rgba(245,158,11,0.18))', border: '1px solid rgba(252,211,77,0.35)' }}>
-                <Flame size={16} className="fill-current text-amber-300" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-amber-300 text-[10px] font-bold uppercase tracking-wide">Trending Challenge</p>
-                <p className="text-white text-[15px] font-semibold truncate">{t.title}</p>
-              </div>
-              <ChevronRight size={18} className="text-white/30 shrink-0" />
-            </button>
-          ))}
-        </div>
+        <>
+          <p className="px-4 pt-4 pb-1 text-white/40 text-[13px] font-medium">Trending challenges</p>
+          <ul className="py-1">
+            {defaultTrending.map((t) => (
+              <li key={t.id}>
+                <button
+                  onClick={() => handleOpenTrendingResult(t)}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 active:bg-white/10 transition text-left"
+                >
+                  <div className="w-11 h-11 rounded-full shrink-0 flex items-center justify-center"
+                       style={{ background: 'linear-gradient(135deg, rgba(252,211,77,0.18), rgba(245,158,11,0.18))', border: '1px solid rgba(252,211,77,0.35)' }}>
+                    <Flame size={17} className="fill-current text-amber-300" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <span className="text-white text-[15px] font-semibold truncate block">{t.title}</span>
+                    <p className="text-white/50 text-[13px] truncate">
+                      {t.source === 'user'
+                        ? (t.creator?.username ? `by @${t.creator.username}` : 'Community challenge')
+                        : (t.active ? 'Official challenge' : 'Official challenge · ended')}
+                    </p>
+                  </div>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
       )}
 
       {/* Resultados */}
