@@ -2,7 +2,7 @@
 // la app tras una pérdida de datos (MongoDB efímero + .env restaurado).
 // Uso: node scripts/seed-core-users.mjs
 import { MongoClient } from 'mongodb'
-import bcrypt from 'bcrypt'
+import bcrypt from 'bcryptjs'
 import crypto from 'crypto'
 import fs from 'fs'
 
