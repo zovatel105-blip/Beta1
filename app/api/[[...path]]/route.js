@@ -1806,7 +1806,7 @@ export async function GET(request, { params }) {
 
 
   if (path === '/' || path === '') {
-    return NextResponse.json({ ok: true, service: 'snaptok-api' })
+    return NextResponse.json({ ok: true, service: 'twyk-api' })
   }
   return NextResponse.json({ error: 'not_found', path }, { status: 404 })
 }

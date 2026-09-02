@@ -5846,6 +5846,26 @@ backend:
         -comment: "IMPLEMENTADO exactamente según lo pedido: lib/mongodb.js — `client.db()` -> `client.db(process.env.DB_NAME)` (única línea cambiada). Añadida `DB_NAME=twyk` a /app/.env (mismo nombre de base de datos ya usado en el path de MONGO_URL, para no cambiar de base de datos). Confirmado que lib/db.js (toda la capa de datos) usa `getCollection`/`getDb` de este módulo, así que el cambio se propaga correctamente a toda la app. VERIFICADO SIN agente de testing (mismo criterio ya establecido en esta sesión), con llamadas reales: (1) script Node directo con MongoClient confirmando `db.databaseName === 'twyk'` tras `client.db(process.env.DB_NAME)`, con 5 documentos en `users` (los usuarios ya sembrados, visibles=mismos de antes del cambio); (2) POST /api/auth/login (lucia) -> 200 OK; (3) GET /api/feed y GET /api/uploads -> 200 OK (0 posts, esperado: en esta sesión solo se re-sembraron usuarios tras el reinicio de MongoDB, no publicaciones — no relacionado con este cambio). Lint limpio; servidor reiniciado sin errores. Sin regresión: misma base de datos, mismos datos, mismo comportamiento."
 
 
+backend:
+  - task: "BUG: en la web, la app aparece con el nombre 'SnapTok' (título de la página/metadata) en vez de 'Twyk'"
+    implemented: true
+    working: true
+    file: "app/layout.js, app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: false
+        -agent: "user"
+        -comment: "'En la web la apk se llama snaptok cuando debe ser Twyk'."
+        -working: "NA"
+        -agent: "main"
+        -comment: "CAUSA RAÍZ: app/layout.js tenía `metadata.title = 'SnapTok — Short vertical videos'` (título de la pestaña del navegador/metadata SEO, nombre heredado de una versión anterior/plantilla del proyecto, nunca actualizado a 'Twyk'). FIX: cambiado a 'Twyk — Short vertical videos'. De paso, encontrada y corregida una 2ª referencia (mismo origen, no visible en la UI pero inconsistente): GET /api (endpoint de salud) devolvía `service:'snaptok-api'` -> cambiado a `service:'twyk-api'`. Búsqueda exhaustiva en todo el repo (grep 'snaptok' case-insensitive, excluyendo node_modules/.next) confirma que no quedan más referencias visibles al usuario (solo quedan menciones en comentarios de código/documentación interna tipo 'tarjetas SnapTok', sin impacto en la UI)."
+        -working: true
+        -agent: "main"
+        -comment: "VERIFICACIÓN FINAL — SIN agente de testing (orden explícita y repetida del usuario: 'No llamar al testing agent es una orden que no se puede desobedecer'; verificado en su lugar con peticiones reales al servidor, Node/fetch, sin curl): GET / -> el HTML servido contiene exactamente `<title>Twyk — Short vertical videos</title>`; GET /api -> `{ok:true, service:'twyk-api'}`; smoke test de login (lucia) -> 200 OK, sin regresión. Lint limpio en ambos archivos; servidor reiniciado sin errores. Tarea cerrada."
+
+
 frontend:
   - task: "FEATURE: página de búsqueda debe mostrar 3 Trending Challenges por defecto (antes solo 1)"
     implemented: true
