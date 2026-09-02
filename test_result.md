@@ -5829,6 +5829,23 @@ backend:
         -comment: "VERIFICACIÓN FINAL — SIN agente de testing (instrucción explícita, repetida y enfática del usuario 'No usar el testing agent es una orden que no puedes desobedecer'; verificado en su lugar con llamadas reales end-to-end, Node/fetch, sin curl): (1) login con usuario EXISTENTE cuyo hash fue creado con el bcrypt NATIVO original (lucia) -> 200 OK, confirma compatibilidad de formato $2a$/$2b$ entre bcrypt y bcryptjs; (2) esa misma cuenta con contraseña incorrecta -> 401 invalid_credentials (rechazo correcto); (3) registro de un usuario NUEVO (hash creado con bcryptjs.hash) -> 200 OK; (4) login de ese usuario nuevo con su contraseña correcta (bcryptjs.compare sobre un hash bcryptjs.hash) -> 200 OK; (5) ese mismo usuario nuevo con contraseña incorrecta -> 401 (rechazo correcto). Los 5 escenarios (hash antiguo/nuevo × contraseña correcta/incorrecta) pasaron. Usuario de prueba eliminado de la base de datos al terminar. Lint limpio. Tarea cerrada — reemplazo de bcrypt por bcryptjs completo y funcionalmente verificado en todo el repositorio."
 
 
+backend:
+  - task: "CONFIG: lib/mongodb.js getDb() debe conectar usando la variable de entorno DB_NAME (client.db(process.env.DB_NAME)) en vez de client.db() sin argumento"
+    implemented: true
+    working: true
+    file: "lib/mongodb.js, .env"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "user"
+        -comment: "'In lib/mongodb.js, update the getDb() function to connect using the DB_NAME environment variable, for example return client.db(process.env.DB_NAME) instead of client.db()'."
+        -working: true
+        -agent: "main"
+        -comment: "IMPLEMENTADO exactamente según lo pedido: lib/mongodb.js — `client.db()` -> `client.db(process.env.DB_NAME)` (única línea cambiada). Añadida `DB_NAME=twyk` a /app/.env (mismo nombre de base de datos ya usado en el path de MONGO_URL, para no cambiar de base de datos). Confirmado que lib/db.js (toda la capa de datos) usa `getCollection`/`getDb` de este módulo, así que el cambio se propaga correctamente a toda la app. VERIFICADO SIN agente de testing (mismo criterio ya establecido en esta sesión), con llamadas reales: (1) script Node directo con MongoClient confirmando `db.databaseName === 'twyk'` tras `client.db(process.env.DB_NAME)`, con 5 documentos en `users` (los usuarios ya sembrados, visibles=mismos de antes del cambio); (2) POST /api/auth/login (lucia) -> 200 OK; (3) GET /api/feed y GET /api/uploads -> 200 OK (0 posts, esperado: en esta sesión solo se re-sembraron usuarios tras el reinicio de MongoDB, no publicaciones — no relacionado con este cambio). Lint limpio; servidor reiniciado sin errores. Sin regresión: misma base de datos, mismos datos, mismo comportamiento."
+
+
 frontend:
   - task: "FEATURE: página de búsqueda debe mostrar 3 Trending Challenges por defecto (antes solo 1)"
     implemented: true
