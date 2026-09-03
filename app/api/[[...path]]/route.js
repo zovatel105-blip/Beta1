@@ -2861,10 +2861,19 @@ async function saveUploadedVideo(file) {
   await ensureUploadDir()
   const filePath = nodePath.join(UPLOAD_DIR, filename)
   await fs.writeFile(filePath, bytes)
-  // FASE 1: fast start del original (fallback) -> arranque instantáneo.
+  // BUG FIX (contenido roto justo al publicar): antes makePoster() se
+  // disparaba en segundo plano sin esperar ("fire and forget") y la función
+  // devolvía la URL del póster al instante. El frontend (CarouselSlide.jsx)
+  // monta un <img src={posterUrl}> INMEDIATAMENTE al recibir el post nuevo
+  // -> si el .jpg todavía no existía en disco, el navegador mostraba el
+  // icono de "imagen rota" (pantalla en negro) hasta recargar la página.
+  // Ahora SÍ se espera a que el póster (1 solo frame, rápido) termine de
+  // generarse antes de devolver la URL, garantizando que el archivo ya
+  // existe cuando el cliente recibe la respuesta. faststartInPlace() sigue
+  // en segundo plano (no bloquea publicar) porque el archivo original ya es
+  // reproducible tal cual, solo optimiza el arranque del streaming.
   faststartInPlace(filePath)
-  // Poster del primer fotograma para carga instantánea.
-  makePoster(filePath, nodePath.join(UPLOAD_DIR, `${id}.jpg`))
+  await makePoster(filePath, nodePath.join(UPLOAD_DIR, `${id}.jpg`))
   return `/uploads/${filename}`
 }
 
