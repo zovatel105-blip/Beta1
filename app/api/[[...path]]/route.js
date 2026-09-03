@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server'
 import { promises as fs } from 'fs'
 import nodePath from 'path'
+import os from 'os'
 import crypto from 'crypto'
 import { spawn } from 'child_process'
+import { putBuffer, getBufferByFilename, mimeForExt } from '@/lib/gridfs'
 import { 
   createUser, 
   verifyUserCredentials, 
@@ -116,7 +118,19 @@ import { createVideoEditJob, getVideoEditJob, validateVideoForAiEdit, classifyEd
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-const UPLOAD_DIR = nodePath.join(process.cwd(), 'public', 'uploads')
+// Ya NO se usa como almacenamiento persistente (ver lib/gridfs.js) — se
+// mantiene solo como carpeta de "scratch" temporal para ffmpeg (que necesita
+// rutas de archivo reales, no streams), nunca para guardar contenido final.
+const SCRATCH_DIR = nodePath.join(os.tmpdir(), 'twyk-scratch')
+async function ensureScratchDir() {
+  await fs.mkdir(SCRATCH_DIR, { recursive: true })
+}
+function scratchPath(name) {
+  return nodePath.join(SCRATCH_DIR, name)
+}
+async function cleanupScratch(paths) {
+  await Promise.all((paths || []).filter(Boolean).map((p) => fs.rm(p, { force: true }).catch(() => {})))
+}
 
 // ────────────────────────────────────────────────────────────────────────────
 // HELPER: Obtener usuario actual desde token
@@ -194,18 +208,13 @@ function runFfmpeg(args) {
 }
 
 // FASE 1 — Fast start: remux con el átomo `moov` al inicio del MP4 para que la
-// reproducción arranque con los primeros bytes (instantáneo). Lossless y rápido
-// (sin recodificar). Solo aplica a .mp4. Se hace en segundo plano; en Linux,
-// renombrar sobre un fichero abierto es seguro (poster/webm siguen leyendo el
-// inodo anterior), así que no hay carrera.
-async function faststartInPlace(absPath) {
-  if (!/\.mp4$/i.test(absPath)) return false
-  const dir = nodePath.dirname(absPath)
-  const tmp = nodePath.join(dir, `._fs_${nodePath.basename(absPath)}`)
-  const ok = await runFfmpeg(['-y', '-i', absPath, '-c', 'copy', '-movflags', '+faststart', tmp])
-  if (ok) { try { await fs.rename(tmp, absPath) } catch { return false } }
-  else { try { await fs.unlink(tmp) } catch { /* ignore */ } }
-  return ok
+// reproducción arranque con los primeros bytes (instantáneo). Lossless y
+// rápido (sin recodificar). Recibe rutas de SCRATCH (temporales) y devuelve
+// si tuvo éxito — el llamador decide qué bytes finales usar (no hace rename
+// "in place": con GridFS no hay ningún fichero persistente que reemplazar).
+async function faststart(inAbs, outAbs) {
+  if (!/\.mp4$/i.test(inAbs)) return false
+  return runFfmpeg(['-y', '-i', inAbs, '-c', 'copy', '-movflags', '+faststart', outAbs])
 }
 
 // FASE 2 — Renditions adaptativas (H.264, +faststart, GOP corto ~2s) en 3 niveles.
@@ -230,26 +239,43 @@ function transcodeRendition(inAbs, outAbs, r) {
 
 // Genera renditions SOLO para vídeos recién subidos (/uploads/...). Los vídeos
 // integrados (/videos/...) y cualquier URL externa se omiten -> NO se
-// re-transcodifican los vídeos ya existentes.
+// re-transcodifican los vídeos ya existentes. Lee el original desde GridFS a
+// un archivo de scratch (ffmpeg necesita rutas reales), transcodifica cada
+// nivel también a scratch, y sube cada resultado a GridFS.
 async function generateRenditions(url) {
   if (typeof url !== 'string' || !url.startsWith('/uploads/')) return null
   const filename = url.split('/').pop()
   const dot = filename.lastIndexOf('.')
   if (dot === -1) return null
   const id = filename.slice(0, dot)
-  const inAbs = nodePath.join(UPLOAD_DIR, filename)
+  await ensureScratchDir()
+  const inAbs = scratchPath(`rend_in_${filename}`)
   const out = []
-  for (const r of RENDITIONS) {
-    const outName = `${id}_${r.h}.mp4`
-    const ok = await transcodeRendition(inAbs, nodePath.join(UPLOAD_DIR, outName), r)
-    if (ok) out.push({ h: r.h, url: `/uploads/${outName}`, bitrate: r.bitrate })
+  const toCleanup = [inAbs]
+  try {
+    const srcBuf = await getBufferByFilename(filename).catch(() => null)
+    if (!srcBuf) return null
+    await fs.writeFile(inAbs, srcBuf)
+    for (const r of RENDITIONS) {
+      const outName = `${id}_${r.h}.mp4`
+      const outAbs = scratchPath(`rend_out_${outName}`)
+      toCleanup.push(outAbs)
+      const ok = await transcodeRendition(inAbs, outAbs, r)
+      if (ok) {
+        const outBuf = await fs.readFile(outAbs)
+        await putBuffer(outName, outBuf, 'video/mp4')
+        out.push({ h: r.h, url: `/uploads/${outName}`, bitrate: r.bitrate })
+      }
+    }
+  } finally {
+    await cleanupScratch(toCleanup)
   }
   return out.length ? out : null
 }
 
 // Procesa un post recién publicado: genera renditions de A y B y parchea
-// sideA.qualities / sideB.qualities en _meta.json cuando terminan (así el
-// frontend nunca apunta a una URL que aún no existe -> sin 404).
+// sideA.qualities / sideB.qualities cuando terminan (así el frontend nunca
+// apunta a una URL que aún no existe -> sin 404).
 async function processPostRenditions(postId, sideAUrl, sideBUrl) {
   try {
     const [qa, qb] = await Promise.all([generateRenditions(sideAUrl), generateRenditions(sideBUrl)])
@@ -265,9 +291,6 @@ async function processPostRenditions(postId, sideAUrl, sideBUrl) {
   } catch (e) { console.warn('renditions failed', postId, String(e?.message || e)) }
 }
 
-async function ensureUploadDir() {
-  await fs.mkdir(UPLOAD_DIR, { recursive: true })
-}
 // Lectura de publicaciones subidas (antes _meta.json). Ahora desde MongoDB
 // (colección `posts`). Devuelve el array con la MISMA forma y orden (más
 // reciente primero) que tenía el JSON.
@@ -484,25 +507,15 @@ const ME_AUTHOR = {
 
 // ────────────────────────────────────────────────────────────────────────────
 // COMENTARIOS Y GUARDADOS (SAVES)
+//
+// Nota: antes existían aquí unas funciones legacy readComments/writeComments
+// y readSaves/writeSaves que leían/escribían `_comments.json`/`_saves.json`
+// en disco local — código MUERTO (ninguna ruta las llamaba): los comentarios
+// y guardados reales ya viven por completo en MongoDB desde hace tiempo (ver
+// createCommentDB/getCommentsByPostId/toggleSaveDB/getSavesByUserId en
+// lib/db.js). Se eliminan para no dejar ninguna dependencia del filesystem
+// local para contenido de usuario.
 // ────────────────────────────────────────────────────────────────────────────
-
-const COMMENTS_STORE = nodePath.join(UPLOAD_DIR, '_comments.json')
-async function readComments() {
-  try { return JSON.parse(await fs.readFile(COMMENTS_STORE, 'utf-8')) } catch { return {} }
-}
-async function writeComments(obj) {
-  await ensureUploadDir()
-  await fs.writeFile(COMMENTS_STORE, JSON.stringify(obj, null, 2))
-}
-
-const SAVES_STORE = nodePath.join(UPLOAD_DIR, '_saves.json')
-async function readSaves() {
-  try { return JSON.parse(await fs.readFile(SAVES_STORE, 'utf-8')) } catch { return {} }
-}
-async function writeSaves(obj) {
-  await ensureUploadDir()
-  await fs.writeFile(SAVES_STORE, JSON.stringify(obj, null, 2))
-}
 
 // Local videos served from /public/videos/*.mp4 (no Content-Disposition issues, no CORS)
 const v = (id) => `/videos/${id}.mp4`
@@ -2250,10 +2263,10 @@ async function generateAgnesImage({ prompt, images = [], ratio = '1:1', size = '
 // ── MOTOR DE MARKETING: generación de imagen de portada ─────────────────────
 // Genera una imagen de portada (texto -> imagen, SIN foto de entrada) para
 // una pieza de marketing, ahora con Agnes AI (ver bloque de arriba). Formato
-// vertical 9:16 (miniatura de vídeo TikTok/Reels). Guarda el archivo en
-// /public/uploads (igual que el resto de medios de la app) y devuelve su
-// URL relativa, o null si falla (nunca bloquea la pieza de texto: sin
-// imagen es mejor que sin nada).
+// vertical 9:16 (miniatura de vídeo TikTok/Reels). Se guarda en GridFS
+// (igual que el resto de medios de la app) y devuelve su URL relativa, o
+// null si falla (nunca bloquea la pieza de texto: sin imagen es mejor que
+// sin nada).
 async function generateMarketingCoverImage(imagePrompt, postId) {
   try {
     if (!process.env.AGNES_API_KEY || !imagePrompt) return null
@@ -2264,7 +2277,7 @@ async function generateMarketingCoverImage(imagePrompt, postId) {
     })
     const ext = mimeType.includes('png') ? 'png' : 'jpg'
     const filename = `mkt-${postId}.${ext}`
-    await fs.writeFile(nodePath.join(UPLOAD_DIR, filename), Buffer.from(base64, 'base64'))
+    await putBuffer(filename, Buffer.from(base64, 'base64'), mimeForExt(ext))
     return `/uploads/${filename}`
   } catch (err) {
     console.error('marketing cover image generation failed', err?.message || err)
@@ -2529,7 +2542,7 @@ async function handleVersusUpload(request) {
       return NextResponse.json({ error: 'mixed_media_not_allowed', message: 'Both sides must be the same type (2 videos or 2 photos)' }, { status: 400 })
     }
 
-    await ensureUploadDir()
+    await ensureScratchDir()
     const a = await saveUploadedMedia(fileA)
     const b = await saveUploadedMedia(fileB)
     const urlA = a.url
@@ -2858,26 +2871,41 @@ async function saveUploadedVideo(file) {
   const ext = name.includes('.') ? name.split('.').pop().toLowerCase() : 'mp4'
   const safeExt = ['mp4', 'webm', 'mov', 'm4v'].includes(ext) ? ext : 'mp4'
   const filename = `${id}.${safeExt}`
-  await ensureUploadDir()
-  const filePath = nodePath.join(UPLOAD_DIR, filename)
-  await fs.writeFile(filePath, bytes)
-  // BUG FIX (contenido roto justo al publicar): antes makePoster() se
-  // disparaba en segundo plano sin esperar ("fire and forget") y la función
-  // devolvía la URL del póster al instante. El frontend (CarouselSlide.jsx)
-  // monta un <img src={posterUrl}> INMEDIATAMENTE al recibir el post nuevo
-  // -> si el .jpg todavía no existía en disco, el navegador mostraba el
-  // icono de "imagen rota" (pantalla en negro) hasta recargar la página.
-  // Ahora SÍ se espera a que el póster (1 solo frame, rápido) termine de
-  // generarse antes de devolver la URL, garantizando que el archivo ya
-  // existe cuando el cliente recibe la respuesta. faststartInPlace() sigue
-  // en segundo plano (no bloquea publicar) porque el archivo original ya es
-  // reproducible tal cual, solo optimiza el arranque del streaming.
-  faststartInPlace(filePath)
-  await makePoster(filePath, nodePath.join(UPLOAD_DIR, `${id}.jpg`))
-  return `/uploads/${filename}`
+  await ensureScratchDir()
+  const tmpIn = scratchPath(`up_in_${filename}`)
+  const tmpFs = scratchPath(`up_fs_${id}.mp4`)
+  const tmpPoster = scratchPath(`up_poster_${id}.jpg`)
+  const toCleanup = [tmpIn, tmpFs, tmpPoster]
+  try {
+    await fs.writeFile(tmpIn, bytes)
+    // FASE 1: fast start (arranque instantáneo del streaming). Se hace a un
+    // archivo de scratch SEPARADO (no "in place" — con GridFS no existe un
+    // fichero persistente al que hacerle rename): si falla, se usa el
+    // original tal cual, nunca bloquea la publicación.
+    const fsOk = safeExt === 'mp4' ? await faststart(tmpIn, tmpFs) : false
+    const finalPath = fsOk ? tmpFs : tmpIn
+    const finalBytes = fsOk ? await fs.readFile(finalPath) : bytes
+    await putBuffer(filename, finalBytes, mimeForExt(safeExt))
+    // BUG FIX (contenido roto justo al publicar): antes makePoster() se
+    // disparaba en segundo plano sin esperar ("fire and forget") y la función
+    // devolvía la URL del póster al instante. El frontend (CarouselSlide.jsx)
+    // monta un <img src={posterUrl}> INMEDIATAMENTE al recibir el post nuevo
+    // -> si el .jpg todavía no existía, el navegador mostraba el icono de
+    // "imagen rota" (pantalla en negro) hasta recargar la página. Ahora SÍ
+    // se espera a que el póster (1 solo frame, rápido) termine de generarse
+    // y quedar subido a GridFS antes de devolver la URL.
+    const posterOk = await makePoster(finalPath, tmpPoster)
+    if (posterOk) {
+      const posterBytes = await fs.readFile(tmpPoster)
+      await putBuffer(`${id}.jpg`, posterBytes, 'image/jpeg')
+    }
+    return `/uploads/${filename}`
+  } finally {
+    await cleanupScratch(toCleanup)
+  }
 }
 
-// Guarda una imagen subida (avatar) en /public/uploads y devuelve su URL.
+// Guarda una imagen subida (avatar) en GridFS y devuelve su URL.
 async function saveUploadedImage(file) {
   const arrayBuffer = await file.arrayBuffer()
   const bytes = Buffer.from(arrayBuffer)
@@ -2889,9 +2917,7 @@ async function saveUploadedImage(file) {
   const ext = name.includes('.') ? name.split('.').pop().toLowerCase() : 'jpg'
   const safeExt = ['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext) ? ext : 'jpg'
   const filename = `avatar_${id}.${safeExt}`
-  await ensureUploadDir()
-  const filePath = nodePath.join(UPLOAD_DIR, filename)
-  await fs.writeFile(filePath, bytes)
+  await putBuffer(filename, bytes, mimeForExt(safeExt))
   return `/uploads/${filename}`
 }
 
@@ -2907,10 +2933,11 @@ function mediaKind(file) {
   return 'video'
 }
 
-// Guarda media de publicación (imagen O vídeo) y devuelve { url, mediaType, posterUrl }.
-// Para imágenes el "póster" es la propia imagen (se muestra a pantalla completa,
-// como hace TikTok al convertir la foto en diapositiva). Para vídeos reutiliza
-// saveUploadedVideo (faststart + póster del 1er fotograma).
+// Guarda media de publicación (imagen O vídeo) en GridFS y devuelve
+// { url, mediaType, posterUrl }. Para imágenes el "póster" es la propia
+// imagen (se muestra a pantalla completa, como hace TikTok al convertir la
+// foto en diapositiva). Para vídeos reutiliza saveUploadedVideo (faststart +
+// póster del 1er fotograma).
 async function saveUploadedMedia(file) {
   if (mediaKind(file) === 'image') {
     const arrayBuffer = await file.arrayBuffer()
@@ -2920,8 +2947,7 @@ async function saveUploadedMedia(file) {
     const ext = name.includes('.') ? name.split('.').pop().toLowerCase() : 'jpg'
     const safeExt = IMAGE_EXTS.includes(ext) ? ext : 'jpg'
     const filename = `media_${id}.${safeExt}`
-    await ensureUploadDir()
-    await fs.writeFile(nodePath.join(UPLOAD_DIR, filename), bytes)
+    await putBuffer(filename, bytes, mimeForExt(safeExt))
     const url = `/uploads/${filename}`
     return { url, mediaType: 'image', posterUrl: url }
   }
@@ -3378,8 +3404,8 @@ async function handleToggleAllowChallenge(cid, request) {
 async function readLocalUploadAsBase64(relativeUrl) {
   if (!relativeUrl || typeof relativeUrl !== 'string' || !relativeUrl.startsWith('/uploads/')) return null
   try {
-    const abs = nodePath.join(process.cwd(), 'public', relativeUrl)
-    const bytes = await fs.readFile(abs)
+    const filename = relativeUrl.slice('/uploads/'.length)
+    const bytes = await getBufferByFilename(filename)
     return bytes.toString('base64')
   } catch {
     return null
@@ -5083,10 +5109,11 @@ async function handleAiStoreEditedVideo(request) {
       return NextResponse.json({ error: 'invalid_video' }, { status: 400 })
     }
     const outName = `ai_video_${crypto.randomBytes(8).toString('hex')}.mp4`
-    const outPath = nodePath.join(UPLOAD_DIR, outName)
-    await fs.mkdir(UPLOAD_DIR, { recursive: true })
+    const outPath = scratchPath(outName)
     const ok = await runFfmpeg(['-y', '-i', tmpPath, '-c:v', 'libx264', '-crf', '18', '-preset', 'veryfast', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-c:a', 'aac', outPath])
-    if (!ok) await fs.copyFile(tmpPath, outPath) // si ffmpeg fallara, guarda tal cual
+    const finalBytes = ok ? await fs.readFile(outPath) : bytes // si ffmpeg fallara, guarda tal cual
+    await putBuffer(outName, finalBytes, 'video/mp4')
+    await fs.rm(outPath, { force: true }).catch(() => {})
     return NextResponse.json({ ok: true, url: `/uploads/${outName}` })
   } catch (err) {
     console.error('ai store edited video error', err)
