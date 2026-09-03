@@ -1,3 +1,28 @@
+## ✅ SESIÓN ACTUAL: .env RECREADO (patrón recurrente de siempre)
+NEXT_PUBLIC_BASE_URL=https://b699b1cd-ddab-4b91-86a6-8d8ffef60bd4.preview.emergentagent.com
+/app había perdido TODO salvo .git (todos los archivos "staged for deletion",
+working tree vacío) -> restaurado con `git reset --hard HEAD`. node_modules y
+.bin/ffmpeg+ffprobe SÍ seguían presentes (no hizo falta yarn install). .env
+recreado con MONGO_URL/DB_NAME=twyk/ADMIN_EMAILS/CORS_ORIGINS apuntando a la
+URL de arriba (tomada de APP_URL en /etc/supervisor/conf.d/supervisord.conf).
+EMERGENT_LLM_KEY renovada vía emergent_integrations_manager:
+sk-emergent-70dFeA6D347C824E64. TAVILY_API_KEY restaurada igual que antes.
+FIREBASE_*, AGNES_API_KEY y STRIPE_* (secret key, webhook secret,
+publishable key, y los 7 price IDs) quedaron VACÍOS otra vez — son secretos
+que no persisten fuera de sesión, pedir al usuario si los necesita de nuevo.
+Base de datos re-sembrada con `node scripts/seed-core-users.mjs`
+(twyk/lucia/marcos/laura + follows). NOTA IMPORTANTE: los posts/challenges/
+votes ANTERIORES NO se pudieron recuperar — MongoDB vive en almacenamiento
+efímero (se vacía por completo al recrearse el pod, no solo .env) y no
+existe ningún backup JSON de esos datos (public/uploads/_meta.json y
+similares, que usaría scripts/migrate-json-to-mongo.mjs, no existen en este
+pod). Los 868 archivos de media en public/uploads/ SÍ persisten (están en
+git) pero quedan huérfanos (sin post asociado en la DB) hasta que se suba
+contenido nuevo. Verificado con llamadas reales (Node/fetch, sin curl):
+POST /api/auth/login (twyk/Admin12345) -> 200 OK; GET /api/feed -> 200 OK
+(vacío, esperado). No se invocó agente de testing en esta ronda (pendiente
+de confirmación del usuario).
+
 # Copia de seguridad de /app/.env (NO gitignored — este archivo SÍ persiste)
 
 CAUSA RAÍZ (confirmada por troubleshoot_agent): el archivo /app/.env está en
