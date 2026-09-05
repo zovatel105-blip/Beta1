@@ -87,6 +87,10 @@ export default function OpenChallengeSlide({
   // ver su `onClick={(e) => e.stopPropagation()}`), la acción real es el
   // doble-toque, para mantener el mismo "ADN" (gesto) en toda la app.
   const lastTapRef = useRef(0)
+  // WARM priming token (mismo patrón que CarouselSlide.jsx primeWarm): evita
+  // que un cambio rapido de warm true->false deje un play() huerfano en
+  // vuelo aplicando su pausa/reset sobre un video que ya no es el warm.
+  const warmRef = useRef(null)
   // BUG reportado por el usuario ("en el feed tengo 3 publicaciones single
   // pero no puedo hacer scrolling"): a diferencia de CarouselSlide.jsx/
   // DuetSlide.jsx (que registran onPointerDown/onPointerMove y comparan la
@@ -208,25 +212,63 @@ export default function OpenChallengeSlide({
   // Acquire/release del decoder — mismo principio que el resto del feed
   // (Regla #2): solo la tarjeta activa (o la siguiente, en WARM) retiene un
   // <video> con src real; el resto se libera para no agotar decodificadores.
+  //
+  // BUG FIX (RCA ticket #244618, "feed appears broken/empty while
+  // scrolling"): a diferencia de CarouselSlide.jsx/DuetSlide.jsx, esta
+  // tarjeta nunca subia `preload` a 'auto' ni hacia un priming real del
+  // buffer en warm (solo setAttribute+load con preload="none" en el JSX) —
+  // el navegador apenas descarga nada por adelantado, asi que al activarse
+  // la tarjeta el <video> arranca su descarga DE CERO y puede tardar en
+  // pintar el primer frame real; como esta tarjeta (`challenge_open`) es
+  // ahora mismo el UNICO tipo de publicacion que existe en este feed, ese
+  // hueco es justo lo que se percibe como "aparece roto/vacio" al deslizar.
+  // Se porta aqui el mismo preload='auto' + priming muteado (~1.5s de
+  // buffer real, luego pausa+reset a 0) que ya soluciona esto en
+  // CarouselSlide.jsx.
   useEffect(() => {
     const el = videoRef.current
     if (!el || isImage || !mediaUrl) return
-    if ((isActive || warm) && playbackEnabled) {
+    if (isActive && playbackEnabled) {
+      warmRef.current = null
+      if (el.preload !== 'auto') el.preload = 'auto'
       if (el.getAttribute('src') !== mediaUrl) {
         el.setAttribute('src', mediaUrl)
         try { el.load() } catch { /* ignore */ }
       }
-      if (isActive) {
-        el.muted = globalMuted
-        const p = el.play()
-        if (p && p.catch) p.catch(() => { try { el.muted = true; el.play().catch(() => {}) } catch { /* ignore */ } })
-      } else {
-        try { el.pause() } catch { /* ignore */ }
+      el.muted = globalMuted
+      const p = el.play()
+      if (p && p.catch) p.catch(() => { try { el.muted = true; el.play().catch(() => {}) } catch { /* ignore */ } })
+    } else if (warm && playbackEnabled) {
+      if (el.preload !== 'auto') el.preload = 'auto'
+      if (el.getAttribute('src') !== mediaUrl) {
+        el.setAttribute('src', mediaUrl)
+        try { el.load() } catch { /* ignore */ }
       }
+      const token = {}
+      warmRef.current = token
+      el.muted = true
+      let done = false
+      const finish = () => {
+        if (done) return
+        done = true
+        el.removeEventListener('canplaythrough', finish)
+        el.removeEventListener('timeupdate', onTime)
+        if (warmRef.current === token) {
+          try { el.pause() } catch { /* ignore */ }
+          try { el.currentTime = 0 } catch { /* ignore */ }
+        }
+      }
+      const onTime = () => { if (el.currentTime >= 1.5) finish() }
+      el.addEventListener('canplaythrough', finish, { once: true })
+      el.addEventListener('timeupdate', onTime)
+      try { const p = el.play(); if (p && p.catch) p.catch(() => {}) } catch { /* ignore */ }
+      setTimeout(finish, 5000)
     } else {
+      warmRef.current = null
       try { el.pause() } catch { /* ignore */ }
       if (el.getAttribute('src') !== null) {
         el.removeAttribute('src')
+        try { el.preload = 'none' } catch { /* ignore */ }
         try { el.load() } catch { /* ignore */ }
       }
     }
