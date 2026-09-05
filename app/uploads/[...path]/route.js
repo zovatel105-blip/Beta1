@@ -25,10 +25,12 @@ export async function GET(request, { params }) {
   try {
     const segs = params?.path || []
     const filename = segs.join('/')
-    if (!filename) return new Response('Not found', { status: 404 })
+    // BUG #244618: un 404 cacheable en el edge dejó los posters "muertos" 7
+    // días aunque el archivo ya exista. Los 404 NUNCA se cachean.
+    if (!filename) return new Response('Not found', { status: 404, headers: { 'Cache-Control': 'no-store' } })
 
     const info = await findFile(filename)
-    if (!info) return new Response('Not found', { status: 404 })
+    if (!info) return new Response('Not found', { status: 404, headers: { 'Cache-Control': 'no-store' } })
 
     const total = info.length
     const contentType = info.metadata?.contentType || info.contentType || 'application/octet-stream'

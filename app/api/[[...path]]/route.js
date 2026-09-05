@@ -388,7 +388,10 @@ async function getOpenChallengeFeedItems(currentUser, followingSet) {
         mediaType,
         videoUrl: mediaType === 'video' ? (c.challengerVideoUrl || '') : '',
         imageUrl: mediaType === 'image' ? (c.challengerImageUrl || '') : '',
-        posterUrl: c.challengerPosterUrl || '',
+        // BUG #244618: ?v=1 rompe las entradas 404 cacheadas en el edge para
+        // los posters regenerados por el backfill (las URLs antiguas siguen
+        // devolviendo 404 cacheado hasta que expiren).
+        posterUrl: c.challengerPosterUrl ? `${c.challengerPosterUrl}?v=1` : '',
         author,
         description: c.message || '',
         music: c.musicTitle ? `${c.musicTitle} · ${c.musicArtist}` : 'Open challenge',
