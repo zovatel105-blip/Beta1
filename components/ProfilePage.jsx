@@ -910,7 +910,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
                   onClick={handleShare}
                   aria-label="Share"
                   style={{ opacity: revealP, pointerEvents: revealP > 0.5 ? 'auto' : 'none' }}
-                  className="h-7 w-7 rounded-full border border-white/20 text-white flex items-center justify-center active:scale-95 transition-transform"
+                  className="h-7 w-7 shrink-0 aspect-square rounded-full border border-white/20 text-white flex items-center justify-center active:scale-95 transition-transform"
                 >
                   <ShareIcon className="w-[15px] h-[15px]" strokeWidth={1.4} />
                 </button>
@@ -921,7 +921,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
                   onClick={handleChallenge}
                   aria-label="Challenge"
                   style={{ opacity: revealP, pointerEvents: revealP > 0.5 ? 'auto' : 'none' }}
-                  className="h-7 w-7 rounded-full border border-white/20 text-white flex items-center justify-center active:scale-95 transition-transform"
+                  className="h-7 w-7 shrink-0 aspect-square rounded-full border border-white/20 text-white flex items-center justify-center active:scale-95 transition-transform"
                 >
                   <Swords className="w-[15px] h-[15px]" strokeWidth={2} />
                 </button>
@@ -929,7 +929,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
                   onClick={() => setTipOpen(true)}
                   aria-label="Send tip"
                   style={{ opacity: revealP, pointerEvents: revealP > 0.5 ? 'auto' : 'none' }}
-                  className="h-7 w-7 rounded-full border border-white/20 text-white flex items-center justify-center active:scale-95 transition-transform"
+                  className="h-7 w-7 shrink-0 aspect-square rounded-full border border-white/20 text-white flex items-center justify-center active:scale-95 transition-transform"
                 >
                   <CreditIcon size={15} />
                 </button>
@@ -937,7 +937,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
                   onClick={handleToggleFollow}
                   disabled={followBusy}
                   style={{ opacity: revealP, pointerEvents: revealP > 0.5 ? 'auto' : 'none' }}
-                  className={`h-7 min-w-[92px] px-5 rounded-full font-semibold text-[12px] tracking-tight active:scale-95 transition-transform disabled:opacity-60 flex items-center justify-center ${
+                  className={`h-7 shrink-0 min-w-[92px] px-5 rounded-full font-semibold text-[12px] tracking-tight active:scale-95 transition-transform disabled:opacity-60 flex items-center justify-center ${
                     following ? 'border border-white/20 text-white' : 'border border-transparent bg-white text-black'
                   }`}
                 >
@@ -1108,7 +1108,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
               <button
                 onClick={handleToggleFollow}
                 disabled={followBusy}
-                className={`h-9 min-w-[112px] px-7 rounded-full font-semibold text-[13px] tracking-tight active:scale-[0.97] transition-all disabled:opacity-60 flex items-center justify-center ${
+                className={`h-9 shrink-0 min-w-[112px] px-7 rounded-full font-semibold text-[13px] tracking-tight active:scale-[0.97] transition-all disabled:opacity-60 flex items-center justify-center ${
                   following
                     ? 'border border-white/15 text-white hover:bg-white/[0.06]'
                     : 'border border-transparent bg-white text-black hover:bg-zinc-100'
@@ -1126,7 +1126,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
               <button
                 onClick={() => setTipOpen(true)}
                 aria-label="Send tip"
-                className="h-9 w-9 rounded-full border border-white/15 hover:bg-white/[0.06] text-white flex items-center justify-center active:scale-[0.97] transition-all"
+                className="h-9 w-9 shrink-0 aspect-square rounded-full border border-white/15 hover:bg-white/[0.06] text-white flex items-center justify-center active:scale-[0.97] transition-all"
               >
                 <CreditIcon size={16} />
               </button>
