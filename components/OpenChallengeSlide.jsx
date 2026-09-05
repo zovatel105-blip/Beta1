@@ -645,10 +645,24 @@ export default function OpenChallengeSlide({
             <MoreVertical className="w-[18px] h-[18px] text-white" strokeWidth={1.25} fill="currentColor" />
           </button>
         )}
-        {/* Disco (estático — este tipo de publicación aún no lleva pista de audio propia) */}
+        {/* Disco — BUG FIX (#244618 "music artwork not appearing on Single
+            posts"): mismo patrón artwork-aware que CarouselSlide/DuetSlide.
+            Con música: artwork de la pista (o icono) y gira mientras suena.
+            Sin música: el poster de la publicación (como antes). */}
         <div className="relative mt-1 w-10 h-10 shrink-0">
-          <div className="relative w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-zinc-700 to-black flex items-center justify-center">
-            {post.posterUrl ? (
+          <div
+            aria-label="music"
+            title={hasMusic ? [post.musicTitle, post.musicArtist].filter(Boolean).join(' · ') : undefined}
+            className="vinyl-spin relative w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-zinc-700 to-black flex items-center justify-center"
+            style={{ animationPlayState: (isActive && playbackEnabled && !globalMuted && hasMusic) ? 'running' : 'paused' }}
+          >
+            {hasMusic ? (
+              post.musicArtwork ? (
+                <img src={post.musicArtwork} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <Music size={16} className="text-white" />
+              )
+            ) : post.posterUrl ? (
               <img src={post.posterUrl} alt="" className="w-full h-full object-cover" />
             ) : (
               <Music size={16} className="text-white" />

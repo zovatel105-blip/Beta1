@@ -887,7 +887,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
           {/* Avatar: SIEMPRE centrado en la barra (posición absoluta, independiente
               de cuánto ocupe el nombre a la izquierda). */}
           <div
-            className="absolute left-1/2 pointer-events-none"
+            className="absolute left-1/2 z-20 pointer-events-none"
             style={{ opacity: revealP, transform: `translateX(-50%) translateY(${(1 - revealP) * 8}px)` }}
           >
             <div className="w-7 h-7 rounded-full overflow-hidden bg-zinc-900 ring-1 ring-white/15 shrink-0">
@@ -896,7 +896,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
           </div>
 
           {/* Derecha: acción revelada (Seguir / Edit) + menú (propio) */}
-          <div className="relative z-10 ml-auto flex items-center gap-2 shrink-0">
+          <div className="relative z-10 ml-auto flex items-center gap-2 shrink-0" style={{ maxWidth: 'calc(50% - 34px)' }}>
             {isOwn ? (
               <>
                 <button
