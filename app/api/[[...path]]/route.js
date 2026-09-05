@@ -5296,12 +5296,8 @@ async function handleDeletePost(postId, request) {
 // POST /api/admin/backfill-posters — BUG #244618: regenera el poster .jpg de
 // los vídeos de GridFS que se quedaron sin él (producción se desplegó sin
 // ffmpeg durante días -> 0 posters generados). Solo admin (role === 'admin').
-async function handleBackfillPosters(request) {
+async function runPosterBackfill() {
   try {
-    const currentUser = await getCurrentUser(request)
-    if (!isAdmin(currentUser)) {
-      return NextResponse.json({ error: 'forbidden' }, { status: 403 })
-    }
     const files = await getCollection('uploads.files')
     const vids = await files.find({ filename: { $regex: /\.(mp4|webm|mov|m4v)$/i } }).toArray()
     let generated = 0
@@ -5332,11 +5328,37 @@ async function handleBackfillPosters(request) {
         console.warn(`[backfill-posters] error for ${v.filename}:`, String(e?.message || e))
       }
     }
-    return NextResponse.json({ ok: true, total: vids.length, generated, skipped, failed, details })
+    return { ok: true, total: vids.length, generated, skipped, failed, details }
   } catch (err) {
     console.error('backfill posters error', err)
-    return NextResponse.json({ error: 'backfill_failed' }, { status: 500 })
+    return { ok: false, error: 'backfill_failed' }
   }
+}
+
+// POST /api/admin/backfill-posters — wrapper con gate de admin para reruns
+// manuales del backfill.
+async function handleBackfillPosters(request) {
+  const currentUser = await getCurrentUser(request)
+  if (!isAdmin(currentUser)) {
+    return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+  }
+  return NextResponse.json(await runPosterBackfill())
+}
+
+// Auto-backfill ONE-SHOT al arrancar (BUG #244618): regenera los posters que
+// falten nada más desplegar (idempotente — salta los que ya existen). Así los
+// 7 vídeos ya publicados recuperan su cover sin necesitar una sesión admin.
+// Fire-and-forget con retardo para no competir con el arranque del servidor.
+const globalForBackfill = globalThis
+if (!globalForBackfill.__twykPosterBackfillStarted) {
+  globalForBackfill.__twykPosterBackfillStarted = true
+  setTimeout(() => {
+    runPosterBackfill().then((r) => {
+      if (r && r.ok && r.generated > 0) {
+        console.log(`[backfill-posters] boot run: generated ${r.generated}, skipped ${r.skipped}, failed ${r.failed}`)
+      }
+    }).catch(() => {})
+  }, 8000)
 }
 
 // Exportar método DELETE
