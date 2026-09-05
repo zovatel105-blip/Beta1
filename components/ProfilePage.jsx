@@ -937,8 +937,8 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
                   onClick={handleToggleFollow}
                   disabled={followBusy}
                   style={{ opacity: revealP, pointerEvents: revealP > 0.5 ? 'auto' : 'none' }}
-                  className={`h-7 px-5 rounded-full font-semibold text-[12px] tracking-tight active:scale-95 transition-transform disabled:opacity-60 ${
-                    following ? 'border border-white/20 text-white' : 'bg-white text-black'
+                  className={`h-7 min-w-[92px] px-5 rounded-full font-semibold text-[12px] tracking-tight active:scale-95 transition-transform disabled:opacity-60 flex items-center justify-center ${
+                    following ? 'border border-white/20 text-white' : 'border border-transparent bg-white text-black'
                   }`}
                 >
                   {following ? 'Following' : 'Follow'}
@@ -1108,10 +1108,10 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
               <button
                 onClick={handleToggleFollow}
                 disabled={followBusy}
-                className={`h-9 px-7 rounded-full font-semibold text-[13px] tracking-tight active:scale-[0.97] transition-all disabled:opacity-60 ${
+                className={`h-9 min-w-[112px] px-7 rounded-full font-semibold text-[13px] tracking-tight active:scale-[0.97] transition-all disabled:opacity-60 flex items-center justify-center ${
                   following
                     ? 'border border-white/15 text-white hover:bg-white/[0.06]'
-                    : 'bg-white text-black hover:bg-zinc-100'
+                    : 'border border-transparent bg-white text-black hover:bg-zinc-100'
                 }`}
               >
                 {following ? 'Following' : 'Follow'}

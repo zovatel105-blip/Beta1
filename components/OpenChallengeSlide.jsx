@@ -78,6 +78,10 @@ export default function OpenChallengeSlide({
 }) {
   const { user } = useAuth()
   const videoRef = useRef(null)
+  // BUG FIX (#244618 "published without music"): música adjunta (preview iTunes),
+  // mismo patrón que CarouselSlide.jsx — <audio> independiente del vídeo.
+  const audioRef = useRef(null)
+  const hasMusic = !!post.musicPreviewUrl
   const overlayRef = useRef(null)
   const rafRef = useRef(0)
   // Doble-toque (mismo patrón EXACTO que CarouselSlide/DuetSlide para votar):
@@ -235,7 +239,9 @@ export default function OpenChallengeSlide({
         el.setAttribute('src', mediaUrl)
         try { el.load() } catch { /* ignore */ }
       }
-      el.muted = globalMuted
+      // Con música adjunta el vídeo va MUTEADO (la pista de audio suena por
+      // su propio <audio>, como en CarouselSlide) para no solapar pistas.
+      el.muted = globalMuted || hasMusic
       const p = el.play()
       if (p && p.catch) p.catch(() => { try { el.muted = true; el.play().catch(() => {}) } catch { /* ignore */ } })
     } else if (warm && playbackEnabled) {
@@ -273,6 +279,24 @@ export default function OpenChallengeSlide({
       }
     }
   }, [isActive, warm, playbackEnabled, globalMuted, isImage, mediaUrl])
+
+  // MÚSICA adjunta (BUG #244618): suena cuando la tarjeta está activa y el
+  // feed no está en mute global; al salir o en mute, se pausa y resetea.
+  // Igual que CarouselSlide.jsx (respeta globalMuted: el navegador solo
+  // permite audio audible tras la 1ª interacción del usuario).
+  useEffect(() => {
+    const a = audioRef.current
+    if (!a || !hasMusic) return
+    const shouldPlay = isActive && playbackEnabled && !globalMuted
+    if (shouldPlay) {
+      a.muted = false
+      const p = a.play()
+      if (p && p.catch) p.catch(() => {})
+    } else {
+      try { a.pause() } catch { /* ignore */ }
+      if (!isActive) { try { a.currentTime = 0 } catch { /* ignore */ } }
+    }
+  }, [isActive, playbackEnabled, globalMuted, hasMusic])
 
   const togglePlay = useCallback(() => {
     const el = videoRef.current
@@ -461,6 +485,9 @@ export default function OpenChallengeSlide({
         {(post.posterUrl || (isImage && mediaUrl)) && (
           <img src={post.posterUrl || mediaUrl} alt="" aria-hidden draggable={false} className="absolute inset-0 w-full h-full object-cover" />
         )}
+        {/* BUG #244618: audio de la música adjunta (hermano del <video>, fuera
+            del wrapper condicional para no romper la expresión JSX) */}
+        {hasMusic && <audio ref={audioRef} src={post.musicPreviewUrl} loop preload="none" />}
         {!isImage && mediaUrl && (
           <video
             ref={videoRef}

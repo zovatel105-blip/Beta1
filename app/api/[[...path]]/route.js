@@ -4,7 +4,8 @@ import nodePath from 'path'
 import os from 'os'
 import crypto from 'crypto'
 import { spawn } from 'child_process'
-import { putBuffer, getBufferByFilename, mimeForExt } from '@/lib/gridfs'
+import { putBuffer, getBufferByFilename, mimeForExt, fileExists, deleteByFilename } from '@/lib/gridfs'
+import { getCollection } from '@/lib/mongodb'
 import { 
   createUser, 
   verifyUserCredentials, 
@@ -100,6 +101,7 @@ import {
   getAllPosts,
   insertPost,
   updatePost,
+  deleteOpenChallenge,
   deletePostById,
   incrementPostVote,
   getAllChallenges,
@@ -390,6 +392,10 @@ async function getOpenChallengeFeedItems(currentUser, followingSet) {
         author,
         description: c.message || '',
         music: c.musicTitle ? `${c.musicTitle} · ${c.musicArtist}` : 'Open challenge',
+        // BUG FIX (#244618 "music dropped on Single publications"): la música
+        // se persistía en el reto pero el feed solo mandaba la etiqueta. Mismo
+        // spread que ya usa la ruta de reto aceptado (handleAcceptChallenge).
+        ...(c.musicPreviewUrl ? { musicTitle: c.musicTitle, musicArtist: c.musicArtist, musicArtwork: c.musicArtwork, musicPreviewUrl: c.musicPreviewUrl, musicTrackId: c.musicTrackId } : {}),
         stats: { likes: 0, comments: commentCounts[id] || 0, shares: 0, saves: 0, views: viewCounts[id] || 0 },
         voteCount: voteCounts[id] || 0,
         hasVoted: votedByMe.has(id),
@@ -2033,6 +2039,10 @@ export async function POST(request, { params }) {
   if (path === '/challenges') {
     return handleCreateChallenge(request)
   }
+  // POST /api/admin/backfill-posters — regeneración de posters perdidos (#244618)
+  if (path === '/admin/backfill-posters') {
+    return handleBackfillPosters(request)
+  }
   // Aceptar un reto -> publica un versus (A=retador, B=retado).
   if (segs[0] === 'challenges' && segs[2] === 'accept') {
     return handleAcceptChallenge(segs[1], request)
@@ -2898,6 +2908,12 @@ async function saveUploadedVideo(file) {
     if (posterOk) {
       const posterBytes = await fs.readFile(tmpPoster)
       await putBuffer(`${id}.jpg`, posterBytes, 'image/jpeg')
+    } else {
+      // BUG FIX (#244618 "missing covers"): el fallo era 100% silencioso
+      // (makePoster traga el error de ffmpeg) y el post quedaba apuntando a
+      // un .jpg que nunca existió -> cover 404 + cuadro negro. Ahora queda en
+      // logs y la posterUrl solo se anuncia si el archivo existe.
+      console.warn(`[poster] generation FAILED for ${filename} - stored WITHOUT poster (check ffmpeg in this image)`)
     }
     return `/uploads/${filename}`
   } finally {
@@ -2952,7 +2968,11 @@ async function saveUploadedMedia(file) {
     return { url, mediaType: 'image', posterUrl: url }
   }
   const url = await saveUploadedVideo(file)
-  return { url, mediaType: 'video', posterUrl: posterFor(url) }
+  // BUG FIX (#244618): solo anunciar posterUrl si el .jpg fue realmente
+  // escrito en GridFS (producción no tenía ffmpeg -> todo poster era 404).
+  const posterName = posterFor(url).split('/').pop()
+  const hasPoster = await fileExists(posterName).catch(() => false)
+  return { url, mediaType: 'video', posterUrl: hasPoster ? posterFor(url) : '' }
 }
 
 // Lee los campos de música (iTunes) del FormData de subida. Devuelve {} si no
@@ -5245,7 +5265,21 @@ async function handleDeletePost(postId, request) {
     if (!postId) {
       return NextResponse.json({ error: 'missing_postId' }, { status: 400 })
     }
-    const result = await deletePostById(postId, currentUser.id)
+    // BUG FIX (#244618 "I can't delete my own publications"): open-challenge
+    // publications live in the `challenges` collection and reach the client
+    // with an `open_challenge_<id>` feed id, but deletePostById only looks in
+    // `posts` -> every open-challenge delete returned 404. Branch by prefix.
+    const result = postId && postId.startsWith('open_')
+      ? await deleteOpenChallenge(postId, currentUser.id)
+      : await deletePostById(postId, currentUser.id)
+    // Best-effort GridFS cleanup of the deleted item's media (never blocks).
+    if (result.ok && Array.isArray(result.mediaUrls)) {
+      for (const u of result.mediaUrls) {
+        if (!u) continue
+        const name = String(u).split('/').pop().split('#')[0]
+        if (name) { try { await deleteByFilename(name) } catch { /* noop */ } }
+      }
+    }
     if (!result.ok) {
       if (result.reason === 'not_found') {
         return NextResponse.json({ error: 'post_not_found' }, { status: 404 })
@@ -5256,6 +5290,52 @@ async function handleDeletePost(postId, request) {
   } catch (err) {
     console.error('delete post error', err)
     return NextResponse.json({ error: 'delete_failed' }, { status: 500 })
+  }
+}
+
+// POST /api/admin/backfill-posters — BUG #244618: regenera el poster .jpg de
+// los vídeos de GridFS que se quedaron sin él (producción se desplegó sin
+// ffmpeg durante días -> 0 posters generados). Solo admin (role === 'admin').
+async function handleBackfillPosters(request) {
+  try {
+    const currentUser = await getCurrentUser(request)
+    if (!isAdmin(currentUser)) {
+      return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+    }
+    const files = await getCollection('uploads.files')
+    const vids = await files.find({ filename: { $regex: /\.(mp4|webm|mov|m4v)$/i } }).toArray()
+    let generated = 0
+    let skipped = 0
+    let failed = 0
+    const details = []
+    for (const v of vids) {
+      const posterName = v.filename.replace(/\.(mp4|webm|mov|m4v)$/i, '.jpg')
+      if (await fileExists(posterName).catch(() => false)) { skipped++; continue }
+      try {
+        const buf = await getBufferByFilename(v.filename)
+        const tmpIn = `/tmp/bf_${v.filename}`
+        const tmpOut = `/tmp/bf_${posterName}`
+        await fs.writeFile(tmpIn, buf)
+        const ok = await makePoster(tmpIn, tmpOut)
+        if (ok) {
+          await putBuffer(posterName, await fs.readFile(tmpOut), 'image/jpeg')
+          generated++
+          details.push(posterName)
+        } else {
+          failed++
+          console.warn(`[backfill-posters] makePoster failed for ${v.filename}`)
+        }
+        await fs.unlink(tmpIn).catch(() => {})
+        await fs.unlink(tmpOut).catch(() => {})
+      } catch (e) {
+        failed++
+        console.warn(`[backfill-posters] error for ${v.filename}:`, String(e?.message || e))
+      }
+    }
+    return NextResponse.json({ ok: true, total: vids.length, generated, skipped, failed, details })
+  } catch (err) {
+    console.error('backfill posters error', err)
+    return NextResponse.json({ error: 'backfill_failed' }, { status: 500 })
   }
 }
 

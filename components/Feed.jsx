@@ -446,7 +446,9 @@ export default function Feed() {
     // Profundidad 2 (no 3): descargar demasiado por delante satura las ~6
     // conexiones del navegador y el vídeo ACTIVO se queda sin cargar.
     const depth = conserve ? 1 : 2
-    for (let k = 1; k <= depth; k++) {
+    // BUG #244618: incluir k = -1 para que la tarjeta ANTERIOR también
+    // tenga bytes calientes al desplazarse hacia atrás.
+    for (let k = -1; k <= depth; k++) {
       const p = posts[activeIndex + k]
       if (!p) continue
       // Solo la tarjeta INMEDIATA (k=1) se descarga completa; la k=2 solo el init.
@@ -673,10 +675,12 @@ export default function Feed() {
             const inWindow = Math.abs(i - activeIndex) <= 1
             const inPosterWindow = Math.abs(i - activeIndex) <= POSTER_WINDOW
             const isActive = i === activeIndex
-            // WARM: la tarjeta SIGUIENTE (i+1) se precarga (buffer real + frame
-            // 1) para arrancar con 0 espera al deslizar. En 1vs1 caliente AMBOS
-            // lados. Solo se desactiva en modo ahorro (datos/batería baja).
-            const warm = i === activeIndex + 1 && !shouldConserve()
+            // WARM: la tarjeta ADYACENTE (i±1) se precarga (buffer real + frame
+            // 1) para arrancar con 0 espera al deslizar en CUALQUIER dirección.
+            // BUG #244618: antes solo se calentaba i+1 -> el scroll hacia atrás
+            // cargaba la tarjeta en frío y se veía el flash roto/vacío.
+            // Solo se desactiva en modo ahorro (datos/batería baja).
+            const warm = Math.abs(i - activeIndex) === 1 && !shouldConserve()
             const poster = slotPoster(post)
             return (
               <section
