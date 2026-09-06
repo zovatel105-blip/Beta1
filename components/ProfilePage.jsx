@@ -864,39 +864,42 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
       {/* Header sticky: al colapsar (>60%) revela mini-perfil (avatar+usuario) y acción (Seguir/Edit) — estilo TikTok */}
       <div ref={barRef} className="sticky top-0 z-30 bg-[#0a0a0b]"
            style={{ paddingTop: 'max(env(safe-area-inset-top), 6px)' }}>
-        <div className="relative flex items-center px-2 sm:px-4 h-11 max-w-md mx-auto w-full">
-          {/* Izquierda: atrás (perfil ajeno) o espaciador (propio) */}
-          {isOwn ? (
-            <span className="w-9 shrink-0" />
-          ) : (
-            <button aria-label="back" onClick={onClose} className="relative z-10 p-2 -ml-1 text-white active:scale-90 transition shrink-0">
-              <ArrowLeft strokeWidth={1.9} className="w-[24px] h-[24px]" />
-            </button>
-          )}
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 px-2 sm:px-4 h-11 max-w-md mx-auto w-full">
+          {/* Izquierda: atrás (perfil ajeno) o espaciador (propio) + nombre de usuario,
+              agrupados en la columna izquierda del grid (1fr) para que el nombre se
+              trunque ANTES de llegar a la columna central (avatar) o a la derecha. */}
+          <div className="flex items-center min-w-0">
+            {isOwn ? (
+              <span className="w-9 shrink-0" />
+            ) : (
+              <button aria-label="back" onClick={onClose} className="relative z-10 p-2 -ml-1 text-white active:scale-90 transition shrink-0">
+                <ArrowLeft strokeWidth={1.9} className="w-[24px] h-[24px]" />
+              </button>
+            )}
 
-          {/* Nombre de usuario: a la IZQUIERDA (nunca centrado), acotado para que si es
-              largo se trunque ANTES de llegar al avatar centrado o a los botones de la
-              derecha (nunca aparece por detrás de "Edit"/"Follow"/menú). */}
-          <div
-            className="flex items-center min-w-0 pl-2 pointer-events-none"
-            style={{ opacity: revealP, maxWidth: 'calc(50% - 34px)' }}
-          >
-            <span className="text-white font-semibold text-[15px] truncate">{me.name}</span>
+            <div
+              className="flex items-center min-w-0 pl-2 pointer-events-none"
+              style={{ opacity: revealP }}
+            >
+              <span className="text-white font-semibold text-[15px] truncate">{me.name}</span>
+            </div>
           </div>
 
-          {/* Avatar: SIEMPRE centrado en la barra (posición absoluta, independiente
-              de cuánto ocupe el nombre a la izquierda). */}
+          {/* Avatar: columna central del grid, con espacio siempre reservado — ya no usa
+              posición absoluta, así que ningún botón puede terminar detrás o encima. */}
           <div
-            className="absolute left-1/2 z-20 pointer-events-none"
-            style={{ opacity: revealP, transform: `translateX(-50%) translateY(${(1 - revealP) * 8}px)` }}
+            className="z-20 pointer-events-none justify-self-center"
+            style={{ opacity: revealP, transform: `translateY(${(1 - revealP) * 8}px)` }}
           >
             <div className="w-7 h-7 rounded-full overflow-hidden bg-zinc-900 ring-1 ring-white/15 shrink-0">
               <Avatar src={me.avatarUrl} alt={me.username} className="w-full h-full rounded-full" />
             </div>
           </div>
 
-          {/* Derecha: acción revelada (Seguir / Edit) + menú (propio) */}
-          <div className="relative z-10 ml-auto flex items-center gap-2 shrink-0" style={{ maxWidth: 'calc(50% - 34px)' }}>
+          {/* Derecha: acción revelada (Seguir / Edit) + menú (propio) — columna derecha
+              del grid (1fr), alineada al final; sin el maxWidth artificial que recortaba
+              el botón Follow/Following. */}
+          <div className="relative z-10 flex items-center gap-2 shrink-0 justify-self-end">
             {isOwn ? (
               <>
                 <button
