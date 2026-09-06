@@ -864,7 +864,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
       {/* Header sticky: al colapsar (>60%) revela mini-perfil (avatar+usuario) y acción (Seguir/Edit) — estilo TikTok */}
       <div ref={barRef} className="sticky top-0 z-30 bg-[#0a0a0b]"
            style={{ paddingTop: 'max(env(safe-area-inset-top), 6px)' }}>
-        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 px-2 sm:px-4 h-11 max-w-md mx-auto w-full">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4 max-[430px]:gap-2 px-2 sm:px-4 h-11 max-w-md mx-auto w-full">
           {/* Izquierda: atrás (perfil ajeno) o espaciador (propio) + nombre de usuario,
               agrupados en la columna izquierda del grid (1fr) para que el nombre se
               trunque ANTES de llegar a la columna central (avatar) o a la derecha. */}
@@ -899,7 +899,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
           {/* Derecha: acción revelada (Seguir / Edit) + menú (propio) — columna derecha
               del grid (1fr), alineada al final; sin el maxWidth artificial que recortaba
               el botón Follow/Following. */}
-          <div className="relative z-10 flex items-center gap-2 shrink-0 justify-self-end">
+          <div className="relative z-10 flex items-center gap-2 max-[430px]:gap-1 shrink-0 justify-self-end">
             {isOwn ? (
               <>
                 <button
@@ -913,7 +913,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
                   onClick={handleShare}
                   aria-label="Share"
                   style={{ opacity: revealP, pointerEvents: revealP > 0.5 ? 'auto' : 'none' }}
-                  className="h-7 w-7 shrink-0 aspect-square rounded-full border border-white/20 text-white flex items-center justify-center active:scale-95 transition-transform"
+                  className="h-7 w-7 max-[400px]:h-6 max-[400px]:w-6 shrink-0 aspect-square rounded-full border border-white/20 text-white flex items-center justify-center active:scale-95 transition-transform"
                 >
                   <ShareIcon className="w-[15px] h-[15px]" strokeWidth={1.4} />
                 </button>
@@ -924,7 +924,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
                   onClick={handleChallenge}
                   aria-label="Challenge"
                   style={{ opacity: revealP, pointerEvents: revealP > 0.5 ? 'auto' : 'none' }}
-                  className="h-7 w-7 shrink-0 aspect-square rounded-full border border-white/20 text-white flex items-center justify-center active:scale-95 transition-transform"
+                  className="h-7 w-7 max-[400px]:h-6 max-[400px]:w-6 shrink-0 aspect-square rounded-full border border-white/20 text-white flex items-center justify-center active:scale-95 transition-transform"
                 >
                   <Swords className="w-[15px] h-[15px]" strokeWidth={2} />
                 </button>
@@ -932,7 +932,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
                   onClick={() => setTipOpen(true)}
                   aria-label="Send tip"
                   style={{ opacity: revealP, pointerEvents: revealP > 0.5 ? 'auto' : 'none' }}
-                  className="h-7 w-7 shrink-0 aspect-square rounded-full border border-white/20 text-white flex items-center justify-center active:scale-95 transition-transform"
+                  className="h-7 w-7 max-[400px]:h-6 max-[400px]:w-6 shrink-0 aspect-square rounded-full border border-white/20 text-white flex items-center justify-center active:scale-95 transition-transform"
                 >
                   <CreditIcon size={15} />
                 </button>
@@ -940,7 +940,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
                   onClick={handleToggleFollow}
                   disabled={followBusy}
                   style={{ opacity: revealP, pointerEvents: revealP > 0.5 ? 'auto' : 'none' }}
-                  className={`h-7 shrink-0 min-w-[92px] px-5 rounded-full font-semibold text-[12px] tracking-tight active:scale-95 transition-transform disabled:opacity-60 flex items-center justify-center ${
+                  className={`h-7 shrink-0 min-w-[92px] px-5 rounded-full font-semibold text-[12px] tracking-tight active:scale-95 transition-transform disabled:opacity-60 flex items-center justify-center max-[430px]:min-w-0 max-[430px]:px-2.5 max-[430px]:text-[11px] max-[430px]:tracking-normal max-[400px]:px-1.5 max-[400px]:px-1.5 ${
                     following ? 'border border-white/20 text-white' : 'border border-transparent bg-white text-black'
                   }`}
                 >
