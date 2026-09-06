@@ -864,7 +864,7 @@ export default function ProfilePage({ open, onClose, onOpenUpload, onChallenge, 
       {/* Header sticky: al colapsar (>60%) revela mini-perfil (avatar+usuario) y acción (Seguir/Edit) — estilo TikTok */}
       <div ref={barRef} className="sticky top-0 z-30 bg-[#0a0a0b]"
            style={{ paddingTop: 'max(env(safe-area-inset-top), 6px)' }}>
-        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 px-2 sm:px-4 h-11 max-w-md mx-auto w-full">
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 px-2 sm:px-4 h-11 max-w-md mx-auto w-full">
           {/* Izquierda: atrás (perfil ajeno) o espaciador (propio) + nombre de usuario,
               agrupados en la columna izquierda del grid (1fr) para que el nombre se
               trunque ANTES de llegar a la columna central (avatar) o a la derecha. */}
