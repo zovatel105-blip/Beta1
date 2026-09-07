@@ -3,7 +3,7 @@ import { AuthProvider } from '@/contexts/AuthContext'
 import ConsentBanner from '@/components/ConsentBanner'
 
 export const metadata = {
-  title: 'Twyk — Short vertical videos',
+  title: 'Twykk - Make Your Move',
   description: 'Vertical feed of short videos, instant TikTok-style scrolling.',
 }
 
