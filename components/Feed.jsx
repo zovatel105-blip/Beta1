@@ -624,32 +624,32 @@ export default function Feed() {
 
   return (
     <div className="feed-container fixed inset-0 bg-black" onPointerDown={muted ? onFirstInteraction : undefined}>
-      {/* Pastilla "Feed / Following" centrada arriba — forma visible de
-          cambiar entre el feed principal y "Siguiendo" (antes solo se podía
+      {/* Pastilla "Following / Explore" centrada arriba — forma visible de
+          cambiar entre "Siguiendo" y el feed principal (antes solo se podía
           con doble click en Home, que sigue funcionando igual). */}
       <div
-        className="absolute left-1/2 -translate-x-1/2 z-40 flex items-center gap-0.5 bg-black/35 backdrop-blur-md rounded-full p-1 pointer-events-auto"
+        className="absolute left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 pointer-events-auto"
         style={{ top: 'max(env(safe-area-inset-top), 12px)' }}
       >
         <button
           type="button"
-          onClick={handleSelectFeedTab}
-          className={cn(
-            'px-4 py-1.5 rounded-full text-[13px] font-semibold transition-all duration-200 active:scale-95',
-            !followingMode ? 'bg-white text-black' : 'text-white/70'
-          )}
-        >
-          Feed
-        </button>
-        <button
-          type="button"
           onClick={handleSelectFollowingTab}
           className={cn(
-            'px-4 py-1.5 rounded-full text-[13px] font-semibold transition-all duration-200 active:scale-95',
-            followingMode ? 'bg-white text-black' : 'text-white/70'
+            'px-3 py-1 rounded-full border text-[13px] font-medium transition-all duration-200 active:scale-95',
+            followingMode ? 'border-white text-white' : 'border-white/40 text-white/60'
           )}
         >
           Following
+        </button>
+        <button
+          type="button"
+          onClick={handleSelectFeedTab}
+          className={cn(
+            'px-3 py-1 rounded-full border text-[13px] font-medium transition-all duration-200 active:scale-95',
+            !followingMode ? 'border-white text-white' : 'border-white/40 text-white/60'
+          )}
+        >
+          Explore
         </button>
       </div>
       {/* Buscador de usuarios: lupa fija arriba a la derecha (estilo TikTok).
