@@ -6,6 +6,15 @@ import crypto from 'crypto'
 import { spawn } from 'child_process'
 import { putBuffer, getBufferByFilename, mimeForExt, fileExists, deleteByFilename } from '@/lib/gridfs'
 import { getCollection } from '@/lib/mongodb'
+import { getMechanicsByCategory } from '@/lib/challengeMechanics'
+import {
+  getPostOwnerId as getChallengeEnginePostOwnerId,
+  saveChallengeMoments,
+  getChallengeByPostId,
+  castChallengeVote,
+  getMomentResults,
+  deleteChallengeDataByPostId,
+} from '@/lib/challengeEngineStore'
 import { 
   createUser, 
   verifyUserCredentials, 
@@ -925,6 +934,16 @@ export async function GET(request, { params }) {
   // GET /api/ai/edit-video-status?jobId=... - polling del editor de vídeo con IA.
   if (path === '/ai/edit-video-status') {
     return handleAiEditVideoStatus(request)
+  }
+
+  // GET /api/challenge-mechanics - catálogo del Motor de Challenges Dinámico.
+  if (path === '/challenge-mechanics') {
+    return handleGetChallengeMechanics()
+  }
+
+  // GET /api/posts/{id}/challenge - momentos de votación de un post + resultados.
+  if (segs[0] === 'posts' && segs[1] && segs[2] === 'challenge' && segs.length === 3) {
+    return handleGetChallengeMoments(decodeURIComponent(segs[1]), request)
   }
 
   if (path === '/admin/reco/metrics') {
@@ -2041,6 +2060,17 @@ export async function POST(request, { params }) {
   // Crear un reto (solicitud de enfrentamiento) con un vídeo subido.
   if (path === '/challenges') {
     return handleCreateChallenge(request)
+  }
+
+  // POST /api/posts/{id}/challenge - crea/reemplaza los momentos de votación
+  // (Motor de Challenges Dinámico). Solo el autor del post.
+  if (segs[0] === 'posts' && segs[1] && segs[2] === 'challenge' && segs.length === 3) {
+    return handleSaveChallengeMoments(decodeURIComponent(segs[1]), request)
+  }
+
+  // POST /api/posts/{id}/challenge/moments/{momentId}/vote - body: {selection}
+  if (segs[0] === 'posts' && segs[1] && segs[2] === 'challenge' && segs[3] === 'moments' && segs[4] && segs[5] === 'vote' && segs.length === 6) {
+    return handleCastChallengeVote(decodeURIComponent(segs[1]), decodeURIComponent(segs[4]), request)
   }
   // POST /api/admin/backfill-posters — regeneración de posters perdidos (#244618)
   if (path === '/admin/backfill-posters') {
@@ -3228,6 +3258,99 @@ async function handleCreateChallenge(request) {
     return NextResponse.json({ error: 'challenge_failed', detail: String(err?.message || err) }, { status: 500 })
   }
 }
+
+// ────────────────────────────────────────────────────────────────────────────
+// Motor de Challenges Dinámico — momentos de votación anclados a timestamps
+// de un vídeo. Ver lib/challengeMechanics.js (catálogo de 25 mecánicas) y
+// lib/challengeEngineStore.js (persistencia + tally genérico por inputType).
+// ────────────────────────────────────────────────────────────────────────────
+
+// GET /api/challenge-mechanics - catálogo de mecánicas agrupado por categoría
+// (público, sin auth: lo necesita tanto el Challenge Builder como el
+// overlay del reproductor para pintar etiquetas/iconos).
+async function handleGetChallengeMechanics() {
+  return NextResponse.json({ ok: true, categories: getMechanicsByCategory() })
+}
+
+// POST /api/posts/{id}/challenge - crea/reemplaza los momentos de votación
+// de un post. Solo el autor del post puede hacerlo. body: { moments, scoringMode }
+async function handleSaveChallengeMoments(postId, request) {
+  try {
+    const currentUser = await getCurrentUser(request)
+    if (!currentUser) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    const ownerId = await getChallengeEnginePostOwnerId(postId)
+    if (!ownerId) return NextResponse.json({ error: 'post_not_found' }, { status: 404 })
+    if (ownerId !== currentUser.id) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+
+    const body = await request.json().catch(() => ({}))
+    const doc = await saveChallengeMoments(postId, currentUser.id, { moments: body.moments, scoringMode: body.scoringMode })
+    return NextResponse.json({ ok: true, challenge: doc })
+  } catch (err) {
+    if (err.code) return NextResponse.json({ error: err.code }, { status: 400 })
+    console.error('save challenge moments error', err)
+    return NextResponse.json({ error: 'save_failed' }, { status: 500 })
+  }
+}
+
+// GET /api/posts/{id}/challenge - momentos + resultados agregados de cada
+// uno (y el voto propio del usuario actual, si hay sesión).
+async function handleGetChallengeMoments(postId, request) {
+  try {
+    const currentUser = await getCurrentUser(request).catch(() => null)
+    const doc = await getChallengeByPostId(postId)
+    if (!doc) return NextResponse.json({ ok: true, challenge: null })
+    const momentsWithResults = await Promise.all(
+      doc.moments.map(async (m) => {
+        const results = await getMomentResults(postId, { ...m, __authorId: doc.authorId }, currentUser?.id)
+        return { ...m, results }
+      }),
+    )
+    return NextResponse.json({ ok: true, challenge: { ...doc, moments: momentsWithResults } })
+  } catch (err) {
+    console.error('get challenge moments error', err)
+    return NextResponse.json({ error: 'fetch_failed' }, { status: 500 })
+  }
+}
+
+// POST /api/posts/{id}/challenge/moments/{momentId}/vote - body: { selection }
+async function handleCastChallengeVote(postId, momentId, request) {
+  try {
+    const currentUser = await getCurrentUser(request)
+    if (!currentUser) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    const doc = await getChallengeByPostId(postId)
+    if (!doc) return NextResponse.json({ error: 'challenge_not_found' }, { status: 404 })
+    const moment = doc.moments.find((m) => m.id === momentId)
+    if (!moment) return NextResponse.json({ error: 'moment_not_found' }, { status: 404 })
+
+    const body = await request.json().catch(() => ({}))
+    const selection = body.selection
+    // Validación mínima por inputType para no guardar basura.
+    const validIds = new Set(moment.options.map((o) => o.id))
+    if (moment.inputType === 'points') {
+      if (!selection || typeof selection !== 'object') return NextResponse.json({ error: 'invalid_selection' }, { status: 400 })
+      const total = Object.values(selection).reduce((a, b) => a + (Number(b) || 0), 0)
+      if (Object.keys(selection).some((k) => !validIds.has(k)) || total > (moment.settings?.maxPoints || 10)) {
+        return NextResponse.json({ error: 'invalid_selection' }, { status: 400 })
+      }
+    } else if (moment.inputType === 'ranking' || moment.inputType === 'multi_select') {
+      if (!Array.isArray(selection) || selection.some((id) => !validIds.has(id))) {
+        return NextResponse.json({ error: 'invalid_selection' }, { status: 400 })
+      }
+    } else {
+      if (typeof selection !== 'string' || !validIds.has(selection)) {
+        return NextResponse.json({ error: 'invalid_selection' }, { status: 400 })
+      }
+    }
+
+    await castChallengeVote(postId, momentId, currentUser.id, selection)
+    const results = await getMomentResults(postId, { ...moment, __authorId: doc.authorId }, currentUser.id)
+    return NextResponse.json({ ok: true, results })
+  } catch (err) {
+    console.error('cast challenge vote error', err)
+    return NextResponse.json({ error: 'vote_failed' }, { status: 500 })
+  }
+}
+
 
 // POST /api/challenges/{id}/accept -> publica un versus y elimina el reto.
 // El retado puede subir SU vídeo (multipart 'file'); si el reto ya traía
@@ -5289,6 +5412,9 @@ async function handleDeletePost(postId, request) {
       }
       return NextResponse.json({ error: 'forbidden' }, { status: 403 })
     }
+    // Motor de Challenges Dinámico: limpieza en cascada de los momentos de
+    // votación y votos asociados (best-effort, nunca bloquea el borrado).
+    deleteChallengeDataByPostId(postId).catch(() => {})
     return NextResponse.json({ ok: true })
   } catch (err) {
     console.error('delete post error', err)

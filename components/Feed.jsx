@@ -628,15 +628,15 @@ export default function Feed() {
           cambiar entre "Siguiendo" y el feed principal (antes solo se podía
           con doble click en Home, que sigue funcionando igual). */}
       <div
-        className="absolute left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 pointer-events-auto"
-        style={{ top: 'max(env(safe-area-inset-top), 12px)' }}
+        className="absolute left-1/2 -translate-x-1/2 z-40 flex items-center h-7 rounded-full border border-white/20 p-0.5 pointer-events-auto"
+        style={{ top: 'calc(max(env(safe-area-inset-top), 12px) + 4px)' }}
       >
         <button
           type="button"
           onClick={handleSelectFollowingTab}
           className={cn(
-            'px-3 py-1 rounded-full border text-[13px] font-medium transition-all duration-200 active:scale-95',
-            followingMode ? 'border-white text-white' : 'border-white/40 text-white/60'
+            'px-3 py-0.5 rounded-full text-[12px] font-semibold tracking-tight transition-all duration-200 active:scale-95',
+            followingMode ? 'border border-white/90 text-white' : 'border border-transparent text-white/50'
           )}
         >
           Following
@@ -645,8 +645,8 @@ export default function Feed() {
           type="button"
           onClick={handleSelectFeedTab}
           className={cn(
-            'px-3 py-1 rounded-full border text-[13px] font-medium transition-all duration-200 active:scale-95',
-            !followingMode ? 'border-white text-white' : 'border-white/40 text-white/60'
+            'px-3 py-0.5 rounded-full text-[12px] font-semibold tracking-tight transition-all duration-200 active:scale-95',
+            !followingMode ? 'border border-white/90 text-white' : 'border border-transparent text-white/50'
           )}
         >
           Explore

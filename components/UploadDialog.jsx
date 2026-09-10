@@ -2,9 +2,10 @@
 /* eslint-disable react-hooks/set-state-in-effect -- setState en efectos de carga/reset async; falso positivo de la regla experimental. */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ChevronRight, Loader2, Film, Swords, Users, Rows2, Columns2, ArrowLeft, X, Search, Music, Sparkles, RefreshCw, Globe, Images, SwitchCamera } from 'lucide-react'
+import { ChevronRight, Loader2, Film, Swords, Users, Rows2, Columns2, ArrowLeft, X, Search, Music, Sparkles, RefreshCw, Globe, Images, SwitchCamera, Vote } from 'lucide-react'
 import Avatar from './Avatar'
 import MusicPicker from './MusicPicker'
+import ChallengeBuilderSheet from './ChallengeBuilderSheet'
 import AIImageEditor from './AIImageEditor'
 import AIVideoEditor from './AIVideoEditor'
 import { addPendingUpload, updateUploadProgress, removePendingUpload, markUploadFailed } from '@/lib/uploadQueue'
@@ -88,6 +89,14 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
   const [allowChallenge, setAllowChallenge] = useState(true)
   const [music, setMusic] = useState(null) // track de iTunes seleccionado
   const [musicOpen, setMusicOpen] = useState(false)
+  // Motor de Challenges Dinámico (petición del usuario: "las mecanicas deben
+  // seleccionarse desde publicar en crear contenido, debe ser UN boton
+  // como editar con ia"): un único botón abre ChallengeBuilderSheet, que
+  // guarda momentos de votación anclados a instantes del vídeo. Se
+  // persisten en el backend DESPUÉS de subir (ver doUpload), cuando ya
+  // existe un postId real.
+  const [challengeMoments, setChallengeMoments] = useState([])
+  const [challengeSheetOpen, setChallengeSheetOpen] = useState(false)
   const [previewA, setPreviewA] = useState(null)
   const [previewB, setPreviewB] = useState(null)
   const [versusIdx, setVersusIdx] = useState(0) // slide activo en la vista previa carrusel (versus)
@@ -122,7 +131,7 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
     setStep('mode'); setMode(null); setLayout('horizontal'); setTarget(null); setUsers([])
     setFile(null); setFileB(null); setDescription(''); setError(null); setPublishing(false)
     setSelected('solo'); setVersusIdx(0); setMusic(null); setMusicOpen(false); setAiEditorSlot(null); setAiOverride(null); setAllowChallenge(true)
-    setFacingMode('environment'); setRecording(false); setCameraError(null)
+    setFacingMode('environment'); setRecording(false); setCameraError(null); setChallengeMoments([]); setChallengeSheetOpen(false)
   }
 
   // Libera la cámara (importantísimo: si no se paran los tracks, el
@@ -403,6 +412,22 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
       xhr.send(fd)
       const data = await promise
       if (showsInProfileGrid) removePendingUpload(uploadId)
+      // Motor de Challenges Dinámico: si se añadieron momentos de votación,
+      // se persisten AHORA que ya existe un postId real (best-effort, no
+      // bloquea la publicación si falla).
+      if (challengeMoments.length > 0) {
+        const newPostId = mode === 'solo'
+          ? (data?.challenge?.id ? `open_${data.challenge.id}` : null)
+          : (data?.post?.id || null)
+        if (newPostId) {
+          fetch(`/api/posts/${encodeURIComponent(newPostId)}/challenge`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ moments: challengeMoments }),
+          }).catch(() => {})
+        }
+      }
       if (mode === 'solo') {
         // Réplica del criterio de versus/1vs1 (onUploaded inserta la
         // publicación real al instante en el grid del propio perfil, sin
@@ -1061,6 +1086,22 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
                                 <Music size={17} strokeWidth={2} /> Add music
                               </button>
                             )}
+                            {/* Reto interactivo: UN único botón (petición del
+                                usuario, mismo patrón que "Editar con IA"/"Add
+                                music") abre el Challenge Builder — solo tiene
+                                sentido con un vídeo (los momentos se anclan a
+                                su duración) y en publicaciones que se crean
+                                de inmediato (no en 'challenge', que espera a
+                                que el retado acepte). */}
+                            {mode !== 'challenge' && fileKind(file) === 'video' && (
+                              <button
+                                onClick={() => setChallengeSheetOpen(true)}
+                                className="w-full flex items-center justify-center gap-2 rounded-2xl bg-black/45 backdrop-blur-xl border border-white/10 px-4 py-3 text-[14px] font-semibold text-white hover:bg-black/60 active:scale-[0.99] transition"
+                              >
+                                <Vote size={17} strokeWidth={2} />
+                                {challengeMoments.length > 0 ? `Reto interactivo (${challengeMoments.length})` : 'Reto interactivo'}
+                              </button>
+                            )}
                             <button
                               onClick={() => (mode === 'challenge' ? goToTarget() : doUpload())}
                               disabled={publishing || (isAB ? (!file || !fileB) : !file)}
@@ -1084,6 +1125,13 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
         )}
       </div>
       <MusicPicker open={musicOpen} onClose={() => setMusicOpen(false)} onSelect={setMusic} current={music} />
+      <ChallengeBuilderSheet
+        open={challengeSheetOpen}
+        onClose={() => setChallengeSheetOpen(false)}
+        videoFile={file}
+        moments={challengeMoments}
+        onSave={setChallengeMoments}
+      />
     </div>
   )
 }
