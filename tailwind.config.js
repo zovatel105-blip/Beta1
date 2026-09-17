@@ -90,11 +90,22 @@ module.exports = {
     				to: {
     					height: '0'
     				}
-    			}
+			},
+			fadeIn: {
+				from: { opacity: '0', transform: 'translateY(-4px)' },
+				to: { opacity: '1', transform: 'translateY(0)' }
+			},
+			popIn: {
+				'0%': { opacity: '0', transform: 'scale(0.85) translateY(6px)' },
+				'60%': { opacity: '1', transform: 'scale(1.03) translateY(0)' },
+				'100%': { opacity: '1', transform: 'scale(1) translateY(0)' }
+			}
     		},
     		animation: {
     			'accordion-down': 'accordion-down 0.2s ease-out',
-    			'accordion-up': 'accordion-up 0.2s ease-out'
+			'accordion-up': 'accordion-up 0.2s ease-out',
+			fadeIn: 'fadeIn 0.25s ease',
+			popIn: 'popIn 0.45s cubic-bezier(0.34,1.56,0.64,1) both'
     		}
     	}
     },

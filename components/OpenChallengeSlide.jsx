@@ -12,6 +12,8 @@ import AuthModal from './AuthModal'
 import QuickCommentInput from './QuickCommentInput'
 import CommentOrViewsBar from './CommentOrViewsBar'
 import HeartBurstEffect from './HeartBurstEffect'
+import ChallengeMomentOverlay from './ChallengeMomentOverlay'
+import UniversalChallengeMomentOverlay from './UniversalChallengeMomentOverlay'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
 
@@ -568,6 +570,15 @@ export default function OpenChallengeSlide({
         className={`absolute z-20 px-4 left-0 right-16 ${showCommentInput ? '' : 'bottom-8'} pt-10 pointer-events-none`}
         style={showCommentInput ? { bottom: `calc(${COMMENT_BAR_RESERVE} + 10px)` } : undefined}
       >
+        {/* Motor de Challenges Dinámico (Fase C): pastillas de votación EN
+            FLUJO NORMAL, justo encima de la fila de avatar (petición del
+            usuario) — el bloque crece hacia arriba, sin overlay flotante. */}
+        <ChallengeMomentOverlay postId={post.id} videoRef={videoRef} isActive={isActive} />
+        {/* Universal Challenge Engine (stage 2, ADDITIVE): renders only when
+            this post has a document in the NEW `universalChallenges`
+            collection -- naturally mutually exclusive with the legacy
+            overlay above (a post only ever has one or the other). */}
+        <UniversalChallengeMomentOverlay postId={post.id} videoRef={videoRef} isActive={isActive} />
         <div className="flex items-center gap-2.5 w-fit max-w-[calc(100%-4rem)] pointer-events-auto">
           <button onClick={(e) => { e.stopPropagation(); onOpenProfile?.(headAuthor.username) }} className="w-[30px] h-[30px] rounded-full overflow-hidden block shrink-0">
             <Avatar src={headAuthor.avatarUrl} alt={headAuthor.username} className="w-full h-full" />

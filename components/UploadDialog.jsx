@@ -2,10 +2,11 @@
 /* eslint-disable react-hooks/set-state-in-effect -- setState en efectos de carga/reset async; falso positivo de la regla experimental. */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ChevronRight, Loader2, Film, Swords, Users, Rows2, Columns2, ArrowLeft, X, Search, Music, Sparkles, RefreshCw, Globe, Images, SwitchCamera, Vote } from 'lucide-react'
+import { ChevronRight, Loader2, Film, Swords, Users, Rows2, Columns2, ArrowLeft, X, Search, Music, Sparkles, RefreshCw, Globe, Images, SwitchCamera, Vote, Trophy } from 'lucide-react'
 import Avatar from './Avatar'
 import MusicPicker from './MusicPicker'
-import ChallengeBuilderSheet from './ChallengeBuilderSheet'
+import ChallengeTimelineEditor from './ChallengeTimelineEditor'
+import UniversalChallengeEditor from './UniversalChallengeEditor'
 import AIImageEditor from './AIImageEditor'
 import AIVideoEditor from './AIVideoEditor'
 import { addPendingUpload, updateUploadProgress, removePendingUpload, markUploadFailed } from '@/lib/uploadQueue'
@@ -89,14 +90,23 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
   const [allowChallenge, setAllowChallenge] = useState(true)
   const [music, setMusic] = useState(null) // track de iTunes seleccionado
   const [musicOpen, setMusicOpen] = useState(false)
-  // Motor de Challenges Dinámico (petición del usuario: "las mecanicas deben
-  // seleccionarse desde publicar en crear contenido, debe ser UN boton
-  // como editar con ia"): un único botón abre ChallengeBuilderSheet, que
-  // guarda momentos de votación anclados a instantes del vídeo. Se
-  // persisten en el backend DESPUÉS de subir (ver doUpload), cuando ya
-  // existe un postId real.
+  // Motor de Challenges Dinámico (petición del usuario: pantalla de edición
+  // dedicada con línea de tiempo, accesible junto a "Editar con IA" — ver
+  // ChallengeTimelineEditor.jsx). Guarda momentos de votación anclados a
+  // instantes del vídeo; se persisten en el backend DESPUÉS de subir (ver
+  // doUpload), cuando ya existe un postId real.
   const [challengeMoments, setChallengeMoments] = useState([])
-  const [challengeSheetOpen, setChallengeSheetOpen] = useState(false)
+  const [challengeEditorOpen, setChallengeEditorOpen] = useState(false)
+  // Universal Challenge Engine (NEW, ADDITIVE flow -- see
+  // UniversalChallengeEditor.jsx): completely separate entry point/button
+  // from the legacy `challengeMoments`/`challengeEditorOpen` pair above.
+  // `universalChallengeDraft` is null until the creator has authored at
+  // least a participant/round, shaped { participants[], events[] } exactly
+  // matching lib/universalChallengeStore.js's create contract; it is only
+  // sent to the backend AFTER the post itself exists (see doUpload), same
+  // "attach after upload" sequencing the legacy engine already uses.
+  const [universalChallengeDraft, setUniversalChallengeDraft] = useState(null)
+  const [universalChallengeEditorOpen, setUniversalChallengeEditorOpen] = useState(false)
   const [previewA, setPreviewA] = useState(null)
   const [previewB, setPreviewB] = useState(null)
   const [versusIdx, setVersusIdx] = useState(0) // slide activo en la vista previa carrusel (versus)
@@ -131,7 +141,8 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
     setStep('mode'); setMode(null); setLayout('horizontal'); setTarget(null); setUsers([])
     setFile(null); setFileB(null); setDescription(''); setError(null); setPublishing(false)
     setSelected('solo'); setVersusIdx(0); setMusic(null); setMusicOpen(false); setAiEditorSlot(null); setAiOverride(null); setAllowChallenge(true)
-    setFacingMode('environment'); setRecording(false); setCameraError(null); setChallengeMoments([]); setChallengeSheetOpen(false)
+    setFacingMode('environment'); setRecording(false); setCameraError(null); setChallengeMoments([]); setChallengeEditorOpen(false)
+    setUniversalChallengeDraft(null); setUniversalChallengeEditorOpen(false)
   }
 
   // Libera la cámara (importantísimo: si no se paran los tracks, el
@@ -425,6 +436,30 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ moments: challengeMoments }),
+          }).catch(() => {})
+        }
+      }
+      // Universal Challenge Engine: same "attach after upload, best-effort"
+      // sequencing as the legacy `challengeMoments` block above, using the
+      // SAME newPostId derivation (open_-prefixed id for 'solo' posts,
+      // matching what lib/challengeEngineStore.js's getPostOwnerId already
+      // knows how to resolve, since /api/universal-challenges reuses that
+      // exact helper for its author-only check).
+      if (universalChallengeDraft?.participants?.length > 0 && universalChallengeDraft?.events?.length > 0) {
+        const newUniversalPostId = mode === 'solo'
+          ? (data?.challenge?.id ? `open_${data.challenge.id}` : null)
+          : (data?.post?.id || null)
+        if (newUniversalPostId) {
+          fetch(`/api/universal-challenges/posts/${encodeURIComponent(newUniversalPostId)}`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              videoId: newUniversalPostId,
+              participants: universalChallengeDraft.participants,
+              teams: universalChallengeDraft.teams,
+              events: universalChallengeDraft.events,
+            }),
           }).catch(() => {})
         }
       }
@@ -796,6 +831,23 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
                             <Sparkles size={17} strokeWidth={1.9} />
                           </button>
                         )}
+                        {/* Reto interactivo (petición del usuario: "accesible
+                            desde el mismo sitio que Editar con IA, justo al
+                            lado"): solo tiene sentido en el lado A (idx===0,
+                            los momentos se miden contra ese archivo) y con
+                            vídeo (necesita duración para la línea de tiempo). */}
+                        {idx === 0 && !isImg && (
+                          <button
+                            onClick={() => setChallengeEditorOpen(true)}
+                            aria-label="Interactive challenge"
+                            className="relative w-9 h-9 rounded-full flex items-center justify-center bg-black/35 backdrop-blur hover:bg-black/55 active:scale-90 transition text-white"
+                          >
+                            <Vote size={17} strokeWidth={1.9} />
+                            {challengeMoments.length > 0 && (
+                              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 text-[9px] font-bold flex items-center justify-center text-black">{challengeMoments.length}</span>
+                            )}
+                          </button>
+                        )}
                         <button
                           onClick={pick}
                           aria-label="Change media"
@@ -914,6 +966,38 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
                               className="w-9 h-9 rounded-full flex items-center justify-center bg-black/35 backdrop-blur hover:bg-black/55 active:scale-90 transition text-white"
                             >
                               <Sparkles size={17} strokeWidth={1.9} />
+                            </button>
+                          )}
+                          {mode !== 'challenge' && fileKind(file) === 'video' && (
+                            <button
+                              onClick={() => setChallengeEditorOpen(true)}
+                              aria-label="Interactive challenge"
+                              className="relative w-9 h-9 rounded-full flex items-center justify-center bg-black/35 backdrop-blur hover:bg-black/55 active:scale-90 transition text-white"
+                            >
+                              <Vote size={17} strokeWidth={1.9} />
+                              {challengeMoments.length > 0 && (
+                                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 text-[9px] font-bold flex items-center justify-center text-black">{challengeMoments.length}</span>
+                              )}
+                            </button>
+                          )}
+                          {/* Universal Challenge Engine — NEW, clearly SEPARATE entry
+                              point (different icon, different button, opens
+                              UniversalChallengeEditor) sitting next to, never
+                              replacing, the legacy "Interactive challenge" button
+                              above. Only offered for mode === 'solo' (one
+                              video/one post), matching this engine's "one
+                              Challenge per video" model. */}
+                          {mode === 'solo' && fileKind(file) === 'video' && (
+                            <button
+                              onClick={() => setUniversalChallengeEditorOpen(true)}
+                              aria-label="Universal challenge (multi-round)"
+                              data-testid="open-universal-challenge-button"
+                              className="relative w-9 h-9 rounded-full flex items-center justify-center bg-black/35 backdrop-blur hover:bg-black/55 active:scale-90 transition text-white"
+                            >
+                              <Trophy size={17} strokeWidth={1.9} />
+                              {universalChallengeDraft?.events?.length > 0 && (
+                                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-500 text-[9px] font-bold flex items-center justify-center text-black">{universalChallengeDraft.events.length}</span>
+                              )}
                             </button>
                           )}
                           <button
@@ -1086,22 +1170,6 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
                                 <Music size={17} strokeWidth={2} /> Add music
                               </button>
                             )}
-                            {/* Reto interactivo: UN único botón (petición del
-                                usuario, mismo patrón que "Editar con IA"/"Add
-                                music") abre el Challenge Builder — solo tiene
-                                sentido con un vídeo (los momentos se anclan a
-                                su duración) y en publicaciones que se crean
-                                de inmediato (no en 'challenge', que espera a
-                                que el retado acepte). */}
-                            {mode !== 'challenge' && fileKind(file) === 'video' && (
-                              <button
-                                onClick={() => setChallengeSheetOpen(true)}
-                                className="w-full flex items-center justify-center gap-2 rounded-2xl bg-black/45 backdrop-blur-xl border border-white/10 px-4 py-3 text-[14px] font-semibold text-white hover:bg-black/60 active:scale-[0.99] transition"
-                              >
-                                <Vote size={17} strokeWidth={2} />
-                                {challengeMoments.length > 0 ? `Reto interactivo (${challengeMoments.length})` : 'Reto interactivo'}
-                              </button>
-                            )}
                             <button
                               onClick={() => (mode === 'challenge' ? goToTarget() : doUpload())}
                               disabled={publishing || (isAB ? (!file || !fileB) : !file)}
@@ -1125,12 +1193,19 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
         )}
       </div>
       <MusicPicker open={musicOpen} onClose={() => setMusicOpen(false)} onSelect={setMusic} current={music} />
-      <ChallengeBuilderSheet
-        open={challengeSheetOpen}
-        onClose={() => setChallengeSheetOpen(false)}
+      <ChallengeTimelineEditor
+        open={challengeEditorOpen}
+        onClose={() => setChallengeEditorOpen(false)}
         videoFile={file}
         moments={challengeMoments}
         onSave={setChallengeMoments}
+      />
+      <UniversalChallengeEditor
+        open={universalChallengeEditorOpen}
+        onClose={() => setUniversalChallengeEditorOpen(false)}
+        videoFile={file}
+        draft={universalChallengeDraft}
+        onSave={setUniversalChallengeDraft}
       />
     </div>
   )

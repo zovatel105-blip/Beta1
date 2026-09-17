@@ -15,6 +15,8 @@ import AuthModal from './AuthModal'
 import Avatar, { isGeneratedAvatar } from './Avatar'
 import QuickCommentInput from './QuickCommentInput'
 import CommentOrViewsBar from './CommentOrViewsBar'
+import ChallengeMomentOverlay from './ChallengeMomentOverlay'
+import UniversalChallengeMomentOverlay from './UniversalChallengeMomentOverlay'
 import { useAuth } from '@/contexts/AuthContext'
 import { pickQuality, reportStall } from '@/lib/networkQuality'
 import { emitCommentCountChange } from '@/lib/commentCountBus'
@@ -725,6 +727,17 @@ function CarouselSlide({ post, isActive, isNear, isAdjacent, warm = false, muted
             : { paddingTop: 'max(1rem, env(safe-area-inset-top))' }
         }
       >
+        {/* Motor de Challenges Dinámico (Fase C): pastillas de votación EN
+            FLUJO NORMAL, justo encima de la fila de avatar (petición del
+            usuario) — el bloque crece hacia arriba, sin overlay flotante.
+            Los momentos se midieron contra el lado A (archivo usado en
+            ChallengeBuilderSheet al publicar). */}
+        <ChallengeMomentOverlay postId={post.id} videoRef={videoARef} isActive={isActive} />
+        {/* Universal Challenge Engine (stage 2, ADDITIVE): renders only when
+            this post has a document in the NEW `universalChallenges`
+            collection -- naturally mutually exclusive with the legacy
+            overlay above (a post only ever has one or the other). */}
+        <UniversalChallengeMomentOverlay postId={post.id} videoRef={videoARef} isActive={isActive} />
         <div className="flex items-center gap-2.5 w-fit max-w-[calc(100%-4rem)] pointer-events-auto">
           {post.isChallenge ? (
             <>
