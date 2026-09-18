@@ -6,7 +6,7 @@ import ChallengeMomentPills from './ChallengeMomentPills'
 import {
   MomentRuleBadge, MeasurementMomentView, ObjectiveMomentView, InputValidationMomentView, TwoSideChoiceMomentView,
   RankingMomentView, TeamVsTeamMomentView, TeamAvatarStack, ProgressiveStageMomentView, ProgressiveStandingsView, OneVsAllTallyView,
-  WinnerRevealBanner, WinnerSettledMarker,
+  WinnerRevealBanner, WinnerSettledMarker, MyPredictionOutcomeMarker,
 } from './UniversalChallengeMomentViews'
 import { ruleFamily } from '@/lib/universalChallengeRuleMeta'
 import { RULES } from '@/lib/challengeRuleEngine'
@@ -229,6 +229,36 @@ function computeChallengeWinnerSummary(challenge) {
   return { resolved: true, kind: 'participant', tie: winners.length > 1, winners }
 }
 
+// ---------------------------------------------------------------------------
+// MY PREDICTION OUTCOME (additive, Team vs Team only) — a PERSONAL,
+// per-viewer reader, distinct from `computeChallengeWinnerSummary` above
+// (which reports the SAME real result to every viewer). The customer's
+// explicit requirement: a Team vs Team viewer's own prediction is compared
+// against the real, creator-confirmed result (`event.result.winners[0]`,
+// fixed by `ruleConfig.correctOptionId` under the forced 'reveal' outcome
+// mode — see lib/challengeRuleEngine.js `prediction()` /
+// lib/universalChallengeStore.js createUniversalChallenge) for THEIR OWN
+// correct/incorrect status — other viewers' predictions are completely
+// irrelevant to it. Purely a READ: never re-derives a winner, just finds
+// this one user's own cast `optionId` (from `event.inputs`, already
+// rehydrated for every viewer — same data the live-vote pill UI already
+// reads pre-resolution) and compares it to the already-resolved result.
+// Returns null when there's nothing personal to show yet (not logged in,
+// no resolved TEAM_VS_TEAM event, or this viewer never predicted on it).
+function computeMyTeamPredictionOutcome(challenge, userId) {
+  if (!userId) return null
+  const events = challenge?.events || []
+  const teamEvent = events.find((e) => e.participantStructure === PARTICIPANT_STRUCTURES.TEAM_VS_TEAM && e.state === 'resolved')
+  if (!teamEvent) return null
+  const myOptionId = (teamEvent.inputs || []).find((i) => i.userId === userId)?.optionId ?? null
+  if (myOptionId == null) return null
+  const winningTeamId = teamEvent.result?.winners?.[0] || null
+  if (!winningTeamId) return null
+  const teams = challenge?.teams || []
+  const predictedTeam = teams.find((t) => t.id === myOptionId) || null
+  return { correct: myOptionId === winningTeamId, predictedLabel: predictedTeam?.label || 'your pick' }
+}
+
 export default function UniversalChallengeMomentOverlay({ postId, videoRef, getVideoEl, isActive }) {
   const { user } = useAuth()
   const [challenge, setChallenge] = useState(fetchedCache.get(postId) || null)
@@ -264,6 +294,10 @@ export default function UniversalChallengeMomentOverlay({ postId, videoRef, getV
   // (which depends on it) always closes over the latest value.
   const winnerSummary = computeChallengeWinnerSummary(challenge)
   const hasWinnerReveal = !!winnerSummary?.resolved && (winnerSummary.winners?.length > 0)
+  // Personal, per-viewer Team vs Team prediction correctness (additive) —
+  // see computeMyTeamPredictionOutcome's docstring above. Shown alongside
+  // (never instead of) the shared Universal Winner Reveal below.
+  const myPredictionOutcome = computeMyTeamPredictionOutcome(challenge, user?.id)
 
   // Reset the sticky "settled" flag whenever this instance starts looking at
   // a different Challenge (new postId reusing this component instance).
@@ -424,56 +458,64 @@ export default function UniversalChallengeMomentOverlay({ postId, videoRef, getV
   badge = <MomentRuleBadge rule={event.rule} participantStructure={event.participantStructure} className="mb-1.5" />
 
   if (isTeamVsTeam) {
-    // Team vs Team is ALWAYS community-vote-only (the customer's final,
-    // unambiguous decision) — the two teams THEMSELVES are the votable
+    // Team vs Team viewer votes are PREDICTIONS about a real-world
+    // outcome, never the thing that decides it (CUSTOMER'S FINAL
+    // DECISION, superseding an earlier "community vote decides the
+    // winner" design) — the two teams THEMSELVES are the predictable
     // options (PREDICTION rule, `event.options` derived server-side from
     // the two teams — see universalChallengeStore.js
-    // createUniversalChallenge). No scores are entered by anyone, at
-    // creation or resolution time — the winner comes purely from cast
-    // votes tallied by the Rule Engine's own `resolveTie()`-guaranteed
-    // single-winner logic (challengeRuleEngine.js `prediction()`,
-    // `ruleConfig.outcomeMode: 'vote_tally'`). There is no measurement-rule
-    // rendering path left for this structure at all — `event.rule` is
-    // guaranteed to be PREDICTION here (enforced server-side, see
+    // createUniversalChallenge). No scores are entered by anyone — the
+    // real winner is whatever the creator confirmed actually happened
+    // (`ruleConfig.correctOptionId`, forced 'reveal' outcome mode, see
+    // challengeRuleEngine.js `prediction()`), never derived from the
+    // tally. There is no measurement-rule rendering path left for this
+    // structure at all — `event.rule` is guaranteed to be PREDICTION here
+    // (enforced server-side, see
     // lib/universalChallengeParticipantStructures.js STRUCTURE_RULE).
-    // WHILE the round is still open, this renders an actual votable choice
-    // (ChallengeMomentPills, same shared vote-pill component every other
-    // vote-shaped rule uses) framed as team options with avatar clusters +
-    // names — NOT a read-only aggregated display. Once resolved, it
-    // collapses into the compact team-only strip (`TeamVsTeamMomentView`),
-    // with 🏆 on the vote-determined winning team — still no individual
-    // participant fields, per the existing team-only requirement.
+    //
+    // NO DEADLINE (customer's explicit requirement) — the interactive
+    // pick UI stays available for as long as THIS viewer hasn't predicted
+    // yet, even once the round has already resolved/revealed (video
+    // playback position/looping never locks it — see
+    // universalChallengeStore.js castUniversalChallengeInput, which
+    // accepts a Team vs Team prediction unconditionally). Once resolved,
+    // the compact team-only strip (`TeamVsTeamMomentView`) additionally
+    // shows with 🏆 on the real winning team — still no individual
+    // participant fields, per the existing team-only requirement — and,
+    // if this viewer HAS already predicted, that personal outcome shows
+    // via `MyPredictionOutcomeMarker` alongside the Universal Winner
+    // Reveal (see computeMyTeamPredictionOutcome above) instead of here.
+    const myVote = user ? event.inputs?.find((i) => i.userId === user.id)?.optionId ?? null : null
+    const hasVoted = myVote != null
+    const tally = result?.details?.tally || {}
+    const totalVotes = result?.details?.totalVotes ?? (event.inputs || []).length
+    const teamOptions = (event.teamIds || []).map((tid) => {
+      const t = (challenge?.teams || []).find((tm) => tm.id === tid)
+      if (!t) return null
+      return { id: t.id, label: t.label, members: (t.participantIds || []).map((pid) => participantsById.get(pid)).filter(Boolean) }
+    }).filter(Boolean)
+    const pillLabel = (opt) => (hasVoted && totalVotes > 0
+      ? `${opt.label} · ${Math.round(((tally[opt.id] || 0) / Math.max(totalVotes, 1)) * 100)}%`
+      : opt.label)
+    const predictPills = (question) => (
+      <ChallengeMomentPills
+        className="max-w-[calc(100%-1rem)] pointer-events-auto"
+        question={question}
+        options={teamOptions}
+        isSelected={(opt) => myVote === opt.id}
+        getLabel={pillLabel}
+        renderOptionIcon={(opt) => <TeamAvatarStack participants={opt.members} />}
+        onOptionClick={(opt) => castInput(event.id, { optionId: opt.id })}
+        footer={(
+          <>
+            {hasVoted && totalVotes > 0 && <p className="mt-1 text-[10.5px] text-white/60">{totalVotes} prediction{totalVotes === 1 ? '' : 's'}</p>}
+            {authHint && <p className="mt-1 text-[10.5px] text-amber-300">Log in to predict</p>}
+          </>
+        )}
+      />
+    )
     if (!resolved) {
-      const myVote = user ? event.inputs?.find((i) => i.userId === user.id)?.optionId ?? null : null
-      const hasVoted = myVote != null
-      const tally = result?.details?.tally || {}
-      const totalVotes = result?.details?.totalVotes ?? (event.inputs || []).length
-      const teamOptions = (event.teamIds || []).map((tid) => {
-        const t = (challenge?.teams || []).find((tm) => tm.id === tid)
-        if (!t) return null
-        return { id: t.id, label: t.label, members: (t.participantIds || []).map((pid) => participantsById.get(pid)).filter(Boolean) }
-      }).filter(Boolean)
-      const pillLabel = (opt) => (hasVoted && totalVotes > 0
-        ? `${opt.label} · ${Math.round(((tally[opt.id] || 0) / Math.max(totalVotes, 1)) * 100)}%`
-        : opt.label)
-      body = (
-        <ChallengeMomentPills
-          className="max-w-[calc(100%-1rem)] pointer-events-auto"
-          question={event.question || 'Vote for a team…'}
-          options={teamOptions}
-          isSelected={(opt) => myVote === opt.id}
-          getLabel={pillLabel}
-          renderOptionIcon={(opt) => <TeamAvatarStack participants={opt.members} />}
-          onOptionClick={closed ? undefined : (opt) => castInput(event.id, { optionId: opt.id })}
-          footer={(
-            <>
-              {hasVoted && totalVotes > 0 && <p className="mt-1 text-[10.5px] text-white/60">{totalVotes} vote{totalVotes === 1 ? '' : 's'}</p>}
-              {closed && !resolved && <p className="mt-1 text-[10.5px] text-amber-300">This round just closed.</p>}
-              {authHint && <p className="mt-1 text-[10.5px] text-amber-300">Log in to vote</p>}
-            </>
-          )}
-        />
-      )
+      body = predictPills(event.question || 'Who do you think will win?')
     } else {
       const standings = computeTeamVoteStandings(event, challenge?.teams || [])
       body = (
@@ -483,9 +525,12 @@ export default function UniversalChallengeMomentOverlay({ postId, videoRef, getV
           standings={standings}
           participantsById={participantsById}
           resolved={resolved}
-          unitLabel=" votes"
+          unitLabel=" predictions"
         />
       )
+      if (!hasVoted) {
+        summaryBody = <div className="mt-1.5">{predictPills('Still want to guess? Predict now — it\'s compared to the real result.')}</div>
+      }
     }
   } else if (isProgressive) {
     // PROGRESSIVE_CHALLENGE (additive, Phase 2) — rule SURVIVAL with
@@ -720,6 +765,13 @@ export default function UniversalChallengeMomentOverlay({ postId, videoRef, getV
           className={body ? 'mt-1.5' : ''}
           winners={winnerSummary?.winners || []}
           tie={!!winnerSummary?.tie}
+        />
+      )}
+      {(videoPhase === 'reveal' || videoPhase === 'settled') && myPredictionOutcome && (
+        <MyPredictionOutcomeMarker
+          className="mt-1.5"
+          correct={myPredictionOutcome.correct}
+          predictedLabel={myPredictionOutcome.predictedLabel}
         />
       )}
     </div>

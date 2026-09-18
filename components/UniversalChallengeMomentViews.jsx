@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Check, Flag, Lock, Trophy } from 'lucide-react'
+import { Check, Flag, Lock, Trophy, X } from 'lucide-react'
 import { RULE_META } from '@/lib/universalChallengeRuleMeta'
 import { STRUCTURE_META } from '@/lib/universalChallengeParticipantStructures'
 
@@ -670,6 +670,35 @@ export function WinnerSettledMarker({ winners = [], tie = false, className = '' 
   )
 }
 
+// ---------------------------------------------------------------------------
+// MY PREDICTION OUTCOME (additive, Team vs Team only) — a PERSONAL,
+// per-viewer correct/incorrect indicator, distinct from the shared
+// WinnerRevealBanner/WinnerSettledMarker above (which show the SAME real
+// result to every viewer). This marker instead answers "was THIS viewer's
+// own prediction right" — other viewers' votes/predictions are irrelevant
+// to it, per the customer's explicit requirement that a Team vs Team
+// prediction is compared against the real result personally, never against
+// the crowd. Reuses the exact same compact-pill styling/sizing as
+// `WinnerSettledMarker` for visual consistency, just swapping the trophy
+// for a check/cross and the color for green/rose. Renders nothing if this
+// viewer never cast a prediction on this event (`outcome` null) — there is
+// nothing personal to show them yet.
+// ---------------------------------------------------------------------------
+export function MyPredictionOutcomeMarker({ correct = null, predictedLabel = '', className = '' }) {
+  if (correct == null) return null
+  return (
+    <div
+      className={`inline-flex items-center gap-1.5 rounded-full backdrop-blur-md border px-2.5 py-1 max-w-[calc(100%-1rem)] ${correct ? 'bg-emerald-500/25 border-emerald-400/40' : 'bg-rose-500/25 border-rose-400/40'} ${className}`}
+      data-testid="my-prediction-outcome"
+    >
+      {correct ? <Check size={11} className="text-emerald-300 shrink-0" /> : <X size={11} className="text-rose-300 shrink-0" />}
+      <span className="text-white text-[11px] font-bold truncate">
+        {correct ? `Your prediction (${predictedLabel}) was right!` : `Your prediction (${predictedLabel}) was wrong`}
+      </span>
+    </div>
+  )
+}
+
 export default {
   MomentRuleBadge,
   MeasurementMomentView,
@@ -684,4 +713,5 @@ export default {
   OneVsAllTallyView,
   WinnerRevealBanner,
   WinnerSettledMarker,
+  MyPredictionOutcomeMarker,
 }

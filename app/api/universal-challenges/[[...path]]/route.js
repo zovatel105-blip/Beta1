@@ -111,6 +111,11 @@ async function handleCreate(postId, request) {
       participants: body.participants,
       events: body.events,
       teams: body.teams,
+      // Entity System (Phase 1, additive) — the new canonical shape. Both
+      // are optional: an unmodified caller sending only participants/teams
+      // still works unchanged (see lib/universalChallengeStore.js).
+      entities: body.entities,
+      groups: body.groups,
     })
     return NextResponse.json({ ok: true, challenge })
   } catch (err) {

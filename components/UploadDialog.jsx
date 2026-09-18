@@ -458,6 +458,13 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
               videoId: newUniversalPostId,
               participants: universalChallengeDraft.participants,
               teams: universalChallengeDraft.teams,
+              // Entity System (Phase 1, additive) - the editor now also
+              // produces entities/groups alongside participants/teams; the
+              // server prefers these when present (see
+              // lib/universalChallengeStore.js), falling back to
+              // participants/teams unchanged for any older draft shape.
+              entities: universalChallengeDraft.entities,
+              groups: universalChallengeDraft.groups,
               events: universalChallengeDraft.events,
             }),
           }).catch(() => {})

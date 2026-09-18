@@ -16,6 +16,7 @@ import { resolveActiveEvent, sortEventsByStart } from '@/lib/universalChallengeT
 import {
   PARTICIPANT_STRUCTURES, STRUCTURE_META, structureOptionSource, structureRuleOf, structureAllowedRules, structureDefaultRuleConfig,
 } from '@/lib/universalChallengeParticipantStructures'
+import { ENTITY_TYPES, ENTITY_TYPE_LABELS, ENTITY_TYPE_ORDER } from '@/lib/universalChallengeEntityTypes'
 
 /**
  * UniversalChallengeEditor — authoring screen for the NEW "Universal
@@ -216,13 +217,18 @@ export default function UniversalChallengeEditor({ open, onClose, videoFile, dra
 
   const [pLabel, setPLabel] = useState('')
   const [pAvatar, setPAvatar] = useState(null)
+  const [pType, setPType] = useState(ENTITY_TYPES.PERSON)
   const [tLabel, setTLabel] = useState('')
 
   useEffect(() => { durationRef.current = duration }, [duration])
 
   useEffect(() => {
     if (!open) return
-    setParticipants(draft?.participants ? draft.participants.map((p) => ({ ...p })) : [])
+    // Entity System (Phase 1) — `type` defaults to PERSON for any
+    // participant authored before this phase (or by a caller that never
+    // sets it), so an existing draft/challenge loads byte-identical to
+    // before.
+    setParticipants(draft?.participants ? draft.participants.map((p) => ({ ...p, type: p.type || ENTITY_TYPES.PERSON })) : [])
     setTeams(draft?.teams ? draft.teams.map((t) => ({ ...t, participantIds: [...(t.participantIds || [])] })) : [])
     setEvents(draft?.events ? draft.events.map((e) => ({ ...e })) : [])
     setView('timeline')
@@ -233,6 +239,7 @@ export default function UniversalChallengeEditor({ open, onClose, videoFile, dra
     setFinishError(null)
     setPLabel('')
     setPAvatar(null)
+    setPType(ENTITY_TYPES.PERSON)
     setTLabel('')
     setTournamentDraft(null)
     setOneVsAllDraft(null)
@@ -392,7 +399,13 @@ export default function UniversalChallengeEditor({ open, onClose, videoFile, dra
   const addParticipant = () => {
     const label = pLabel.trim()
     if (!label) return
-    setParticipants((list) => [...list, { id: genLocalId('participant'), label, avatarUrl: pAvatar || null }])
+    // Entity System (Phase 1) — `type` defaults to PERSON (`pType`'s own
+    // initial value), so a creator who never opens the type picker gets
+    // exactly what "add participant" always produced. `pType` is
+    // deliberately NOT reset after adding — adding a batch of the same
+    // kind of entity (e.g. five OBJECTs) shouldn't require re-picking the
+    // type every time.
+    setParticipants((list) => [...list, { id: genLocalId('participant'), label, avatarUrl: pAvatar || null, type: pType }])
     setPLabel('')
     setPAvatar(null)
   }
@@ -504,16 +517,18 @@ export default function UniversalChallengeEditor({ open, onClose, videoFile, dra
         return
       }
       const range = nextDefaultRange()
-      // Team vs Team is ALWAYS community-vote-only (the customer's final,
-      // unambiguous decision — supersedes the earlier "creator chooses
-      // aggregated measurement vs community vote" design). `rule` is
-      // always RULES.PREDICTION (STRUCTURE_RULE.TEAM_VS_TEAM is locked to
-      // it — see lib/universalChallengeParticipantStructures.js), so
-      // there is no UI path left to pick a measurement rule for this
-      // structure at all. interaction/outcomeMode are seeded to their
-      // vote-shaped values directly — there used to be a "Decide the
-      // winner by" toggle that set these; it's gone, so this is the only
-      // place they're set now.
+      // `rule` is always RULES.PREDICTION (STRUCTURE_RULE.TEAM_VS_TEAM is
+      // locked to it — see lib/universalChallengeParticipantStructures.js),
+      // so there is no UI path left to pick a measurement rule for this
+      // structure at all. interaction is seeded to its predict-shaped
+      // value directly. `ruleConfig.outcomeMode` seeds to 'reveal' — a
+      // Team vs Team viewer vote is a PREDICTION about a real-world
+      // outcome, never the thing that decides it (CUSTOMER'S FINAL
+      // DECISION, superseding the earlier 'vote_tally' "community vote
+      // decides the winner" design). `correctOptionId` (which of the two
+      // teams actually won) starts unset — required below before this
+      // round can be saved, distinct in framing from any numeric/points/
+      // time entry, since Team vs Team never accepts one.
       const rule = structureRuleOf(structureKey)
       setEventDraft({
         id: null,
@@ -523,7 +538,7 @@ export default function UniversalChallengeEditor({ open, onClose, videoFile, dra
         participantStructure: structureKey,
         interaction: 'predict',
         measurementSource: 'creator_input',
-        ruleConfig: { ...defaultRuleConfig(rule), outcomeMode: 'vote_tally' },
+        ruleConfig: { ...defaultRuleConfig(rule), outcomeMode: 'reveal', correctOptionId: null },
         participantIds: [],
         autoAdvanceFrom: [],
         teamIds: [],
@@ -815,6 +830,14 @@ export default function UniversalChallengeEditor({ open, onClose, videoFile, dra
         setEventDraftError('Pick two different teams for this round.')
         return
       }
+      // Required, not optional (unlike Majority Choice's reveal): the
+      // customer's explicit decision is that Team vs Team ALWAYS resolves
+      // to a real, creator-confirmed winner — never a live vote tally —
+      // so this can never be left blank.
+      if (!d.ruleConfig?.correctOptionId || !d.teamIds.includes(d.ruleConfig.correctOptionId)) {
+        setEventDraftError('Confirm which team actually won before saving this round.')
+        return
+      }
     } else if (!isCustomOptionStructure && d.autoAdvanceFrom.length === 0 && d.participantIds.length === 0) {
       setEventDraftError('Pick at least one participant for this round (or chain it from a previous round).')
       return
@@ -929,7 +952,22 @@ export default function UniversalChallengeEditor({ open, onClose, videoFile, dra
   const finish = () => {
     const chainErr = validateChainOrder()
     if (chainErr) { setFinishError(chainErr); return }
-    onSave({ participants, teams, events: sortEventsByStart(events) })
+    // Entity System (Phase 1) — project the same authored data into the
+    // new entities/groups shape alongside the unchanged participants/teams
+    // (see lib/universalChallengeStore.js for how the server reconciles
+    // both). A "team" is just a group; there is no separate concept here.
+    const entities = participants.map((p) => ({
+      id: p.id,
+      type: p.type || ENTITY_TYPES.PERSON,
+      name: p.label,
+      displayName: p.label,
+      avatarUrl: p.avatarUrl || null,
+      groupId: null,
+      metadata: {},
+      initialState: 'ACTIVE',
+    }))
+    const groups = teams.map((t) => ({ id: t.id, label: t.label, entityIds: [...(t.participantIds || [])] }))
+    onSave({ participants, teams, entities, groups, events: sortEventsByStart(events) })
     onClose()
   }
 
@@ -977,8 +1015,8 @@ export default function UniversalChallengeEditor({ open, onClose, videoFile, dra
         </button>
         <h2 className="text-[15px] font-bold">
           {view === 'timeline' ? 'Universal Challenge'
-            : view === 'participants' ? 'Participants'
-            : view === 'teams' ? 'Teams'
+            : view === 'participants' ? 'Entities'
+            : view === 'teams' ? 'Groups'
             : view === 'rule-picker' ? 'Choose a structure or rule'
             : view === 'tournament-builder' ? 'Sequential Tournament'
             : view === 'one-vs-all-builder' ? 'One vs All'
@@ -1136,14 +1174,14 @@ export default function UniversalChallengeEditor({ open, onClose, videoFile, dra
                 className="flex items-center gap-1.5 text-[12px] font-semibold text-zinc-300 hover:text-white px-2 py-1 rounded-full bg-white/10"
                 data-testid="open-participants-manager"
               >
-                <Users size={13} /> {participants.length} participant{participants.length === 1 ? '' : 's'}
+                <Users size={13} /> {participants.length} {participants.length === 1 ? 'entity' : 'entities'}
               </button>
               <button
                 onClick={() => setView('teams')}
                 className="flex items-center gap-1.5 text-[12px] font-semibold text-zinc-300 hover:text-white px-2 py-1 rounded-full bg-white/10"
                 data-testid="open-teams-manager"
               >
-                <Users size={13} /> {teams.length} team{teams.length === 1 ? '' : 's'}
+                <Users size={13} /> {teams.length} group{teams.length === 1 ? '' : 's'}
               </button>
             </div>
             <span className="text-[11.5px] text-zinc-400 font-mono tabular-nums">{fmtTime(currentTime)} / {fmtTime(duration)}</span>
@@ -1232,7 +1270,7 @@ export default function UniversalChallengeEditor({ open, onClose, videoFile, dra
 
       {view === 'participants' && (
         <div className="flex-1 overflow-y-auto px-4 pb-6 space-y-4 animate-fadeIn">
-          <p className="text-[12.5px] text-zinc-500">Add everyone taking part in this Challenge — a label and an optional photo.</p>
+          <p className="text-[12.5px] text-zinc-500">Add everyone — or everything — taking part in this Challenge: people, teams, objects, vehicles, or anything else. Pick a type, add a name and an optional photo.</p>
 
           <div className="space-y-2" data-testid="participants-list">
             {participants.map((p) => (
@@ -1241,6 +1279,16 @@ export default function UniversalChallengeEditor({ open, onClose, videoFile, dra
                   {p.avatarUrl ? <img src={p.avatarUrl} alt="" className="w-full h-full object-cover" /> : (p.label || '?')[0]?.toUpperCase()}
                 </div>
                 <span className="flex-1 min-w-0 truncate text-[13.5px] font-semibold text-white">{p.label}</span>
+                {/* Entity System (Phase 1) — a small type badge, shown ONLY for
+                    a non-PERSON entity, so a PERSON-only Challenge (every
+                    Challenge authored before this phase, and every creator
+                    who never touches the type picker) renders this list
+                    exactly as before — no badge, no layout change. */}
+                {p.type && p.type !== ENTITY_TYPES.PERSON && (
+                  <span data-testid={`entity-type-badge-${p.id}`} className="shrink-0 px-2 py-0.5 rounded-full bg-white/10 text-[10px] font-semibold text-zinc-300 uppercase tracking-wide">
+                    {ENTITY_TYPE_LABELS[p.type] || p.type}
+                  </span>
+                )}
                 <button onClick={() => removeParticipant(p.id)} aria-label={`Remove ${p.label}`} className="w-8 h-8 shrink-0 rounded-full flex items-center justify-center bg-white/10 hover:bg-rose-500/40 active:scale-90 transition">
                   <Trash2 size={13} />
                 </button>
@@ -1250,6 +1298,17 @@ export default function UniversalChallengeEditor({ open, onClose, videoFile, dra
           </div>
 
           <div className="rounded-xl bg-white/[0.06] border border-white/10 p-3 space-y-2.5">
+            {/* Entity type picker (additive, Phase 1) — defaults to PERSON
+                (`pType`'s initial state), so a creator adding people never
+                needs to touch this row at all; it just sits there for
+                anyone who wants a different kind of entity. */}
+            <div className="flex flex-wrap gap-1.5" data-testid="entity-type-picker">
+              {ENTITY_TYPE_ORDER.map((key) => (
+                <Chip key={key} selected={pType === key} onClick={() => setPType(key)} testId={`entity-type-${key}`}>
+                  {ENTITY_TYPE_LABELS[key]}
+                </Chip>
+              ))}
+            </div>
             <div className="flex items-center gap-2.5">
               <label className="w-11 h-11 rounded-full overflow-hidden bg-white/10 shrink-0 flex items-center justify-center cursor-pointer border border-dashed border-white/20">
                 {pAvatar ? <img src={pAvatar} alt="" className="w-full h-full object-cover" /> : <UserPlus size={16} className="text-zinc-400" />}
@@ -1258,7 +1317,7 @@ export default function UniversalChallengeEditor({ open, onClose, videoFile, dra
               <input
                 type="text"
                 value={pLabel}
-                placeholder="Participant name"
+                placeholder="Name"
                 onChange={(e) => setPLabel(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') addParticipant() }}
                 data-testid="participant-label-input"
@@ -1276,7 +1335,7 @@ export default function UniversalChallengeEditor({ open, onClose, videoFile, dra
 
       {view === 'teams' && (
         <div className="flex-1 overflow-y-auto px-4 pb-6 space-y-4 animate-fadeIn">
-          <p className="text-[12.5px] text-zinc-500">Group participants into teams for Team vs Team rounds.</p>
+          <p className="text-[12.5px] text-zinc-500">Group entities together — for Team vs Team rounds, or any other structure that pits groups of entities against each other.</p>
 
           <div className="space-y-3" data-testid="teams-list">
             {teams.map((t) => (
@@ -1701,14 +1760,13 @@ export default function UniversalChallengeEditor({ open, onClose, videoFile, dra
         const isVoteShaped = !isParticipantShaped
         const chained = d.autoAdvanceFrom.length > 0
         const isTeamStructure = d.participantStructure === PARTICIPANT_STRUCTURES.TEAM_VS_TEAM
-        // Team vs Team is ALWAYS community-vote-only — the two teams
-        // themselves are the votable options (PREDICTION rule,
-        // `ruleConfig.outcomeMode: 'vote_tally'`), reusing PREDICTION's own
-        // tally + tie-break logic. Kept as its own flag (rather than just
-        // aliasing isTeamStructure) purely for readability at each call
-        // site below — for TEAM_VS_TEAM the two are always equal now,
-        // since STRUCTURE_RULE.TEAM_VS_TEAM is locked to PREDICTION.
-        const isTeamVoteMode = isTeamStructure && d.rule === RULES.PREDICTION
+        // Team vs Team's two teams are the predictable options (PREDICTION
+        // rule, `ruleConfig.outcomeMode: 'reveal'` — a viewer's vote is a
+        // guess, never the determinant of the winner; see
+        // universalChallengeStore.js createUniversalChallenge). No
+        // tie-break UI is shown for it (see `usesTieBreak` below) since a
+        // required, creator-confirmed `correctOptionId` always resolves to
+        // exactly one team — there is nothing left to break a tie between.
         const allowedRules = structureAllowedRules(d.participantStructure)
         return (
           <div className="flex-1 overflow-y-auto px-4 pb-6 space-y-4 animate-fadeIn">
@@ -1814,20 +1872,33 @@ export default function UniversalChallengeEditor({ open, onClose, videoFile, dra
                     </select>
                   </div>
                 )}
-                {/* Team vs Team is ALWAYS community-vote-only (the
-                    customer's final, unambiguous decision — supersedes the
-                    earlier "creator chooses aggregated measurement vs
-                    community vote" design). There is no UI control left to
-                    pick a measurement rule for this structure: `rule` stays
-                    RULES.PREDICTION and `ruleConfig.outcomeMode` stays
-                    'vote_tally' for the lifetime of this draft, and the
-                    server independently re-derives/forces `options` +
-                    `outcomeMode` from the two teams regardless of what's
-                    sent (see universalChallengeStore.js
+                {/* There is no UI control left to pick a measurement rule
+                    for this structure: `rule` stays RULES.PREDICTION for
+                    the lifetime of this draft, and the server
+                    independently re-derives/forces `options` +
+                    `ruleConfig.outcomeMode: 'reveal'` from the two teams
+                    regardless of what's sent (see universalChallengeStore.js
                     createUniversalChallenge) — so this can never regress
-                    into a creator-declared winner even via a direct API
-                    call. */}
-                <p className="text-[11.5px] text-zinc-500 leading-snug">Viewers vote directly for one of the two teams during playback — no scores entered by anyone. The team with the most votes wins (ties broken per the setting below).</p>
+                    into a live-vote-decides-the-winner round even via a
+                    direct API call. */}
+                <p className="text-[11.5px] text-zinc-500 leading-snug">Viewers predict which team they think will win during playback — their vote is just a guess, never what decides the outcome. You confirm the real winner below (from what actually happened in the video); it&apos;s revealed to everyone at the end, and each viewer then sees whether their own prediction was right.</p>
+                {d.teamIds?.[0] && d.teamIds?.[1] && d.teamIds[0] !== d.teamIds[1] && (
+                  <label className="block" data-testid="team-vs-team-winner-picker">
+                    <span className="text-[12px] text-zinc-400">Which team actually won? <span className="text-zinc-600">(You&apos;ll confirm this — viewers only see it revealed at the end)</span></span>
+                    <select
+                      value={d.ruleConfig.correctOptionId || ''}
+                      onChange={(e) => setEventDraft((s) => ({ ...s, ruleConfig: { ...s.ruleConfig, correctOptionId: e.target.value || null } }))}
+                      data-testid="team-vs-team-winner-select"
+                      className="mt-1 w-full rounded-xl bg-white/10 border border-white/10 px-3 py-2 text-[13.5px] text-white focus:outline-none focus:border-white/30"
+                    >
+                      <option value="" className="bg-zinc-900">Select the real winning team…</option>
+                      {[d.teamIds[0], d.teamIds[1]].map((tid) => {
+                        const t = teamsById.get(tid)
+                        return t ? <option key={tid} value={tid} className="bg-zinc-900">{t.label}</option> : null
+                      })}
+                    </select>
+                  </label>
+                )}
               </div>
             )}
 
@@ -1977,14 +2048,15 @@ export default function UniversalChallengeEditor({ open, onClose, videoFile, dra
               </div>
             )}
 
-            {/* Tie-break — also shown for a vote-tally-mode PREDICTION event
-                (Team vs Team's community-vote path), which now genuinely
-                uses resolveTie() to guarantee exactly one winner; every
-                other PREDICTION event (Guess the Actor/Action, Two-Side/
-                Majority Choice) keeps its default 'reveal' outcome mode,
-                which never calls resolveTie — so this stays a no-op for
-                them, unchanged. */}
-            {(usesTieBreak(d.rule) || (d.rule === RULES.PREDICTION && d.ruleConfig?.outcomeMode === 'vote_tally')) && (
+            {/* Tie-break — NOT shown for Team vs Team: that structure is
+                forced to 'reveal' (a creator-confirmed real winner, never a
+                vote tally), which never calls resolveTie — so there is
+                nothing to break a tie between. Every other PREDICTION
+                event (Guess the Actor/Action, Two-Side/Majority Choice)
+                also keeps its default 'reveal' outcome mode and so never
+                shows this either — `usesTieBreak` never includes
+                RULES.PREDICTION, unchanged. */}
+            {usesTieBreak(d.rule) && (
               <div className="rounded-xl bg-white/[0.06] border border-white/10 p-3 space-y-2">
                 <span className="text-[12px] text-zinc-400">If it&apos;s a tie</span>
                 <div className="flex flex-wrap gap-2">
@@ -2002,9 +2074,7 @@ export default function UniversalChallengeEditor({ open, onClose, videoFile, dra
                     className="w-full rounded-xl bg-white/10 border border-white/10 px-3 py-2 text-[13.5px] text-white focus:outline-none focus:border-white/30"
                   >
                     <option value="" className="bg-zinc-900">Choose a fallback winner…</option>
-                    {isTeamVoteMode
-                      ? (d.teamIds || []).filter(Boolean).map((tid) => <option key={tid} value={tid} className="bg-zinc-900">{teamsById.get(tid)?.label || tid}</option>)
-                      : d.participantIds.map((pid) => <option key={pid} value={pid} className="bg-zinc-900">{participantsById.get(pid)?.label || pid}</option>)}
+                    {d.participantIds.map((pid) => <option key={pid} value={pid} className="bg-zinc-900">{participantsById.get(pid)?.label || pid}</option>)}
                   </select>
                 )}
               </div>
@@ -2039,10 +2109,23 @@ export default function UniversalChallengeEditor({ open, onClose, videoFile, dra
               </div>
             )}
 
-            {isVoteShaped && (
+            {isVoteShaped && !isTeamStructure && (
               <div className="flex items-start gap-2 rounded-xl bg-white/[0.04] border border-white/10 px-3 py-2.5">
                 <Info size={13} className="text-zinc-500 shrink-0 mt-0.5" />
                 <p className="text-[11.5px] text-zinc-500 leading-snug">If time runs out with too few votes, this round resolves with whatever votes exist — it never waits indefinitely.</p>
+              </div>
+            )}
+
+            {/* Team vs Team has NO deadline at all (customer's explicit
+                requirement) — a prediction is accepted at any point while
+                the challenge is available, regardless of video playback
+                position/looping, even after this round has already been
+                revealed (see universalChallengeStore.js
+                castUniversalChallengeInput). */}
+            {isTeamStructure && (
+              <div className="flex items-start gap-2 rounded-xl bg-white/[0.04] border border-white/10 px-3 py-2.5">
+                <Info size={13} className="text-zinc-500 shrink-0 mt-0.5" />
+                <p className="text-[11.5px] text-zinc-500 leading-snug">Predictions have no deadline — viewers can guess at any point while this challenge is available, even after the reveal.</p>
               </div>
             )}
 
