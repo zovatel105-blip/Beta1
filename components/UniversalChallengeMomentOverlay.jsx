@@ -578,7 +578,21 @@ export default function UniversalChallengeMomentOverlay({ postId, videoRef, getV
     // free-text `event.options` — those events are deliberately authored
     // with NO participants engaged at all (see universalChallengeStore.js's
     // `optionsOnlyAllowed` path).
+    // BUGFIX (this task) -- an Advanced-Mode-authored, options-only
+    // PREDICTION event (free-text options, e.g. "Guess the Action", but
+    // authored with NO named participantStructure -- Advanced Mode never
+    // sets one) previously fell through to `participants.map(...)`, which
+    // is empty for such an event, so no vote pills ever rendered at all.
+    // `structureOptionSource(...) === 'custom'` alone only covers the
+    // NAMED structures (GUESS_THE_ACTION/TWO_SIDE_CHOICE/MAJORITY_CHOICE);
+    // this OR-clause reuses the exact same "options-only prediction"
+    // discriminator already established server-side (see
+    // `isOptionsOnlyPrediction` in lib/challengeStateEngine.js and
+    // `optionsOnlyAllowed` in lib/universalChallengeStore.js
+    // normalizeEvent) so a bare, unstructured options-only event renders
+    // identically to a named one -- no new mechanic-specific code.
     const useCustomOptions = structureOptionSource(event.participantStructure) === 'custom'
+      || (Array.isArray(event.options) && event.options.length > 0 && (!event.participantIds || event.participantIds.length === 0))
     const options = useCustomOptions
       ? (event.options || []).map((o) => ({ id: o.id, label: o.label }))
       : participants.map((p) => ({ id: p.id, label: p.label, avatarUrl: p.avatarUrl }))
@@ -645,7 +659,7 @@ export default function UniversalChallengeMomentOverlay({ postId, videoRef, getV
         className="max-w-[calc(100%-1rem)] pointer-events-auto"
         question={event.question}
         participants={participants}
-        ranking={result?.details?.ranking || null}
+        ranking={result?.ranking || null}
         resolved={resolved}
       />
     )

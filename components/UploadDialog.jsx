@@ -445,7 +445,16 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
       // matching what lib/challengeEngineStore.js's getPostOwnerId already
       // knows how to resolve, since /api/universal-challenges reuses that
       // exact helper for its author-only check).
-      if (universalChallengeDraft?.participants?.length > 0 && universalChallengeDraft?.events?.length > 0) {
+      // Phase 8, additive — Advanced mode's onSave produces `entities`
+      // directly with `participants: []` (no legacy participants array at
+      // all), so the attach gate must also accept an entities-only draft;
+      // OR'd in rather than replacing the participants check so every
+      // existing Simple-mode draft (participants.length > 0) is completely
+      // unaffected.
+      if (
+        (universalChallengeDraft?.participants?.length > 0 || universalChallengeDraft?.entities?.length > 0) &&
+        universalChallengeDraft?.events?.length > 0
+      ) {
         const newUniversalPostId = mode === 'solo'
           ? (data?.challenge?.id ? `open_${data.challenge.id}` : null)
           : (data?.post?.id || null)

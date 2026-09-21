@@ -195,7 +195,7 @@ export default function UniversalChallengeEditor({ open, onClose, videoFile, dra
   const [participants, setParticipants] = useState([])
   const [teams, setTeams] = useState([])
   const [events, setEvents] = useState([])
-  const [view, setView] = useState('timeline') // timeline | participants | teams | rule-picker | tournament-builder | one-vs-all-builder | all-vs-all-builder | progressive-builder | event-editor
+  const [view, setView] = useState('timeline') // timeline | participants | teams | rule-picker | tournament-builder | one-vs-all-builder | all-vs-all-builder | progressive-builder | event-editor | advanced
   const [selectedEventId, setSelectedEventId] = useState(null)
   const [draggingId, setDraggingId] = useState(null)
   // Sequential Tournament guided-builder state — see pickStructure() /
@@ -214,6 +214,19 @@ export default function UniversalChallengeEditor({ open, onClose, videoFile, dra
   const [eventDraft, setEventDraft] = useState(null)
   const [eventDraftError, setEventDraftError] = useState(null)
   const [finishError, setFinishError] = useState(null)
+
+  // -------------------------------------------------------------------------
+  // Phase 8 — Advanced mode: expose entities[]/events[] (each event's rule +
+  // ruleConfig) directly, as structured fields, instead of the guided
+  // participant-structure/mechanic pickers Simple mode uses above. Kept in
+  // its OWN, separate state (advEntities/advGroups/advEvents) rather than
+  // reusing participants/teams/events, so Simple mode's existing behavior
+  // is completely untouched — a creator who never opens Advanced mode never
+  // executes a single line of this block.
+  const [advEntities, setAdvEntities] = useState([])
+  const [advGroups, setAdvGroups] = useState([])
+  const [advEvents, setAdvEvents] = useState([])
+  const [advancedError, setAdvancedError] = useState(null)
 
   const [pLabel, setPLabel] = useState('')
   const [pAvatar, setPAvatar] = useState(null)
@@ -971,11 +984,223 @@ export default function UniversalChallengeEditor({ open, onClose, videoFile, dra
     onClose()
   }
 
+  // Phase 8 — Advanced mode helpers. Every entity/group/event here is a
+  // plain object matching the exact raw shape lib/universalChallengeStore.js's
+  // normalizeEntities/normalizeGroups/normalizeEvent already accept from
+  // ANY caller (this is the same POST body shape Simple mode's `finish`
+  // above produces) — RULE_SCHEMA (lib/challengeRuleSchema.js) plus that
+  // normalization is what actually validates/coerces it server-side, so
+  // this UI only needs to collect the fields, not re-validate them.
+  const addAdvEntity = () => {
+    setAdvEntities((list) => [...list, {
+      id: genLocalId('entity'), type: ENTITY_TYPES.PERSON, name: '', displayName: '', avatarUrl: null, groupId: null, metadata: {}, initialState: 'ACTIVE',
+    }])
+  }
+  const updateAdvEntity = (id, patch) => setAdvEntities((list) => list.map((e) => (e.id === id ? { ...e, ...patch } : e)))
+  const removeAdvEntity = (id) => {
+    setAdvEntities((list) => list.filter((e) => e.id !== id))
+    setAdvGroups((list) => list.map((g) => ({ ...g, entityIds: g.entityIds.filter((eid) => eid !== id) })))
+    setAdvEvents((list) => list.map((e) => ({ ...e, participantIds: e.participantIds.filter((eid) => eid !== id) })))
+  }
+  const addAdvGroup = () => setAdvGroups((list) => [...list, { id: genLocalId('group'), label: '', entityIds: [] }])
+  const updateAdvGroup = (id, patch) => setAdvGroups((list) => list.map((g) => (g.id === id ? { ...g, ...patch } : g)))
+  // Removing a group also has to clear any event that had picked it as one
+  // of its two Team vs Team sides (`teamIds`) — otherwise finishAdvanced
+  // would try to build an event referencing a team id that no longer
+  // exists in `advGroups`, which the server's own `unknown_team_in_event`
+  // check would reject anyway; catching it client-side keeps the UI
+  // consistent instead of just surfacing the server's error.
+  const removeAdvGroup = (id) => {
+    setAdvGroups((list) => list.filter((g) => g.id !== id))
+    setAdvEvents((list) => list.map((e) => ((e.teamIds || []).includes(id)
+      ? { ...e, teamIds: [], teamCorrectOptionId: null }
+      : e)))
+  }
+  const toggleAdvGroupEntity = (groupId, entityId) => setAdvGroups((list) => list.map((g) => (g.id === groupId
+    ? { ...g, entityIds: g.entityIds.includes(entityId) ? g.entityIds.filter((id) => id !== entityId) : [...g.entityIds, entityId] }
+    : g)))
+  const addAdvEvent = () => {
+    const start = advEvents.length ? Math.max(...advEvents.map((e) => Number(e.endTime) || 0)) : 0
+    const rule = RULES.HIGHEST_SCORE
+    setAdvEvents((list) => [...list, {
+      id: genLocalId('event'),
+      startTime: round1(start),
+      endTime: round1(start + 10),
+      rule,
+      interaction: 'none',
+      measurementSource: 'creator_input',
+      participantIds: [],
+      question: '',
+      ruleConfigText: JSON.stringify(defaultRuleConfig(rule), null, 2),
+      // ---- Advanced Mode gap-fill (this task) — every one of these maps
+      // directly onto an existing server-side primitive that normalizeEvent/
+      // createUniversalChallenge (lib/universalChallengeStore.js) already
+      // accepts; nothing new is being taught to the engine, only exposed:
+      autoAdvanceFrom: [], // -> event.autoAdvanceFrom: chain this event's participants from an earlier event's outcome (winner, or SURVIVAL's survivors)
+      options: [], // -> event.options: free-text vote choices for a PREDICTION event authored with no participants (e.g. "Guess the Action")
+      teamIds: [], // -> event.teamIds + participantStructure: TEAM_VS_TEAM: two existing groups as the competing sides
+      teamCorrectOptionId: null, // -> ruleConfig.correctOptionId once outcomeMode is forced to 'reveal' for a Team vs Team event
+      votingWindowStart: '', // -> event.votingWindow.start (optional — defaults to startTime when blank)
+      votingWindowEnd: '', // -> event.votingWindow.end (optional — defaults to endTime when blank)
+    }])
+  }
+  const updateAdvEvent = (id, patch) => setAdvEvents((list) => list.map((e) => (e.id === id ? { ...e, ...patch } : e)))
+  // Removing an event also has to strip it out of any OTHER event's
+  // `autoAdvanceFrom` — otherwise that other event would still reference a
+  // now-nonexistent source id, which the server's `unknown_auto_advance_source`
+  // check would reject at save time instead of the UI staying consistent.
+  const removeAdvEvent = (id) => setAdvEvents((list) => list
+    .filter((e) => e.id !== id)
+    .map((e) => ((e.autoAdvanceFrom || []).includes(id) ? { ...e, autoAdvanceFrom: [] } : e)))
+  const toggleAdvEventParticipant = (eventId, entityId) => setAdvEvents((list) => list.map((e) => (e.id === eventId
+    ? { ...e, participantIds: e.participantIds.includes(entityId) ? e.participantIds.filter((id) => id !== entityId) : [...e.participantIds, entityId] }
+    : e)))
+
+  // (a) Chained/bracket events — pure UI over the existing `autoAdvanceFrom`
+  // field the State Engine (lib/challengeStateEngine.js) already interprets
+  // unchanged: once the chosen source event resolves, its winner (or, for a
+  // SURVIVAL source, every survivor) is auto-merged into this event's
+  // participantIds. A single source id is stored (as the array
+  // `autoAdvanceFrom` already expects) — same shape Simple mode's own
+  // tournament builder already writes.
+  const setAdvEventAutoAdvanceFrom = (eventId, sourceId) => updateAdvEvent(eventId, { autoAdvanceFrom: sourceId ? [sourceId] : [] })
+
+  // (b) Free-text options — pure UI over the existing `event.options[]`
+  // field. Only PREDICTION actually reads `options` (see `prediction()` in
+  // lib/challengeRuleEngine.js), so adding the first option forces `rule`
+  // to PREDICTION the same way picking a Simple-mode structure like
+  // "Guess the Action" already forces its rule — no new engine behavior.
+  const addAdvEventOption = (eventId) => setAdvEvents((list) => list.map((e) => (e.id === eventId
+    ? {
+        ...e,
+        options: [...(e.options || []), { id: genLocalId('opt'), label: '' }],
+        rule: RULES.PREDICTION,
+        ruleConfigText: e.rule === RULES.PREDICTION ? e.ruleConfigText : JSON.stringify(defaultRuleConfig(RULES.PREDICTION), null, 2),
+      }
+    : e)))
+  const updateAdvEventOption = (eventId, optId, label) => setAdvEvents((list) => list.map((e) => (e.id === eventId
+    ? { ...e, options: (e.options || []).map((o) => (o.id === optId ? { ...o, label } : o)) }
+    : e)))
+  const removeAdvEventOption = (eventId, optId) => setAdvEvents((list) => list.map((e) => (e.id === eventId
+    ? { ...e, options: (e.options || []).filter((o) => o.id !== optId) }
+    : e)))
+
+  // (c) Team vs Team — pure UI over the existing `teamIds` +
+  // `participantStructure: TEAM_VS_TEAM` primitives (same fields Simple
+  // mode's own Team vs Team builder writes — see `pickStructure()` above).
+  // Picking two groups here forces `rule` to PREDICTION, exactly like
+  // Simple mode: `structureAllowedRules(TEAM_VS_TEAM)` is locked to
+  // PREDICTION server-side (lib/universalChallengeParticipantStructures.js),
+  // and createUniversalChallenge forces `ruleConfig.outcomeMode: 'reveal'`
+  // + a required `correctOptionId` regardless of what's authored — this UI
+  // only has to collect that required winner (`teamCorrectOptionId`,
+  // merged into ruleConfig in finishAdvanced below), never reimplement the
+  // rule itself.
+  const setAdvEventTeamId = (eventId, slot, groupId) => setAdvEvents((list) => list.map((e) => {
+    if (e.id !== eventId) return e
+    const teamIds = [...(e.teamIds || ['', ''])]
+    teamIds[slot] = groupId
+    const stillValidWinner = teamIds.includes(e.teamCorrectOptionId) ? e.teamCorrectOptionId : null
+    return { ...e, teamIds, teamCorrectOptionId: stillValidWinner, rule: RULES.PREDICTION }
+  }))
+  const setAdvEventTeamWinner = (eventId, groupId) => updateAdvEvent(eventId, { teamCorrectOptionId: groupId })
+
+  const finishAdvanced = () => {
+    if (advEntities.length === 0) { setAdvancedError('Add at least one entity.'); return }
+    if (advEvents.length === 0) { setAdvancedError('Add at least one event.'); return }
+    const advEventIds = new Set(advEvents.map((e) => e.id))
+    const advGroupById = new Map(advGroups.map((g) => [g.id, g]))
+    const builtEvents = []
+    for (const ev of advEvents) {
+      const startTime = Number(ev.startTime)
+      const endTime = Number(ev.endTime)
+      if (!Number.isFinite(startTime) || !Number.isFinite(endTime) || endTime <= startTime) {
+        setAdvancedError('Every event needs a valid start/end time, with end after start.')
+        return
+      }
+
+      const teamIdsRaw = Array.isArray(ev.teamIds) ? ev.teamIds.filter(Boolean) : []
+      const isTeamMode = teamIdsRaw.length === 2 && teamIdsRaw[0] !== teamIdsRaw[1]
+      if (isTeamMode) {
+        const teamA = advGroupById.get(teamIdsRaw[0])
+        const teamB = advGroupById.get(teamIdsRaw[1])
+        if (!teamA?.entityIds?.length || !teamB?.entityIds?.length) {
+          setAdvancedError('Both Team vs Team sides need at least one entity in the group.')
+          return
+        }
+        if (ev.rule !== RULES.PREDICTION) {
+          setAdvancedError('Team vs Team events must use the Community Prediction rule.')
+          return
+        }
+        if (!ev.teamCorrectOptionId || !teamIdsRaw.includes(ev.teamCorrectOptionId)) {
+          setAdvancedError('Pick the real winning team for every Team vs Team event.')
+          return
+        }
+      }
+
+      const cleanOptions = (ev.options || []).map((o) => ({ ...o, label: (o.label || '').trim() })).filter((o) => o.label)
+      const hasOptions = ev.rule === RULES.PREDICTION && !isTeamMode && cleanOptions.length > 0
+
+      const autoAdvanceFrom = isTeamMode ? [] : (Array.isArray(ev.autoAdvanceFrom) ? ev.autoAdvanceFrom.filter((id) => advEventIds.has(id)) : [])
+      for (const srcId of autoAdvanceFrom) {
+        const src = advEvents.find((e) => e.id === srcId)
+        if (src && Number(src.startTime) >= startTime) {
+          setAdvancedError('A chained event must advance from an earlier event on the timeline.')
+          return
+        }
+      }
+
+      const hasChain = autoAdvanceFrom.length > 0
+      if (!isTeamMode && !hasChain && !hasOptions && ev.participantIds.length === 0) {
+        setAdvancedError('Every event needs at least one entity selected, a chained source event, free-text options, or two teams.')
+        return
+      }
+
+      let ruleConfig = {}
+      try {
+        ruleConfig = ev.ruleConfigText ? JSON.parse(ev.ruleConfigText) : {}
+      } catch {
+        setAdvancedError("One event's ruleConfig JSON is invalid -- fix the syntax and try again.")
+        return
+      }
+      if (isTeamMode) {
+        ruleConfig = { ...ruleConfig, outcomeMode: 'reveal', correctOptionId: ev.teamCorrectOptionId }
+      }
+
+      const vwStart = ev.votingWindowStart === '' || ev.votingWindowStart == null ? null : Number(ev.votingWindowStart)
+      const vwEnd = ev.votingWindowEnd === '' || ev.votingWindowEnd == null ? null : Number(ev.votingWindowEnd)
+      const votingWindow = Number.isFinite(vwStart) && Number.isFinite(vwEnd) ? { start: vwStart, end: vwEnd } : null
+
+      builtEvents.push({
+        id: ev.id,
+        startTime,
+        endTime,
+        type: 'matchup',
+        interaction: ev.interaction,
+        rule: ev.rule,
+        ruleConfig,
+        participantIds: isTeamMode ? [] : [...ev.participantIds],
+        autoAdvanceFrom,
+        participantStructure: isTeamMode ? PARTICIPANT_STRUCTURES.TEAM_VS_TEAM : null,
+        teamIds: isTeamMode ? [...teamIdsRaw] : [],
+        question: ev.question || '',
+        options: hasOptions ? cleanOptions.map((o) => ({ id: o.id, label: o.label })) : [],
+        measurementSource: ev.measurementSource,
+        votingWindow,
+      })
+    }
+    setAdvancedError(null)
+    const entitiesOut = advEntities.map((e) => ({ ...e, name: e.name || 'Entity', displayName: e.displayName || e.name || 'Entity' }))
+    onSave({ participants: [], teams: [], entities: entitiesOut, groups: advGroups, events: sortEventsByStart(builtEvents) })
+    onClose()
+  }
+
   const goBack = () => {
     if (view === 'timeline') { onClose(); return }
     if (view === 'participants') { setView('timeline'); return }
     if (view === 'teams') { setView('timeline'); return }
     if (view === 'rule-picker') { setView('timeline'); return }
+    if (view === 'advanced') { setView('timeline'); setAdvancedError(null); return }
     if (view === 'tournament-builder') { setView('timeline'); setTournamentDraft(null); return }
     if (view === 'one-vs-all-builder') { setView('timeline'); setOneVsAllDraft(null); return }
     if (view === 'all-vs-all-builder') { setView('timeline'); setAllVsAllDraft(null); return }
@@ -1022,6 +1247,7 @@ export default function UniversalChallengeEditor({ open, onClose, videoFile, dra
             : view === 'one-vs-all-builder' ? 'One vs All'
             : view === 'all-vs-all-builder' ? 'All vs All'
             : view === 'progressive-builder' ? 'Progressive Challenge'
+            : view === 'advanced' ? 'Advanced Mode'
             : 'Configure round'}
         </h2>
         {view === 'timeline' ? (
@@ -1183,6 +1409,14 @@ export default function UniversalChallengeEditor({ open, onClose, videoFile, dra
               >
                 <Users size={13} /> {teams.length} group{teams.length === 1 ? '' : 's'}
               </button>
+              <button
+                onClick={() => setView('advanced')}
+                className="flex items-center gap-1.5 text-[12px] font-semibold text-rose-300 hover:text-white px-2 py-1 rounded-full bg-rose-500/15 border border-rose-400/30"
+                data-testid="universal-challenge-advanced-toggle"
+                title="Advanced mode — edit raw entities/events/rule/ruleConfig directly"
+              >
+                Advanced
+              </button>
             </div>
             <span className="text-[11.5px] text-zinc-400 font-mono tabular-nums">{fmtTime(currentTime)} / {fmtTime(duration)}</span>
             <button onClick={togglePlay} aria-label={playing ? 'Pause' : 'Play'} className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center active:scale-90 transition">
@@ -1265,6 +1499,233 @@ export default function UniversalChallengeEditor({ open, onClose, videoFile, dra
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {view === 'advanced' && (
+        <div className="flex-1 overflow-y-auto px-4 pb-8 pt-2 space-y-6 animate-fadeIn" data-testid="universal-challenge-advanced-view">
+          <p className="text-[12.5px] text-zinc-500 leading-snug">
+            Advanced mode edits the engine&apos;s raw primitives directly — entities, events, and each event&apos;s rule + ruleConfig — with no preset structure/mechanic picker. Anything you build here is saved completely separately from Simple mode above; switching back to Simple mode never touches what you build here, and vice versa.
+          </p>
+
+          <section>
+            <h3 className="text-[13px] font-bold text-zinc-300 mb-2">Entities</h3>
+            <div className="space-y-2">
+              {advEntities.map((e, idx) => (
+                <div key={e.id} className="flex items-center gap-2 bg-white/5 rounded-lg p-2" data-testid={`adv-entity-row-${idx}`}>
+                  <input
+                    value={e.name}
+                    onChange={(ev) => updateAdvEntity(e.id, { name: ev.target.value, displayName: ev.target.value })}
+                    placeholder="Name"
+                    data-testid={`adv-entity-name-${idx}`}
+                    className="flex-1 min-w-0 bg-transparent border-b border-white/20 text-[13px] px-1 py-1 outline-none"
+                  />
+                  <select
+                    value={e.type}
+                    onChange={(ev) => updateAdvEntity(e.id, { type: ev.target.value })}
+                    data-testid={`adv-entity-type-${idx}`}
+                    className="bg-black/40 text-[11px] rounded px-1 py-1 shrink-0"
+                  >
+                    {ENTITY_TYPE_ORDER.map((t) => <option key={t} value={t}>{ENTITY_TYPE_LABELS[t]}</option>)}
+                  </select>
+                  <button onClick={() => removeAdvEntity(e.id)} data-testid={`adv-entity-remove-${idx}`} className="text-rose-400 text-[11px] px-1 shrink-0">Remove</button>
+                </div>
+              ))}
+              <button onClick={addAdvEntity} data-testid="adv-entity-add" className="text-[12.5px] text-rose-400 font-semibold">+ Add entity</button>
+            </div>
+          </section>
+
+          <section>
+            <h3 className="text-[13px] font-bold text-zinc-300 mb-2">Groups (optional)</h3>
+            <div className="space-y-2">
+              {advGroups.map((g, idx) => (
+                <div key={g.id} className="bg-white/5 rounded-lg p-2 space-y-1.5" data-testid={`adv-group-row-${idx}`}>
+                  <div className="flex items-center gap-2">
+                    <input
+                      value={g.label}
+                      onChange={(ev) => updateAdvGroup(g.id, { label: ev.target.value })}
+                      placeholder="Group label"
+                      data-testid={`adv-group-label-${idx}`}
+                      className="flex-1 min-w-0 bg-transparent border-b border-white/20 text-[13px] px-1 py-1 outline-none"
+                    />
+                    <button onClick={() => removeAdvGroup(g.id)} data-testid={`adv-group-remove-${idx}`} className="text-rose-400 text-[11px] px-1 shrink-0">Remove</button>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {advEntities.map((e) => (
+                      <label key={e.id} className="text-[11px] flex items-center gap-1 text-zinc-300">
+                        <input type="checkbox" checked={g.entityIds.includes(e.id)} onChange={() => toggleAdvGroupEntity(g.id, e.id)} data-testid={`adv-group-${idx}-entity-${e.id}`} />
+                        {e.name || 'Unnamed'}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              <button onClick={addAdvGroup} data-testid="adv-group-add" className="text-[12.5px] text-rose-400 font-semibold">+ Add group</button>
+            </div>
+          </section>
+
+          <section>
+            <h3 className="text-[13px] font-bold text-zinc-300 mb-2">Events</h3>
+            <div className="space-y-3">
+              {advEvents.map((ev, idx) => {
+              const rowTeamIds = Array.isArray(ev.teamIds) ? ev.teamIds : []
+              const rowIsTeamMode = rowTeamIds.filter(Boolean).length === 2 && rowTeamIds[0] !== rowTeamIds[1]
+              const rowOptions = Array.isArray(ev.options) ? ev.options : []
+              return (
+                <div key={ev.id} className="bg-white/5 rounded-lg p-3 space-y-2" data-testid={`adv-event-row-${idx}`}>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <input type="number" value={ev.startTime} onChange={(e2) => updateAdvEvent(ev.id, { startTime: e2.target.value })} placeholder="Start (s)" data-testid={`adv-event-start-${idx}`} className="w-20 bg-black/40 text-[11px] rounded px-1.5 py-1" />
+                    <input type="number" value={ev.endTime} onChange={(e2) => updateAdvEvent(ev.id, { endTime: e2.target.value })} placeholder="End (s)" data-testid={`adv-event-end-${idx}`} className="w-20 bg-black/40 text-[11px] rounded px-1.5 py-1" />
+                    <select
+                      value={ev.rule}
+                      onChange={(e2) => updateAdvEvent(ev.id, { rule: e2.target.value, ruleConfigText: JSON.stringify(defaultRuleConfig(e2.target.value), null, 2) })}
+                      data-testid={`adv-event-rule-${idx}`}
+                      className="bg-black/40 text-[11px] rounded px-1.5 py-1"
+                    >
+                      {RULE_ORDER.map((r) => <option key={r} value={r}>{RULE_META[r]?.label || r}</option>)}
+                    </select>
+                    <select value={ev.interaction} onChange={(e2) => updateAdvEvent(ev.id, { interaction: e2.target.value })} data-testid={`adv-event-interaction-${idx}`} className="bg-black/40 text-[11px] rounded px-1.5 py-1">
+                      <option value="vote">vote</option>
+                      <option value="predict">predict</option>
+                      <option value="answer">answer</option>
+                      <option value="none">none</option>
+                    </select>
+                    <select value={ev.measurementSource} onChange={(e2) => updateAdvEvent(ev.id, { measurementSource: e2.target.value })} data-testid={`adv-event-measurementsource-${idx}`} className="bg-black/40 text-[11px] rounded px-1.5 py-1">
+                      <option value="creator_input">creator_input</option>
+                      <option value="participant_input">participant_input</option>
+                      <option value="automatic_video_measurement">automatic_video_measurement</option>
+                    </select>
+                    <button onClick={() => removeAdvEvent(ev.id)} data-testid={`adv-event-remove-${idx}`} className="text-rose-400 text-[11px] ml-auto">Remove event</button>
+                  </div>
+                  <input
+                    value={ev.question}
+                    onChange={(e2) => updateAdvEvent(ev.id, { question: e2.target.value })}
+                    placeholder="Question / prompt shown to viewers (optional)"
+                    data-testid={`adv-event-question-${idx}`}
+                    className="w-full bg-transparent border-b border-white/20 text-[12.5px] px-1 py-1 outline-none"
+                  />
+                  <div>
+                    <div className="text-[10.5px] uppercase tracking-wide text-zinc-500 mb-1">
+                      Entities in this event{rowIsTeamMode ? ' (ignored -- derived from the two teams below)' : ''}
+                    </div>
+                    <div className={`flex flex-wrap gap-2 ${rowIsTeamMode ? 'opacity-40 pointer-events-none' : ''}`}>
+                      {advEntities.map((e) => (
+                        <label key={e.id} className="text-[11px] flex items-center gap-1 text-zinc-300">
+                          <input type="checkbox" checked={ev.participantIds.includes(e.id)} onChange={() => toggleAdvEventParticipant(ev.id, e.id)} data-testid={`adv-event-${idx}-pid-${e.id}`} />
+                          {e.name || 'Unnamed'}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {!rowIsTeamMode && (
+                    <div>
+                      <div className="text-[10.5px] uppercase tracking-wide text-zinc-500 mb-1">Advance from a prior event (optional -- for chains/brackets)</div>
+                      <select
+                        value={(ev.autoAdvanceFrom || [])[0] || ''}
+                        onChange={(e2) => setAdvEventAutoAdvanceFrom(ev.id, e2.target.value || null)}
+                        data-testid={`adv-event-autoadvance-${idx}`}
+                        className="w-full bg-black/40 text-[11px] rounded px-1.5 py-1"
+                      >
+                        <option value="">None -- use the entities picked above</option>
+                        {advEvents.filter((other) => other.id !== ev.id && Number(other.startTime) < Number(ev.startTime)).map((other) => (
+                          <option key={other.id} value={other.id}>Event {advEvents.indexOf(other) + 1} ({other.rule})</option>
+                        ))}
+                      </select>
+                      <p className="text-[10px] text-zinc-500 mt-1">Carries forward the source event&apos;s winner (or, for a Survival source, every survivor).</p>
+                    </div>
+                  )}
+
+                  <div>
+                    <div className="text-[10.5px] uppercase tracking-wide text-zinc-500 mb-1">Team vs Team (optional -- two existing groups as the competing sides)</div>
+                    <div className="flex flex-wrap gap-2">
+                      <select
+                        value={rowTeamIds[0] || ''}
+                        onChange={(e2) => setAdvEventTeamId(ev.id, 0, e2.target.value || '')}
+                        data-testid={`adv-event-team-a-${idx}`}
+                        className="bg-black/40 text-[11px] rounded px-1.5 py-1"
+                      >
+                        <option value="">Side A -- none</option>
+                        {advGroups.filter((g) => g.id !== rowTeamIds[1]).map((g) => <option key={g.id} value={g.id}>{g.label || 'Unnamed group'}</option>)}
+                      </select>
+                      <select
+                        value={rowTeamIds[1] || ''}
+                        onChange={(e2) => setAdvEventTeamId(ev.id, 1, e2.target.value || '')}
+                        data-testid={`adv-event-team-b-${idx}`}
+                        className="bg-black/40 text-[11px] rounded px-1.5 py-1"
+                      >
+                        <option value="">Side B -- none</option>
+                        {advGroups.filter((g) => g.id !== rowTeamIds[0]).map((g) => <option key={g.id} value={g.id}>{g.label || 'Unnamed group'}</option>)}
+                      </select>
+                      {rowIsTeamMode && (
+                        <select
+                          value={ev.teamCorrectOptionId || ''}
+                          onChange={(e2) => setAdvEventTeamWinner(ev.id, e2.target.value || null)}
+                          data-testid={`adv-event-team-winner-${idx}`}
+                          className="bg-black/40 text-[11px] rounded px-1.5 py-1"
+                        >
+                          <option value="">Real winning team -- required</option>
+                          {rowTeamIds.map((tid) => <option key={tid} value={tid}>{advGroups.find((g) => g.id === tid)?.label || tid}</option>)}
+                        </select>
+                      )}
+                    </div>
+                    {rowIsTeamMode && <p className="text-[10px] text-zinc-500 mt-1">Forces rule to Community Prediction with outcomeMode &apos;reveal&apos; -- viewers predict, you confirm the real winner above.</p>}
+                  </div>
+
+                  {!rowIsTeamMode && (
+                    <div>
+                      <div className="text-[10.5px] uppercase tracking-wide text-zinc-500 mb-1">Free-text options (optional -- for a prediction with no participants, e.g. &quot;Guess the Action&quot;)</div>
+                      <div className="space-y-1.5">
+                        {rowOptions.map((opt, optIdx) => (
+                          <div key={opt.id} className="flex items-center gap-2">
+                            <input
+                              value={opt.label}
+                              onChange={(e2) => updateAdvEventOption(ev.id, opt.id, e2.target.value)}
+                              placeholder={`Option ${optIdx + 1}`}
+                              data-testid={`adv-event-${idx}-option-${optIdx}`}
+                              className="flex-1 min-w-0 bg-transparent border-b border-white/20 text-[12px] px-1 py-1 outline-none"
+                            />
+                            <button onClick={() => removeAdvEventOption(ev.id, opt.id)} data-testid={`adv-event-${idx}-option-remove-${optIdx}`} className="text-rose-400 text-[11px] px-1 shrink-0">Remove</button>
+                          </div>
+                        ))}
+                        <button onClick={() => addAdvEventOption(ev.id)} data-testid={`adv-event-${idx}-option-add`} className="text-[11.5px] text-rose-400 font-semibold">+ Add option</button>
+                      </div>
+                    </div>
+                  )}
+
+                  <div>
+                    <div className="text-[10.5px] uppercase tracking-wide text-zinc-500 mb-1">Voting window (optional -- defaults to this event&apos;s start/end above)</div>
+                    <div className="flex items-center gap-2">
+                      <input type="number" value={ev.votingWindowStart} onChange={(e2) => updateAdvEvent(ev.id, { votingWindowStart: e2.target.value })} placeholder="Opens at (s)" data-testid={`adv-event-votingwindow-start-${idx}`} className="w-28 bg-black/40 text-[11px] rounded px-1.5 py-1" />
+                      <input type="number" value={ev.votingWindowEnd} onChange={(e2) => updateAdvEvent(ev.id, { votingWindowEnd: e2.target.value })} placeholder="Closes at (s)" data-testid={`adv-event-votingwindow-end-${idx}`} className="w-28 bg-black/40 text-[11px] rounded px-1.5 py-1" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-[10.5px] uppercase tracking-wide text-zinc-500 mb-1">ruleConfig (JSON)</div>
+                    <textarea
+                      value={ev.ruleConfigText}
+                      onChange={(e2) => updateAdvEvent(ev.id, { ruleConfigText: e2.target.value })}
+                      rows={4}
+                      data-testid={`adv-event-ruleconfig-${idx}`}
+                      className="w-full bg-black/40 text-[11px] rounded px-2 py-1.5 font-mono leading-snug"
+                    />
+                  </div>
+                </div>
+              )})}
+              <button onClick={addAdvEvent} data-testid="adv-event-add" className="text-[12.5px] text-rose-400 font-semibold">+ Add event</button>
+            </div>
+          </section>
+
+          {advancedError && <p className="text-[12px] text-rose-300" data-testid="universal-challenge-advanced-error">{advancedError}</p>}
+
+          <button
+            onClick={finishAdvanced}
+            data-testid="universal-challenge-advanced-save"
+            className="w-full py-3 rounded-xl bg-gradient-to-br from-rose-500 to-pink-600 font-bold text-[13px] shadow-lg shadow-rose-500/30"
+          >
+            Save Advanced Challenge
+          </button>
         </div>
       )}
 

@@ -7,6 +7,9 @@ import {
   getResolvedUniversalChallenge,
   castUniversalChallengeInput,
 } from '@/lib/universalChallengeStore'
+// PHASE 7, additive — analytics (impressions/votes; `result` is logged
+// from within lib/universalChallengeStore.js itself, see that file).
+import { recordImpression, recordVote } from '@/lib/universalChallengeAnalytics'
 
 export const dynamic = 'force-dynamic'
 
@@ -129,6 +132,21 @@ async function handleGetResolvedState(postId, request) {
     const currentTime = searchParams.get('currentTime')
     const challenge = await getResolvedUniversalChallenge(postId, currentTime !== null ? Number(currentTime) : undefined)
     if (!challenge) return NextResponse.json({ ok: true, challenge: null })
+    // PHASE 7, additive — analytics: one `impression` per resolved-state
+    // read that has an active moment on screen. Fire-and-forget and never
+    // awaited (does not delay this response); the viewer lookup runs on
+    // its own and recordImpression itself never throws.
+    if (challenge.activeEventId) {
+      getCurrentUser(request)
+        .then((viewer) => recordImpression({
+          challengeId: challenge.challengeId,
+          postId,
+          eventId: challenge.activeEventId,
+          userId: viewer?.id || null,
+          currentTime: currentTime !== null ? Number(currentTime) : undefined,
+        }))
+        .catch(() => {})
+    }
     return NextResponse.json({ ok: true, challenge })
   } catch (err) {
     return errored(err, 'fetch_failed')
@@ -171,6 +189,10 @@ async function handleCastInput(postId, eventId, request) {
       timeMs: body.timeMs,
       completedAtMs: body.completedAtMs,
     })
+    // PHASE 7, additive — analytics: one `vote` event per successfully
+    // accepted cast input/vote. Fire-and-forget, never awaited; does not
+    // delay or alter this response.
+    recordVote({ challengeId: challenge.challengeId, postId, eventId, userId: currentUser.id, rule: rawEvent.rule })
     return NextResponse.json({ ok: true, challenge })
   } catch (err) {
     return errored(err, 'input_failed')

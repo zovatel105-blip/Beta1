@@ -1,0 +1,14 @@
+[
+  {
+    "content": "Final regression re-run (post acceptance-test, post server restart)",
+    "status": "completed"
+  },
+  {
+    "content": "Clean up test data created during verification",
+    "status": "completed"
+  },
+  {
+    "content": "Final report",
+    "status": "in_progress"
+  }
+]
