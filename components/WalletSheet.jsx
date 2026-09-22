@@ -55,6 +55,12 @@ function formatTxLabel(tx) {
   if (tx.type === 'purchase') return 'Credits purchased'
   if (tx.type === 'tip_sent') return `Tip to @${tx.counterpartyUsername || 'user'}`
   if (tx.type === 'tip_received') return `Tip from @${tx.counterpartyUsername || 'user'}`
+  // "Propina para proponer un reto" (ver TipSheet.jsx / POST /api/tip-challenges):
+  // los créditos quedan en escrow al proponer, y se liberan/reembolsan según
+  // cómo se resuelva el reto (ver route.js: approve/reject/decline).
+  if (tx.type === 'tip_challenge_escrow') return `Challenge proposal to @${tx.counterpartyUsername || 'user'} (held)`
+  if (tx.type === 'tip_challenge_refund') return `Challenge refund from @${tx.counterpartyUsername || 'user'}`
+  if (tx.type === 'tip_challenge_release') return `Challenge tip from @${tx.counterpartyUsername || 'user'}`
   return 'Wallet activity'
 }
 

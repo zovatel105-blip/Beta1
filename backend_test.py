@@ -10,7 +10,7 @@ import sys
 import os
 
 # Get base URL from environment
-BASE_URL = os.getenv('NEXT_PUBLIC_BASE_URL', 'https://config-install.preview.emergentagent.com')
+BASE_URL = os.getenv('NEXT_PUBLIC_BASE_URL', 'https://tip-challenge-system.preview.emergentagent.com')
 API_BASE = f"{BASE_URL}/api"
 
 print(f"Testing against: {API_BASE}")

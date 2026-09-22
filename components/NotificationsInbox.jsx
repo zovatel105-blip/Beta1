@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
-import { Bell, Swords, UserPlus, MessageCircle, Check, ChevronLeft, Send, CornerDownRight, Flame, Heart } from 'lucide-react'
+import { useEffect, useState, useCallback, useRef } from 'react'
+import { Bell, Swords, UserPlus, MessageCircle, Check, ChevronLeft, Send, CornerDownRight, Flame, Heart, X, Loader2, Film } from 'lucide-react'
 import { CreditIcon } from './WalletSheet'
 import VoteIcon from './icons/VoteIcon'
 import Avatar from './Avatar'
@@ -37,6 +37,14 @@ const iconFor = (n) => {
   if (n.luxuryThemeTitle) return { Icon: Flame, color: '#FCD34D' }
   switch (n.type) {
     case 'challenge': return { Icon: Swords, color: '#FFFFFF' }
+    // "Propina para proponer un reto" (ver TipSheet.jsx / POST
+    // /api/tip-challenges): siempre espadas (es fundamentalmente un reto),
+    // el badge de propina (🪙) ya se distingue por separado más abajo.
+    case 'tip_challenge_proposal': return { Icon: Swords, color: '#FFFFFF' }
+    case 'tip_challenge_submitted': return { Icon: Swords, color: '#FFFFFF' }
+    case 'tip_challenge_approved': return { Icon: Check, color: '#6EE7A8' }
+    case 'tip_challenge_rejected': return { Icon: Swords, color: '#A1A1AA' }
+    case 'tip_challenge_declined': return { Icon: Swords, color: '#A1A1AA' }
     case 'vote': return { Icon: VoteIcon, color: n.side === 'b' ? TWYK_B : TWYK_A }
     // Corazón/like de las publicaciones single (ver OpenChallengeSlide.jsx,
     // POST /api/single-vote) — petición del usuario: "quiero que crees
@@ -57,7 +65,7 @@ const isReplyable = (n) => (n.type === 'comment' || n.type === 'reply') && n.pos
 
 const FILTERS = [
   { key: 'all', label: 'All', types: null },
-  { key: 'challenge', label: 'Challenges', types: ['challenge', 'accepted'] },
+  { key: 'challenge', label: 'Challenges', types: ['challenge', 'accepted', 'tip_challenge_proposal', 'tip_challenge_submitted', 'tip_challenge_approved', 'tip_challenge_rejected', 'tip_challenge_declined'] },
   // "Votes" agrupa el voto A/B de versus/1vs1 (type:'vote') Y el corazón/
   // like de publicaciones single (type:'like', nuevo) — ambos son
   // "reacciones a mi contenido", mismo criterio ya usado en el ranking del
@@ -75,6 +83,16 @@ export default function NotificationsInbox({ open, onClose }) {
   const [replyText, setReplyText] = useState('')
   const [replySubmitting, setReplySubmitting] = useState(false)
   const [repliedIds, setRepliedIds] = useState(() => new Set())
+  // "Propina para proponer un reto" (ver TipSheet.jsx) — mapa
+  // {[tipChallengeId]: doc} con el ESTADO EN VIVO de cada propuesta
+  // (pending/submitted/approved/rejected/declined), cargado aparte de las
+  // notificaciones (que son inmutables una vez creadas) para saber si
+  // todavía corresponde mostrar los botones de acción o ya se resolvió.
+  const [tipChallenges, setTipChallenges] = useState({})
+  const [tcBusyId, setTcBusyId] = useState(null)
+  const [tcError, setTcError] = useState(null)
+  const tcFileInputRef = useRef(null)
+  const tcPendingAcceptIdRef = useRef(null)
   const { user } = useAuth()
 
   // BUG FIX (contadores de las pestañas inconsistentes/"reaparecían" al
@@ -92,6 +110,7 @@ export default function NotificationsInbox({ open, onClose }) {
   useEffect(() => {
     if (open && user) {
       loadNotifications()
+      loadTipChallenges()
     } else if (open && !user) {
       setList([])
     }
@@ -129,6 +148,124 @@ export default function NotificationsInbox({ open, onClose }) {
       setLoading(false)
     }
   }
+
+  // Carga el estado EN VIVO de mis propuestas de "propina para reto"
+  // (recibidas Y enviadas) — una notificación es inmutable una vez creada,
+  // así que sin esto no sabríamos si una propuesta ya se aceptó/rechazó
+  // desde otra sesión/dispositivo, y mostraríamos botones de acción sobre
+  // algo que ya no corresponde.
+  const loadTipChallenges = async () => {
+    try {
+      const [rRes, sRes] = await Promise.all([
+        fetch('/api/tip-challenges?role=received', { cache: 'no-store', headers: { ...authHeaders() } }),
+        fetch('/api/tip-challenges?role=sent', { cache: 'no-store', headers: { ...authHeaders() } }),
+      ])
+      const [rData, sData] = await Promise.all([rRes.json().catch(() => ({})), sRes.json().catch(() => ({}))])
+      const map = {}
+      for (const t of [...(rData.tipChallenges || []), ...(sData.tipChallenges || [])]) map[t.id] = t
+      setTipChallenges(map)
+    } catch (err) {
+      console.error('Error loading tip challenges:', err)
+    }
+  }
+
+  // Destinatario RECHAZA la propuesta inicial (antes de subir nada) ->
+  // reembolso inmediato al emisor (ver POST /api/tip-challenges/:id/reject).
+  const rejectTipChallenge = useCallback(async (n) => {
+    if (!n.tipChallengeId || tcBusyId) return
+    setTcBusyId(n.tipChallengeId)
+    setTcError(null)
+    try {
+      const res = await fetch(`/api/tip-challenges/${n.tipChallengeId}/reject`, { method: 'POST', headers: { ...authHeaders() } })
+      const data = await res.json().catch(() => null)
+      if (res.ok && data?.tipChallenge) {
+        setTipChallenges((prev) => ({ ...prev, [n.tipChallengeId]: data.tipChallenge }))
+      } else {
+        setTcError(data?.message || 'Could not decline this proposal')
+      }
+    } catch {
+      setTcError('Could not decline this proposal')
+    } finally {
+      setTcBusyId(null)
+    }
+  }, [tcBusyId])
+
+  // Destinatario ACEPTA: abre el selector de archivo (vídeo/foto) — al
+  // elegirlo, sube y envía en un solo paso (mismo patrón "upload & accept"
+  // que ChallengesInbox.jsx/ActiveChallengesPage.jsx).
+  const acceptTipChallenge = useCallback((n) => {
+    if (!n.tipChallengeId || tcBusyId) return
+    tcPendingAcceptIdRef.current = n.tipChallengeId
+    tcFileInputRef.current?.click()
+  }, [tcBusyId])
+
+  const onTcFileChange = useCallback(async (e) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    const id = tcPendingAcceptIdRef.current
+    tcPendingAcceptIdRef.current = null
+    if (!file || !id) return
+    if (!file.type.startsWith('video/') && !file.type.startsWith('image/')) return
+    setTcBusyId(id)
+    setTcError(null)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const res = await fetch(`/api/tip-challenges/${id}/accept`, { method: 'POST', headers: { ...authHeaders() }, body: fd })
+      const data = await res.json().catch(() => null)
+      if (res.ok && data?.tipChallenge) {
+        setTipChallenges((prev) => ({ ...prev, [id]: data.tipChallenge }))
+      } else {
+        setTcError(data?.message || 'Could not submit your challenge')
+      }
+    } catch {
+      setTcError('Could not submit your challenge')
+    } finally {
+      setTcBusyId(null)
+    }
+  }, [])
+
+  // Emisor ORIGINAL da el "visto bueno" -> libera los créditos al
+  // destinatario (ver POST /api/tip-challenges/:id/approve).
+  const approveTipChallenge = useCallback(async (n) => {
+    if (!n.tipChallengeId || tcBusyId) return
+    setTcBusyId(n.tipChallengeId)
+    setTcError(null)
+    try {
+      const res = await fetch(`/api/tip-challenges/${n.tipChallengeId}/approve`, { method: 'POST', headers: { ...authHeaders() } })
+      const data = await res.json().catch(() => null)
+      if (res.ok && data?.tipChallenge) {
+        setTipChallenges((prev) => ({ ...prev, [n.tipChallengeId]: data.tipChallenge }))
+      } else {
+        setTcError(data?.message || 'Could not approve this submission')
+      }
+    } catch {
+      setTcError('Could not approve this submission')
+    } finally {
+      setTcBusyId(null)
+    }
+  }, [tcBusyId])
+
+  // Emisor ORIGINAL rechaza la entrega (no le convence) -> reembolso al
+  // emisor (ver POST /api/tip-challenges/:id/decline).
+  const declineTipChallenge = useCallback(async (n) => {
+    if (!n.tipChallengeId || tcBusyId) return
+    setTcBusyId(n.tipChallengeId)
+    setTcError(null)
+    try {
+      const res = await fetch(`/api/tip-challenges/${n.tipChallengeId}/decline`, { method: 'POST', headers: { ...authHeaders() } })
+      const data = await res.json().catch(() => null)
+      if (res.ok && data?.tipChallenge) {
+        setTipChallenges((prev) => ({ ...prev, [n.tipChallengeId]: data.tipChallenge }))
+      } else {
+        setTcError(data?.message || 'Could not decline this submission')
+      }
+    } catch {
+      setTcError('Could not decline this submission')
+    } finally {
+      setTcBusyId(null)
+    }
+  }, [tcBusyId])
 
   const markAllRead = async () => {
     try {
@@ -394,12 +531,112 @@ export default function NotificationsInbox({ open, onClose }) {
                       </button>
                     </div>
                   )}
+
+                  {/* "Propina para proponer un reto" — tarjetas accionables.
+                      El ESTADO EN VIVO (tipChallenges[n.tipChallengeId]) manda
+                      sobre lo que se muestra, no el texto fijo de la
+                      notificación (que nunca cambia una vez creada). */}
+                  {n.type === 'tip_challenge_proposal' && (() => {
+                    const tc = tipChallenges[n.tipChallengeId]
+                    const busy = tcBusyId === n.tipChallengeId
+                    if (!tc || tc.status === 'pending') {
+                      return (
+                        <div className="pl-[52px] pr-1 flex items-center gap-2">
+                          <button
+                            onClick={() => rejectTipChallenge(n)}
+                            disabled={busy}
+                            className="flex-1 h-8 rounded-full text-[12.5px] font-semibold text-white bg-white/10 hover:bg-white/20 active:scale-[0.97] transition disabled:opacity-50"
+                          >
+                            Decline
+                          </button>
+                          <button
+                            onClick={() => acceptTipChallenge(n)}
+                            disabled={busy}
+                            className="flex-1 h-8 rounded-full text-[12.5px] font-bold text-white active:scale-[0.97] transition disabled:opacity-50 flex items-center justify-center gap-1"
+                            style={{ background: 'linear-gradient(90deg, #A855F7, #3B82F6)' }}
+                          >
+                            {busy ? <Loader2 size={13} className="animate-spin" /> : <Film size={13} strokeWidth={2} />}
+                            Accept & upload
+                          </button>
+                        </div>
+                      )
+                    }
+                    if (tc.status === 'submitted') {
+                      return <p className="pl-[52px] text-[12px] text-zinc-500">You submitted your response — waiting for @{n.user?.username} to review it.</p>
+                    }
+                    if (tc.status === 'rejected') {
+                      return <p className="pl-[52px] text-[12px] text-zinc-500">You declined this proposal — the tip was refunded.</p>
+                    }
+                    if (tc.status === 'approved') {
+                      return <p className="pl-[52px] text-[12px] text-emerald-400">Approved — you received {tc.amount} credits.</p>
+                    }
+                    if (tc.status === 'declined') {
+                      return <p className="pl-[52px] text-[12px] text-zinc-500">Your submission was declined — the tip was refunded to @{n.user?.username}.</p>
+                    }
+                    return null
+                  })()}
+
+                  {n.type === 'tip_challenge_submitted' && (() => {
+                    const tc = tipChallenges[n.tipChallengeId]
+                    const busy = tcBusyId === n.tipChallengeId
+                    if (!tc) return null
+                    const mediaUrl = tc.submissionImageUrl || tc.submissionVideoUrl || tc.submissionPosterUrl
+                    const isImage = tc.submissionMediaType === 'image'
+                    if (tc.status === 'submitted') {
+                      return (
+                        <div className="pl-[52px] pr-1 space-y-2">
+                          {mediaUrl && (
+                            <div className="w-20 aspect-[9/16] rounded-lg overflow-hidden relative bg-zinc-900">
+                              {isImage ? (
+                                <img src={mediaUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                              ) : (
+                                <video src={mediaUrl + '#t=0.2'} muted playsInline preload="metadata" className="absolute inset-0 w-full h-full object-cover" />
+                              )}
+                            </div>
+                          )}
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => declineTipChallenge(n)}
+                              disabled={busy}
+                              className="flex-1 h-8 rounded-full text-[12.5px] font-semibold text-white bg-white/10 hover:bg-white/20 active:scale-[0.97] transition disabled:opacity-50"
+                            >
+                              Decline
+                            </button>
+                            <button
+                              onClick={() => approveTipChallenge(n)}
+                              disabled={busy}
+                              className="flex-1 h-8 rounded-full text-[12.5px] font-bold text-white active:scale-[0.97] transition disabled:opacity-50 flex items-center justify-center gap-1"
+                              style={{ background: 'linear-gradient(90deg, #A855F7, #3B82F6)' }}
+                            >
+                              {busy ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} strokeWidth={2.4} />}
+                              Approve — release {tc.amount}
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    }
+                    if (tc.status === 'approved') {
+                      return <p className="pl-[52px] text-[12px] text-emerald-400">Approved — {tc.amount} credits released to @{n.user?.username}.</p>
+                    }
+                    if (tc.status === 'declined') {
+                      return <p className="pl-[52px] text-[12px] text-zinc-500">You declined this submission — the tip was refunded to you.</p>
+                    }
+                    return null
+                  })()}
                 </div>
               )
             })}
           </div>
         )}
+        {tcError && (
+          <p className="text-red-400 text-[12.5px] text-center mt-3">{tcError}</p>
+        )}
       </div>
+
+      {/* Input de archivo oculto, compartido por todas las tarjetas de
+          propuesta de reto (aceptar sube vídeo/foto) — mismo patrón que
+          ChallengesInbox.jsx. */}
+      <input ref={tcFileInputRef} type="file" accept="video/*,image/*" className="hidden" onChange={onTcFileChange} />
     </div>
   )
 }

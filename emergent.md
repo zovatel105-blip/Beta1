@@ -94,3 +94,59 @@ español tras la traducción previa.
 - No se ejecutó el agente de testing de backend/frontend en este cambio (traducción
   de texto + fix de `.env`). Recomendado validar login/registro y feed manualmente o
   con el agente de testing si se desea.
+
+
+---
+
+## 4. Recuperación de infraestructura + "propina para proponer un reto" (Sept 2026)
+
+### Recuperación (recurrente, ver ENV_BACKUP.md)
+- El pod volvió a resetearse: `/app` solo tenía `.git`, sin `node_modules`, sin
+  `/app/.env`, y `supervisord.conf` (READONLY, plantilla FastAPI+React) apuntaba a
+  `/app/backend` y `/app/frontend`, que no existen en este repo (es un monolito
+  Next.js en `/app`).
+- Se restauró: `git` ya tenía todo el código (solo faltaba en disco por el reset).
+  Se recreó `/app/.env` (`MONGO_URL`, `NEXT_PUBLIC_BASE_URL`, `EMERGENT_LLM_KEY`),
+  se corrió `yarn install`, y se creó `/etc/supervisor/conf.d/nextjs.conf` (programa
+  `nextjs`, `yarn dev` en `/app`, puerto 3000, `NODE_OPTIONS=--max-old-space-size=4096`
+  — 512MB causaba reinicios frecuentes por el watchdog de memoria de Next 14).
+- **Hallazgo clave**: el ingress de Kubernetes de este entorno enruta `/api/*`
+  SIEMPRE al puerto 8001 (backend), sin importar el tipo de imagen
+  (`nextjs_mongo_shadcn`). Como la app real sirve `/api/*` desde Next.js en el
+  puerto 3000, se creó `/app/backend/server.py`: un proxy inverso FastAPI minimal
+  que reenvía TODO `/api/*` de 8001 → `http://127.0.0.1:3000`, con 3 reintentos
+  cortos ante `ConnectError`/`RemoteProtocolError` (absorbe la ventana de reinicio
+  del watchdog de memoria de `nextjs`). **Este archivo debe recrearse igual en el
+  próximo reset** si `/app/backend/server.py` volviera a desaparecer.
+- Se corrió `node scripts/seed-core-users.mjs` (usuarios `twyk`/`lucia`/`marcos`/
+  `laura`, ver `/app/memory/test_credentials.md` — login es `{"username","password"}`,
+  NO `identifier`).
+
+### Nueva feature: propina para proponer un reto (perfil ajeno)
+Petición del usuario: "en el perfil ajeno se puede enviar una propina pero esa
+propina debe enviarse para proponer un challenge". Aclarado vía `ask_human`:
+- Los botones "Challenge" (espadas, reto directo) y "Tip" (propina) del perfil
+  ajeno **se mantienen separados**.
+- El botón de Tip (`TipSheet.jsx`) ya NO es un regalo suelto: crea una PROPUESTA
+  de reto con los créditos en ESCROW (`POST /api/tip-challenges`, colección Mongo
+  `tipChallenges`, ver `lib/stores.js`).
+- Ciclo: `pending` → (destinatario) **Aceptar** (sube vídeo/foto, multipart) →
+  `submitted` → (emisor original) **Aprobar** → `approved` (créditos liberados al
+  destinatario) | **Rechazar entrega** → `declined` (reembolso al emisor). O
+  `pending` → (destinatario) **Rechazar** → `rejected` (reembolso inmediato).
+- Endpoints nuevos en `route.js`: `GET/POST /api/tip-challenges`,
+  `POST /api/tip-challenges/:id/{accept,reject,approve,decline}`.
+- `NotificationsInbox.jsx`: tarjetas accionables para `tip_challenge_proposal`
+  (Aceptar/Rechazar) y `tip_challenge_submitted` (Aprobar/Rechazar, con preview de
+  la entrega) — el estado en vivo se carga aparte vía `GET /api/tip-challenges?role=`
+  porque la notificación en sí es inmutable.
+- Verificado end-to-end con un script Node ad-hoc (login real, escrow, accept con
+  archivo real, approve/decline/reject, dobles-clic bloqueados, self-challenge y
+  saldo insuficiente rechazados) — **no se usó el agente de testing en este cambio**
+  (petición explícita del usuario). Datos de prueba limpiados de Mongo al terminar.
+
+### Pendiente / Notas
+- No se verificó visualmente por Playwright (la app es "mobile-only" — el
+  screenshot tool de este entorno no logró simular UA+viewport móvil de forma
+  fiable en esta sesión). Recomendado que el usuario pruebe manualmente el flujo
+  completo desde un perfil ajeno.

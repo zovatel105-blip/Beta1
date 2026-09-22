@@ -119,6 +119,10 @@ import {
   setChallengeAllowChallenge,
   getAllBuiltinVotes,
   incrementBuiltinVote,
+  getAllTipChallenges,
+  getTipChallengeById,
+  insertTipChallenge,
+  updateTipChallengeStatus,
 } from '@/lib/stores'
 import { rankFeed, recordVote, recordImpressions, recordWatch, recordEngagement, recordSocialAffinity, recordNotInterested, getNotInterestedIds, computeMetrics } from '@/lib/recommender'
 import { registerDeviceToken, unregisterDeviceToken } from '@/lib/push'
@@ -1526,6 +1530,23 @@ export async function GET(request, { params }) {
     return NextResponse.json({ challenges: enriched })
   }
 
+  // GET /api/tip-challenges?role=received|sent — propuestas de reto con
+  // propina (ver POST /api/tip-challenges más abajo). role=received (por
+  // defecto): propuestas que ME enviaron (para Aceptar/Rechazar, o ver el
+  // estado si ya respondí). role=sent: propuestas que YO envié (para
+  // Aprobar/Rechazar la entrega una vez el destinatario suba su respuesta).
+  if (path === '/tip-challenges') {
+    const currentUser = await getCurrentUser(request)
+    if (!currentUser) return NextResponse.json({ tipChallenges: [] })
+    const { searchParams } = new URL(request.url)
+    const role = searchParams.get('role') || 'received'
+    const list = await getAllTipChallenges()
+    const filtered = list.filter((t) => (
+      role === 'sent' ? t.from?.id === currentUser.id : t.to?.id === currentUser.id
+    ))
+    return NextResponse.json({ tipChallenges: filtered })
+  }
+
   // Catálogo de vídeos disponibles para emparejar en un 1vs1.
   // Mezcla los vídeos del feed + uploads del usuario (versus).
   if (path === '/feed-options') {
@@ -1953,6 +1974,33 @@ export async function POST(request, { params }) {
   // créditos a otro creador (resta del emisor, suma al receptor).
   if (path === '/wallet/tip') {
     return handleWalletTip(request)
+  }
+
+  // POST /api/tip-challenges body:{toUsername, amount, message} - "propina
+  // para proponer un reto" (ver comentario completo junto a
+  // handleCreateTipChallenge más abajo).
+  if (path === '/tip-challenges') {
+    return handleCreateTipChallenge(request)
+  }
+  // POST /api/tip-challenges/:id/accept — el destinatario ACEPTA y sube su
+  // vídeo/foto completando el reto propuesto (multipart 'file', requerido).
+  if (segs[0] === 'tip-challenges' && segs[2] === 'accept') {
+    return handleAcceptTipChallenge(segs[1], request)
+  }
+  // POST /api/tip-challenges/:id/reject — el destinatario RECHAZA la
+  // propuesta inicial (antes de subir nada) -> reembolso inmediato al emisor.
+  if (segs[0] === 'tip-challenges' && segs[2] === 'reject') {
+    return handleRejectTipChallenge(segs[1], request)
+  }
+  // POST /api/tip-challenges/:id/approve — el EMISOR ORIGINAL da el "visto
+  // bueno" a la entrega ya subida -> se liberan los créditos al destinatario.
+  if (segs[0] === 'tip-challenges' && segs[2] === 'approve') {
+    return handleApproveTipChallenge(segs[1], request)
+  }
+  // POST /api/tip-challenges/:id/decline — el EMISOR ORIGINAL rechaza la
+  // entrega ya subida -> reembolso al emisor, el destinatario no recibe nada.
+  if (segs[0] === 'tip-challenges' && segs[2] === 'decline') {
+    return handleDeclineTipChallenge(segs[1], request)
   }
 
   // POST /api/stripe/webhook - Stripe notifica aquí los eventos de la
@@ -4686,6 +4734,274 @@ async function handleWalletTip(request) {
     return NextResponse.json({ error: 'tip_failed' }, { status: 500 })
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// TIP CHALLENGES — "en el perfil ajeno se puede enviar una propina, pero
+// esa propina debe enviarse para proponer un reto". Botón separado de
+// "Challenge" (Swords, retador ya listo con su vídeo/foto): este flujo
+// nace del botón de Propina (créditos) y es una INVITACIÓN — el emisor NO
+// sube ningún vídeo, solo créditos + un mensaje opcional describiendo el
+// reto que propone. Los créditos quedan en ESCROW (ya restados del emisor)
+// hasta que el ciclo se resuelve:
+//
+//   pending  --reject(to)-->  rejected   (reembolso inmediato al emisor)
+//   pending  --accept(to, con archivo)-->  submitted
+//   submitted --approve(from)--> approved  (créditos liberados al destinatario)
+//   submitted --decline(from)--> declined  (reembolso al emisor)
+//
+// Cada transición notifica a la otra parte (ver NotificationsInbox.jsx,
+// que renderiza tarjetas accionables para 'tip_challenge_proposal' —
+// Aceptar/Rechazar— y 'tip_challenge_submitted' —Aprobar/Rechazar—).
+// ─────────────────────────────────────────────────────────────────────────
+
+// POST /api/tip-challenges body:{toUsername, amount, message?}
+async function handleCreateTipChallenge(request) {
+  try {
+    const currentUser = await getCurrentUser(request)
+    if (!currentUser) {
+      return NextResponse.json({ error: 'unauthorized', message: 'You must log in to send a tip' }, { status: 401 })
+    }
+    const body = await request.json().catch(() => ({}))
+    const toUsername = String(body?.toUsername || '').trim()
+    const amount = Math.floor(Number(body?.amount))
+    const message = String(body?.message || '').trim().slice(0, 300)
+    if (!toUsername) {
+      return NextResponse.json({ error: 'missing_recipient' }, { status: 400 })
+    }
+    if (!(amount > 0)) {
+      return NextResponse.json({ error: 'invalid_amount', message: 'Enter a valid amount of credits' }, { status: 400 })
+    }
+    if (toUsername.toLowerCase() === currentUser.username.toLowerCase()) {
+      return NextResponse.json({ error: 'cannot_tip_self', message: "You can't challenge yourself" }, { status: 400 })
+    }
+    const recipient = await getUserByUsername(toUsername)
+    if (!recipient) {
+      return NextResponse.json({ error: 'recipient_not_found', message: 'User not found' }, { status: 404 })
+    }
+
+    // Escrow: se resta AHORA del emisor. Se libera al destinatario solo si
+    // el emisor aprueba la entrega (approve); se devuelve al emisor si se
+    // rechaza la propuesta (reject) o la entrega (decline).
+    const debit = await deductWalletCredits(currentUser.id, amount, {
+      type: 'tip_challenge_escrow',
+      counterpartyUsername: recipient.username,
+    })
+    if (!debit.ok) {
+      const message2 = debit.reason === 'insufficient_funds'
+        ? "You don't have enough credits for this tip"
+        : 'Could not send tip'
+      return NextResponse.json({ error: debit.reason || 'tip_failed', message: message2 }, { status: debit.reason === 'insufficient_funds' ? 402 : 400 })
+    }
+
+    const id = `tipchallenge_${crypto.randomBytes(8).toString('hex')}`
+    const nowIso = new Date().toISOString()
+    const doc = {
+      id,
+      status: 'pending',
+      from: { id: currentUser.id, username: currentUser.username, name: currentUser.name || currentUser.username, avatarUrl: currentUser.avatarUrl },
+      to: { id: recipient.id, username: recipient.username, name: recipient.name || recipient.username, avatarUrl: recipient.avatarUrl },
+      amount,
+      message,
+      submissionMediaType: null,
+      submissionVideoUrl: null,
+      submissionImageUrl: null,
+      submissionPosterUrl: null,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    }
+    await insertTipChallenge(doc)
+
+    createNotification({
+      userId: recipient.id,
+      type: 'tip_challenge_proposal',
+      fromUserId: currentUser.id,
+      text: `sent you ${amount} credit${amount === 1 ? '' : 's'} and proposes a challenge${message ? `: "${message}"` : ''}`,
+      tipChallengeId: id,
+    }).catch(() => {})
+
+    return NextResponse.json({ ok: true, tipChallenge: doc, balance: debit.balance })
+  } catch (err) {
+    console.error('create tip challenge error', err?.message || err)
+    return NextResponse.json({ error: 'tip_challenge_failed' }, { status: 500 })
+  }
+}
+
+// POST /api/tip-challenges/:id/accept — el DESTINATARIO acepta la propuesta
+// subiendo su vídeo/foto (multipart 'file', requerido: aquí no hay ningún
+// contenido previo que reutilizar, a diferencia de /api/challenges/:id/accept).
+async function handleAcceptTipChallenge(id, request) {
+  try {
+    const currentUser = await getCurrentUser(request)
+    if (!currentUser) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    }
+    const doc = await getTipChallengeById(id)
+    if (!doc) return NextResponse.json({ error: 'not_found' }, { status: 404 })
+    if (doc.to?.id !== currentUser.id) {
+      return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+    }
+
+    const formData = await request.formData().catch(() => null)
+    const file = formData?.get('file')
+    if (!file || typeof file === 'string') {
+      return NextResponse.json({ error: 'no_file', message: 'Upload a video or photo to complete the challenge' }, { status: 400 })
+    }
+    const m = await saveUploadedMedia(file)
+
+    const updated = await updateTipChallengeStatus(id, 'pending', {
+      status: 'submitted',
+      submissionMediaType: m.mediaType,
+      submissionVideoUrl: m.mediaType === 'video' ? m.url : null,
+      submissionImageUrl: m.mediaType === 'image' ? m.url : null,
+      submissionPosterUrl: m.posterUrl,
+      updatedAt: new Date().toISOString(),
+    })
+    if (!updated) {
+      return NextResponse.json({ error: 'invalid_state', message: 'This proposal is no longer pending' }, { status: 400 })
+    }
+
+    createNotification({
+      userId: doc.from.id,
+      type: 'tip_challenge_submitted',
+      fromUserId: doc.to.id,
+      text: `completed your challenge proposal — review the submission`,
+      tipChallengeId: id,
+    }).catch(() => {})
+
+    return NextResponse.json({ ok: true, tipChallenge: updated })
+  } catch (err) {
+    console.error('accept tip challenge error', err?.message || err)
+    return NextResponse.json({ error: 'accept_failed', detail: String(err?.message || err) }, { status: 500 })
+  }
+}
+
+// POST /api/tip-challenges/:id/reject — el DESTINATARIO rechaza la
+// propuesta ANTES de subir nada -> reembolso inmediato al emisor.
+async function handleRejectTipChallenge(id, request) {
+  try {
+    const currentUser = await getCurrentUser(request)
+    if (!currentUser) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    }
+    const doc = await getTipChallengeById(id)
+    if (!doc) return NextResponse.json({ error: 'not_found' }, { status: 404 })
+    if (doc.to?.id !== currentUser.id) {
+      return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+    }
+
+    const updated = await updateTipChallengeStatus(id, 'pending', {
+      status: 'rejected',
+      updatedAt: new Date().toISOString(),
+    })
+    if (!updated) {
+      return NextResponse.json({ error: 'invalid_state', message: 'This proposal is no longer pending' }, { status: 400 })
+    }
+
+    await addWalletCredits(doc.from.id, doc.amount, {
+      type: 'tip_challenge_refund',
+      counterpartyUsername: doc.to.username,
+    })
+
+    createNotification({
+      userId: doc.from.id,
+      type: 'tip_challenge_rejected',
+      fromUserId: doc.to.id,
+      text: `declined your challenge proposal — ${doc.amount} credit${doc.amount === 1 ? '' : 's'} refunded`,
+      tipChallengeId: id,
+    }).catch(() => {})
+
+    return NextResponse.json({ ok: true, tipChallenge: updated })
+  } catch (err) {
+    console.error('reject tip challenge error', err?.message || err)
+    return NextResponse.json({ error: 'reject_failed' }, { status: 500 })
+  }
+}
+
+// POST /api/tip-challenges/:id/approve — el EMISOR ORIGINAL da el "visto
+// bueno" a la entrega ya subida -> se liberan los créditos al destinatario.
+async function handleApproveTipChallenge(id, request) {
+  try {
+    const currentUser = await getCurrentUser(request)
+    if (!currentUser) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    }
+    const doc = await getTipChallengeById(id)
+    if (!doc) return NextResponse.json({ error: 'not_found' }, { status: 404 })
+    if (doc.from?.id !== currentUser.id) {
+      return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+    }
+
+    const updated = await updateTipChallengeStatus(id, 'submitted', {
+      status: 'approved',
+      updatedAt: new Date().toISOString(),
+    })
+    if (!updated) {
+      return NextResponse.json({ error: 'invalid_state', message: 'Nothing to approve yet' }, { status: 400 })
+    }
+
+    await addWalletCredits(doc.to.id, doc.amount, {
+      type: 'tip_challenge_release',
+      counterpartyUsername: doc.from.username,
+    })
+
+    createNotification({
+      userId: doc.to.id,
+      type: 'tip_challenge_approved',
+      fromUserId: doc.from.id,
+      text: `approved your challenge — you received ${doc.amount} credit${doc.amount === 1 ? '' : 's'}`,
+      tipChallengeId: id,
+    }).catch(() => {})
+
+    return NextResponse.json({ ok: true, tipChallenge: updated })
+  } catch (err) {
+    console.error('approve tip challenge error', err?.message || err)
+    return NextResponse.json({ error: 'approve_failed' }, { status: 500 })
+  }
+}
+
+// POST /api/tip-challenges/:id/decline — el EMISOR ORIGINAL rechaza la
+// entrega ya subida (no le convence) -> reembolso al emisor, el
+// destinatario no recibe nada.
+async function handleDeclineTipChallenge(id, request) {
+  try {
+    const currentUser = await getCurrentUser(request)
+    if (!currentUser) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    }
+    const doc = await getTipChallengeById(id)
+    if (!doc) return NextResponse.json({ error: 'not_found' }, { status: 404 })
+    if (doc.from?.id !== currentUser.id) {
+      return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+    }
+
+    const updated = await updateTipChallengeStatus(id, 'submitted', {
+      status: 'declined',
+      updatedAt: new Date().toISOString(),
+    })
+    if (!updated) {
+      return NextResponse.json({ error: 'invalid_state', message: 'Nothing to decline' }, { status: 400 })
+    }
+
+    await addWalletCredits(doc.from.id, doc.amount, {
+      type: 'tip_challenge_refund',
+      counterpartyUsername: doc.to.username,
+    })
+
+    createNotification({
+      userId: doc.to.id,
+      type: 'tip_challenge_declined',
+      fromUserId: doc.from.id,
+      text: `declined your challenge submission — the tip was refunded`,
+      tipChallengeId: id,
+    }).catch(() => {})
+
+    return NextResponse.json({ ok: true, tipChallenge: updated })
+  } catch (err) {
+    console.error('decline tip challenge error', err?.message || err)
+    return NextResponse.json({ error: 'decline_failed' }, { status: 500 })
+  }
+}
+
 
 // POST /api/stripe/webhook - eventos de Stripe. IMPORTANTE: se lee el
 // cuerpo como texto CRUDO (request.text()) ANTES de cualquier parseo, para
