@@ -1,14 +1,42 @@
 [
   {
-    "content": "Final regression re-run (post acceptance-test, post server restart)",
+    "content": "Audit: read lib/universalChallengeStore.js (persistence layer)",
     "status": "completed"
   },
   {
-    "content": "Clean up test data created during verification",
+    "content": "Audit: read lib/challengeStateEngine.js (state/progression engine)",
     "status": "completed"
   },
   {
-    "content": "Final report",
+    "content": "Audit: read lib/universalChallengeParticipantStructures.js (structures: One vs All, Team vs Team, etc.)",
+    "status": "completed"
+  },
+  {
+    "content": "Audit: read components/UniversalChallengeEditor.jsx (Simple + Advanced editor)",
+    "status": "completed"
+  },
+  {
+    "content": "Audit: read components/UniversalChallengeMomentOverlay.jsx (feed presentation layer)",
+    "status": "completed"
+  },
+  {
+    "content": "Audit: read legacy lib/challengeMechanics.js + challengeEngineStore.js (old poll engine) to confirm no overlap",
+    "status": "completed"
+  },
+  {
+    "content": "Audit: grep route.js for universal-challenge API endpoints + DB collections used",
+    "status": "completed"
+  },
+  {
+    "content": "Audit: check validation system, tie-break, prediction/result separation, versioning support",
+    "status": "completed"
+  },
+  {
+    "content": "Produce full audit report table + classification (KEEP/EXTEND/REFACTOR/CREATE/REMOVE)",
+    "status": "completed"
+  },
+  {
+    "content": "Ask user which gaps to prioritize before implementing anything",
     "status": "in_progress"
   }
 ]
