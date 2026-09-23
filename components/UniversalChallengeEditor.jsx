@@ -17,6 +17,18 @@ import {
   PARTICIPANT_STRUCTURES, STRUCTURE_META, structureOptionSource, structureRuleOf, structureAllowedRules, structureDefaultRuleConfig,
 } from '@/lib/universalChallengeParticipantStructures'
 import { ENTITY_TYPES, ENTITY_TYPE_LABELS, ENTITY_TYPE_ORDER } from '@/lib/universalChallengeEntityTypes'
+// Advanced Mode gap-fill (audited task, step 1 of 3) — RULE_SCHEMA is
+// already the server's authoritative source for which ruleConfig fields a
+// given rule accepts (see lib/challengeRuleSchema.js's docblock); Advanced
+// Mode's raw JSON textarea is replaced below with fields rendered directly
+// from `fieldSchemaForRule()`, so this file stops hand-duplicating that
+// knowledge. `normalizeRuleConfigFromSchema` supplies Advanced Mode's
+// per-rule defaults (see `advancedDefaultRuleConfig` below) instead of the
+// separate hand-maintained `defaultRuleConfig()` that Simple Mode's own
+// guided flows still use unchanged (left untouched on purpose -- Simple
+// Mode's flows are out of scope for this task and already work).
+import { fieldSchemaForRule, normalizeRuleConfigFromSchema } from '@/lib/challengeRuleSchema'
+import { VALIDATION_OPS, COMPARATOR_OPS, COMBINE_OPS, CONDITION_OPS } from '@/lib/universalChallengeConditionOps'
 
 /**
  * UniversalChallengeEditor — authoring screen for the NEW "Universal
@@ -83,6 +95,92 @@ const MISSING_SUBMISSION_LABELS = {
   allow_other_to_continue: 'Let the others continue — only the missing participant is penalized',
 }
 const MISSING_SUBMISSION_ORDER = ['eliminate', 'fail_round', 'default_value', 'allow_other_to_continue']
+
+// Advanced Mode gap-fill (step 1) — human labels for every OTHER enum
+// ruleConfig field RULE_SCHEMA declares (fieldSchemaForRule) that didn't
+// already have a label map above. Purely presentational: the persisted
+// value is always the raw schema enum value on the left.
+const TEAM_AGGREGATION_LABELS = { sum: 'Add up every team member\u2019s value', average: 'Average every team member\u2019s value' }
+const OUTPUT_MODE_LABELS = { winner: 'Just the winner', full_ranking: 'Full ranking (1st, 2nd, 3rd…)' }
+const OUTCOME_MODE_LABELS = { reveal: "You'll reveal the correct answer afterwards", vote_tally: 'The most-voted option wins automatically' }
+const ON_TRIGGER_LABELS = { eliminate: 'Eliminate them from the challenge', fail: 'Mark them as failed (they stay in, but lose this round)' }
+const CONDITION_MODE_LABELS = { per_participant_pass_fail: 'You mark each participant pass/fail every round', __shared__: 'A single shared condition decides for everyone at once' }
+
+// Advanced Mode gap-fill (step 1) — Advanced Mode's OWN default ruleConfig,
+// derived from RULE_SCHEMA (the same source normalizeRuleConfig() uses
+// server-side) via `normalizeRuleConfigFromSchema(rule, {})`, which is
+// exactly "every field this rule accepts, at its documented default".
+// Deliberately NOT wired into the existing `defaultRuleConfig()` above
+// (Simple Mode's guided flows keep using that one, completely unchanged —
+// e.g. it always seeds `validValues: []` for INPUT_VALIDATION so Simple
+// Mode's own list-editor never has to null-check, which
+// normalizeRuleConfigFromSchema alone would NOT give it, since the schema
+// default for validValues is `undefined`). Advanced Mode replicates that
+// one small UX convenience locally instead of touching the shared helper.
+function advancedDefaultRuleConfig(rule) {
+  const base = normalizeRuleConfigFromSchema(rule, {})
+  if (rule === RULES.INPUT_VALIDATION) return { ...base, validValues: [] }
+  // RULE_SCHEMA's own default for `conditionMode` is `null` (a code-only
+  // `condition` function, which Advanced Mode has no way to author and
+  // which the engine documents as "defaulting to never triggers"). A
+  // brand-new Survival event should start USABLE with zero extra
+  // configuration, so default it here to the fully data-driven
+  // `per_participant_pass_fail` mode instead — the creator can still
+  // switch to "a single shared condition" via the field below.
+  if (rule === RULES.SURVIVAL) return { ...base, conditionMode: 'per_participant_pass_fail' }
+  return base
+}
+
+// Advanced Mode gap-fill (step 1) — short, human-readable explanation of
+// how a given rule + its CURRENT ruleConfig actually resolves a winner,
+// rendered above that event's fields so a creator never has to infer this
+// from field names alone. Every line maps directly to a real code path in
+// lib/challengeRuleEngine.js — nothing here is aspirational/unimplemented.
+function explainRule(rule, ruleConfig) {
+  const cfg = ruleConfig || {}
+  const lines = []
+  const tieLine = () => (cfg.tieBreak === 'creator_defined' ? "Ties: you'll pick the winner yourself." : 'Ties: resolved randomly.')
+  const outputLine = () => (cfg.outputMode === 'full_ranking' ? 'Result: a full ranking (1st, 2nd, 3rd…), not just one winner.' : 'Result: just the winner.')
+  if (rule === RULES.HIGHEST_SCORE) {
+    lines.push('Compares: each participant\u2019s numeric score for this event.')
+    lines.push('Winner: whoever has the HIGHEST score.')
+    lines.push(tieLine()); lines.push(outputLine())
+  } else if (rule === RULES.LOWEST_SCORE) {
+    lines.push('Compares: each participant\u2019s numeric score for this event.')
+    lines.push('Winner: whoever has the LOWEST score (e.g. fewest mistakes).')
+    lines.push(tieLine()); lines.push(outputLine())
+  } else if (rule === RULES.FASTEST) {
+    lines.push('Compares: each participant\u2019s recorded time.')
+    lines.push('Winner: whoever has the FASTEST (lowest) time.')
+    lines.push(tieLine()); lines.push(outputLine())
+  } else if (rule === RULES.FIRST_TO_OBJECTIVE) {
+    lines.push('Compares: when each participant actually finished (timestamp).')
+    lines.push('Winner: whoever finished FIRST.')
+    if (cfg.eliminateNonFinishers) lines.push('Anyone who never finishes is eliminated.')
+    lines.push(tieLine())
+  } else if (rule === RULES.ELIMINATION) {
+    lines.push('Compares: how the community votes during this round.')
+    lines.push('Result: the participant with the most votes AGAINST them is eliminated.')
+    lines.push(tieLine())
+  } else if (rule === RULES.SEQUENTIAL_MATCHUP) {
+    lines.push('Compares: how the community votes in this 1-on-1 matchup.')
+    lines.push('Winner: whoever gets more votes — they auto-advance to the next chained round.')
+    lines.push(tieLine())
+  } else if (rule === RULES.PREDICTION) {
+    lines.push('Viewers predict an outcome — their prediction never changes the real result.')
+    lines.push(cfg.outcomeMode === 'vote_tally' ? 'Result: the option with the most predictions wins automatically.' : 'Result: YOU reveal the correct answer afterwards.')
+  } else if (rule === RULES.INPUT_VALIDATION) {
+    lines.push('Compares: every participant\u2019s own submitted answer, combined into one value.')
+    lines.push('Success/failure: valid → everyone passes. Invalid → everyone fails (per the missing-submission rule below).')
+  } else if (rule === RULES.SURVIVAL) {
+    lines.push('Participants stay ACTIVE until the condition below triggers.')
+    lines.push(`When it triggers: ${(ON_TRIGGER_LABELS[cfg.onTrigger] || ON_TRIGGER_LABELS.eliminate).toLowerCase()}`)
+  } else if (rule === RULES.COMPARISON) {
+    lines.push('Compares: submissions using the rule below (defaults to highest numeric value).')
+    lines.push(tieLine()); lines.push(outputLine())
+  }
+  return lines
+}
 
 function outcomeOptions(rule) {
   // PREDICTION is checked by rule id, not by `family`, on purpose: the
@@ -181,7 +279,376 @@ function Chip({ selected, onClick, children, testId }) {
   )
 }
 
+// ---------------------------------------------------------------------------
+// Advanced Mode gap-fill (audited task, step 1 of 3) — schema-driven
+// ruleConfig fields, replacing the raw JSON textarea. Everything below is
+// NEW presentation/authoring code only: it builds the exact same
+// `ruleConfig` object shape the engine (lib/challengeRuleEngine.js) and
+// server-side normalizer (lib/challengeRuleSchema.js's
+// normalizeRuleConfigFromSchema, which is authoritative regardless of what
+// this UI sends) already accept — no rule engine change, no second
+// editor, no new mechanic.
+// ---------------------------------------------------------------------------
+
+// A minimal, dependency-free "list of short strings" editor — used for
+// `validValues` (INPUT_VALIDATION's plain allow-list) and for any
+// `text_list`-typed spec param (e.g. a `one_of`/`valid_option` operation's
+// `values`). Deliberately its own tiny component (not the free-text
+// options list a few sections up, which is `{id,label}` objects for
+// PREDICTION's `event.options` — a different field entirely) since this
+// one is just `string[]`.
+function StringListEditor({ values, onChange, placeholder, testId }) {
+  const list = Array.isArray(values) ? values : []
+  return (
+    <div className="space-y-1.5">
+      {list.map((v, i) => (
+        <div key={i} className="flex items-center gap-2">
+          <input
+            value={v}
+            onChange={(e) => onChange(list.map((x, xi) => (xi === i ? e.target.value : x)))}
+            placeholder={placeholder || `Value ${i + 1}`}
+            data-testid={testId ? `${testId}-${i}` : undefined}
+            className="flex-1 min-w-0 bg-transparent border-b border-white/20 text-[12px] px-1 py-1 outline-none"
+          />
+          <button onClick={() => onChange(list.filter((_, xi) => xi !== i))} className="text-rose-400 text-[11px] px-1 shrink-0">Remove</button>
+        </div>
+      ))}
+      <button onClick={() => onChange([...list, ''])} data-testid={testId ? `${testId}-add` : undefined} className="text-[11.5px] text-rose-400 font-semibold">+ Add value</button>
+    </div>
+  )
+}
+
+// One param field (of an op picked from VALIDATION_OPS/COMPARATOR_OPS/
+// COMBINE_OPS/CONDITION_OPS) — `type` here is the OP'S param type
+// ('text'|'number'|'text_list'|'enum'), a totally different vocabulary
+// from RULE_SCHEMA's field `type`, on purpose: op params describe a much
+// smaller, uniform shape than a full ruleConfig field does.
+function SpecParamField({ param, value, onChange, testId }) {
+  if (param.type === 'text_list') {
+    const asList = Array.isArray(value) ? value : (typeof value === 'string' && value ? [value] : [])
+    return (
+      <div>
+        <div className="text-[10.5px] text-zinc-500 mb-1">{param.label}</div>
+        <StringListEditor values={asList} onChange={onChange} testId={testId} />
+      </div>
+    )
+  }
+  if (param.type === 'enum') {
+    return (
+      <label className="flex items-center gap-2 text-[11.5px] text-zinc-300">
+        <span className="text-zinc-500 shrink-0">{param.label}</span>
+        <select value={value ?? ''} onChange={(e) => onChange(e.target.value)} data-testid={testId} className="bg-black/40 text-[11px] rounded px-1.5 py-1 flex-1">
+          {(param.values || []).map((v) => <option key={v} value={v}>{param.labels?.[v] || v}</option>)}
+        </select>
+      </label>
+    )
+  }
+  return (
+    <label className="flex items-center gap-2 text-[11.5px] text-zinc-300">
+      <span className="text-zinc-500 shrink-0">{param.label}</span>
+      <input
+        type={param.type === 'number' ? 'number' : 'text'}
+        value={value ?? ''}
+        onChange={(e) => onChange(param.type === 'number' ? e.target.value : e.target.value)}
+        data-testid={testId}
+        className="flex-1 min-w-0 bg-black/40 text-[11.5px] rounded px-2 py-1 outline-none"
+      />
+    </label>
+  )
+}
+
+// Generic "pick an operation, fill its fields" builder for one
+// JSON-serializable spec object (`ruleConfig.validationSpec` /
+// `.comparatorSpec` / `.combineSpec` / one SURVIVAL `conditionSpec` slot).
+// `ops` is one of VALIDATION_OPS/COMPARATOR_OPS/COMBINE_OPS/CONDITION_OPS.
+// `spec` is either undefined/null (feature off — the rule's own built-in
+// default behavior applies, exactly as before this task) or `{ type, ...params }`.
+function SpecBuilder({ label, hint, ops, spec, onChange, testId }) {
+  const enabled = spec != null && typeof spec === 'object'
+  const currentOp = ops.find((o) => o.id === spec?.type) || ops[0]
+  return (
+    <div className="rounded-lg border border-white/10 p-2.5 space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[11.5px] font-semibold text-zinc-200">{label}</span>
+        <Toggle
+          checked={enabled}
+          onChange={(v) => onChange(v ? { type: currentOp.id } : undefined)}
+          label={label}
+          testId={testId ? `${testId}-toggle` : undefined}
+        />
+      </div>
+      {hint && <p className="text-[10.5px] text-zinc-500">{hint}</p>}
+      {enabled && (
+        <div className="space-y-2 pt-1">
+          <select
+            value={currentOp.id}
+            onChange={(e) => onChange({ type: e.target.value })}
+            data-testid={testId ? `${testId}-op` : undefined}
+            className="w-full bg-black/40 text-[11.5px] rounded px-1.5 py-1"
+          >
+            {ops.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+          </select>
+          {(currentOp.params || []).map((p) => (
+            <SpecParamField
+              key={p.key}
+              param={p}
+              value={spec?.[p.key]}
+              onChange={(v) => onChange({ ...spec, type: currentOp.id, [p.key]: v })}
+              testId={testId ? `${testId}-${p.key}` : undefined}
+            />
+          ))}
+          {/* `value_condition` (CONDITION_OPS) is the one nested op: its
+              real per-value check is itself a VALIDATION_OPS spec, reused
+              wholesale rather than re-described here. */}
+          {currentOp.nested && (
+            <SpecBuilder
+              label="Condition to check on each value"
+              ops={VALIDATION_OPS}
+              spec={spec?.condition}
+              onChange={(v) => onChange({ ...spec, type: currentOp.id, condition: v })}
+              testId={testId ? `${testId}-nested` : undefined}
+            />
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// The main per-event ruleConfig panel — iterates `fieldSchemaForRule(rule)`
+// (RULE_SCHEMA, the server's own authoritative field list for this exact
+// rule) and renders one clear control per field, skipping only
+// `insufficientVotesFallback` (ALWAYS_FIELDS' one field, which never has a
+// second legal value to pick today, so a control for it would just be
+// noise). Nothing here can express a ruleConfig shape the engine doesn't
+// already support — nothing is invented, only exposed.
+function AdvancedRuleConfigFields({ idx, rule, ruleConfig, event, entities, onChange }) {
+  const cfg = ruleConfig || {}
+  const schema = fieldSchemaForRule(rule)
+  const explanation = explainRule(rule, cfg)
+  // Winner/tie-break pickers need a candidate list of "things that can
+  // win": the event's own free-text options (PREDICTION with no
+  // participants), else the participants actually selected for this
+  // event, else every entity (fallback before either is picked yet).
+  const candidates = (event?.options || []).length
+    ? event.options.map((o) => ({ id: o.id, name: o.label || 'Option' }))
+    : (event?.participantIds || []).length
+      ? entities.filter((e) => event.participantIds.includes(e.id))
+      : entities
+
+  const rows = []
+
+  if ('tieBreak' in schema) {
+    rows.push(
+      <label key="tieBreak" className="flex items-center gap-2 text-[11.5px] text-zinc-300">
+        <span className="text-zinc-500 shrink-0 w-[110px]">If there's a tie</span>
+        <select value={cfg.tieBreak || 'random'} onChange={(e) => onChange({ tieBreak: e.target.value })} data-testid={`adv-event-${idx}-tiebreak`} className="bg-black/40 text-[11.5px] rounded px-1.5 py-1 flex-1">
+          {Object.keys(TIE_BREAK_LABELS).map((v) => <option key={v} value={v}>{TIE_BREAK_LABELS[v]}</option>)}
+        </select>
+      </label>
+    )
+  }
+  if ('tieBreakWinnerId' in schema && cfg.tieBreak === 'creator_defined') {
+    rows.push(
+      <label key="tieBreakWinnerId" className="flex items-center gap-2 text-[11.5px] text-zinc-300">
+        <span className="text-zinc-500 shrink-0 w-[110px]">Winner if tied</span>
+        <select value={cfg.tieBreakWinnerId || ''} onChange={(e) => onChange({ tieBreakWinnerId: e.target.value || null })} data-testid={`adv-event-${idx}-tiebreakwinner`} className="bg-black/40 text-[11.5px] rounded px-1.5 py-1 flex-1">
+          <option value="">Choose when the tie happens</option>
+          {candidates.map((c) => <option key={c.id} value={c.id}>{c.name || 'Unnamed'}</option>)}
+        </select>
+      </label>
+    )
+  }
+  if ('teamAggregationMethod' in schema) {
+    rows.push(
+      <label key="teamAggregationMethod" className="flex items-center gap-2 text-[11.5px] text-zinc-300">
+        <span className="text-zinc-500 shrink-0 w-[110px]">Team score</span>
+        <select value={cfg.teamAggregationMethod || 'sum'} onChange={(e) => onChange({ teamAggregationMethod: e.target.value })} data-testid={`adv-event-${idx}-teamagg`} className="bg-black/40 text-[11.5px] rounded px-1.5 py-1 flex-1">
+          {Object.keys(TEAM_AGGREGATION_LABELS).map((v) => <option key={v} value={v}>{TEAM_AGGREGATION_LABELS[v]}</option>)}
+        </select>
+      </label>
+    )
+  }
+  if ('outputMode' in schema) {
+    rows.push(
+      <label key="outputMode" className="flex items-center gap-2 text-[11.5px] text-zinc-300">
+        <span className="text-zinc-500 shrink-0 w-[110px]">Show as</span>
+        <select value={cfg.outputMode || 'winner'} onChange={(e) => onChange({ outputMode: e.target.value })} data-testid={`adv-event-${idx}-outputmode`} className="bg-black/40 text-[11.5px] rounded px-1.5 py-1 flex-1">
+          {Object.keys(OUTPUT_MODE_LABELS).map((v) => <option key={v} value={v}>{OUTPUT_MODE_LABELS[v]}</option>)}
+        </select>
+      </label>
+    )
+  }
+  if ('eliminateNonFinishers' in schema) {
+    rows.push(
+      <div key="eliminateNonFinishers" className="flex items-center justify-between gap-2">
+        <span className="text-[11.5px] text-zinc-300">Eliminate anyone who never finishes</span>
+        <Toggle checked={!!cfg.eliminateNonFinishers} onChange={(v) => onChange({ eliminateNonFinishers: v })} label="Eliminate non-finishers" testId={`adv-event-${idx}-eliminatenonfinishers`} />
+      </div>
+    )
+  }
+  if ('outcomeMode' in schema) {
+    rows.push(
+      <label key="outcomeMode" className="flex items-center gap-2 text-[11.5px] text-zinc-300">
+        <span className="text-zinc-500 shrink-0 w-[110px]">Correct answer</span>
+        <select value={cfg.outcomeMode || 'reveal'} onChange={(e) => onChange({ outcomeMode: e.target.value })} data-testid={`adv-event-${idx}-outcomemode`} className="bg-black/40 text-[11.5px] rounded px-1.5 py-1 flex-1">
+          {Object.keys(OUTCOME_MODE_LABELS).map((v) => <option key={v} value={v}>{OUTCOME_MODE_LABELS[v]}</option>)}
+        </select>
+      </label>
+    )
+  }
+  if ('correctOptionId' in schema && cfg.outcomeMode !== 'vote_tally') {
+    rows.push(
+      <label key="correctOptionId" className="flex items-center gap-2 text-[11.5px] text-zinc-300">
+        <span className="text-zinc-500 shrink-0 w-[110px]">Correct option</span>
+        <select value={cfg.correctOptionId || ''} onChange={(e) => onChange({ correctOptionId: e.target.value || null })} data-testid={`adv-event-${idx}-correctoption`} className="bg-black/40 text-[11.5px] rounded px-1.5 py-1 flex-1">
+          <option value="">Reveal later (leave blank for now)</option>
+          {candidates.map((c) => <option key={c.id} value={c.id}>{c.name || 'Unnamed'}</option>)}
+        </select>
+      </label>
+    )
+  }
+  if ('missingSubmissionBehavior' in schema) {
+    rows.push(
+      <label key="missingSubmissionBehavior" className="flex items-center gap-2 text-[11.5px] text-zinc-300">
+        <span className="text-zinc-500 shrink-0 w-[110px]">If someone doesn&apos;t submit</span>
+        <select value={cfg.missingSubmissionBehavior || 'eliminate'} onChange={(e) => onChange({ missingSubmissionBehavior: e.target.value })} data-testid={`adv-event-${idx}-missingbehavior`} className="bg-black/40 text-[11.5px] rounded px-1.5 py-1 flex-1">
+          {MISSING_SUBMISSION_ORDER.map((v) => <option key={v} value={v}>{MISSING_SUBMISSION_LABELS[v]}</option>)}
+        </select>
+      </label>
+    )
+  }
+  if ('defaultValue' in schema && cfg.missingSubmissionBehavior === 'default_value') {
+    rows.push(
+      <label key="defaultValue" className="flex items-center gap-2 text-[11.5px] text-zinc-300">
+        <span className="text-zinc-500 shrink-0 w-[110px]">Default value</span>
+        <input value={cfg.defaultValue ?? ''} onChange={(e) => onChange({ defaultValue: e.target.value })} data-testid={`adv-event-${idx}-defaultvalue`} className="flex-1 bg-black/40 text-[11.5px] rounded px-2 py-1 outline-none" />
+      </label>
+    )
+  }
+  if ('validValues' in schema) {
+    rows.push(
+      <div key="validValues">
+        <div className="text-[11.5px] text-zinc-300 mb-1">Valid answers (a submission must match one of these exactly)</div>
+        <StringListEditor values={cfg.validValues} onChange={(vals) => onChange({ validValues: vals })} placeholder="Accepted answer" testId={`adv-event-${idx}-validvalues`} />
+      </div>
+    )
+  }
+  if ('combineSpec' in schema) {
+    rows.push(
+      <SpecBuilder
+        key="combineSpec"
+        label="Custom way to combine answers"
+        hint="Default: every participant's answer joined in order, with no separator."
+        ops={COMBINE_OPS}
+        spec={cfg.combineSpec}
+        onChange={(v) => onChange({ combineSpec: v })}
+        testId={`adv-event-${idx}-combinespec`}
+      />
+    )
+  }
+  if ('validationSpec' in schema) {
+    rows.push(
+      <SpecBuilder
+        key="validationSpec"
+        label="Custom validity check"
+        hint="Tip: for a simple list of accepted answers, use 'Valid answers' above instead — this is for other kinds of checks."
+        ops={VALIDATION_OPS}
+        spec={cfg.validationSpec}
+        onChange={(v) => onChange({ validationSpec: v })}
+        testId={`adv-event-${idx}-validationspec`}
+      />
+    )
+  }
+  if ('comparatorSpec' in schema) {
+    rows.push(
+      <SpecBuilder
+        key="comparatorSpec"
+        label="Custom comparison"
+        hint="Default: highest numeric 'value' wins (same as Highest Score)."
+        ops={COMPARATOR_OPS}
+        spec={cfg.comparatorSpec}
+        onChange={(v) => onChange({ comparatorSpec: v })}
+        testId={`adv-event-${idx}-comparatorspec`}
+      />
+    )
+  }
+  if ('conditionMode' in schema) {
+    rows.push(
+      <label key="conditionMode" className="flex items-center gap-2 text-[11.5px] text-zinc-300">
+        <span className="text-zinc-500 shrink-0 w-[110px]">Who decides</span>
+        <select
+          value={cfg.conditionMode || '__shared__'}
+          onChange={(e) => onChange({ conditionMode: e.target.value === '__shared__' ? null : e.target.value })}
+          data-testid={`adv-event-${idx}-conditionmode`}
+          className="bg-black/40 text-[11.5px] rounded px-1.5 py-1 flex-1"
+        >
+          <option value="per_participant_pass_fail">{CONDITION_MODE_LABELS.per_participant_pass_fail}</option>
+          <option value="__shared__">{CONDITION_MODE_LABELS.__shared__}</option>
+        </select>
+      </label>
+    )
+  }
+  if ('conditionTargetIds' in schema && cfg.conditionMode === 'per_participant_pass_fail') {
+    rows.push(
+      <div key="conditionTargetIds">
+        <div className="text-[11.5px] text-zinc-300 mb-1">Only applies to (leave all unchecked = everyone eligible)</div>
+        <div className="flex flex-wrap gap-2">
+          {candidates.map((c) => {
+            const targets = Array.isArray(cfg.conditionTargetIds) ? cfg.conditionTargetIds : []
+            const checked = targets.includes(c.id)
+            return (
+              <label key={c.id} className="text-[11px] flex items-center gap-1 text-zinc-300">
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => onChange({ conditionTargetIds: checked ? targets.filter((id) => id !== c.id) : [...targets, c.id] })}
+                />
+                {c.name || 'Unnamed'}
+              </label>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+  if ('conditionSpec' in schema && cfg.conditionMode !== 'per_participant_pass_fail') {
+    rows.push(
+      <SpecBuilder
+        key="conditionSpec"
+        label="Shared elimination condition"
+        hint="Applies to everyone's submitted value at once for this round."
+        ops={CONDITION_OPS}
+        spec={cfg.conditionSpec}
+        onChange={(v) => onChange({ conditionSpec: v })}
+        testId={`adv-event-${idx}-conditionspec`}
+      />
+    )
+  }
+  if ('onTrigger' in schema) {
+    rows.push(
+      <label key="onTrigger" className="flex items-center gap-2 text-[11.5px] text-zinc-300">
+        <span className="text-zinc-500 shrink-0 w-[110px]">When triggered</span>
+        <select value={cfg.onTrigger || 'eliminate'} onChange={(e) => onChange({ onTrigger: e.target.value })} data-testid={`adv-event-${idx}-ontrigger`} className="bg-black/40 text-[11.5px] rounded px-1.5 py-1 flex-1">
+          {Object.keys(ON_TRIGGER_LABELS).map((v) => <option key={v} value={v}>{ON_TRIGGER_LABELS[v]}</option>)}
+        </select>
+      </label>
+    )
+  }
+
+  return (
+    <div className="space-y-2.5" data-testid={`adv-event-ruleconfig-${idx}`}>
+      <div className="rounded-lg bg-sky-500/10 border border-sky-500/20 px-2.5 py-2 space-y-0.5">
+        <div className="text-[10.5px] font-bold uppercase tracking-wide text-sky-300 mb-0.5">How this round is judged</div>
+        {explanation.map((line, i) => <p key={i} className="text-[11px] text-sky-100/90 leading-snug">{line}</p>)}
+      </div>
+      {rows}
+    </div>
+  )
+}
+
 export default function UniversalChallengeEditor({ open, onClose, videoFile, draft, onSave }) {
+
   const videoRef = useRef(null)
   const trackRef = useRef(null)
   const dragRef = useRef(null)
@@ -1031,7 +1498,7 @@ export default function UniversalChallengeEditor({ open, onClose, videoFile, dra
       measurementSource: 'creator_input',
       participantIds: [],
       question: '',
-      ruleConfigText: JSON.stringify(defaultRuleConfig(rule), null, 2),
+      ruleConfig: advancedDefaultRuleConfig(rule),
       // ---- Advanced Mode gap-fill (this task) — every one of these maps
       // directly onto an existing server-side primitive that normalizeEvent/
       // createUniversalChallenge (lib/universalChallengeStore.js) already
@@ -1075,7 +1542,7 @@ export default function UniversalChallengeEditor({ open, onClose, videoFile, dra
         ...e,
         options: [...(e.options || []), { id: genLocalId('opt'), label: '' }],
         rule: RULES.PREDICTION,
-        ruleConfigText: e.rule === RULES.PREDICTION ? e.ruleConfigText : JSON.stringify(defaultRuleConfig(RULES.PREDICTION), null, 2),
+        ruleConfig: e.rule === RULES.PREDICTION ? e.ruleConfig : advancedDefaultRuleConfig(RULES.PREDICTION),
       }
     : e)))
   const updateAdvEventOption = (eventId, optId, label) => setAdvEvents((list) => list.map((e) => (e.id === eventId
@@ -1156,13 +1623,11 @@ export default function UniversalChallengeEditor({ open, onClose, videoFile, dra
         return
       }
 
-      let ruleConfig = {}
-      try {
-        ruleConfig = ev.ruleConfigText ? JSON.parse(ev.ruleConfigText) : {}
-      } catch {
-        setAdvancedError("One event's ruleConfig JSON is invalid -- fix the syntax and try again.")
-        return
-      }
+      // Advanced Mode gap-fill (step 1) — `ev.ruleConfig` is now a real
+      // object built up field-by-field by <AdvancedRuleConfigFields>
+      // below, never a hand-typed JSON string, so there is no parse step
+      // (and no parse-error path) left here at all.
+      let ruleConfig = ev.ruleConfig || {}
       if (isTeamMode) {
         ruleConfig = { ...ruleConfig, outcomeMode: 'reveal', correctOptionId: ev.teamCorrectOptionId }
       }
@@ -1578,7 +2043,7 @@ export default function UniversalChallengeEditor({ open, onClose, videoFile, dra
                     <input type="number" value={ev.endTime} onChange={(e2) => updateAdvEvent(ev.id, { endTime: e2.target.value })} placeholder="End (s)" data-testid={`adv-event-end-${idx}`} className="w-20 bg-black/40 text-[11px] rounded px-1.5 py-1" />
                     <select
                       value={ev.rule}
-                      onChange={(e2) => updateAdvEvent(ev.id, { rule: e2.target.value, ruleConfigText: JSON.stringify(defaultRuleConfig(e2.target.value), null, 2) })}
+                      onChange={(e2) => updateAdvEvent(ev.id, { rule: e2.target.value, ruleConfig: advancedDefaultRuleConfig(e2.target.value) })}
                       data-testid={`adv-event-rule-${idx}`}
                       className="bg-black/40 text-[11px] rounded px-1.5 py-1"
                     >
@@ -1701,16 +2166,14 @@ export default function UniversalChallengeEditor({ open, onClose, videoFile, dra
                     </div>
                   </div>
 
-                  <div>
-                    <div className="text-[10.5px] uppercase tracking-wide text-zinc-500 mb-1">ruleConfig (JSON)</div>
-                    <textarea
-                      value={ev.ruleConfigText}
-                      onChange={(e2) => updateAdvEvent(ev.id, { ruleConfigText: e2.target.value })}
-                      rows={4}
-                      data-testid={`adv-event-ruleconfig-${idx}`}
-                      className="w-full bg-black/40 text-[11px] rounded px-2 py-1.5 font-mono leading-snug"
-                    />
-                  </div>
+                  <AdvancedRuleConfigFields
+                    idx={idx}
+                    rule={ev.rule}
+                    ruleConfig={ev.ruleConfig}
+                    event={ev}
+                    entities={advEntities}
+                    onChange={(patch) => updateAdvEvent(ev.id, { ruleConfig: { ...(ev.ruleConfig || {}), ...patch } })}
+                  />
                 </div>
               )})}
               <button onClick={addAdvEvent} data-testid="adv-event-add" className="text-[12.5px] text-rose-400 font-semibold">+ Add event</button>
