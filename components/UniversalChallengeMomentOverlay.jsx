@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import ChallengeMomentPills from './ChallengeMomentPills'
 import {
   MomentRuleBadge, MeasurementMomentView, ObjectiveMomentView, InputValidationMomentView, TwoSideChoiceMomentView,
-  RankingMomentView, TeamVsTeamMomentView, TeamAvatarStack, ProgressiveStageMomentView, ProgressiveStandingsView, OneVsAllTallyView,
+  NumericPredictionMomentView, RankingMomentView, TeamVsTeamMomentView, TeamAvatarStack, ProgressiveStageMomentView, ProgressiveStandingsView, OneVsAllTallyView,
   WinnerRevealBanner, WinnerSettledMarker, MyPredictionOutcomeMarker,
 } from './UniversalChallengeMomentViews'
 import { ruleFamily } from '@/lib/universalChallengeRuleMeta'
@@ -453,6 +453,12 @@ export default function UniversalChallengeMomentOverlay({ postId, videoRef, getV
   const isProgressive = event.participantStructure === PARTICIPANT_STRUCTURES.PROGRESSIVE_CHALLENGE
   const isOneVsAll = event.participantStructure === PARTICIPANT_STRUCTURES.ONE_VS_ALL
   const isAllVsAll = event.participantStructure === PARTICIPANT_STRUCTURES.ALL_VS_ALL
+  // STEP 3 (Advanced Mode gap-fill, numeric prediction) — additive branch,
+  // checked BEFORE the generic `family === 'vote'` dispatch below (exactly
+  // like isTeamVsTeam/isProgressive already are) since a numeric
+  // prediction has no options/participants to render as pills at all —
+  // see lib/challengeRuleEngine.js `prediction()`'s numeric branch.
+  const isNumericPrediction = event.rule === RULES.PREDICTION && event.ruleConfig?.predictionType === 'numeric'
   const groupId = event.structureMeta?.groupId || null
 
   badge = <MomentRuleBadge rule={event.rule} participantStructure={event.participantStructure} className="mb-1.5" />
@@ -564,6 +570,38 @@ export default function UniversalChallengeMomentOverlay({ postId, videoRef, getV
     )
     const progressiveStandings = computeProgressiveStandings(challenge?.events || [], challenge?.participants || [], groupId)
     summaryBody = <ProgressiveStandingsView className="mt-1.5 pointer-events-auto" standings={progressiveStandings} participantsById={participantsById} />
+  } else if (isNumericPrediction) {
+    // STEP 3 (Advanced Mode gap-fill, numeric prediction) — a numeric
+    // prediction event has NO options/participants; `event.inputs` is
+    // rehydrated for every viewer exactly like every other vote-shaped
+    // rule (see the `myVote` lookups above), so this viewer's own guess
+    // is just `event.inputs.find(i => i.userId === user.id).value` —
+    // never re-derived, purely read. Once resolved, `result.details`
+    // (see prediction()'s numeric branch in lib/challengeRuleEngine.js)
+    // carries `{ correctValue, revealed, guesses: [{userId,value,distance}] }`
+    // — this viewer's own distance is looked up from `guesses` the same
+    // way, never computed client-side (single source of truth: the
+    // engine).
+    const myInput = user ? (event.inputs || []).find((i) => i.userId === user.id) : null
+    const myGuess = myInput && myInput.value != null && Number.isFinite(Number(myInput.value)) ? Number(myInput.value) : null
+    const details = result?.details || {}
+    const revealed = resolved && !!details.revealed
+    const correctValue = revealed ? details.correctValue : null
+    const myGuessRow = revealed && user ? (details.guesses || []).find((g) => g.userId === user.id) : null
+    const distance = myGuessRow ? myGuessRow.distance : null
+    body = (
+      <NumericPredictionMomentView
+        className="max-w-[calc(100%-1rem)] pointer-events-auto"
+        question={event.question || 'Make your prediction'}
+        myGuess={myGuess}
+        closed={closed}
+        revealed={revealed}
+        correctValue={correctValue}
+        distance={distance}
+        onSubmit={(num) => castInput(event.id, { value: num })}
+        footer={authHint ? <p className="mt-1 text-[10.5px] text-amber-300">Log in to predict</p> : null}
+      />
+    )
   } else if (family === 'vote') {
     const myVote = user ? event.inputs?.find((i) => i.userId === user.id)?.optionId ?? null : null
     const hasVoted = myVote != null

@@ -794,3 +794,62 @@ preexistente de comentarios en español con paréntesis retóricos tras verifica
 bloques nuevos están balanceados). INFRA de esta sesión: `.env`/EMERGENT_LLM_KEY/usuarios de prueba
 habían desaparecido de nuevo (causa raíz recurrente) — restaurados, login real verificado 200 OK.
 Pendiente OBLIGATORIO: el usuario compila el APK y confirma visualmente los 3 fixes.
+
+
+## Ronda: Numeric Prediction (Universal Challenge Engine) — cierre del 3er gap-fill de Advanced Mode
+Contexto: auditoría previa de Emergent (commit `053c25a`) encontró que el Universal Challenge Engine
+(Entities→Participants/Teams→Events→Actions→Measurements→Conditions→Rules→States→Transitions→Rounds→
+Progression→Eliminations→Predictions→Results→Winner→Tie-break→Reveal) ya estaba ~90% construido, y
+aprobó SOLO 3 extensiones: (1) Advanced Mode schema-driven, (2) vocabulario genérico de
+validación/comparadores — ambas ya completas — y (3) Numeric Prediction ("¿Cuánto pesará? [ 75 ] kg" —
+el viewer adivina un NÚMERO, no elige una opción; se puntúa por distancia al valor real, nunca cambia
+el resultado real). El commit `e28bf45` dejó el BACKEND de (3) "completo" y el FRONTEND pendiente.
+Instrucción explícita del usuario: terminar (3) end-to-end y hacer regression testing ANTES de tocar
+cualquier otra cosa (nada de "closest guesses leaderboard" ni otras mejoras).
+
+**AUDITORÍA (antes de construir)**: se leyó `lib/challengeRuleSchema.js` (ya tenía `predictionType`/
+`correctValue` en el schema de PREDICTION), `lib/challengeRuleEngine.js` (la rama numérica de
+`prediction()` ya calculaba `{correctValue, revealed, guesses:[{userId,value,distance}]}` correctamente)
+y `lib/universalChallengeStore.js` (`castUniversalChallengeInput` ya sabía leer `{value}` en vez de
+`optionId`/`participantId` para este tipo). El backend "declarado completo" SÍ tenía la lógica de
+cálculo, pero escribiendo un script Node de verificación end-to-end (`scripts/test_numeric_prediction_e2e.mjs`,
+login real + fetch HTTP real contra la API, sin mocks) se encontraron 3 gaps reales que impedían que
+funcionara de punta a punta (ninguno mencionado en la auditoría previa):
+1. `normalizeEvent` (`universalChallengeStore.js`) rechazaba la CREACIÓN de un evento PREDICTION sin
+   `participantIds` NI `options` (`fail('no_participants_for_event')`) — una predicción numérica no
+   tiene ninguno de los dos por diseño. Fix: bypass `numericPredictionAllowed` idéntico en espíritu al
+   `optionsOnlyAllowed` que ya existía para Guess-the-Action/Two-Side-Choice.
+2. `computeEventPhase`/`hasFullParticipants` (`lib/challengeStateEngine.js`) dejaba el evento en
+   `state:'pending'` PARA SIEMPRE (nunca pasaba a active/closed/resolved sin importar cuánto avanzara
+   `currentTime`) por el mismo motivo. Fix: mismo bypass (`isNumericPrediction`).
+3. `resolveEvent()` (`lib/challengeRuleEngine.js`) devolvía `emptyVerdict(event)` (details `{}`, sin
+   `correctValue`/`revealed`/`guesses`) ANTES de llegar siquiera a la rama numérica de `prediction()`,
+   por el mismo guard `participantIds.length === 0`. Fix: mismo bypass (`numericPrediction`).
+Los 3 fixes son el MISMO bypass replicado en las 3 capas donde ya existía uno equivalente para
+"options-only prediction" — cero código nuevo de mecánica, solo cerrar un hueco de una feature que ya
+estaba aprobada y a medias. Regression: el script también verifica que una predicción CLÁSICA
+(option-based, `outcomeMode:'reveal'`) sigue funcionando exactamente igual tras estos 3 cambios.
+Resultado del script: 17/17 checks OK (creación sin participantes/opciones, cast + re-cast con upsert,
+auto-resolve al cerrar la ventana, `revealed=true`/`correctValue`/`distance` por viewer correctos,
+`event_closed` tras cerrar, regresión de predicción clásica intacta).
+
+**FRONTEND (lo que realmente faltaba, ahora construido)**:
+- `components/UniversalChallengeMomentViews.jsx` — nuevo `NumericPredictionMomentView` (mismo lenguaje
+  visual compacto `cardBase`/`pillBase` que el resto del feed, nunca tapa el vídeo): input numérico
+  editable pre-rellenado con el guess propio hasta que cierra la ronda, y al revelar muestra
+  "Actual: 80" + "You guessed 78 · off by 2" (o "You didn't predict this round" si no participó, o
+  "waiting for reveal" si cerró pero el creador no puso `correctValue`).
+- `components/UniversalChallengeMomentOverlay.jsx` (Feed real) — nueva rama `isNumericPrediction`
+  (chequeada ANTES del dispatch genérico `family==='vote'`, igual que `isTeamVsTeam`/`isProgressive`),
+  lee el guess propio de `event.inputs` (rehidratado por viewer igual que cualquier otro voto) y el
+  `distance` propio de `result.details.guesses`, nunca los calcula en cliente.
+- `components/UniversalChallengeEditor.jsx` (Advanced Mode, autoría) — nuevo selector "Viewers: Pick an
+  option / Guess a number" + campo "Correct number" (oculta "Correct answer"/"Correct option"/tie-break
+  cuando es numérico, ya que no aplican); `explainRule()` explica la mecánica numérica en lenguaje llano
+  ("their guess never changes the real value... scored by how far off it was"); preview del timeline y
+  validación de guardado (`finishAdvanced`) actualizados con el mismo bypass del punto 1 de arriba.
+- Alcance deliberadamente NO extendido a Simple Mode (la extensión aprobada fue "Advanced Mode gap-fill"
+  únicamente, igual que las otras 2); ninguna mecánica/engine/editor nuevo creado — 100% reutilización.
+INFRA de esta sesión: `.env`/`node_modules`/programa `nextjs` de supervisor habían desaparecido de nuevo
+(causa raíz recurrente, ver rondas anteriores) — restaurados, login real + seed verificados 200 OK antes
+de empezar.

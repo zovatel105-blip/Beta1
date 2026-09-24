@@ -613,6 +613,99 @@ export function TwoSideChoiceMomentView({
 }
 
 // ---------------------------------------------------------------------------
+// NUMERIC PREDICTION (additive, Advanced Mode gap-fill step 3) — the
+// viewer types a raw NUMBER guess instead of picking an option
+// ("How much will it weigh? [ __ ] kg"). Deliberately its own tiny
+// component rather than a variant of ChallengeMomentPills/
+// TwoSideChoiceMomentView: those are option-shaped (a fixed list of
+// pills), while this is a single free-form numeric field — same "compact
+// overlay, never blocks the video" visual language (`cardBase`/`pillBase`)
+// but a different control shape entirely. Mirrors
+// `lib/challengeRuleEngine.js`'s `prediction()` numeric branch and
+// `lib/universalChallengeStore.js`'s `castUniversalChallengeInput` exactly:
+//   - `myGuess` — THIS viewer's own already-cast guess (or null), read by
+//     the caller from `event.inputs` (pre-resolution) — editable via the
+//     same pre-filled input until the round closes, same "re-vote
+//     overwrites" convention every other vote-shaped rule already uses.
+//   - `revealed`/`correctValue`/`distance` — only meaningful once the
+//     creator has set `ruleConfig.correctValue` (`result.details.revealed`
+//     from the engine); a closed-but-not-yet-revealed round shows a
+//     "waiting for reveal" state instead of inventing a result.
+// Never computes a "winner" itself — purely presentational over numbers
+// the engine already resolved (or the viewer's own local draft before
+// submitting), exactly like every other view in this file.
+// ---------------------------------------------------------------------------
+export function NumericPredictionMomentView({
+  question,
+  myGuess = null,
+  closed = false,
+  revealed = false,
+  correctValue = null,
+  distance = null,
+  onSubmit,
+  footer,
+  className = '',
+}) {
+  const [draft, setDraft] = useState(myGuess != null ? String(myGuess) : '')
+  const canEdit = !closed && !!onSubmit
+  return (
+    <div className={`${cardBase} ${className}`} data-testid="numeric-prediction-moment">
+      {question && <p className="text-white text-[12px] font-semibold drop-shadow-md mb-1.5 truncate">{question}</p>}
+      {revealed ? (
+        <div className="flex flex-col gap-1">
+          <div className={`${pillBase} bg-white text-black border-white inline-flex items-center gap-1.5 w-fit`}>
+            <Trophy size={11} className="shrink-0" />
+            <span>Actual: {correctValue}</span>
+          </div>
+          {myGuess != null ? (
+            <p className="text-[11px] text-white/80">
+              You guessed <span className="font-bold text-white">{myGuess}</span>
+              {distance != null && <> · off by <span className="font-bold text-white">{distance}</span></>}
+            </p>
+          ) : (
+            <p className="text-[11px] text-white/60">You didn&apos;t predict this round.</p>
+          )}
+        </div>
+      ) : (
+        <>
+          <form
+            className="flex items-center gap-2"
+            onSubmit={(e) => {
+              e.preventDefault()
+              const num = Number(draft)
+              if (!Number.isFinite(num)) return
+              onSubmit?.(num)
+            }}
+          >
+            <input
+              type="number"
+              inputMode="decimal"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              placeholder="Your guess"
+              disabled={!canEdit}
+              data-testid="numeric-prediction-input"
+              className="flex-1 min-w-0 rounded-full bg-white/10 border border-white/20 px-3 py-1.5 text-[12.5px] text-white placeholder:text-zinc-500 focus:outline-none disabled:opacity-50"
+            />
+            {canEdit && (
+              <button type="submit" data-testid="numeric-prediction-submit" className="shrink-0 rounded-full bg-white text-black px-3 py-1.5 text-[12px] font-bold active:scale-95">
+                {myGuess != null ? 'Update' : 'Predict'}
+              </button>
+            )}
+          </form>
+          {closed && (
+            <p className="mt-1 text-[10.5px] text-amber-300">
+              {myGuess != null ? `Your guess: ${myGuess}. Waiting for the creator to reveal the answer.` : 'This round just closed.'}
+            </p>
+          )}
+        </>
+      )}
+      {footer}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // UNIVERSAL WINNER REVEAL (additive) — the generic, structure-agnostic
 // "the whole Challenge is over, here's who won" presentation. Driven by
 // `UniversalChallengeMomentOverlay.jsx`'s `computeChallengeWinnerSummary`,
@@ -705,6 +798,7 @@ export default {
   ObjectiveMomentView,
   InputValidationMomentView,
   TwoSideChoiceMomentView,
+  NumericPredictionMomentView,
   RankingMomentView,
   TeamVsTeamMomentView,
   TeamAvatarStack,

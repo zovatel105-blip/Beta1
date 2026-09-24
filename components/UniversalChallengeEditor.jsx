@@ -8,7 +8,7 @@ import {
 import ChallengeMomentPills from './ChallengeMomentPills'
 import {
   MomentRuleBadge, MeasurementMomentView, ObjectiveMomentView, InputValidationMomentView, TwoSideChoiceMomentView,
-  RankingMomentView, TeamVsTeamMomentView, ProgressiveStageMomentView,
+  NumericPredictionMomentView, RankingMomentView, TeamVsTeamMomentView, ProgressiveStageMomentView,
 } from './UniversalChallengeMomentViews'
 import { RULES } from '@/lib/challengeRuleEngine'
 import { RULE_META, RULE_ORDER, ruleFamily } from '@/lib/universalChallengeRuleMeta'
@@ -103,6 +103,12 @@ const MISSING_SUBMISSION_ORDER = ['eliminate', 'fail_round', 'default_value', 'a
 const TEAM_AGGREGATION_LABELS = { sum: 'Add up every team member\u2019s value', average: 'Average every team member\u2019s value' }
 const OUTPUT_MODE_LABELS = { winner: 'Just the winner', full_ranking: 'Full ranking (1st, 2nd, 3rd…)' }
 const OUTCOME_MODE_LABELS = { reveal: "You'll reveal the correct answer afterwards", vote_tally: 'The most-voted option wins automatically' }
+// STEP 3 (Advanced Mode gap-fill, numeric prediction) — additive label map
+// for PREDICTION's `predictionType` field (lib/challengeRuleSchema.js).
+// 'option' reproduces every PREDICTION event authored before this field
+// existed (discrete pills); 'numeric' switches the Feed's input to a
+// single free-form number field (see NumericPredictionMomentView).
+const PREDICTION_TYPE_LABELS = { option: 'Pick an option (e.g. who wins)', numeric: 'Guess a number (e.g. how much, how many)' }
 const ON_TRIGGER_LABELS = { eliminate: 'Eliminate them from the challenge', fail: 'Mark them as failed (they stay in, but lose this round)' }
 const CONDITION_MODE_LABELS = { per_participant_pass_fail: 'You mark each participant pass/fail every round', __shared__: 'A single shared condition decides for everyone at once' }
 
@@ -167,8 +173,13 @@ function explainRule(rule, ruleConfig) {
     lines.push('Winner: whoever gets more votes — they auto-advance to the next chained round.')
     lines.push(tieLine())
   } else if (rule === RULES.PREDICTION) {
-    lines.push('Viewers predict an outcome — their prediction never changes the real result.')
-    lines.push(cfg.outcomeMode === 'vote_tally' ? 'Result: the option with the most predictions wins automatically.' : 'Result: YOU reveal the correct answer afterwards.')
+    if (cfg.predictionType === 'numeric') {
+      lines.push('Viewers guess a NUMBER — their guess never changes the real value.')
+      lines.push('Result: YOU enter the real number afterwards; each guess is scored by how far off it was.')
+    } else {
+      lines.push('Viewers predict an outcome — their prediction never changes the real result.')
+      lines.push(cfg.outcomeMode === 'vote_tally' ? 'Result: the option with the most predictions wins automatically.' : 'Result: YOU reveal the correct answer afterwards.')
+    }
   } else if (rule === RULES.INPUT_VALIDATION) {
     lines.push('Compares: every participant\u2019s own submitted answer, combined into one value.')
     lines.push('Success/failure: valid → everyone passes. Invalid → everyone fails (per the missing-submission rule below).')
@@ -438,7 +449,7 @@ function AdvancedRuleConfigFields({ idx, rule, ruleConfig, event, entities, onCh
 
   const rows = []
 
-  if ('tieBreak' in schema) {
+  if ('tieBreak' in schema && cfg.predictionType !== 'numeric') {
     rows.push(
       <label key="tieBreak" className="flex items-center gap-2 text-[11.5px] text-zinc-300">
         <span className="text-zinc-500 shrink-0 w-[110px]">If there's a tie</span>
@@ -448,7 +459,7 @@ function AdvancedRuleConfigFields({ idx, rule, ruleConfig, event, entities, onCh
       </label>
     )
   }
-  if ('tieBreakWinnerId' in schema && cfg.tieBreak === 'creator_defined') {
+  if ('tieBreakWinnerId' in schema && cfg.tieBreak === 'creator_defined' && cfg.predictionType !== 'numeric') {
     rows.push(
       <label key="tieBreakWinnerId" className="flex items-center gap-2 text-[11.5px] text-zinc-300">
         <span className="text-zinc-500 shrink-0 w-[110px]">Winner if tied</span>
@@ -487,7 +498,17 @@ function AdvancedRuleConfigFields({ idx, rule, ruleConfig, event, entities, onCh
       </div>
     )
   }
-  if ('outcomeMode' in schema) {
+  if ('predictionType' in schema) {
+    rows.push(
+      <label key="predictionType" className="flex items-center gap-2 text-[11.5px] text-zinc-300">
+        <span className="text-zinc-500 shrink-0 w-[110px]">Viewers</span>
+        <select value={cfg.predictionType || 'option'} onChange={(e) => onChange({ predictionType: e.target.value })} data-testid={`adv-event-${idx}-predictiontype`} className="bg-black/40 text-[11.5px] rounded px-1.5 py-1 flex-1">
+          {Object.keys(PREDICTION_TYPE_LABELS).map((v) => <option key={v} value={v}>{PREDICTION_TYPE_LABELS[v]}</option>)}
+        </select>
+      </label>
+    )
+  }
+  if ('outcomeMode' in schema && cfg.predictionType !== 'numeric') {
     rows.push(
       <label key="outcomeMode" className="flex items-center gap-2 text-[11.5px] text-zinc-300">
         <span className="text-zinc-500 shrink-0 w-[110px]">Correct answer</span>
@@ -497,7 +518,7 @@ function AdvancedRuleConfigFields({ idx, rule, ruleConfig, event, entities, onCh
       </label>
     )
   }
-  if ('correctOptionId' in schema && cfg.outcomeMode !== 'vote_tally') {
+  if ('correctOptionId' in schema && cfg.outcomeMode !== 'vote_tally' && cfg.predictionType !== 'numeric') {
     rows.push(
       <label key="correctOptionId" className="flex items-center gap-2 text-[11.5px] text-zinc-300">
         <span className="text-zinc-500 shrink-0 w-[110px]">Correct option</span>
@@ -505,6 +526,21 @@ function AdvancedRuleConfigFields({ idx, rule, ruleConfig, event, entities, onCh
           <option value="">Reveal later (leave blank for now)</option>
           {candidates.map((c) => <option key={c.id} value={c.id}>{c.name || 'Unnamed'}</option>)}
         </select>
+      </label>
+    )
+  }
+  if ('correctValue' in schema && cfg.predictionType === 'numeric') {
+    rows.push(
+      <label key="correctValue" className="flex items-center gap-2 text-[11.5px] text-zinc-300">
+        <span className="text-zinc-500 shrink-0 w-[110px]">Correct number</span>
+        <input
+          type="number"
+          value={cfg.correctValue ?? ''}
+          onChange={(e) => onChange({ correctValue: e.target.value === '' ? null : Number(e.target.value) })}
+          placeholder="Reveal later (leave blank for now)"
+          data-testid={`adv-event-${idx}-correctvalue`}
+          className="flex-1 bg-black/40 text-[11.5px] rounded px-2 py-1 outline-none"
+        />
       </label>
     )
   }
@@ -1607,6 +1643,13 @@ export default function UniversalChallengeEditor({ open, onClose, videoFile, dra
 
       const cleanOptions = (ev.options || []).map((o) => ({ ...o, label: (o.label || '').trim() })).filter((o) => o.label)
       const hasOptions = ev.rule === RULES.PREDICTION && !isTeamMode && cleanOptions.length > 0
+      // STEP 3 (Advanced Mode gap-fill, numeric prediction) — a numeric
+      // prediction event legitimately has NEITHER options NOR
+      // participantIds (nothing to pick FROM, only a number to guess) —
+      // see the matching bypass in lib/universalChallengeStore.js
+      // castUniversalChallengeInput. Must be exempted from the "needs at
+      // least one entity/chain/options/teams" check below.
+      const isNumericPredictionEvent = ev.rule === RULES.PREDICTION && ev.ruleConfig?.predictionType === 'numeric'
 
       const autoAdvanceFrom = isTeamMode ? [] : (Array.isArray(ev.autoAdvanceFrom) ? ev.autoAdvanceFrom.filter((id) => advEventIds.has(id)) : [])
       for (const srcId of autoAdvanceFrom) {
@@ -1618,7 +1661,7 @@ export default function UniversalChallengeEditor({ open, onClose, videoFile, dra
       }
 
       const hasChain = autoAdvanceFrom.length > 0
-      if (!isTeamMode && !hasChain && !hasOptions && ev.participantIds.length === 0) {
+      if (!isTeamMode && !isNumericPredictionEvent && !hasChain && !hasOptions && ev.participantIds.length === 0) {
         setAdvancedError('Every event needs at least one entity selected, a chained source event, free-text options, or two teams.')
         return
       }
@@ -1691,6 +1734,13 @@ export default function UniversalChallengeEditor({ open, onClose, videoFile, dra
   // authoring time, before the Challenge is even saved), so every family
   // below is always shown in its "nothing submitted yet" read-only state.
   const previewFamily = activeEvent ? ruleFamily(activeEvent.rule) : null
+  // STEP 3 (Advanced Mode gap-fill, numeric prediction) — a numeric
+  // prediction event has no options/participants to render as pills (see
+  // isNumericPrediction in UniversalChallengeMomentOverlay.jsx for the
+  // live Feed equivalent of this same check) — checked first so it never
+  // falls through to the generic vote-pills preview below, which would
+  // otherwise render an empty pill row.
+  const isNumericPredictionPreview = !!activeEvent && activeEvent.rule === RULES.PREDICTION && activeEvent.ruleConfig?.predictionType === 'numeric'
   // 'custom' for GUESS_THE_ACTION / TWO_SIDE_CHOICE / MAJORITY_CHOICE (vote
   // options are the creator's own free-text event.options, not
   // participants); null/'participants' for everything else — unchanged.
@@ -1745,14 +1795,20 @@ export default function UniversalChallengeEditor({ open, onClose, videoFile, dra
             {activeEvent && (
               <div className="absolute inset-x-0 bottom-0 p-3 pointer-events-none z-10" data-testid="universal-challenge-preview-overlay">
                 <MomentRuleBadge rule={activeEvent.rule} participantStructure={activeEvent.participantStructure} className="mb-1.5" />
-                {previewFamily === 'vote' && previewOptionSource === 'custom' && activeEvent.participantStructure === PARTICIPANT_STRUCTURES.TWO_SIDE_CHOICE && (
+                {isNumericPredictionPreview && (
+                  <NumericPredictionMomentView
+                    className="max-w-[calc(100%-0.5rem)]"
+                    question={activeEvent.question || 'Round in progress…'}
+                  />
+                )}
+                {previewFamily === 'vote' && !isNumericPredictionPreview && previewOptionSource === 'custom' && activeEvent.participantStructure === PARTICIPANT_STRUCTURES.TWO_SIDE_CHOICE && (
                   <TwoSideChoiceMomentView
                     className="max-w-[calc(100%-0.5rem)]"
                     question={activeEvent.question || 'Round in progress…'}
                     options={previewCustomOptions}
                   />
                 )}
-                {previewFamily === 'vote' && previewOptionSource === 'custom' && activeEvent.participantStructure !== PARTICIPANT_STRUCTURES.TWO_SIDE_CHOICE && (
+                {previewFamily === 'vote' && !isNumericPredictionPreview && previewOptionSource === 'custom' && activeEvent.participantStructure !== PARTICIPANT_STRUCTURES.TWO_SIDE_CHOICE && (
                   <ChallengeMomentPills
                     className="max-w-[calc(100%-0.5rem)]"
                     question={activeEvent.question || 'Round in progress…'}
@@ -1760,7 +1816,7 @@ export default function UniversalChallengeEditor({ open, onClose, videoFile, dra
                     getLabel={(o) => o.label}
                   />
                 )}
-                {previewFamily === 'vote' && previewOptionSource !== 'custom' && activeEvent.participantStructure !== PARTICIPANT_STRUCTURES.TEAM_VS_TEAM && (
+                {previewFamily === 'vote' && !isNumericPredictionPreview && previewOptionSource !== 'custom' && activeEvent.participantStructure !== PARTICIPANT_STRUCTURES.TEAM_VS_TEAM && (
                   <ChallengeMomentPills
                     className="max-w-[calc(100%-0.5rem)]"
                     question={activeEvent.question || 'Round in progress…'}
