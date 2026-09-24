@@ -1,5 +1,13 @@
 # Twyk — PRD / Registro de progreso
 
+## Ronda actual — Modales del editor Challenge (guardado a petición del usuario)
+- Petición: Moments, Prediction, Participants, Rules y Result como modales oscuros, iconos representativos y contenido bien estructurado. Usuario reiteró NO usar testing agent y pidió guardar/resumir antes de terminar toda la revisión.
+- Implementado: `ChallengeToolPanels.jsx`, conectado desde `UniversalChallengeAdvancedWizard.jsx`; estilos en `ChallengeEditor.module.css`. Formatos/participantes/asignaciones por secciones, momentos con tiempos y CTA visible, predicción numérica clara, ajustes avanzados plegables, Rules y Result separados sobre el mismo resultConfig, header/footer fijos, cierre/volver, captura de foco y pausa del vídeo conservando posición. Sin cambios del motor ni APIs.
+- Comprobado directamente con navegador (sin testing agent): apertura de Moments/Participants/Rules/Prediction; dimensiones 390x544 en viewport móvil 390x800, iconos y fondos oscuros, añadir/nombre de participante, valor numérico/pregunta, campos irrelevantes ocultos, cierre con Done/X y retorno de foco a Participants/Prediction. Compilación JSX mediante Next SWC correcta.
+- PENDIENTE: completar Result con datos, guardar/reabrir borrador, comprobación de Escape tras cerrar selector (la revisión se detuvo con selector abierto), backdrop y build de producción. No se declara validación integral ni persistencia verificada. No se usó testing agent.
+- Preview restaurado instalando dependencias y configuración mínima Mongo documentada. Next.js usa programa supervisor `nextjs`, configuración persistida en `/app/nextjs.supervisor.conf`; plantilla readonly intacta. Se creó cuenta temporal `modal_editor_review` para revisión real, sin publicar contenido. Capturas en `/app/test_reports/challenge-*.jpg`.
+
+
 ## Ronda: página de creación nativa — solo "Post" y "Direct" (paridad con la web)
 Usuario: "Quiero que en la aplicacion nativa en la pagina de creacion solo aparezca post y direct
 como en la web". La web (`UploadDialog.jsx`) ya solo muestra 2 botones en el selector de modo

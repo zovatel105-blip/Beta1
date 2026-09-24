@@ -1,14 +1,18 @@
 [
   {
-    "content": "Convertir las herramientas en modales inferiores con cierre, fondo atenuado e iconos específicos",
-    "status": "in_progress"
+    "content": "Revisar el editor de challenge y definir la estructura de sus cinco modales",
+    "status": "completed"
   },
   {
-    "content": "Mejorar la organización de los ajustes y separar las vistas globales de Reglas y Resultado",
-    "status": "pending"
+    "content": "Implementar modales claros, iconos representativos y adaptación móvil",
+    "status": "completed"
   },
   {
-    "content": "Verificar los modales y la conservación del borrador sin revisar funciones ajenas",
-    "status": "pending"
+    "content": "Restablecer el servidor de vista previa para verificar el editor",
+    "status": "completed"
+  },
+  {
+    "content": "Completar la revisión del borrador y los cierres de modal — pausado a petición del usuario",
+    "status": "cancelled"
   }
 ]

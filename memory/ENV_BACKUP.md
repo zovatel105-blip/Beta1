@@ -1,5 +1,5 @@
 ## ✅ SESIÓN ACTUAL: .env RECREADO (patrón recurrente de siempre)
-NEXT_PUBLIC_BASE_URL=https://tip-challenge-system.preview.emergentagent.com
+NEXT_PUBLIC_BASE_URL=https://modal-editor-design.preview.emergentagent.com
 /app había perdido TODO salvo .git (todos los archivos "staged for deletion",
 working tree vacío) -> restaurado con `git reset --hard HEAD`. node_modules y
 .bin/ffmpeg+ffprobe SÍ seguían presentes (no hizo falta yarn install). .env
@@ -73,8 +73,8 @@ que el webhook nuevo otorgue créditos tras un checkout completado de verdad.
 ```
 MONGO_URL=mongodb://localhost:27017/twyk
 ADMIN_EMAILS=twyk.apk@gmail.com
-NEXT_PUBLIC_BASE_URL=https://tip-challenge-system.preview.emergentagent.com
-CORS_ORIGINS=https://tip-challenge-system.preview.emergentagent.com
+NEXT_PUBLIC_BASE_URL=https://modal-editor-design.preview.emergentagent.com
+CORS_ORIGINS=https://modal-editor-design.preview.emergentagent.com
 FIREBASE_PROJECT_ID=
 FIREBASE_CLIENT_EMAIL=
 FIREBASE_PRIVATE_KEY=
@@ -166,7 +166,7 @@ después de que Next.js haga su propio "Reload env: .env" (log de supervisor),
 o preguntar al usuario cuál es la URL que ve en su navegador.
 
 ## Última URL usada (actualizada automáticamente al restaurar)
-NEXT_PUBLIC_BASE_URL=https://tip-challenge-system.preview.emergentagent.com
+NEXT_PUBLIC_BASE_URL=https://modal-editor-design.preview.emergentagent.com
 (Sesión posterior: el usuario compartió AGNES_API_KEY -sk-EuMIognaqzJHkqzPuoGt9pYTztegnTWu29Dgz9Tp45nWdIZ0, igual
 a la de sesiones anteriores- y NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY -pk_test_51U93y6...-, ambas añadidas a
 `.env` y verificadas: AGNES probado end-to-end con una foto real -> 200 OK, provider=agnes. También se
@@ -211,7 +211,7 @@ los necesita de nuevo. Base de datos re-sembrada con `node scripts/seed-core-use
 usuario ("no usar el testing agent"), NO se invocó ningún agente de testing en esta ronda.
 
 ## Sesión anterior
-NEXT_PUBLIC_BASE_URL=https://tip-challenge-system.preview.emergentagent.com
+NEXT_PUBLIC_BASE_URL=https://modal-editor-design.preview.emergentagent.com
 (.env RECREADO en esta nueva sesión — mismo patrón recurrente de siempre: /app había perdido
 TODO salvo .git [restaurado con `git reset --hard origin/main`, ya que `refs/heads/master` local
 no tenía commits pero `refs/heads/main`/`origin/main` sí]. `.env` no existía [gitignored].
@@ -226,7 +226,7 @@ login real (POST /api/auth/login, twyk/Admin12345) -> 200 OK y GET /api/feed -> 
 petición explícita del usuario, NO se invocó el agente de testing en esta ronda.
 
 ## Sesión anterior
-NEXT_PUBLIC_BASE_URL=https://tip-challenge-system.preview.emergentagent.com
+NEXT_PUBLIC_BASE_URL=https://modal-editor-design.preview.emergentagent.com
 (.env RECREADO otra vez en esta nueva sesión — mismo patrón recurrente: /app
 había perdido TODO salvo .git [`git reset --hard origin/main` restauró el
 working tree]. .env no existía [gitignored, como siempre]. Recreado con
@@ -239,7 +239,7 @@ node scripts/seed-core-users.mjs. memory/test_credentials.md recreado.
 Verificado con login real (POST /api/auth/login, twyk/Admin12345) -> 200 OK.
 
 ## Sesión anterior
-NEXT_PUBLIC_BASE_URL=https://tip-challenge-system.preview.emergentagent.com
+NEXT_PUBLIC_BASE_URL=https://modal-editor-design.preview.emergentagent.com
 (.env RECREADO en esta nueva sesión — esta vez la pérdida fue TOTAL: todo
 `/app` había vuelto al último commit de git vía `git reset --hard HEAD`
 [el working tree estaba vacío salvo `.git`, con TODOS los archivos
@@ -257,7 +257,7 @@ node scripts/seed-core-users.mjs (twyk/lucia/marcos/laura + follows básicos).
 memory/test_credentials.md recreado.
 
 ## Sesión anterior
-NEXT_PUBLIC_BASE_URL=https://tip-challenge-system.preview.emergentagent.com
+NEXT_PUBLIC_BASE_URL=https://modal-editor-design.preview.emergentagent.com
 (.env RECREADO otra vez en esta nueva sesión — mismo patrón recurrente: /app/.env
 no existía [MONGO_URL undefined, login daba 500], se recreó con MONGO_URL/
 ADMIN_EMAILS/CORS_ORIGINS apuntando a la URL de arriba [tomada de APP_URL en
@@ -272,7 +272,7 @@ de lucia, para verificar visualmente el nuevo botón de corazón ❤️ — ante
 🔥 Fire — en OpenChallengeSlide.jsx). memory/test_credentials.md recreado.
 
 ## Sesión anterior (URL heart-reaction-swap.preview.emergentagent.com)
-NEXT_PUBLIC_BASE_URL=https://tip-challenge-system.preview.emergentagent.com
+NEXT_PUBLIC_BASE_URL=https://modal-editor-design.preview.emergentagent.com
 (.env RECREADO en esta nueva sesión, tras un reinicio de pod que dejó /app/.env
 inexistente y MongoDB vacía — misma causa raíz recurrente de siempre.
 MONGO_URL/ADMIN_EMAILS/CORS_ORIGINS con esta misma URL nueva; FIREBASE_* vacíos
