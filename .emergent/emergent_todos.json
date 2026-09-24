@@ -1,42 +1,14 @@
 [
   {
-    "content": "Audit: read lib/universalChallengeStore.js (persistence layer)",
-    "status": "completed"
-  },
-  {
-    "content": "Audit: read lib/challengeStateEngine.js (state/progression engine)",
-    "status": "completed"
-  },
-  {
-    "content": "Audit: read lib/universalChallengeParticipantStructures.js (structures: One vs All, Team vs Team, etc.)",
-    "status": "completed"
-  },
-  {
-    "content": "Audit: read components/UniversalChallengeEditor.jsx (Simple + Advanced editor)",
-    "status": "completed"
-  },
-  {
-    "content": "Audit: read components/UniversalChallengeMomentOverlay.jsx (feed presentation layer)",
-    "status": "completed"
-  },
-  {
-    "content": "Audit: read legacy lib/challengeMechanics.js + challengeEngineStore.js (old poll engine) to confirm no overlap",
-    "status": "completed"
-  },
-  {
-    "content": "Audit: grep route.js for universal-challenge API endpoints + DB collections used",
-    "status": "completed"
-  },
-  {
-    "content": "Audit: check validation system, tie-break, prediction/result separation, versioning support",
-    "status": "completed"
-  },
-  {
-    "content": "Produce full audit report table + classification (KEEP/EXTEND/REFACTOR/CREATE/REMOVE)",
-    "status": "completed"
-  },
-  {
-    "content": "Ask user which gaps to prioritize before implementing anything",
+    "content": "Convertir las herramientas en modales inferiores con cierre, fondo atenuado e iconos específicos",
     "status": "in_progress"
+  },
+  {
+    "content": "Mejorar la organización de los ajustes y separar las vistas globales de Reglas y Resultado",
+    "status": "pending"
+  },
+  {
+    "content": "Verificar los modales y la conservación del borrador sin revisar funciones ajenas",
+    "status": "pending"
   }
 ]

@@ -27,9 +27,9 @@ const DrawerOverlay = React.forwardRef(({ className, ...props }, ref) => (
 ))
 DrawerOverlay.displayName = DrawerPrimitive.Overlay.displayName
 
-const DrawerContent = React.forwardRef(({ className, children, ...props }, ref) => (
+const DrawerContent = React.forwardRef(({ className, children, overlayProps, handleClassName, handleProps, ...props }, ref) => (
   <DrawerPortal>
-    <DrawerOverlay />
+    <DrawerOverlay {...overlayProps} />
     <DrawerPrimitive.Content
       ref={ref}
       className={cn(
@@ -37,7 +37,7 @@ const DrawerContent = React.forwardRef(({ className, children, ...props }, ref) 
         className
       )}
       {...props}>
-      <div className="mx-auto mt-4 h-2 w-[100px] rounded-full bg-muted" />
+      <div className={cn("mx-auto mt-4 h-2 w-[100px] rounded-full bg-muted", handleClassName)} {...handleProps} />
       {children}
     </DrawerPrimitive.Content>
   </DrawerPortal>

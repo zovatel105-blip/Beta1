@@ -6,7 +6,7 @@ import { ChevronRight, Loader2, Film, Swords, Users, Rows2, Columns2, ArrowLeft,
 import Avatar from './Avatar'
 import MusicPicker from './MusicPicker'
 import ChallengeTimelineEditor from './ChallengeTimelineEditor'
-import UniversalChallengeEditor from './UniversalChallengeEditor'
+import UniversalChallengeAdvancedWizard from './UniversalChallengeAdvancedWizard'
 import AIImageEditor from './AIImageEditor'
 import AIVideoEditor from './AIVideoEditor'
 import { addPendingUpload, updateUploadProgress, removePendingUpload, markUploadFailed } from '@/lib/uploadQueue'
@@ -475,6 +475,10 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
               entities: universalChallengeDraft.entities,
               groups: universalChallengeDraft.groups,
               events: universalChallengeDraft.events,
+              // Challenge-level Rules & Result (additive) — optional; a
+              // draft authored before this existed simply omits it, exactly
+              // as before this field existed.
+              resultConfig: universalChallengeDraft.resultConfig,
             }),
           }).catch(() => {})
         }
@@ -1216,7 +1220,7 @@ export default function UploadDialog({ open, initialMode, luxuryTheme, onClose, 
         moments={challengeMoments}
         onSave={setChallengeMoments}
       />
-      <UniversalChallengeEditor
+      <UniversalChallengeAdvancedWizard
         open={universalChallengeEditorOpen}
         onClose={() => setUniversalChallengeEditorOpen(false)}
         videoFile={file}

@@ -123,7 +123,7 @@ const CONDITION_MODE_LABELS = { per_participant_pass_fail: 'You mark each partic
 // normalizeRuleConfigFromSchema alone would NOT give it, since the schema
 // default for validValues is `undefined`). Advanced Mode replicates that
 // one small UX convenience locally instead of touching the shared helper.
-function advancedDefaultRuleConfig(rule) {
+export function advancedDefaultRuleConfig(rule) {
   const base = normalizeRuleConfigFromSchema(rule, {})
   if (rule === RULES.INPUT_VALIDATION) return { ...base, validValues: [] }
   // RULE_SCHEMA's own default for `conditionMode` is `null` (a code-only
@@ -142,7 +142,7 @@ function advancedDefaultRuleConfig(rule) {
 // rendered above that event's fields so a creator never has to infer this
 // from field names alone. Every line maps directly to a real code path in
 // lib/challengeRuleEngine.js — nothing here is aspirational/unimplemented.
-function explainRule(rule, ruleConfig) {
+export function explainRule(rule, ruleConfig) {
   const cfg = ruleConfig || {}
   const lines = []
   const tieLine = () => (cfg.tieBreak === 'creator_defined' ? "Ties: you'll pick the winner yourself." : 'Ties: resolved randomly.')
@@ -234,7 +234,7 @@ function usesTieBreak(rule) {
 // Icon-up / label-down bottom action button — same pattern already proven
 // in ChallengeTimelineEditor's ActionButton (kept local/duplicated rather
 // than imported so this file has zero coupling to the legacy editor).
-function ActionButton({ icon, label, onClick, danger, accent, disabled, testId }) {
+export function ActionButton({ icon, label, onClick, danger, accent, disabled, testId }) {
   return (
     <button
       type="button"
@@ -259,7 +259,7 @@ function ActionButton({ icon, label, onClick, danger, accent, disabled, testId }
   )
 }
 
-function Toggle({ checked, onChange, label, testId }) {
+export function Toggle({ checked, onChange, label, testId }) {
   return (
     <button
       type="button"
@@ -275,7 +275,7 @@ function Toggle({ checked, onChange, label, testId }) {
   )
 }
 
-function Chip({ selected, onClick, children, testId }) {
+export function Chip({ selected, onClick, children, testId }) {
   return (
     <button
       type="button"
@@ -433,7 +433,7 @@ function SpecBuilder({ label, hint, ops, spec, onChange, testId }) {
 // second legal value to pick today, so a control for it would just be
 // noise). Nothing here can express a ruleConfig shape the engine doesn't
 // already support — nothing is invented, only exposed.
-function AdvancedRuleConfigFields({ idx, rule, ruleConfig, event, entities, onChange }) {
+export function AdvancedRuleConfigFields({ idx, rule, ruleConfig, event, entities, onChange }) {
   const cfg = ruleConfig || {}
   const schema = fieldSchemaForRule(rule)
   const explanation = explainRule(rule, cfg)

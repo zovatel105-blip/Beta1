@@ -119,6 +119,9 @@ async function handleCreate(postId, request) {
       // still works unchanged (see lib/universalChallengeStore.js).
       entities: body.entities,
       groups: body.groups,
+      // Challenge-level Rules & Result (additive) — optional; omitted ->
+      // no aggregate summary, byte-identical to before this field existed.
+      resultConfig: body.resultConfig,
     })
     return NextResponse.json({ ok: true, challenge })
   } catch (err) {
